@@ -319,11 +319,7 @@ import json
 
 
 def obtener_top_matchups_sin_guia(limite=10):
-    """
-    Lee matchups_stats.json y devuelve los matchups SIN GUÍA agrupados por rol.
-    Cada rol tendrá como máximo 'limite' matchups, ordenados por cantidad de partidas.
-    Retorna un diccionario: {"Top": [...], "Jungle": [...], ...}
-    """
+
     ruta_json = "matchups_stats.json"
     if not os.path.exists(ruta_json):
         return {}
@@ -356,12 +352,9 @@ def obtener_top_matchups_sin_guia(limite=10):
                 c_main_title = champ_main.title()
                 c_enemy_title = champ_enemy.title()
 
-                # El campeón que va primero alfabéticamente SIEMPRE será main,
-                # para que siempre se sumen correctamente sin importar cómo vengan en el JSON.
                 if c_main_title > c_enemy_title:
                     c_main_title, c_enemy_title = c_enemy_title, c_main_title
-                    # Si le dimos la vuelta, invertimos victorias/derrotas para que
-                    # w y l sigan siendo del 'main' (aunque aquí sumamos totales, así que da un poco igual)
+
                     wins = resultados.get("losses", 0)
                     losses = resultados.get("wins", 0)
                 else:

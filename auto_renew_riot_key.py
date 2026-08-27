@@ -1,12 +1,35 @@
 import os
 import re
-import smtplib
-from email.mime.text import MIMEText
+import time
+import random
 from dotenv import load_dotenv, set_key
+from playwright_stealth import stealth_sync
 from playwright.sync_api import sync_playwright
 
-ENV_PATH = ".env"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_PATH = os.path.join(BASE_DIR, ".env")
 CHROME_PROFILE_PATH = os.path.join(os.path.expanduser("~"), "riot_bot_profile")
+
+
+def calentar_perfil(page):
+    """Simula comportamiento humano visitando webs aleatorias."""
+    sitios = [
+        "https://es.wikipedia.org/wiki/League_of_Legends",
+        "https://www.youtube.com/results?search_query=lol+esports",
+        "https://www.reddit.com/r/leagueoflegends/",
+        "https://lolesports.com/",
+    ]
+
+    # Visita 2 sitios al azar
+    for sitio in random.sample(sitios, 2):
+        try:
+            page.goto(sitio, wait_until="domcontentloaded", timeout=15000)
+            # Simula lectura con scroll aleatorio
+            for _ in range(random.randint(3, 6)):
+                page.mouse.wheel(0, random.randint(300, 700))
+                time.sleep(random.uniform(1.5, 4.5))
+        except Exception:
+            pass  # Si una web falla al cargar, la ignoramos y seguimos
 
 
 def parse_remaining_minutes(text):
@@ -23,51 +46,41 @@ def parse_remaining_minutes(text):
     return 9999
 
 
-def send_error_email(email_to, error_msg):
-    """Envía un correo de alerta mediante la contraseña de aplicación de Outlook."""
-    email_pass = os.getenv("EMAIL_PASS")
-    if not email_pass:
-        print("⚠️ No se puede enviar el correo porque falta EMAIL_PASS en el .env")
-        return
-
-    msg = MIMEText(f"Error al intentar renovar la RIOT_API_KEY:\n\n{error_msg}")
-    msg["Subject"] = "🚨 Error crítico: Renovación API Key Riot"
-    msg["From"] = email_to
-    msg["To"] = email_to
-
-    try:
-        with smtplib.SMTP("smtp.office365.com", 587) as server:
-            server.starttls()
-            server.login(email_to, email_pass)
-            server.send_message(msg)
-        print("📧 Correo de alerta enviado correctamente.")
-    except Exception as e:
-        print(f"Error al enviar el email: {e}")
-
-
 def run(api_event=None):
-    """Ejecuta la comprobación y renovación automática de la API Key.
-    Devuelve una tupla: (nueva_llave, minutos_restantes)
-    """
+    """Ejecuta la comprobación y renovación automática de la API Key."""
     load_dotenv(ENV_PATH)
-    email_user = os.getenv("EMAIL_USER")
 
     try:
         with sync_playwright() as p:
-            context = p.chromium.launch_persistent_context(
-                user_data_dir=CHROME_PROFILE_PATH,
-                channel="chrome",
-                headless=False,
-                ignore_default_args=["--enable-automation"],
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--start-maximized",
-                ],
-                permissions=["clipboard-read", "clipboard-write"],
-            )
+            try:
+                context = p.chromium.launch_persistent_context(
+                    user_data_dir=CHROME_PROFILE_PATH,
+                    channel="chrome",
+                    headless=False,
+                    ignore_default_args=["--enable-automation"],
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--start-maximized",
+                    ],
+                    permissions=["clipboard-read", "clipboard-write"],
+                )
+            except Exception as ctx_err:
+                error_str = str(ctx_err).lower()
+                if "lock" in error_str or "in use" in error_str:
+                    print(
+                        "\n[RENOVADOR] ❌ ERROR CRÍTICO: El perfil de Chrome está bloqueado."
+                    )
+                    print(
+                        "[RENOVADOR] 💡 Causa probable 1: Tienes una ventana de Chrome abierta usando este perfil."
+                    )
+                    print(
+                        "[RENOVADOR] 💡 Causa probable 2: OneDrive u otro proceso ha bloqueado la carpeta."
+                    )
+                raise ctx_err
 
             page = context.pages[0] if context.pages else context.new_page()
+            stealth_sync(page)
             page.add_init_script(
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
@@ -82,9 +95,7 @@ def run(api_event=None):
                 logged_in = False
 
             if not logged_in:
-                print(
-                    "⚠️ [BOT] No se detectó sesión. Inicia sesión en la ventana de Chrome..."
-                )
+                print("⚠️ [BOT] No se detectó sesión. Intentando iniciar sesión...")
                 try:
                     login_btn = page.locator(
                         "a:has-text('LOG IN'), a:has-text('Log In')"
@@ -93,15 +104,15 @@ def run(api_event=None):
                         login_btn.click()
                 except Exception:
                     pass
-
                 page.wait_for_selector("p:has-text('Expires:')", timeout=120000)
 
             expiration_locator = page.locator("p:has-text('Expires:')")
             expiration_text = expiration_locator.inner_text()
-
             minutes_left = parse_remaining_minutes(expiration_text)
+
             print(f"[RENOVADOR] Tiempo restante de la API Key: {minutes_left} minutos.")
 
+            # NUEVA LÓGICA: Renovar si faltan menos de 30 minutos
             if minutes_left < 30:
                 print(
                     "[RENOVADOR] ⚠️ Faltan menos de 30 minutos. Pausando peticiones y renovando..."
@@ -111,53 +122,86 @@ def run(api_event=None):
                     api_event.clear()
 
                 try:
-                    try:
-                        captcha_frame = page.frame_locator(
-                            'iframe[title*="reCAPTCHA"], iframe[src*="recaptcha"]'
+                    captcha_frame = page.frame_locator(
+                        'iframe[title="reCAPTCHA"]'
+                    ).first
+                    captcha_checkbox = captcha_frame.locator("#recaptcha-anchor")
+
+                    if captcha_checkbox.is_visible(timeout=5000):
+                        captcha_checkbox.click()
+                        print(
+                            "[RENOVADOR] 🤖 Clic en el reCAPTCHA realizado. Comprobando validación..."
                         )
-                        captcha_checkbox = captcha_frame.locator(
-                            ".recaptcha-checkbox-border, #recaptcha-anchor"
+
+                        try:
+                            captcha_frame.locator(
+                                '#recaptcha-anchor[aria-checked="true"]'
+                            ).wait_for(timeout=5000)
+                            print("[RENOVADOR] ✅ reCAPTCHA superado automáticamente.")
+                        except Exception:
+                            print(
+                                "⚠️ [ATENCIÓN] El reCAPTCHA pide resolver imágenes. Tienes 45s para hacerlo manualmente."
+                            )
+                            captcha_frame.locator(
+                                '#recaptcha-anchor[aria-checked="true"]'
+                            ).wait_for(timeout=45000)
+                            print("[RENOVADOR] ✅ reCAPTCHA resuelto con éxito.")
+
+                    print("[RENOVADOR] 🔄 Haciendo clic en Regenerar...")
+                    page.locator("input[name='confirm_action']").first.click()
+                    page.wait_for_load_state("networkidle")
+                    page.wait_for_timeout(3000)
+
+                    print("[RENOVADOR] 📋 Extrayendo la nueva llave del DOM...")
+                    page.wait_for_selector("#apikey", state="visible", timeout=15000)
+                    new_key = page.locator("#apikey").get_attribute("value")
+
+                    if not new_key:
+                        raise Exception(
+                            "No se pudo extraer el atributo 'value' del input #apikey."
                         )
-                        if captcha_checkbox.is_visible(timeout=3000):
-                            captcha_checkbox.click()
-                            page.wait_for_timeout(3000)
-                    except Exception:
-                        pass
-
-                    page.locator(
-                        "input[value='REGENERATE API KEY'], button:has-text('REGENERATE API KEY')"
-                    ).click()
-                    page.wait_for_timeout(2000)
-
-                    key_input = page.locator("#development-api-key, input[readonly]")
-                    new_key = None
-                    if key_input.is_visible(timeout=3000):
-                        new_key = key_input.input_value()
-
-                    if not new_key or not new_key.startswith("RGAPI-"):
-                        page.locator("button:has-text('Copy')").click()
-                        new_key = page.evaluate("navigator.clipboard.readText()")
 
                     if new_key and new_key.startswith("RGAPI-"):
-                        set_key(ENV_PATH, "RIOT_API_KEY", new_key)
-                        print(
-                            "[RENOVADOR] ✅ Nueva RIOT_API_KEY generada y guardada en .env."
-                        )
+                        try:
+                            set_key(ENV_PATH, "RIOT_API_KEY", new_key)
+                            print(
+                                "[RENOVADOR] ✅ Nueva RIOT_API_KEY generada y guardada en .env."
+                            )
+                        except Exception as write_err:
+                            print(
+                                f"\n[RENOVADOR] ❌ ERROR INESPERADO AL GUARDAR EL .env: {write_err}"
+                            )
+                            raise write_err
+
                         context.close()
                         return new_key, 1440
                     else:
-                        raise Exception("No se pudo extraer la clave generada.")
+                        raise Exception(
+                            f"No se pudo extraer la clave generada. Extracción devolvió: {new_key}"
+                        )
+
                 except Exception as ex:
                     if api_event:
                         api_event.set()
                     raise ex
 
-            context.close()
-            return None, minutes_left
+            else:
+                print(
+                    f"[RENOVADOR] ☕ Sobran 30 minutos o más. Calentando perfil para generar confianza..."
+                )
+                calentar_perfil(page)
+
+                minutos_objetivo = random.randint(22, 28)
+                espera_real = max(1, minutes_left - minutos_objetivo)
+
+                tiempo_falso_espera = espera_real + 32
+
+                print(
+                    f"[RENOVADOR] ℹ️ Navegador cerrado. Siguiente revisión programada en aprox {espera_real} min reales."
+                )
+                context.close()
+                return None, tiempo_falso_espera
 
     except Exception as e:
-        error_msg = str(e)
-        print(f"[RENOVADOR] ❌ Error: {error_msg}")
-        if email_user:
-            send_error_email(email_user, error_msg)
+        print(f"[RENOVADOR] ❌ Error general: {str(e)}")
         raise e

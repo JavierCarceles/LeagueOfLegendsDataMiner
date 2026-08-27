@@ -5,19 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Draft & Match Analyzer</title>
     <link rel="stylesheet" href="/static/styles.css?v=20260822-fix" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   </head>
   <body
     class="bg-slate-950 text-slate-300 min-h-screen font-sans selection:bg-indigo-500/30 p-4 md:p-8"
   >
     <header class="header-principal">
-  <h1 id="main-title">Tempu Drafter</h1>
-  
-  <div id="console-container">
-    <ul id="frontend-console">
-      <!-- Los logs del JS irán apareciendo aquí -->
-    </ul>
-  </div>
-</header>
+      <h1 id="main-title">Tempu Drafter</h1>
+
+      <div id="console-container">
+        <ul id="frontend-console">
+          <!-- Los logs del JS irán apareciendo aquí -->
+        </ul>
+      </div>
+    </header>
 
     <!-- DATALISTS PARA AUTOCOMPLETADO -->
     <datalist id="lista-TOP"></datalist>
@@ -996,7 +997,6 @@
           `Lado detectado: "${targetSide}" -> ¿Es aliado?: ${isAllied}`,
         );
 
-        // 🔥 1. LOG CRÍTICO: Ver qué manda el backend
         console.log(`[DEBUG] Datos puros recibidos del backend:`, data);
 
         const todosMatchups = [
@@ -1007,7 +1007,6 @@
           .map((m) => ({ name: m.campeon, w: m.wins, l: m.losses, ...m }))
           .filter(Boolean);
 
-        // 🔥 2. LOG: Ver si antes de limpiar ya falta Ezreal en Kai'Sa
         console.log(
           `[DEBUG] Array combinado (antes de limpiar duplicados):`,
           todosMatchups,
@@ -1025,7 +1024,6 @@
         });
         const listaUnica = Array.from(unicosMap.values());
 
-        // 🔥 3. LOG: Ver la lista final única
         console.log(`[DEBUG] Lista única resultante:`, listaUnica);
 
         if (listaUnica.length === 0) {
@@ -1069,11 +1067,11 @@
           : "linear-gradient(to right, rgba(127, 29, 29, 0.25), rgba(30, 41, 59, 1) 50%, rgba(20, 83, 45, 0.25))";
 
         let html = `
-    <div class="bg-gray-900 border-b border-gray-700 px-2 py-1.5 flex justify-between sug-header-title uppercase font-bold text-gray-400">
-        <span class="sug-top-title text-[11px]">${titleLeft}</span>
-        <span class="sug-top-title text-[11px]">${titleRight}</span>
-    </div>
-    <div class="p-1.5 space-y-1.5" style="background: ${bgGradient};">`;
+<div class="bg-gray-900 border-b border-gray-700 px-2 py-1.5 flex justify-between sug-header-title uppercase font-bold text-gray-400">
+    <span class="sug-top-title text-[11px]">${titleLeft}</span>
+    <span class="sug-top-title text-[11px]">${titleRight}</span>
+</div>
+<div class="p-1.5 space-y-1.5" style="background: ${bgGradient};">`;
 
         const maxRows = Math.max(peores.length, mejores.length, 3);
 
@@ -1085,16 +1083,16 @@
 
           const btnPeor = peor
             ? `<button type="button" data-suggestion="${encodeURIComponent(peor.name)}" class="flex-1 flex justify-between items-center bg-red-950/40 hover:bg-red-900/60 border border-red-800/80 rounded px-2 py-1.5 cursor-pointer transition-colors w-1/2 shadow-sm" title="${peor.name} (${peor.total} part.)">
-            <span class="sug-item-name text-gray-200 truncate pr-1">${peor.name}</span>
-            <span class="sug-item-stats text-red-400 whitespace-nowrap">${peor.w}-${peor.l}</span>
-        </button>`
+      <span class="sug-item-name text-gray-200 truncate pr-1">${peor.name}</span>
+      <span class="sug-item-stats text-red-400 whitespace-nowrap">${peor.w}-${peor.l}</span>
+  </button>`
             : `<div class="flex-1 w-1/2"></div>`;
 
           const btnMejor = mejor
             ? `<button type="button" data-suggestion="${encodeURIComponent(mejor.name)}" class="flex-1 flex justify-between items-center bg-green-950/40 hover:bg-green-900/60 border border-green-800/80 rounded px-2 py-1.5 cursor-pointer transition-colors w-1/2 shadow-sm" title="${mejor.name} (${mejor.total} part.)">
-            <span class="sug-item-name text-gray-200 truncate pr-1">${mejor.name}</span>
-            <span class="sug-item-stats text-green-400 whitespace-nowrap">${mejor.w}-${mejor.l}</span>
-        </button>`
+      <span class="sug-item-name text-gray-200 truncate pr-1">${mejor.name}</span>
+      <span class="sug-item-stats text-green-400 whitespace-nowrap">${mejor.w}-${mejor.l}</span>
+  </button>`
             : `<div class="flex-1 w-1/2"></div>`;
 
           html += `<div class="flex gap-1.5 w-full">`;
@@ -1107,7 +1105,6 @@
           .sort((a, b) => b.w + b.l - (a.w + a.l))
           .slice(0, 3);
 
-        // 🔥 4. LOG FINAL: Comprobar el cálculo de Top 3
         console.log(
           `[DEBUG] Top 3 (Frecuentes) que se van a pintar:`,
           frecuentes,
@@ -1139,13 +1136,13 @@
             }
 
             html += `
-        <button type="button" data-suggestion="${encodeURIComponent(item.name)}" class="flex justify-between items-center ${bgClass} border rounded px-2 py-1.5 cursor-pointer transition-colors w-full shadow-sm" title="${item.name}">
-            <span class="sug-top-name text-gray-200 truncate pr-1">${item.name}</span>
-            <div class="flex items-center gap-3">
-                <span class="sug-top-extra text-gray-400 font-medium">${total} partidas</span>
-                <span class="sug-top-stats ${colorClass} whitespace-nowrap">${item.w}-${item.l}</span>
-            </div>
-        </button>`;
+  <button type="button" data-suggestion="${encodeURIComponent(item.name)}" class="flex justify-between items-center ${bgClass} border rounded px-2 py-1.5 cursor-pointer transition-colors w-full shadow-sm" title="${item.name}">
+      <span class="sug-top-name text-gray-200 truncate pr-1">${item.name}</span>
+      <div class="flex items-center gap-3">
+          <span class="sug-top-extra text-gray-400 font-medium">${total} partidas</span>
+          <span class="sug-top-stats ${colorClass} whitespace-nowrap">${item.w}-${item.l}</span>
+      </div>
+  </button>`;
           }
           html += `</div>`;
         }
@@ -1155,14 +1152,43 @@
         container.className =
           "mt-2 rounded-lg overflow-hidden shadow-lg border border-slate-700 bg-slate-900 text-left w-full relative block h-auto max-h-none";
 
+        // 🔥 LÓGICA DE EVENTOS ACTUALIZADA 🔥
+        container.onclick = (e) => {
+          const btn = e.target.closest("[data-suggestion]");
+          if (!btn) return;
+
+          const nombreCampeon = decodeURIComponent(btn.dataset.suggestion);
+          const targetSideLower = targetSide.toLowerCase();
+          const targetInputId = `${rol.toLowerCase()}-${targetSideLower}`;
+          const targetInput = document.getElementById(targetInputId);
+
+          if (targetInput) {
+            targetInput.value = nombreCampeon;
+
+            if (typeof updateChampionPortrait === "function") {
+              updateChampionPortrait(targetInput);
+            }
+
+            if (typeof analizarDraft === "function") {
+              analizarDraft();
+            }
+
+            container.classList.add("hidden");
+
+            // 🔥 FIX: Llamamos a onInputChamp para forzar el ciclo de sugerencias
+            // Esto simula que el usuario ha "escrito" el campeón y cargará el panel opuesto
+            if (typeof onInputChamp === "function") {
+              onInputChamp(rol, targetSideLower);
+            }
+          }
+        };
+
         console.groupEnd();
       }
 
       async function onInputChamp(rol, side) {
-        // Limpiamos el temporizador anterior si el usuario sigue tecleando
         clearTimeout(inputTimeout);
 
-        // Esperamos 400ms después de que el usuario deje de teclear para ejecutar la lógica
         inputTimeout = setTimeout(async () => {
           analizarDraft();
 
@@ -1235,10 +1261,6 @@
 
         analizarDraft();
       }
-
-      // ============================================
-      // HISTORIAL DE PARTIDAS & DRAFT
-      // ============================================
 
       async function cargarTopMatchupsPorRol() {
         const container = document.getElementById("lista-matchups");
@@ -1854,10 +1876,8 @@
                     "text-yellow-400",
                     "text-green-400",
                   );
-                  
                 } else {
                   statusEl.classList.replace("text-yellow-400", "text-red-400");
-                  
                 }
               }
             } catch (err) {
@@ -1866,7 +1886,7 @@
           }, 2000);
         } catch (err) {
           console.error("[PRELOAD] Error crítico al iniciar:", err);
-          
+
           btn.disabled = false;
           btn.classList.remove("opacity-50", "cursor-not-allowed");
         }
