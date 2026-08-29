@@ -52,12 +52,17 @@ async def lifespan(app: FastAPI):
     loop.run_in_executor(None, limpiar_unknowns_region_cache)
     loop.run_in_executor(None, optimizar_orden_preload)
 
+    # 1. Lanzamos PRIMERO la tarea que abre las 5 ventanas
+    app.state.scraper_task = asyncio.create_task(scrape_opgg_async())
+
+    # 2. Esperamos 5 segundos para que los navegadores del scraper terminen de saltar a la pantalla
+    await asyncio.sleep(5)
+
+    # 3. Lanzamos el bot de Riot ÚLTIMO, asegurando que su ventana quede por encima de todas
     renovador_thread = threading.Thread(
         target=background_key_manager, args=(loop,), daemon=True
     )
     renovador_thread.start()
-
-    app.state.scraper_task = asyncio.create_task(scrape_opgg_async())
 
     emitir_log(
         "Servidor listo y escuchando peticiones. Optimización y Renovador en segundo plano...",
@@ -195,190 +200,6 @@ def normalizar_tier(texto_raw):
     return text.strip()
 
 
-"""
-async def leer_pagina(page, region, pagina):
-    url = f"https://www.op.gg/leaderboards/tier?region={region}&page={pagina}"
-
-    for intento in range(1, 4):
-        try:
-            emitir_log(f">> Leyendo pagina {pagina} de {region.upper()}...", "info")
-            await page.goto(url, timeout=30000)
-            await page.wait_for_selector("table tbody tr", timeout=15000)
-            filas = await page.locator("table tbody tr").all()
-            jugadores_con_tier = []
-
-            for fila in filas:
-                try:
-                    locator_nombre = fila.locator(
-                        'a[href*="/summoners/"] span.whitespace-pre-wrap'
-                    )
-                    locator_tag = fila.locator(
-                        'a[href*="/summoners/"] span.text-gray-500'
-                    )
-                    nombre = (
-                        (await locator_nombre.inner_text()).strip()
-                        if await locator_nombre.count() > 0
-                        else ""
-                    )
-                    tag = (
-                        (await locator_tag.inner_text()).strip()
-                        if await locator_tag.count() > 0
-                        else ""
-                    )
-                    jugador_completo = f"{nombre}{tag}"
-
-                    celda_tier_raw = (
-                        await fila.locator("td").nth(2).inner_text()
-                    ).strip()
-                    tier_norm = normalizar_tier(celda_tier_raw)
-
-                    if nombre:
-                        jugadores_con_tier.append((jugador_completo, tier_norm))
-                except Exception:
-                    continue
-
-            if not filas:
-                return pagina, [], True, "sin filas"
-
-            return pagina, jugadores_con_tier, False, ""
-        except PlaywrightTimeoutError:
-            emitir_log(
-                f"[!] Timeout en pagina {pagina} de {region.upper()} (intento {intento}/3)",
-                "error",
-            )
-            if intento < 3:
-                await asyncio.sleep(10)
-        except Exception as e:
-            emitir_log(
-                f"[!] Error en pagina {pagina} de {region.upper()}: {e}", "error"
-            )
-            return pagina, [], True, "error"
-
-    return pagina, [], True, "timeout"
-
-async def scrape_opgg_async():
-    regiones = [
-        "kr",
-        "na",
-        "euw",
-        "eune",
-        "oce",
-        "jp",
-        "br",
-        "las",
-        "lan",
-        "ru",
-        "tr",
-        "sg",
-        "tw",
-        "vn",
-        "th",
-        "ph",
-    ]
-    region_inicial, pagina_guardada = cargar_checkpoint()
-    indice_region = regiones.index(region_inicial) if region_inicial in regiones else 0
-
-    todos_los_jugadores = cargar_datos_previos(ARCHIVO_JSON)
-    jugadores_vistos = set(todos_los_jugadores)
-
-    # 💡 Ligas a las que NO se les aplicará el límite de 50
-    tiers_sin_limite = {"challenger", "grandmaster", "master"}
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-        pages = [await context.new_page() for _ in range(NUM_PESTANAS)]
-
-        for region in regiones[indice_region:]:
-            emitir_log(f"--- [ INICIANDO REGIÓN: {region.upper()} ] ---", "info")
-            alcanzado_limite_elo = False
-            pagina_base = max(1, pagina_guardada) if region == region_inicial else 1
-            conteo_tier_region = defaultdict(int)
-
-            while not alcanzado_limite_elo:
-                if shutdown_event.is_set():
-                    emitir_log(
-                        "[!] Señal de apagado detectada. Deteniendo scraper...", "info"
-                    )
-                    await browser.close()
-                    return
-
-                paginas_bloque = list(range(pagina_base, pagina_base + NUM_PESTANAS))
-                resultados = await asyncio.gather(
-                    *[
-                        leer_pagina(pages[i], region, pag)
-                        for i, pag in enumerate(paginas_bloque)
-                    ]
-                )
-
-                jugadores_nuevos_en_bloque = 0
-                for pagina, jugadores_tier, es_fin, motivo in sorted(resultados):
-                    if es_fin and motivo == "sin filas":
-                        alcanzado_limite_elo = True
-                        break
-
-                    for jugador_completo, tier in jugadores_tier:
-
-                        # 💡 AHORA: Lo guardamos si está en una liga sin límite (Master+)
-                        # O si todavía no hemos llegado al máximo (50) para esa liga
-                        if (
-                            tier in tiers_sin_limite
-                            or conteo_tier_region[tier] < MAX_JUGADORES_POR_TIER
-                        ):
-                            if jugador_completo not in jugadores_vistos:
-                                todos_los_jugadores.append(jugador_completo)
-                                jugadores_vistos.add(jugador_completo)
-                                conteo_tier_region[tier] += 1
-                                jugadores_nuevos_en_bloque += 1
-
-                        # Seguimos comprobando si ya se terminó de recolectar Iron 4
-                        if conteo_tier_region["iron 4"] >= MAX_JUGADORES_POR_TIER:
-                            emitir_log(
-                                f"[!] Se alcanzaron {MAX_JUGADORES_POR_TIER} jugadores en Iron 4 para {region.upper()}. Avanzando de región...",
-                                "info",
-                            )
-                            alcanzado_limite_elo = True
-                            break  # Rompe el bucle for de jugadores
-
-                    # Si llegamos al final del pozo, rompemos el bucle de páginas
-                    if alcanzado_limite_elo:
-                        break
-
-                paginas_completadas = [
-                    pag
-                    for pag, _, es_fin, motivo in sorted(resultados)
-                    if motivo not in ("error", "timeout")
-                ]
-                if paginas_completadas:
-                    guardar_checkpoint(region, max(paginas_completadas))
-
-                if jugadores_nuevos_en_bloque > 0:
-                    emitir_log(
-                        f"  [GUARDADO] Bloque terminado. Total usuarios: {len(todos_los_jugadores)}",
-                        "success",
-                    )
-                    guardado_atomico(todos_los_jugadores, ARCHIVO_JSON)
-
-                if alcanzado_limite_elo:
-                    siguiente_indice = regiones.index(region) + 1
-                    if siguiente_indice < len(regiones):
-                        guardar_checkpoint(regiones[siguiente_indice], 0)
-                    break  # Pasa a la siguiente región
-
-                pagina_base += NUM_PESTANAS
-                await asyncio.sleep(random.uniform(2.5, 5.5))
-
-        await browser.close()
-
-    emitir_log(
-        f"¡Proceso completado! Archivo '{ARCHIVO_JSON}' actualizado con {len(todos_los_jugadores)} jugadores.",
-        "success",
-    )
-"""
-
-
 async def leer_pagina(page, region, pagina):
     url = f"https://www.op.gg/leaderboards/tier?region={region}&page={pagina}"
 
@@ -489,7 +310,8 @@ async def scrape_opgg_async():
             while not alcanzado_limite_elo:
                 if shutdown_event.is_set():
                     emitir_log(
-                        "[!] Señal de apagado detectada. Deteniendo scraper...", "success"
+                        "[!] Señal de apagado detectada. Deteniendo scraper...",
+                        "success",
                     )
                     await browser.close()
                     return
@@ -651,28 +473,40 @@ def wait_for_key_activation(new_key):
     url = "https://euw1.api.riotgames.com/lol/status/v4/platform-data"
     headers = {"X-Riot-Token": new_key}
 
-    emitir_log("⏳ [GESTOR] Esperando a que Riot active la nueva API Key (puede tardar 1-2 min)...", "api")
-    
+    emitir_log(
+        "⏳ [GESTOR] Esperando a que Riot active la nueva API Key (puede tardar 1-2 min)...",
+        "api",
+    )
+
     intentos = 0
     while not shutdown_event.is_set():
         try:
             resp = requests.get(url, headers=headers, timeout=10)
-            
+
             if resp.status_code == 200:
-                emitir_log("✅ [GESTOR] ¡Nueva API Key totalmente operativa y propagada!", "success")
+                emitir_log(
+                    "✅ [GESTOR] ¡Nueva API Key totalmente operativa y propagada!",
+                    "success",
+                )
                 break
-                
+
             elif resp.status_code in [401, 403]:
                 intentos += 1
-                emitir_log(f"⏳ [GESTOR] La llave existe pero Riot aún no le da permisos (Error {resp.status_code}). Intento {intentos}... reintentando en 15s.", "api")
+                emitir_log(
+                    f"⏳ [GESTOR] La llave existe pero Riot aún no le da permisos (Error {resp.status_code}). Intento {intentos}... reintentando en 15s.",
+                    "api",
+                )
             else:
-                emitir_log(f"⏳ [GESTOR] Estado inesperado de la API (Código {resp.status_code}). Reintentando en 15s...", "api")
-                
+                emitir_log(
+                    f"⏳ [GESTOR] Estado inesperado de la API (Código {resp.status_code}). Reintentando en 15s...",
+                    "api",
+                )
+
         except requests.exceptions.RequestException as e:
             emitir_log(f"⚠️ [GESTOR] Error de red comprobando llave: {e}", "api")
         except Exception as e:
             emitir_log(f"⚠️ [GESTOR] Error de conexión comprobando llave: {e}", "error")
-            
+
         time.sleep(15)
 
 
@@ -680,11 +514,17 @@ def background_key_manager(loop_principal):
     while not shutdown_event.is_set():
         wait_seconds = 600
         try:
+            # 🔥 NUEVO: Guardamos la llave actual antes de ejecutar el renovador
+            llave_actual = os.getenv("RIOT_API_KEY", "")
+
             resultado = auto_renew_riot_key.run(api_event=riot_api_ready_sync)
 
             # Si ocurre un error grave y no devuelve tupla
             if not resultado:
-                emitir_log("❌ [GESTOR] El renovador de llaves no devolvió datos. Reintentando en 10 min...", "error")
+                emitir_log(
+                    "❌ [GESTOR] El renovador de llaves no devolvió datos. Reintentando en 10 min...",
+                    "error",
+                )
                 shutdown_event.wait(600)
                 continue
 
@@ -695,6 +535,17 @@ def background_key_manager(loop_principal):
                 minutes_left = 60
 
             if nueva_llave:
+                # 🔥 NUEVO: Comprobamos si la llave "nueva" es igual a la que ya teníamos
+                if nueva_llave == llave_actual:
+                    emitir_log(
+                        "⚠️ [GESTOR] La API Key obtenida es idéntica a la anterior. No se generó una nueva realmente. Reintentando en 10 min...",
+                        "warning",
+                    )
+                    shutdown_event.wait(600)
+                    continue  # Saltamos el resto del código y volvemos a empezar el bucle en 10 min
+
+                # --- A PARTIR DE AQUÍ, SABEMOS QUE LA LLAVE ES REALMENTE NUEVA ---
+
                 if not riot_api_ready_sync.is_set():
                     loop_principal.call_soon_threadsafe(riot_api_ready_async.clear)
 
@@ -702,21 +553,31 @@ def background_key_manager(loop_principal):
                 os.environ["RIOT_API_KEY"] = nueva_llave
                 global RIOT_API_KEY
                 RIOT_API_KEY = nueva_llave
-                
+
                 # 2. 🔥 ACTUALIZAMOS FÍSICAMENTE EL ARCHIVO .env 🔥
                 set_key(".env", "RIOT_API_KEY", nueva_llave)
-                emitir_log("💾 [GESTOR] Archivo .env sobrescrito con la nueva API Key.", "success")
+                emitir_log(
+                    "💾 [GESTOR] Archivo .env sobrescrito con la nueva API Key.",
+                    "success",
+                )
 
+                # 3. Esperamos a que Riot la active
                 wait_for_key_activation(nueva_llave)
 
-                emitir_log("🟢 [GESTOR] Reanudando peticiones de la API de Riot.", "success")
-                
+                emitir_log(
+                    "🟢 [GESTOR] Reanudando peticiones de la API de Riot.", "success"
+                )
+
                 riot_api_ready_sync.set()
-                loop_principal.call_soon_threadsafe(riot_api_ready_async.set)
+                if loop_principal and riot_api_ready_async:
+                    loop_principal.call_soon_threadsafe(riot_api_ready_async.set)
 
                 wait_seconds = 6 * 3600
-                emitir_log("⏳ [GESTOR] Nueva API Key lista. Siguiente revisión en 6 horas...", "api")
-                
+                emitir_log(
+                    "⏳ [GESTOR] Nueva API Key lista. Siguiente revisión en 6 horas...",
+                    "api",
+                )
+
             else:
                 # Se ejecutará cuando no hay llave nueva (incluyendo los calentamientos)
                 wait_minutes = max(minutes_left - 32, 5)
@@ -724,16 +585,22 @@ def background_key_manager(loop_principal):
                 wait_seconds = wait_minutes * 60
 
                 # Log modificado para que tenga sentido con los tiempos aleatorios de calentamiento
-                emitir_log(f"⏳ [GESTOR] Mantenimiento/Calentamiento completado. Siguiente revisión en {wait_minutes} min...", "api")
+                emitir_log(
+                    f"⏳ [GESTOR] Mantenimiento/Calentamiento completado. Siguiente revisión en {wait_minutes} min...",
+                    "api",
+                )
 
         except Exception as e:
-            emitir_log(f"❌ [GESTOR] Error crítico en el hilo de renovación: {e}", "error")
+            emitir_log(
+                f"❌ [GESTOR] Error crítico en el hilo de renovación: {e}", "error"
+            )
             riot_api_ready_sync.set()
             if loop_principal and riot_api_ready_async:
                 loop_principal.call_soon_threadsafe(riot_api_ready_async.set)
             wait_seconds = 600
 
         shutdown_event.wait(wait_seconds)
+
 
 RIOT_RATE_LIMITS = {}
 RIOT_API_KEY = os.getenv("RIOT_API_KEY", "")
