@@ -3,20 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Draft & Match Analyzer</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260822-fix" />
+    <title>Tempu Drafter — Draft & Match Analyzer</title>
+    <meta name="description" content="Tempu Drafter: analiza drafts de League of Legends, consulta matchups por rol, genera guías con IA y gestiona tu base de datos de jugadores y coachings." />
+    <link rel="stylesheet" href="/static/styles.css?v=20260822-v3" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   </head>
-  <body
-    class="bg-slate-950 text-slate-300 min-h-screen font-sans selection:bg-indigo-500/30 p-4 md:p-8"
-  >
+  <body>
+
+    <!-- ==================== HEADER ==================== -->
     <header class="header-principal">
       <h1 id="main-title">Tempu Drafter</h1>
-
       <div id="console-container">
-        <ul id="frontend-console">
-          <!-- Los logs del JS irán apareciendo aquí -->
-        </ul>
+        <div id="console-label">CONSOLA EN TIEMPO REAL</div>
+        <ul id="frontend-console"></ul>
       </div>
     </header>
 
@@ -27,584 +26,223 @@
     <datalist id="lista-ADC"></datalist>
     <datalist id="lista-SUPPORT"></datalist>
 
-    <!-- Contenedor un poco más ancho (max-w-[1400px]) para que todo respire mejor -->
-    <div class="max-w-[1400px] mx-auto w-full space-y-8">
-      <!-- HEADER & HERRAMIENTAS GLOBALES (Error arreglado: eliminado el div duplicado) -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main>
+    <div class="app-container">
+
+      <!-- ===== ROW 1: Procesador + Base de Datos ===== -->
+      <div class="tools-row">
         <!-- Procesador de YouTube -->
-        <div
-          class="lg:col-span-7 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-center"
-        >
-          <div
-            class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-rose-600"
-          ></div>
-          <h2
-            class="text-lg font-black text-white mb-4 flex items-center gap-2"
-          >
-            <span class="bg-red-500/20 text-red-500 p-1.5 rounded-lg">▶️</span>
-            Procesar Coaching
-          </h2>
-          <div class="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              id="youtube-url"
-              placeholder="URL del vídeo de YouTube"
-              class="w-full min-w-0 flex-1 bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all text-white placeholder-slate-500"
-            />
-            <button
-              onclick="startProcessing()"
-              class="w-full sm:w-auto whitespace-nowrap bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_25px_rgba(220,38,38,0.5)]"
-            >
-              Procesar
-            </button>
+        <div class="card card--youtube">
+          <div class="card-header">
+            <span class="card-header__icon card-header__icon--red">▶️</span>
+            <h2 class="card-header__title">Procesar Coaching</h2>
           </div>
-          <div
-            id="process-status"
-            class="mt-3 text-sm font-medium text-slate-400"
-          ></div>
+          <div class="card-action-row">
+            <input type="text" id="youtube-url" class="card-input card-input--grow" placeholder="URL del video de YouTube" />
+            <button class="btn btn--red" onclick="startProcessing()">Procesar</button>
+          </div>
+          <div id="process-status" class="card-status"></div>
         </div>
 
         <!-- Precarga de Datos -->
-        <div
-          class="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-center"
-        >
-          <div
-            class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-600"
-          ></div>
-          <h2
-            class="text-lg font-black text-white mb-4 flex items-center gap-2"
-          >
-            <span class="bg-purple-500/20 text-purple-400 p-1.5 rounded-lg"
-              >⚙️</span
-            >
-            Base de Datos
-          </h2>
-          <div class="flex flex-wrap items-center gap-3">
-            <button
-              id="btnPreload"
-              onclick="ejecutarPreload()"
-              class="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(147,51,234,0.3)]"
-            >
-              Precargar Datos
-            </button>
-            <button
-              id="btnStopPreload"
-              onclick="detenerPreload()"
-              class="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors border border-slate-600"
-            >
-              Detener
-            </button>
-            <span
-              id="statusPreload"
-              class="hidden text-sm font-bold bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 text-indigo-300 w-full sm:w-auto text-center mt-2 sm:mt-0"
-            ></span>
+        <div class="card card--db">
+          <div class="card-header">
+            <span class="card-header__icon card-header__icon--purple">⚙️</span>
+            <h2 class="card-header__title">Base de Datos</h2>
+          </div>
+          <div class="card-action-row">
+            <button id="btnPreload" class="btn btn--purple" onclick="ejecutarPreload()">Precargar Datos</button>
+            <button id="btnStopPreload" class="btn btn--ghost" onclick="detenerPreload()">Detener</button>
+            <span id="statusPreload" class="card-action-status"></span>
           </div>
         </div>
       </div>
 
-      <div
-        class="grid grid-cols-1 xl:grid-cols-12 gap-6 md:gap-8 relative"
-        style="
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          backdrop-filter: none !important;
-        "
-      >
-        <!-- ANALIZADOR DE DRAFT -->
-        <div
-          class="xl:col-span-7 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl p-6 md:p-8"
-        >
-          <div
-            class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 md:mb-8 border-b border-slate-800 pb-4"
-          >
-            <h2
-              class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 flex items-center gap-2"
-            >
-              ⚖️ Analizador de Draft
+      <!-- ===== ROW 1.5: Carga de Jugadores ===== -->
+      <div class="card card--scraper">
+        <div class="card-header">
+          <span class="card-header__icon card-header__icon--green">🌐</span>
+          <h2 class="card-header__title">Carga de Jugadores</h2>
+        </div>
+        <div class="card-action-row">
+          <button id="btnStartCarga" class="btn btn--green" onclick="iniciarCargaJugadores()">Iniciar</button>
+          <button id="btnStopCarga" class="btn btn--red" onclick="detenerCargaJugadores()">Detener</button>
+        </div>
+      </div>
+
+      <!-- ===== ROW 2: Draft + Historial ===== -->
+      <div class="workspace-row">
+
+        <!-- ===== HISTORIAL DE JUGADOR ===== -->
+        <div class="card card--history">
+          <div class="history-header">
+            <h2 class="history-header__title">
+              <span class="history-header__icon">🔍</span> Historial de Jugador
             </h2>
-            <div class="flex gap-2 md:gap-3">
-              <button
-                onclick="limpiarMatchups()"
-                class="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg border border-slate-600 transition-colors ml-2"
-              >
-                Limpiar Matchups
-              </button>
-              <button
-                onclick="limpiarDraft()"
-                class="flex-1 sm:flex-none bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white px-4 md:px-5 py-2 rounded-lg font-bold text-sm transition-colors border border-slate-700"
-              >
-                Limpiar
-              </button>
+          </div>
+          <div class="history-search">
+            <div class="history-search__input-group">
+              <input type="text" id="riot-id" class="card-input" placeholder="NombreJugador#TAG" />
+              <button id="btn-partidas" class="btn btn--gold" onclick="buscarPartidas()">Buscar</button>
+            </div>
+            <div id="partidas-container" class="custom-scrollbar history-search__results">
+              <div class="history-empty">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="history-empty__icon">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <p class="history-empty__text">Busca un Riot ID para ver el historial.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== ANALIZADOR DE DRAFT ===== -->
+        <div class="card card--draft">
+          <div class="draft-toolbar">
+            <h2 class="draft-title">⚖️ Analizador de Draft</h2>
+            <div class="draft-toolbar__actions">
+              <button class="btn btn--ghost" onclick="limpiarMatchups()">Limpiar Matchups</button>
+              <button class="btn btn--ghost" onclick="limpiarDraft()">Limpiar</button>
             </div>
           </div>
 
-          <div class="space-y-4 md:space-y-5">
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 text-center text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 md:mb-4"
-            >
-              <div class="text-blue-400/70 truncate">Equipo Aliado</div>
-              <div class="w-16 md:w-32 lg:w-40 truncate">Resultado</div>
-              <div class="text-red-400/70 truncate">Equipo Enemigo</div>
+          <div class="draft-grid">
+            <!-- Column Headers -->
+            <div class="draft-col-headers">
+              <div class="draft-col-label draft-col-label--ally">Equipo Aliado</div>
+              <div class="draft-col-label">Resultado</div>
+              <div class="draft-col-label draft-col-label--enemy">Equipo Enemigo</div>
             </div>
 
             <!-- TOP -->
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-start group"
-            >
-              <div class="relative w-full min-w-0">
-                <input
-                  id="top-aliado"
-                  type="text"
-                  list="lista-TOP"
-                  oninput="onInputChamp('TOP', 'aliado')"
-                  placeholder="Top Aliado"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                />
-                <div
-                  id="sug-top-enemigo"
-                  class="w-full min-w-[220px] left-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+            <div class="draft-role-row">
+              <div class="draft-slot">
+                <input id="top-aliado" type="text" list="lista-TOP" oninput="onInputChamp('TOP', 'aliado')" placeholder="Top Aliado" />
+                <div id="sug-top-enemigo"></div>
               </div>
-              <div
-                id="res-TOP"
-                class="w-16 md:w-32 lg:w-40 text-center py-2 px-1 md:px-3 rounded-lg text-[10px] md:text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center min-h-[40px] md:min-h-[44px]"
-              >
-                Sin datos
-              </div>
-              <div class="relative w-full min-w-0">
-                <input
-                  id="top-enemigo"
-                  type="text"
-                  list="lista-TOP"
-                  oninput="onInputChamp('TOP', 'enemigo')"
-                  placeholder="Top Enemigo"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-medium text-right"
-                />
-                <div
-                  id="sug-top-aliado"
-                  class="w-full min-w-[220px] right-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+              <div id="res-TOP" class="draft-result">Sin datos</div>
+              <div class="draft-slot">
+                <input id="top-enemigo" type="text" list="lista-TOP" oninput="onInputChamp('TOP', 'enemigo')" placeholder="Top Enemigo" />
+                <div id="sug-top-aliado"></div>
               </div>
             </div>
 
             <!-- JUNGLE -->
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-start group"
-            >
-              <div class="relative w-full min-w-0">
-                <input
-                  id="jungle-aliado"
-                  type="text"
-                  list="lista-JUNGLE"
-                  oninput="onInputChamp('JUNGLE', 'aliado')"
-                  placeholder="Jungle Aliado"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                />
-                <div
-                  id="sug-jungle-enemigo"
-                  class="w-full min-w-[220px] left-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+            <div class="draft-role-row">
+              <div class="draft-slot">
+                <input id="jungle-aliado" type="text" list="lista-JUNGLE" oninput="onInputChamp('JUNGLE', 'aliado')" placeholder="Jungle Aliado" />
+                <div id="sug-jungle-enemigo"></div>
               </div>
-              <div
-                id="res-JUNGLE"
-                class="w-16 md:w-32 lg:w-40 text-center py-2 px-1 md:px-3 rounded-lg text-[10px] md:text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center min-h-[40px] md:min-h-[44px]"
-              >
-                Sin datos
-              </div>
-              <div class="relative w-full min-w-0">
-                <input
-                  id="jungle-enemigo"
-                  type="text"
-                  list="lista-JUNGLE"
-                  oninput="onInputChamp('JUNGLE', 'enemigo')"
-                  placeholder="Jungle Enemigo"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-medium text-right"
-                />
-                <div
-                  id="sug-jungle-aliado"
-                  class="w-full min-w-[220px] right-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+              <div id="res-JUNGLE" class="draft-result">Sin datos</div>
+              <div class="draft-slot">
+                <input id="jungle-enemigo" type="text" list="lista-JUNGLE" oninput="onInputChamp('JUNGLE', 'enemigo')" placeholder="Jungle Enemigo" />
+                <div id="sug-jungle-aliado"></div>
               </div>
             </div>
 
             <!-- MID -->
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-start group"
-            >
-              <div class="relative w-full min-w-0">
-                <input
-                  id="mid-aliado"
-                  type="text"
-                  list="lista-MID"
-                  oninput="onInputChamp('MID', 'aliado')"
-                  placeholder="Mid Aliado"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                />
-                <div
-                  id="sug-mid-enemigo"
-                  class="w-full min-w-[220px] left-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+            <div class="draft-role-row">
+              <div class="draft-slot">
+                <input id="mid-aliado" type="text" list="lista-MID" oninput="onInputChamp('MID', 'aliado')" placeholder="Mid Aliado" />
+                <div id="sug-mid-enemigo"></div>
               </div>
-              <div
-                id="res-MID"
-                class="w-16 md:w-32 lg:w-40 text-center py-2 px-1 md:px-3 rounded-lg text-[10px] md:text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center min-h-[40px] md:min-h-[44px]"
-              >
-                Sin datos
-              </div>
-              <div class="relative w-full min-w-0">
-                <input
-                  id="mid-enemigo"
-                  type="text"
-                  list="lista-MID"
-                  oninput="onInputChamp('MID', 'enemigo')"
-                  placeholder="Mid Enemigo"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-medium text-right"
-                />
-                <div
-                  id="sug-mid-aliado"
-                  class="w-full min-w-[220px] right-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+              <div id="res-MID" class="draft-result">Sin datos</div>
+              <div class="draft-slot">
+                <input id="mid-enemigo" type="text" list="lista-MID" oninput="onInputChamp('MID', 'enemigo')" placeholder="Mid Enemigo" />
+                <div id="sug-mid-aliado"></div>
               </div>
             </div>
 
             <!-- ADC -->
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-start group"
-            >
-              <div class="relative w-full min-w-0">
-                <input
-                  id="adc-aliado"
-                  type="text"
-                  list="lista-ADC"
-                  oninput="onInputChamp('ADC', 'aliado')"
-                  placeholder="ADC Aliado"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                />
-                <div
-                  id="sug-adc-enemigo"
-                  class="w-full min-w-[220px] left-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+            <div class="draft-role-row">
+              <div class="draft-slot">
+                <input id="adc-aliado" type="text" list="lista-ADC" oninput="onInputChamp('ADC', 'aliado')" placeholder="ADC Aliado" />
+                <div id="sug-adc-enemigo"></div>
               </div>
-              <div
-                id="res-ADC"
-                class="w-16 md:w-32 lg:w-40 text-center py-2 px-1 md:px-3 rounded-lg text-[10px] md:text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center min-h-[40px] md:min-h-[44px]"
-              >
-                Sin datos
-              </div>
-              <div class="relative w-full min-w-0">
-                <input
-                  id="adc-enemigo"
-                  type="text"
-                  list="lista-ADC"
-                  oninput="onInputChamp('ADC', 'enemigo')"
-                  placeholder="ADC Enemigo"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-medium text-right"
-                />
-                <div
-                  id="sug-adc-aliado"
-                  class="w-full min-w-[220px] right-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+              <div id="res-ADC" class="draft-result">Sin datos</div>
+              <div class="draft-slot">
+                <input id="adc-enemigo" type="text" list="lista-ADC" oninput="onInputChamp('ADC', 'enemigo')" placeholder="ADC Enemigo" />
+                <div id="sug-adc-aliado"></div>
               </div>
             </div>
 
             <!-- SUPPORT -->
-            <div
-              class="grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-start group"
-            >
-              <div class="relative w-full min-w-0">
-                <input
-                  id="support-aliado"
-                  type="text"
-                  list="lista-SUPPORT"
-                  oninput="onInputChamp('SUPPORT', 'aliado')"
-                  placeholder="Support Aliado"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium"
-                />
-                <div
-                  id="sug-support-enemigo"
-                  class="w-full min-w-[220px] left-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
+            <div class="draft-role-row">
+              <div class="draft-slot">
+                <input id="support-aliado" type="text" list="lista-SUPPORT" oninput="onInputChamp('SUPPORT', 'aliado')" placeholder="Support Aliado" />
+                <div id="sug-support-enemigo"></div>
               </div>
-              <div
-                id="res-SUPPORT"
-                class="w-16 md:w-32 lg:w-40 text-center py-2 px-1 md:px-3 rounded-lg text-[10px] md:text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center min-h-[40px] md:min-h-[44px]"
-              >
-                Sin datos
-              </div>
-              <div class="relative w-full min-w-0">
-                <input
-                  id="support-enemigo"
-                  type="text"
-                  list="lista-SUPPORT"
-                  oninput="onInputChamp('SUPPORT', 'enemigo')"
-                  placeholder="Support Enemigo"
-                  class="w-full min-w-0 bg-slate-950/50 border border-slate-800 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-medium text-right"
-                />
-                <div
-                  id="sug-support-aliado"
-                  class="w-full min-w-[220px] right-0 mt-2 hidden rounded-lg overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 text-left"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- HISTORIAL DE JUGADOR (Ajustado en altura por defecto y sin espacios muertos) -->
-        <div
-          class="xl:col-span-5 self-start bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl p-6 md:p-8 flex flex-col"
-        >
-          <!-- Título -->
-          <div
-            style="
-              width: 100%;
-              text-align: center;
-              margin-bottom: 20px;
-              padding-bottom: 12px;
-              border-bottom: 1px solid var(--line);
-            "
-          >
-            <h2
-              style="
-                margin: 0;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                font-size: 26px;
-                color: var(--text);
-              "
-            >
-              <span style="color: var(--cyan)">🔍</span> Historial de Jugador
-            </h2>
-          </div>
-
-          <!-- Buscador y Contenedor de Resultados -->
-          <div
-            style="
-              display: flex;
-              flex-direction: row;
-              gap: 20px;
-              align-items: flex-start;
-              width: 100%;
-            "
-          >
-            <!-- Izquierda: Input y Botón -->
-            <div
-              style="
-                flex: 1;
-                display: flex;
-                flex-direction: row;
-                gap: 8px;
-                align-items: center;
-              "
-            >
-              <input
-                type="text"
-                id="riot-id"
-                placeholder="NombreJugador#TAG"
-                style="
-                  flex: 1;
-                  height: 46px !important;
-                  min-height: 46px !important;
-                  max-height: 46px !important;
-                  margin: 0;
-                  font-size: 14px;
-                  padding: 0 16px !important;
-                "
-              />
-              <button
-                id="btn-partidas"
-                onclick="buscarPartidas()"
-                style="
-                  height: 46px !important;
-                  min-height: 46px !important;
-                  max-height: 46px !important;
-                  padding: 0 20px;
-                  white-space: nowrap;
-                  background: var(--gold);
-                  color: var(--ink);
-                  font-weight: 800;
-                  margin: 0;
-                  font-size: 14px;
-                "
-              >
-                Buscar
-              </button>
-            </div>
-
-            <!-- Derecha: Estado Vacío compacto (Se ajusta a los 46px iniciales) -->
-            <div
-              id="partidas-container"
-              class="custom-scrollbar"
-              style="
-                flex: 1.2;
-                max-height: 500px;
-                overflow-y: auto;
-                display: flex;
-                flex-direction: column;
-              "
-            >
-              <div
-                style="
-                  display: flex;
-                  flex-direction: row;
-                  align-items: center;
-                  justify-content: center;
-                  gap: 10px;
-                  padding: 0;
-                  width: 100%;
-                  height: 46px;
-                "
-              >
-                <svg
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  style="
-                    width: 22px;
-                    height: 22px;
-                    opacity: 0.4;
-                    color: var(--muted);
-                    margin: 0;
-                  "
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  ></path>
-                </svg>
-                <p
-                  style="
-                    color: var(--muted);
-                    font-size: 14px;
-                    font-weight: 500;
-                    margin: 0;
-                  "
-                >
-                  Busca un Riot ID para ver el historial.
-                </p>
+              <div id="res-SUPPORT" class="draft-result">Sin datos</div>
+              <div class="draft-slot">
+                <input id="support-enemigo" type="text" list="lista-SUPPORT" oninput="onInputChamp('SUPPORT', 'enemigo')" placeholder="Support Enemigo" />
+                <div id="sug-support-aliado"></div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- SECCIÓN: MATCHUPS MÁS JUGADOS -->
-      <div
-        class="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl p-6 md:p-8 mt-8"
-      >
-        <div
-          class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6 border-b border-slate-800 pb-4"
-        >
-          <h3
-            class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-rose-400 m-0 leading-none flex items-center h-full"
-          >
-            🔥 Top Matchups sin Guía
-          </h3>
-          <div class="flex items-center justify-end gap-2 md:gap-3">
-            <button
-              id="btn-cargar-sin-guia"
-              class="px-4 md:px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all border border-slate-700 text-sm m-0 block"
-            >
-              ↻ Cargar Lista
-            </button>
+      <!-- ===== ROW 3: Matchups ===== -->
+      <div class="card card--matchups">
+        <div class="matchups-toolbar">
+          <div class="matchups-toolbar__actions">
+            <button id="btn-cargar-con-guia" class="btn btn--ghost btn--wide">📊 Con Guía</button>
+          </div>
+          <h3 class="matchups-title">🔥 Top Matchups</h3>
+          <div class="matchups-toolbar__actions">
+            <button id="btn-cargar-sin-guia" class="btn btn--ghost btn--wide">📋 Sin Guía</button>
           </div>
         </div>
-
-        <!-- Aquí se inyectarán las categorías desde el JS -->
-        <div id="lista-matchups" class="grid grid-cols-1 gap-4">
-          <p class="text-slate-500 text-center py-10 font-medium">
-            Haz clic en cargar para ver los datos...
-          </p>
+        <div id="lista-matchups" class="matchups-list">
+          <p class="matchups-placeholder">Haz clic en cargar para ver los datos...</p>
         </div>
       </div>
     </div>
 
-    <!-- MODAL DE COACHING REDISEÑADO -->
-    <div
-      id="modal-backdrop"
-      class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center z-[100] backdrop-blur-md transition-all p-4"
-    >
-      <!-- Ajuste al modal para que no se salga de la pantalla en monitores bajitos (max-h-[90vh]) -->
-      <div
-        class="bg-slate-900 p-6 md:p-8 rounded-3xl w-full max-w-3xl border border-slate-700 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden flex flex-col max-h-[90vh]"
-      >
-        <div
-          class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
-        ></div>
-        <button
-          onclick="closeModal()"
-          class="absolute top-4 right-4 md:top-6 md:right-6 text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all shrink-0"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
-        <h2
-          id="modal-title"
-          class="text-xl md:text-2xl font-black text-white mb-4 pb-4 border-b border-slate-800/80 pr-10 shrink-0"
-        ></h2>
-        <div
-          id="modal-content"
-          class="text-slate-300 space-y-4 overflow-y-auto pr-2 text-sm md:text-base leading-relaxed whitespace-pre-wrap custom-scrollbar font-medium"
-        ></div>
+    <!-- ==================== MODAL DE COACHING ==================== -->
+    <div id="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-gradient"></div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        <h2 id="modal-title" class="modal-title"></h2>
+        <div id="modal-content" class="modal-content"></div>
       </div>
     </div>
+    </main>
 
     <script>
       let ultimosMatchupsCargados = [];
 
       const consoleList = document.getElementById("frontend-console");
       const consoleContainer = document.getElementById("console-container");
+      let _lastLogTime = 0;
+      const LOG_THROTTLE_MS = 3000;
 
       function addConsoleLog(message, type = "info") {
         if (!consoleList || !consoleContainer) return;
 
+        const now = Date.now();
+        if (now - _lastLogTime < LOG_THROTTLE_MS) return;
+        _lastLogTime = now;
+
         const li = document.createElement("li");
-
-        // Usamos los colores hexadecimales exactos de Tailwind
         const colors = {
-          success: "#4ade80", // Equivalente a text-green-400
-          error: "#f87171", // Equivalente a text-red-400
-          info: "#cbd5e1", // Equivalente a text-slate-300
-          api: "#64748b", // Equivalente a text-slate-500
+          success: "#4ade80",
+          error: "#f87171",
+          info: "#cbd5e1",
+          api: "#64748b",
         };
-
-        // 1. Asignamos el color directamente con style (prioridad máxima)
         li.style.color = colors[type] || colors.info;
-
-        // 2. Le damos SOLO la clase de la animación
-        li.className = "log-enter";
-
-        li.innerHTML = message;
-
+        li.textContent = message;
         consoleList.appendChild(li);
 
-        // Auto-scroll hacia abajo
+        // Mantener solo los últimos 20 mensajes
+        while (consoleList.children.length > 20) {
+          consoleList.removeChild(consoleList.firstChild);
+        }
+
         consoleContainer.scrollTop = consoleContainer.scrollHeight;
-
-        // Animación de salida y limpieza
-        setTimeout(() => {
-          li.classList.remove("log-enter");
-          li.classList.add("log-exit");
-
-          setTimeout(() => {
-            li.remove();
-          }, 400);
-        }, 2000);
       }
 
       // ==========================================
@@ -635,7 +273,7 @@
 
           if (Object.keys(ultimosMatchupsCargados).length === 0 && contenedor) {
             contenedor.innerHTML =
-              "<p class='text-gray-400 col-span-full text-center'>Cargando estadísticas...</p>";
+              "<p class='msg msg-info msg-center'>Cargando estadísticas...</p>";
           }
 
           if (btnCargar) btnCargar.disabled = true;
@@ -654,7 +292,7 @@
             if (!rawData || Object.keys(rawData).length === 0) {
               if (contenedor)
                 contenedor.innerHTML =
-                  "<p class='text-yellow-400 col-span-full text-center'>No hay matchups pendientes de guía o faltan datos.</p>";
+                  "<p class='msg msg-warning msg-center'>No hay matchups pendientes de guía o faltan datos.</p>";
               ultimosMatchupsCargados = {};
               if (btnCargar) btnCargar.disabled = false;
               return;
@@ -694,27 +332,27 @@
 
                   // 1. INYECTAMOS LA CABECERA DEL ROL
                   let bloqueRolHTML = `
-                    <div class="col-span-full mt-6 mb-2">
-                        <h3 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 uppercase tracking-widest border-b border-slate-700/50 pb-2">
+                    <div class="old-role-header">
+                        <h3 class="old-role-title">
                             ${icono} ${rol}
                         </h3>
                     </div>
                     <!-- GRID DE CARTAS PARA ESTE ROL -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 col-span-full">
+                    <div class="old-role-grid">
                   `;
 
                   // 2. INYECTAMOS LAS CARTAS DE MATCHUPS PARA ESE ROL
                   matchups.forEach((match) => {
                     let botonHTML = `
-                      <button class="btn-generar-individual w-full mt-4 px-3 py-2 bg-slate-800/80 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-lg font-bold transition-all border border-slate-600 hover:border-indigo-500 flex items-center justify-center gap-2 text-sm shadow-md" data-rol="${match.rol}" data-main="${match.champ_main}" data-enemy="${match.champ_enemy}" onclick="generarGuiaIA('${match.rol}', '${match.champ_main}', '${match.champ_enemy}', this)">
+                      <button class="old-match-btn" data-rol="${match.rol}" data-main="${match.champ_main}" data-enemy="${match.champ_enemy}" onclick="generarGuiaIA('${match.rol}', '${match.champ_main}', '${match.champ_enemy}', this)">
                         ⚡ Generar Guía IA
                       </button>`;
 
                     bloqueRolHTML += `
-                      <div class="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-500/50 transition-all shadow-lg hover:shadow-indigo-500/10 group">
+                      <div class="old-match-card">
                           <div>
-                              <h4 class="text-lg font-bold text-slate-200 mb-1 flex items-center gap-2">${match.champ_main} <span class="text-slate-500 text-sm font-normal">vs</span> ${match.champ_enemy}</h4>
-                              <p class="text-xs text-slate-400 font-medium">${match.total} partidas jugadas</p>
+                              <h4 class="old-match-title">${match.champ_main} <span class="old-match-vs">vs</span> ${match.champ_enemy}</h4>
+                              <p class="old-match-count">${match.total} partidas jugadas</p>
                           </div>
                           ${botonHTML}
                       </div>
@@ -733,11 +371,17 @@
 
             if (contenedor) {
               contenedor.innerHTML =
-                '<p class="col-span-full text-red-400 text-center">Error cargando datos. Revisa la consola para más detalles.</p>';
+                '<p class="msg msg-error msg-center">Error cargando datos. Revisa la consola para más detalles.</p>';
             }
           }
 
           if (btnCargar) btnCargar.disabled = false;
+        });
+
+      document
+        .getElementById("btn-cargar-con-guia")
+        ?.addEventListener("click", async () => {
+          return cargarTopMatchupsConGuia();
         });
 
       // 1. Variable para guardar cuándo fue la última vez que te moviste
@@ -849,7 +493,7 @@
 
           if (resultado.success) {
             // Reemplazamos el botón pero le añadimos una clase de marca por si acaso
-            boton.outerHTML = `<span class="guia-lista" style="color: #4ade80; display: block; margin-top: 10px; text-align: center; font-weight: bold;">✅ Guía Generada</span>`;
+            boton.outerHTML = `<span class="guia-lista">✅ Guía Generada</span>`;
           } else {
             boton.disabled = false;
             boton.innerText = "✨ Intentar de nuevo";
@@ -920,7 +564,7 @@
       }
 
       function updateChampionPortrait(input) {
-        const slot = input.closest(".relative");
+        const slot = input.closest(".draft-slot");
         if (!slot) return;
         slot.classList.add("champ-slot");
         if (input.id.endsWith("-enemigo")) slot.classList.add("enemy-slot");
@@ -948,6 +592,7 @@
 
       window.addEventListener("DOMContentLoaded", () => {
         cargarCampeones();
+        comprobarEstadoCarga();
         document
           .querySelectorAll("input[id$='-aliado'], input[id$='-enemigo']")
           .forEach(updateChampionPortrait);
@@ -1027,7 +672,7 @@
         console.log(`[DEBUG] Lista única resultante:`, listaUnica);
 
         if (listaUnica.length === 0) {
-          container.innerHTML = `<div class="p-2 text-center text-xs text-gray-500">Sin datos registrados</div>`;
+          container.innerHTML = `<div class="sug-empty">Sin datos registrados</div>`;
           container.classList.remove("hidden");
           console.groupEnd();
           return;
@@ -1062,16 +707,14 @@
         const titleLeft = isAllied ? "Mejores Matchups" : "Peores Matchups";
         const titleRight = isAllied ? "Peores Matchups" : "Mejores Matchups";
 
-        const bgGradient = isAllied
-          ? "linear-gradient(to right, rgba(20, 83, 45, 0.25), rgba(30, 41, 59, 1) 50%, rgba(127, 29, 29, 0.25))"
-          : "linear-gradient(to right, rgba(127, 29, 29, 0.25), rgba(30, 41, 59, 1) 50%, rgba(20, 83, 45, 0.25))";
+        const bgClass = isAllied ? "sug-gradient-bg--allied" : "sug-gradient-bg--enemy";
 
         let html = `
-<div class="bg-gray-900 border-b border-gray-700 px-2 py-1.5 flex justify-between sug-header-title uppercase font-bold text-gray-400">
-    <span class="sug-top-title text-[11px]">${titleLeft}</span>
-    <span class="sug-top-title text-[11px]">${titleRight}</span>
+<div class="sug-header-bar">
+    <span class="sug-section-label">${titleLeft}</span>
+    <span class="sug-section-label">${titleRight}</span>
 </div>
-<div class="p-1.5 space-y-1.5" style="background: ${bgGradient};">`;
+<div class="sug-gradient-bg ${bgClass}">`;
 
         const maxRows = Math.max(peores.length, mejores.length, 3);
 
@@ -1082,20 +725,20 @@
           if (!peor && !mejor) continue;
 
           const btnPeor = peor
-            ? `<button type="button" data-suggestion="${encodeURIComponent(peor.name)}" class="flex-1 flex justify-between items-center bg-red-950/40 hover:bg-red-900/60 border border-red-800/80 rounded px-2 py-1.5 cursor-pointer transition-colors w-1/2 shadow-sm" title="${peor.name} (${peor.total} part.)">
-      <span class="sug-item-name text-gray-200 truncate pr-1">${peor.name}</span>
-      <span class="sug-item-stats text-red-400 whitespace-nowrap">${peor.w}-${peor.l}</span>
+            ? `<button type="button" data-suggestion="${encodeURIComponent(peor.name)}" class="sug-btn sug-btn--worst" title="${peor.name} (${peor.total} part.)">
+      <span class="sug-btn-name">${peor.name}</span>
+      <span class="sug-btn-stats sug-btn-stats--worst">${peor.w}-${peor.l}</span>
   </button>`
-            : `<div class="flex-1 w-1/2"></div>`;
+            : `<div class="sug-btn-slot"></div>`;
 
           const btnMejor = mejor
-            ? `<button type="button" data-suggestion="${encodeURIComponent(mejor.name)}" class="flex-1 flex justify-between items-center bg-green-950/40 hover:bg-green-900/60 border border-green-800/80 rounded px-2 py-1.5 cursor-pointer transition-colors w-1/2 shadow-sm" title="${mejor.name} (${mejor.total} part.)">
-      <span class="sug-item-name text-gray-200 truncate pr-1">${mejor.name}</span>
-      <span class="sug-item-stats text-green-400 whitespace-nowrap">${mejor.w}-${mejor.l}</span>
+            ? `<button type="button" data-suggestion="${encodeURIComponent(mejor.name)}" class="sug-btn sug-btn--best" title="${mejor.name} (${mejor.total} part.)">
+      <span class="sug-btn-name">${mejor.name}</span>
+      <span class="sug-btn-stats sug-btn-stats--best">${mejor.w}-${mejor.l}</span>
   </button>`
-            : `<div class="flex-1 w-1/2"></div>`;
+            : `<div class="sug-btn-slot"></div>`;
 
-          html += `<div class="flex gap-1.5 w-full">`;
+          html += `<div class="sug-row">`;
           html += isAllied ? btnMejor + btnPeor : btnPeor + btnMejor;
           html += `</div>`;
         }
@@ -1112,35 +755,30 @@
 
         if (frecuentes.length > 0) {
           html += `
-<div class="bg-gray-900 border-t border-b border-gray-700 px-2 py-1.5 flex justify-center sug-top-title uppercase font-bold text-gray-400 mt-0.5">
-    <span class="sug-top-title text-[11px]">Top 3 Enfrentamientos</span>
+<div class="sug-section-header">
+    <span class="sug-section-label">Top 3 Enfrentamientos</span>
 </div>
-<div class="p-1.5 space-y-1.5 bg-slate-800">`;
+<div class="sug-top3-list">`;
 
           for (let i = 0; i < Math.min(3, frecuentes.length); i++) {
             const item = frecuentes[i];
             const total = item.w + item.l;
             const winrate = total > 0 ? Math.round((item.w / total) * 100) : 0;
 
-            let colorClass = "text-blue-400";
-            let bgClass =
-              "bg-blue-950/20 hover:bg-blue-900/40 border-blue-800/50";
+            let colorMod = "sug-top3-item--neutral";
 
             if (winrate >= 55) {
-              colorClass = "text-green-400";
-              bgClass =
-                "bg-green-950/20 hover:bg-green-900/40 border-green-800/50";
+              colorMod = "sug-top3-item--best";
             } else if (winrate <= 45) {
-              colorClass = "text-red-400";
-              bgClass = "bg-red-950/20 hover:bg-red-900/40 border-red-800/50";
+              colorMod = "sug-top3-item--worst";
             }
 
             html += `
-  <button type="button" data-suggestion="${encodeURIComponent(item.name)}" class="flex justify-between items-center ${bgClass} border rounded px-2 py-1.5 cursor-pointer transition-colors w-full shadow-sm" title="${item.name}">
-      <span class="sug-top-name text-gray-200 truncate pr-1">${item.name}</span>
-      <div class="flex items-center gap-3">
-          <span class="sug-top-extra text-gray-400 font-medium">${total} partidas</span>
-          <span class="sug-top-stats ${colorClass} whitespace-nowrap">${item.w}-${item.l}</span>
+  <button type="button" data-suggestion="${encodeURIComponent(item.name)}" class="sug-top3-item ${colorMod}" title="${item.name}">
+      <span class="sug-top3-name">${item.name}</span>
+      <div class="sug-top3-meta">
+          <span class="sug-top3-extra">${total} partidas</span>
+          <span class="sug-top3-stats">${item.w}-${item.l}</span>
       </div>
   </button>`;
           }
@@ -1150,7 +788,7 @@
         container.innerHTML = html;
         container.classList.remove("hidden");
         container.className =
-          "mt-2 rounded-lg overflow-hidden shadow-lg border border-slate-700 bg-slate-900 text-left w-full relative block h-auto max-h-none";
+          "sug-container";
 
         // 🔥 LÓGICA DE EVENTOS ACTUALIZADA 🔥
         container.onclick = (e) => {
@@ -1173,10 +811,6 @@
               analizarDraft();
             }
 
-            container.classList.add("hidden");
-
-            // 🔥 FIX: Llamamos a onInputChamp para forzar el ciclo de sugerencias
-            // Esto simula que el usuario ha "escrito" el campeón y cargará el panel opuesto
             if (typeof onInputChamp === "function") {
               onInputChamp(rol, targetSideLower);
             }
@@ -1228,7 +862,7 @@
         targetSide,
       ) {
         containerBox.classList.remove("hidden");
-        containerBox.innerHTML = `<div class="p-3 text-center text-xs text-gray-400 italic">Cargando mejores y peores matchups...</div>`;
+        containerBox.innerHTML = `<div class="sug-loading">Cargando mejores y peores matchups...</div>`;
 
         try {
           const url = `/api/sugerencias_matchup?rol=${rol}&campeon=${campeonSeleccionado}&side=${sideSeleccionado}`;
@@ -1262,10 +896,91 @@
         analizarDraft();
       }
 
+      async function cargarTopMatchupsConGuia() {
+        const container = document.getElementById("lista-matchups");
+        const loadButton = document.getElementById("btn-cargar-con-guia");
+        const sinGuiaButton = document.getElementById("btn-cargar-sin-guia");
+        loadButton.disabled = true;
+        sinGuiaButton.disabled = true;
+        container.innerHTML =
+          "<p class='matchups-loading'>Cargando top matchups...</p>";
+
+        try {
+          const response = await fetch("/api/top-matchups");
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          container.innerHTML = "";
+          window.matchupsPorRol = {};
+
+          const rolesOrder = ["Top", "Jungle", "Mid", "Adc", "Support"];
+          const rolesIcons = {
+            Top: "🛡️",
+            Jungle: "🌲",
+            Mid: "🔥",
+            Adc: "🏹",
+            Support: "✨",
+          };
+
+          rolesOrder.forEach((rol) => {
+            if (!data[rol] || data[rol].length === 0) return;
+            const matches = data[rol].slice(0, 10);
+            window.matchupsPorRol[rol] = matches;
+
+            const roleKey = rol.toLowerCase();
+            const rolSection = document.createElement("section");
+            rolSection.className = "matchup-role";
+
+            const conGuia = matches.filter(m => m.tiene_guia).length;
+            const sinGuia = matches.length - conGuia;
+
+            rolSection.innerHTML = `
+              <div class="matchup-role-header">
+                <div class="matchup-role-title">
+                  <span class="role-icon">${rolesIcons[rol]}</span>
+                  <div><h3>${rol}</h3><p>${matches.length} enfrentamientos más jugados · ${conGuia} con guía · ${sinGuia} sin guía</p></div>
+                </div>
+                <div class="matchup-role-actions">
+                  <span id="role-status-${roleKey}" class="role-generation-status">Pendiente</span>
+                  <button class="role-generate-button" onclick="generarGuiasRol('${rol}', this)">Generar guías pendientes</button>
+                </div>
+              </div>`;
+            container.appendChild(rolSection);
+
+            const list = document.createElement("div");
+            list.className = "matchup-ranking";
+            matches.forEach((match, index) => {
+              const row = document.createElement("div");
+              row.className = "matchup-ranking-row";
+              row.id = `matchup-${roleKey}-${index}`;
+              const estadoGuia = match.tiene_guia
+                ? '<span class="matchup-row-status ready">Guía lista</span>'
+                : '<span class="matchup-row-status">Pendiente</span>';
+              row.innerHTML = `
+                <span class="matchup-rank">${String(index + 1).padStart(2, "0")}</span>
+                <div class="matchup-names"><strong>${match.champ_main} <span>vs</span> ${match.champ_enemy}</strong><small>${match.total} partidas registradas</small></div>
+                ${estadoGuia}`;
+              list.appendChild(row);
+            });
+            rolSection.appendChild(list);
+          });
+          if (!container.children.length)
+            container.innerHTML =
+              "<p class='matchups-empty'>No hay matchups disponibles.</p>";
+        } catch (err) {
+          console.error("Error al cargar matchups:", err);
+          container.innerHTML = `<p class="matchups-error">No se pudieron cargar los matchups: ${err.message}</p>`;
+        } finally {
+          loadButton.disabled = false;
+          sinGuiaButton.disabled = false;
+        }
+      }
+
       async function cargarTopMatchupsPorRol() {
         const container = document.getElementById("lista-matchups");
         const loadButton = document.getElementById("btn-cargar-sin-guia");
+        const conGuiaButton = document.getElementById("btn-cargar-con-guia");
         loadButton.disabled = true;
+        conGuiaButton.disabled = true;
         container.innerHTML =
           "<p class='matchups-loading'>Cargando matchups pendientes...</p>";
 
@@ -1328,6 +1043,7 @@
           container.innerHTML = `<p class="matchups-error">No se pudieron cargar los matchups: ${err.message}</p>`;
         } finally {
           loadButton.disabled = false;
+          conGuiaButton.disabled = false;
         }
       }
 
@@ -1402,13 +1118,13 @@
 
         if (!riotId || !riotId.includes("#")) {
           container.innerHTML =
-            "<p class='text-yellow-400 text-center py-4'>⚠️ Ingresa un Riot ID válido (Nombre#TAG)</p>";
+            "<p class='msg msg-warning msg-center'>⚠️ Ingresa un Riot ID válido (Nombre#TAG)</p>";
           return;
         }
 
         btn.disabled = true;
         container.innerHTML =
-          "<p class='text-gray-400 text-center py-6'>⏳ Cargando partidas...</p>";
+          "<p class='msg msg-info msg-center msg-padded'>⏳ Cargando partidas...</p>";
 
         try {
           const response = await fetch(
@@ -1418,14 +1134,14 @@
 
           if (!response.ok) {
             console.error("[API PARTIDAS] Error del backend:", data);
-            container.innerHTML = `<p class='text-red-400 text-center py-4'>❌ ${data.detail || "Error al obtener partidas."}</p>`;
+            container.innerHTML = `<p class='msg msg-error msg-center'>❌ ${data.detail || "Error al obtener partidas."}</p>`;
             return;
           }
 
           if (!data.partidas || data.partidas.length === 0) {
             console.warn("[API PARTIDAS] Usuario existe pero 0 partidas.");
             container.innerHTML =
-              "<p class='text-yellow-400 text-center py-4'>No se encontraron partidas.</p>";
+              "<p class='msg msg-warning msg-center'>No se encontraron partidas.</p>";
             return;
           }
 
@@ -1433,7 +1149,7 @@
         } catch (err) {
           console.error("[API PARTIDAS] Error de red:", err);
           container.innerHTML =
-            "<p class='text-red-400 text-center py-4'>❌ Error al conectar con el servidor.</p>";
+            "<p class='msg msg-error msg-center'>❌ Error al conectar con el servidor.</p>";
         } finally {
           btn.disabled = false;
         }
@@ -1454,7 +1170,7 @@
       };
 
       function eloImage(tier) {
-        if (!tier) return "/ranks/unranked.png";
+        if (!tier) return "/static/ranks/unranked.png";
         const t = String(tier).toLowerCase();
         const map = {
           iron: "iron",
@@ -1475,9 +1191,9 @@
           challenger: "challenger",
         };
         for (const [k, v] of Object.entries(map)) {
-          if (t.includes(k)) return `/ranks/${v}.png`;
+          if (t.includes(k)) return `/static/ranks/${v}.png`;
         }
-        return "/ranks/unranked.png";
+        return "/static/ranks/unranked.png";
       }
 
       function formatMatchDate(timestamp) {
@@ -1521,7 +1237,7 @@
             const eloWinrate = Math.round(
               (valores.wins / valores.partidas) * 100,
             );
-            return `<div class="elo-summary-card"><img src="${eloImage(tier)}" onerror="this.onerror=null;this.src='/ranks/unranked.png'" alt="${ELO_NAMES[tier] || tier}" /><div><strong>${ELO_NAMES[tier] || tier} ${valores.division}</strong><small>${eloWinrate}% WR · ${valores.wins}V / ${valores.partidas - valores.wins}D</small></div></div>`;
+            return `<div class="elo-summary-card"><img src="${eloImage(tier)}" onerror="this.onerror=null;this.src='/static/ranks/unranked.png'" alt="${ELO_NAMES[tier] || tier}" /><div><strong>${ELO_NAMES[tier] || tier} ${valores.division}</strong><small>${eloWinrate}% WR · ${valores.wins}V / ${valores.partidas - valores.wins}D</small></div></div>`;
           })
           .join("");
 
@@ -1622,14 +1338,14 @@
             const champEnemigo = body[`${res.rol.toLowerCase()}_enemigo`];
             const guideId = `guide-${res.rol}`;
 
-            const btnGuia = `<button type="button" class="draft-guide-button mt-2 w-full bg-teal-400 text-slate-900 py-1 rounded font-bold hover:bg-teal-300 transition" data-rol="${res.rol}" data-main="${champAliado}" data-enemy="${champEnemigo}">Leer guía</button>`;
+            const btnGuia = `<button type="button" class="draft-guide-button" data-rol="${res.rol}" data-main="${champAliado}" data-enemy="${champEnemigo}">Leer guía</button>`;
             const estadoGuia =
               champAliado && champEnemigo
-                ? `<div id="${guideId}" class="guide-status loading text-xs text-slate-400 mt-1">Comprobando guía...</div>`
+                ? `<div id="${guideId}" class="guide-status loading">Comprobando guía...</div>`
                 : "";
             const guideControls =
               champAliado && champEnemigo
-                ? `<div class="draft-guide-stack w-full">${estadoGuia}${btnGuia}</div>`
+                ? `<div class="draft-guide-stack">${estadoGuia}${btnGuia}</div>`
                 : "";
 
             let eloHtml = "";
@@ -1640,15 +1356,15 @@
                 return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
               });
 
-              eloHtml = `<div class="w-full mt-2" style="display: flex; flex-direction: column; gap: 4px; margin-top:5px;">`;
+              eloHtml = `<div class="elo-breakdown">`;
               desgloseOrdenado.forEach((elo) => {
                 const iconPath = obtenerLogoRango(elo.nombre);
 
                 eloHtml += `
-                  <div style="width: 100%; background-color: rgba(30, 41, 59, 0.6); border: 1px solid rgba(51, 65, 85, 1); border-radius: 6px; padding: 8px 0; display: flex; justify-content: center;">
-                    <div style="display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; gap: 12px; width: 160px;">
-                      <img src="${iconPath}" alt="${elo.nombre}" style="width: 38px; padding-left:10px; height: auto; object-fit: contain; flex-shrink: 0; display: inline-block;">
-                      <span class="font-medium whitespace-nowrap ${elo.winrate >= 50 ? "text-green-400" : "text-red-400"}" style="font-size: 13px; line-height: 1; margin: 0;">
+                  <div class="elo-row">
+                    <div class="elo-row__inner">
+                      <img src="${iconPath}" alt="${elo.nombre}" class="elo-row__icon">
+                      <span class="elo-row__stats ${elo.winrate >= 50 ? "elo-win" : "elo-loss"}">
                         ${elo.winrate}% (${elo.wins}-${elo.losses})
                       </span>
                     </div>
@@ -1659,21 +1375,17 @@
             }
 
             if (res.estado === "sin_datos") {
-              el.className =
-                "w-full md:w-48 text-center py-2 px-3 rounded-lg text-sm font-bold bg-slate-800/50 border border-slate-700 text-slate-500 flex flex-col items-center justify-center";
+              el.className = "draft-result draft-result--empty";
               el.innerHTML = `<span>Sin datos</span>${guideControls}`;
             } else if (res.estado === "gana") {
-              el.className =
-                "matchup-result matchup-result-win w-full md:w-48 text-center py-2 px-3 rounded-lg text-sm font-bold flex flex-col items-center justify-center bg-green-900/30 border border-green-700";
-              el.innerHTML = `<span class="text-green-400">Gana (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
+              el.className = "draft-result matchup-result-win";
+              el.innerHTML = `<span class="result-win">Gana (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
             } else if (res.estado === "pierde") {
-              el.className =
-                "matchup-result matchup-result-loss w-full md:w-48 text-center py-2 px-3 rounded-lg text-sm font-bold flex flex-col items-center justify-center bg-red-900/30 border border-red-700";
-              el.innerHTML = `<span class="text-red-400">Pierde (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
+              el.className = "draft-result matchup-result-loss";
+              el.innerHTML = `<span class="result-loss">Pierde (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
             } else {
-              el.className =
-                "matchup-result matchup-result-neutral w-full md:w-48 text-center py-2 px-3 rounded-lg text-sm font-bold flex flex-col items-center justify-center bg-slate-700/50 border border-slate-500";
-              el.innerHTML = `<span class="text-slate-300">Empate (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
+              el.className = "draft-result matchup-result-neutral";
+              el.innerHTML = `<span class="result-draw">Empate (${res.winrate}% -> ${res.wins}-${res.losses})</span>${eloHtml}${guideControls}`;
             }
 
             if (champAliado && champEnemigo) {
@@ -1686,7 +1398,7 @@
       }
 
       function obtenerLogoRango(nombreTier) {
-        if (!nombreTier) return "/ranks/unranked.png";
+        if (!nombreTier) return "/static/ranks/unranked.png";
         const tier = nombreTier.trim().toLowerCase();
         const rangosValidos = [
           "iron",
@@ -1701,7 +1413,7 @@
           "challenger",
         ];
         const rangoFinal = rangosValidos.includes(tier) ? tier : "unranked";
-        return `/ranks/${rangoFinal}.png`;
+        return `/static/ranks/${rangoFinal}.png`;
       }
 
       async function resolverGuiaDraft(rol, campeon, enemigo, statusId) {
@@ -1749,7 +1461,7 @@
 
         title.innerText = `Coach: ${campeon} vs ${enemigo}`;
         content.innerHTML =
-          "<p class='text-center text-gray-400'>Cargando notas...</p>";
+          "<p class='msg msg-info msg-center'>Cargando notas...</p>";
         const backdrop = document.getElementById("modal-backdrop");
         backdrop.classList.remove("hidden");
         backdrop.style.display = "flex";
@@ -1763,7 +1475,7 @@
           content.innerText = data.contenido;
         } catch (err) {
           console.error("[GUÍA] Fallo en la descarga:", err);
-          content.innerHTML = `<p class="text-red-400 text-center">❌ ${err.message}</p>`;
+          content.innerHTML = `<p class="msg msg-error msg-center">❌ ${err.message}</p>`;
         }
       }
 
@@ -1773,7 +1485,7 @@
 
         if (!urlInput) return;
         statusText.innerHTML =
-          "⏳ <span class='text-yellow-400'>Procesando vídeo...</span>";
+          "⏳ <span class='msg-warning-inline'>Procesando vídeo...</span>";
         try {
           const response = await fetch("/api/process", {
             method: "POST",
@@ -1781,11 +1493,11 @@
             body: JSON.stringify({ url: urlInput }),
           });
           const data = await response.json();
-          statusText.innerHTML = `✅ <span class="text-green-400">${data.message}</span>`;
+          statusText.innerHTML = `✅ <span class="msg-success-inline">${data.message}</span>`;
         } catch (err) {
           console.error("[VIDEO] Error de red:", err);
           statusText.innerHTML =
-            "❌ <span class='text-red-400'>Error de conexión.</span>";
+            "❌ <span class='msg-error-inline'>Error de conexión.</span>";
         }
       }
 
@@ -1825,9 +1537,7 @@
           const resDiv = document.getElementById(`res-${rol}`);
           if (resDiv) {
             resDiv.innerText = "Sin datos";
-            // Restauramos las clases de Tailwind originales (grises)
-            resDiv.className =
-              "w-full md:w-48 text-center py-1.5 px-3 rounded text-sm font-bold bg-gray-800 border border-gray-600 text-gray-400 flex items-center justify-center";
+            resDiv.className = "draft-result draft-result--empty";
           }
         });
       }
@@ -1847,18 +1557,98 @@
         };
       }
 
+      // ===================== Carga de Jugadores =====================
+
+      async function iniciarCargaJugadores() {
+        const btn = document.getElementById("btnStartCarga");
+        const btnStop = document.getElementById("btnStopCarga");
+        btn.disabled = true;
+        btnStop.disabled = true;
+
+        try {
+          const res = await fetch("/api/scraper/start", { method: "POST" });
+          const data = await res.json();
+          if (data.error) { btn.disabled = false; btnStop.disabled = false; return; }
+          btnStop.disabled = false;
+          pollingCarga();
+        } catch (err) {
+          btn.disabled = false;
+          btnStop.disabled = false;
+          console.error("[CARGA] Error:", err);
+        }
+      }
+
+      async function detenerCargaJugadores() {
+        const btnStop = document.getElementById("btnStopCarga");
+        btnStop.disabled = true;
+        try { await fetch("/api/scraper/stop", { method: "POST" }); pollingCarga(); }
+        catch (err) { console.error("[CARGA] Error al detener:", err); }
+      }
+
+      let _pollingCargaTimer = null;
+      async function pollingCarga() {
+        if (_pollingCargaTimer) clearInterval(_pollingCargaTimer);
+        _pollingCargaTimer = setInterval(async () => {
+          try {
+            const res = await fetch("/api/scraper/status");
+            const data = await res.json();
+            const btn = document.getElementById("btnStartCarga");
+            const btnStop = document.getElementById("btnStopCarga");
+
+            if (data.status === "running") {
+              btn.disabled = true;
+              btnStop.disabled = false;
+            } else if (data.status === "stopping") {
+              btn.disabled = true;
+              btnStop.disabled = true;
+            } else {
+              clearInterval(_pollingCargaTimer);
+              _pollingCargaTimer = null;
+              btn.disabled = false;
+              btnStop.disabled = false;
+            }
+          } catch (err) { console.error("[CARGA] Error polling:", err); }
+        }, 2000);
+      }
+
+      async function comprobarEstadoCarga() {
+        try {
+          const res = await fetch("/api/scraper/status");
+          const data = await res.json();
+          const btn = document.getElementById("btnStartCarga");
+          const btnStop = document.getElementById("btnStopCarga");
+
+          if (data.status === "running") {
+            btn.disabled = true;
+            btnStop.disabled = false;
+            pollingCarga();
+          } else {
+            btn.disabled = false;
+            btnStop.disabled = false;
+          }
+        } catch (err) { console.error("[CARGA] Error comprobando estado:", err); }
+      }
+
+      // ===================== Preload (Base de Datos) =====================
+
       async function ejecutarPreload() {
         const btn = document.getElementById("btnPreload");
+        const btnStop = document.getElementById("btnStopPreload");
         const statusEl = document.getElementById("statusPreload");
 
         btn.disabled = true;
-        btn.classList.add("opacity-50", "cursor-not-allowed");
-        statusEl.classList.remove("hidden");
-        statusEl.textContent = "Iniciando proceso...";
+        btnStop.disabled = false;
+        statusEl.textContent = "Iniciando...";
+        statusEl.className = "card-action-status";
 
         try {
           const res = await fetch("/api/preload", { method: "POST" });
           const data = await res.json();
+          if (data.error) {
+            statusEl.textContent = data.error;
+            btn.disabled = false;
+            return;
+          }
 
           const timer = setInterval(async () => {
             try {
@@ -1866,81 +1656,56 @@
               const sData = await sRes.json();
               statusEl.textContent = sData.message;
 
-              if (sData.status === "completed" || sData.status === "error") {
+              if (sData.status === "completed" || sData.status === "error" || sData.status === "idle") {
                 clearInterval(timer);
                 btn.disabled = false;
-                btn.classList.remove("opacity-50", "cursor-not-allowed");
-
-                if (sData.status === "completed") {
-                  statusEl.classList.replace(
-                    "text-yellow-400",
-                    "text-green-400",
-                  );
-                } else {
-                  statusEl.classList.replace("text-yellow-400", "text-red-400");
+                btnStop.disabled = false;
+                if (sData.status === "error") {
+                  statusEl.classList.add("card-action-status--error");
+                } else if (sData.status === "completed") {
+                  statusEl.classList.add("card-action-status--ok");
                 }
               }
-            } catch (err) {
-              console.error("[PRELOAD] Error en polling:", err);
-            }
+            } catch (err) { console.error("[PRELOAD] Error polling:", err); }
           }, 2000);
         } catch (err) {
-          console.error("[PRELOAD] Error crítico al iniciar:", err);
-
+          console.error("[PRELOAD] Error:", err);
           btn.disabled = false;
-          btn.classList.remove("opacity-50", "cursor-not-allowed");
+          statusEl.textContent = "Error de conexión";
         }
       }
 
       async function detenerPreload() {
         const btnStop = document.getElementById("btnStopPreload");
         btnStop.disabled = true;
-        btnStop.innerText = "Deteniendo...";
-        btnStop.classList.add("opacity-50", "cursor-not-allowed");
-
-        try {
-          await fetch("/api/preload/stop", { method: "POST" });
-        } catch (error) {
-          console.error("Error pidiendo detener la precarga:", error);
-        }
+        btnStop.textContent = "Deteniendo...";
+        try { await fetch("/api/preload/stop", { method: "POST" }); }
+        catch (error) { console.error("Error deteniendo precarga:", error); }
       }
 
       async function comprobarEstadoPreload() {
         try {
           const response = await fetch("/api/preload/status");
           const data = await response.json();
-
           const btnPreload = document.getElementById("btnPreload");
           const btnStop = document.getElementById("btnStopPreload");
           const statusSpan = document.getElementById("statusPreload");
 
-          statusSpan.innerText = data.message;
+          statusSpan.textContent = data.message;
 
           if (data.status === "running") {
             btnPreload.disabled = true;
-            btnPreload.classList.add("opacity-50", "cursor-not-allowed");
-
-            btnStop.classList.remove("hidden");
             btnStop.disabled = false;
-            btnStop.innerText = "Detener";
-            btnStop.classList.remove("opacity-50", "cursor-not-allowed");
-
             setTimeout(comprobarEstadoPreload, 2000);
           } else if (data.status === "stopping") {
-            btnStop.classList.remove("hidden");
             btnStop.disabled = true;
-            btnStop.innerText = "Guardando...";
-            btnStop.classList.add("opacity-50", "cursor-not-allowed");
-
+            btnStop.textContent = "Guardando...";
             setTimeout(comprobarEstadoPreload, 2000);
           } else {
             btnPreload.disabled = false;
-            btnPreload.classList.remove("opacity-50", "cursor-not-allowed");
-            btnStop.classList.add("hidden");
+            btnStop.disabled = false;
           }
-        } catch (error) {
-          console.error("Error consultando estado:", error);
-        }
+        } catch (error) { console.error("Error consultando estado:", error); }
       }
 
       document.getElementById("btn-cargar-sin-guia").click();
