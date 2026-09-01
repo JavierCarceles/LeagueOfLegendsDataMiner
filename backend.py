@@ -38,7 +38,6 @@ riot_api_ready_sync = threading.Event()
 riot_api_ready_sync.set()
 riot_api_ready_async = None
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     emitir_log("Iniciando servidor web...", "info")
