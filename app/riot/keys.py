@@ -33,6 +33,9 @@ class KeyStore:
         self.detail = ""
         self.loaded_at: float | None = None
         self.checked_at: float | None = None
+        # Recomprobación automática de keys recién generadas (Riot puede tardar en activarlas).
+        self.rechecking = False
+        self.next_check_at: float | None = None
         with self._lock:
             self._reload(force=True)
 
@@ -121,4 +124,6 @@ class KeyStore:
             "checked_at": self.checked_at,
             "age_hours": round(age_h, 2) if age_h is not None else None,
             "dev_key_lifetime_hours": DEV_KEY_LIFETIME_H,
+            "rechecking": self.rechecking,
+            "next_check_in": max(0, round(self.next_check_at - time.time())) if self.rechecking and self.next_check_at else None,
         }

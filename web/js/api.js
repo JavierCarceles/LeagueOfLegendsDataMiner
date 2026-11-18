@@ -47,4 +47,6 @@ export function filterParams(extra = {}) {
 export const api = {
   get: (path, params, opts) => request("GET", path, { params, ...opts }),
   post: (path, body, params, opts) => request("POST", path, { body, params, ...opts }),
+  patch: (path, body, params, opts) => request("PATCH", path, { body, params, ...opts }),
+  del: (path, params, opts) => request("DELETE", path, { params, ...opts }),
 };

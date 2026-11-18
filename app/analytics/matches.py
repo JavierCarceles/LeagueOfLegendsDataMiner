@@ -128,7 +128,10 @@ def match_detail(svc, match_id: str) -> dict:
     blue_team = {p["role"]: p["champ"] for p in players if p["team"] == 100 and p["role"]}
     red_team = {p["role"]: p["champ"] for p in players if p["team"] == 200 and p["role"]}
 
-    has_timeline = svc.db.one("SELECT 1 FROM timelines WHERE match_id = ?", (match_id,)) is not None
+    has_timeline = (
+        svc.db.one("SELECT 1 FROM timelines WHERE match_id = ? UNION SELECT 1 FROM my_games WHERE match_id = ? AND timeline_raw IS NOT NULL", (match_id, match_id))
+        is not None
+    )
     return {
         "match_id": match_id,
         "platform": m["platform"],
@@ -178,7 +181,9 @@ def match_timeline(svc, match_id: str) -> dict:
         return json.loads(cached["data"])
     detail = match_detail(svc, match_id)
     team_of = {p["pid"]: p["team"] for p in detail["players"]}
-    payload = svc.riot.timeline(match_id)
+    from app.coach.store import raw_timeline
+
+    payload = raw_timeline(svc.db, match_id) or svc.riot.timeline(match_id)
     if not payload:
         raise MatchNotFound("Riot no tiene timeline para esta partida")
     frames = (payload.get("info") or {}).get("frames") or []

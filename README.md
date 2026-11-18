@@ -6,7 +6,8 @@ Analizador de drafts, matchups y estadísticas de League of Legends. Combina **d
 
 | Sección | Qué hace |
 |---|---|
-| **Draft** | Probabilidad de victoria con intervalo, nota S–F, fuerza de cada equipo, los 5 enfrentamientos (con quién gana la línea), sinergias, perfil de daño AD/AP, curva por duración y sugerencias de pick por hueco. Funciona con el draft a medias. |
+| **Mi progreso** | Guarda tu perfil y recoge **solas** tus partidas (normales y clasificatorias de la Grieta), sin grabar repeticiones. Detecta qué haces mal (ganks del jungla rival, muertes adelantado o sin ward, oro sin gastar, minutos vacíos, pathing, visión, objetivos), te propone propósitos, sigue si los cumples partida a partida y te dice cuándo estás listo para clasificatorias. Cada partida tiene una repetición 2D y sus momentos clave. |
+| **Draft** | Probabilidad de victoria con intervalo, nota S–F, fuerza de cada equipo, los 5 enfrentamientos (con quién gana la línea), sinergias, perfil de daño AD/AP y curva por duración. Los mejores picks de cada hueco salen solos (en el centro de cada línea y arriba de cada selector), con tus campeones si tienes perfil. Funciona con el draft a medias. |
 | **Matchups** | Todos los rivales de un campeón: WR ajustado, esperado, ventaja propia (Δ), veredicto y fiabilidad. El detalle incluye fuentes por separado, desglose por parche/elo/región, consejo de OP.GG y la build contra ese rival. |
 | **Campeones** | Tier list por rol (OP.GG + tu BD) y ficha de campeón: roles, mejores y peores matchups, sinergias y perfil. |
 | **Jugador** | Perfil profesional: rango, forma, KDA, CS/min, Δ CS@10 frente al rival, fase de líneas, campeones, comparación con la media del mismo campeón/rol/elo y partidas detalladas. |
@@ -43,6 +44,11 @@ Se recarga en caliente: cuando caduque la development key (24 h), pega la nueva 
 funcionan igualmente el draft, los matchups, la tier list y las regiones con OP.GG. La key solo hace
 falta para perfiles, análisis de partidas y el recolector propio.
 
+**Mi progreso.** Entra en *Mi progreso*, escribe tu Riot ID (o pulsa *Detectar del cliente* con el
+cliente de LoL abierto) y guarda. A partir de ahí no tienes que hacer nada: mientras la web esté en
+marcha, cada 3 minutos se buscan tus partidas nuevas y se analizan. La primera vez se recuperan tus
+últimas 50 (configurable).
+
 **Opcional:**
 - Guías con IA, YouTube y amigos del cliente: `pip install -r requirements-coaching.txt` y las claves `GEMINI_KEY_*` en `.env`.
 - Tests: `pip install -r requirements-dev.txt`, luego `python -m pytest`.
@@ -56,6 +62,35 @@ falta para perfiles, análisis de partidas y el recolector propio.
    - onetricks.gg, u.gg y mobalytics bloquean clientes automáticos con un checkpoint anti-bot, así que no se usan.
 2. **Tu base de datos** (Riot API, lo que recoge el recolector o las búsquedas) más el histórico importado.
 3. **Estadísticas de campeón**: el WR general de cada campeón en su rol da el resultado *esperado* de cualquier enfrentamiento (log5). Así un matchup con pocas partidas se estima por la fuerza de ambos campeones.
+
+## Mi progreso: cómo se analizan tus partidas
+
+- **Sin repeticiones.** De cada partida se descarga el detalle y el *timeline* de match-v5 (2 llamadas):
+  la posición de los 10 jugadores al final de cada minuto y todos los eventos con su coordenada (kills,
+  wards, objetivos, torres, compras, subidas de nivel). El JSON se guarda comprimido en `lol.db`, así que
+  si mejora el análisis se re-analizan solas.
+- **Cuándo.** Cada 3 minutos (configurable) mientras la web esté abierta. Si el cliente de LoL está
+  abierto en el mismo ordenador, se detecta el final de cada partida y se descarga en cuanto Riot la
+  publica (1-3 min). Si la key caduca, el seguimiento se pausa y sigue solo al pegar la nueva.
+- **Muertes.** Cada una se clasifica: *gank* (participa alguien que no es de tu línea, sobre todo el
+  jungla rival), *1 contra 1*, *adelantado* (más cerca de la torre exterior rival que de la tuya),
+  *sin ward* (no pusiste ninguno en los 2 minutos previos), *con oro sin gastar* (≥ 1.200), *antes de
+  un objetivo* (el rival coge dragón, larvas, heraldo, barón o Atakhan en los 90 s siguientes), *en su
+  jungla* y *aislado* (después del 14, sin aliados a menos de 2.200 unidades).
+- **Tiempo.** Minutos vivo y fuera de la fuente con ≥ 1.500 de oro sin gastar, *minutos vacíos* (desde
+  el 15: menos de 3 CS, menos de 400 de daño a campeones, sin wards ni participar en kills, torres u
+  objetivos) y porcentaje de la partida muerto.
+- **Jungla.** Campamento inicial, ruta de los minutos 1-8, presencia en cada línea, ganks con kill antes
+  del 10, invasiones, CS de jungla y ganks del jungla rival en la otra mitad del mapa.
+- **Referencias.** Cada métrica se compara con una referencia orientativa de tu rol, escalada al *elo
+  objetivo* de tu perfil. Si el recolector tiene ≥ 300 partidas de ese elo y rol, se usan las medias
+  reales de tu base de datos. Los puntos débiles se ordenan por lo lejos que estás de la referencia.
+- **¿Listo para clasificatorias?** Nota 0-100 con tus últimas 10 partidas: 60 % los propósitos que
+  cumples y 40 % la nota de fundamentos (0-10, 5 = como la referencia). A partir de 70 y con 10
+  partidas analizadas, te dice que es buen momento.
+- **Repetición 2D.** Posición exacta cada minuto y en cada evento; entre medias se interpola. Las
+  posiciones exactas entre minutos solo existen en la repetición (.rofl), que no se puede leer fuera del
+  cliente.
 
 ## Cómo se calcula (resumen)
 
@@ -81,11 +116,12 @@ app/
   data/        SQLite: esquema y escrituras con agregados incrementales
   ingest/      parseo de partidas, recolector e importación del histórico
   analytics/   estadística, evidencia combinada, matchups, campeones, draft, jugadores, partidas, regiones
+  coach/       tus partidas: perfil, seguimiento automático, geometría del mapa, análisis y propósitos
   coaching/    índice de guías, Gemini y YouTube
   api/         endpoints REST (documentación interactiva en /docs)
 web/           interfaz (HTML + CSS + módulos JS, sin compilación)
 data/          lol.db (generada), legacy/ (datos del proyecto antiguo), coachings/ (guías)
-tests/         435 tests offline (pytest)
+tests/         470 tests offline (pytest)
 ```
 
 ## Cambios respecto a la versión anterior

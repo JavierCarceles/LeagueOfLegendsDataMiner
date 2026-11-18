@@ -506,3 +506,151 @@ class FakeRiotClient:
         self._record("match", match_id)
         payload = self.payloads.get(match_id)
         return copy.deepcopy(payload) if payload is not None else None
+
+
+# ------------------------------------------------------------ timeline-v5
+# Escenario del timeline de pruebas (partida de 30 min, ``make_match`` por defecto):
+# * pid 1 = top azul (Aatrox) vs pid 6 = top rojo (Darius); junglas: pid 2 (azul) y pid 7 (rojo).
+# * 5:10 gank del jungla rojo en top: pid 1 adelantado y sin ward; el rojo coge las larvas a las 6:20.
+# * 8:00 pid 1 mata a su rival · 11:30 pid 1 muere 1 contra 1 · 24:00 muere aislado en la jungla roja
+#   con 1.800 de oro sin gastar · 25:45 muere en mid y el rojo coge el barón a las 26:10 (pid 1 muerto).
+# * Minutos 16-18 con +1.500 de oro sin gastar y 19-21 sin farmear ni pelear.
+# * 6:30 gank del jungla azul (pid 2) en bot · 9:00 dragón azul (pid 2, 4 y 5).
+TL_DURATION_MIN = 30
+TL_HOME = {
+    1: (1300, 11500), 3: (6300, 6700), 4: (11500, 1300), 5: (11300, 1650),
+    6: (3300, 13700), 8: (8300, 8000), 9: (13500, 3200), 10: (13250, 3500),
+}
+TL_JUNGLE_PATHS = {
+    2: [(7765, 4020), (8394, 2641), (6823, 5508), (10400, 5300), (11000, 1500), (11000, 1300), (3000, 3000), (6823, 5508), (9500, 4600), (5000, 7000)],
+    7: [(10979, 6799), (12512, 6452), (11020, 8457), (7977, 9392), (2600, 13000), (5007, 10471), (7035, 10880), (6406, 12259), (8000, 9500), (9000, 9000)],
+}
+TL_LATE = {100: (6000, 6500), 200: (9000, 8800)}
+
+
+def _tl_position(pid: int, minute: int) -> tuple[int, int]:
+    team = 100 if pid <= 5 else 200
+    if minute == 0:
+        return (400, 420) if team == 100 else (14340, 14390)
+    if pid in TL_JUNGLE_PATHS and minute <= len(TL_JUNGLE_PATHS[pid]):
+        return TL_JUNGLE_PATHS[pid][minute - 1]
+    if minute < 14 and pid in TL_HOME:
+        x, y = TL_HOME[pid]
+        return x + (minute % 3) * 40, y - (minute % 2) * 40
+    if pid == 1 and minute == 24:
+        return (10600, 6900)  # entrando en la jungla roja
+    x, y = TL_LATE[team]
+    return x + 120 * (pid % 5), y + 90 * (pid % 5)
+
+
+def _tl_frame(pid: int, minute: int) -> dict:
+    jungle = pid in (2, 7)
+    support = pid in (5, 10)
+    minions = 0 if jungle else (minute if support else minute * 7)
+    jungle_cs = minute * 6 if jungle else 0
+    total_gold = 500 + minute * 400 + 10 * pid
+    damage = minute * 500
+    current = 300 if minute else 500
+    if pid == 1:
+        if minute <= 10:
+            minions = minute * 6
+        elif minute <= 18:
+            minions = 60 + (minute - 10) * 7
+        elif minute <= 21:
+            minions = 116  # minutos 19-21 sin farmear
+        else:
+            minions = 116 + (minute - 21) * 7
+        damage = min(minute, 18) * 500 + max(0, minute - 21) * 500
+        total_gold = 500 + minute * 300
+        current = {16: 1700, 17: 1900, 18: 2100, 24: 1800}.get(minute, current)
+    elif pid == 6:
+        minions = int(minute * 7.5)
+        total_gold = 500 + minute * 380
+    x, y = _tl_position(pid, minute)
+    return {
+        "championStats": {},
+        "currentGold": current,
+        "damageStats": {"totalDamageDoneToChampions": damage},
+        "goldPerSecond": 0,
+        "jungleMinionsKilled": jungle_cs,
+        "level": min(18, 1 + minute * 2 // 3),
+        "minionsKilled": minions,
+        "participantId": pid,
+        "position": {"x": x, "y": y},
+        "timeEnemySpentControlled": 0,
+        "totalGold": total_gold,
+        "xp": minute * 650,
+    }
+
+
+def _tl_events() -> list[dict]:
+    ev: list[dict] = [{"timestamp": 0, "type": "PAUSE_END", "realTimestamp": 0}]
+    for pid in range(1, 11):
+        ev.append({"timestamp": 4_000 + pid * 100, "type": "ITEM_PURCHASED", "participantId": pid, "itemId": 1055})
+        for level in range(2, 19):
+            ev.append({"timestamp": (level - 1) * 90_000 + pid * 10, "type": "LEVEL_UP", "participantId": pid, "level": level})
+    ev.append({"timestamp": 100_000, "type": "WARD_PLACED", "creatorId": 1, "wardType": "UNDEFINED"})
+    for t, ward in ((420_000, "YELLOW_TRINKET"), (540_000, "YELLOW_TRINKET"), (720_000, "CONTROL_WARD"), (1_000_000, "YELLOW_TRINKET"), (1_300_000, "YELLOW_TRINKET")):
+        ev.append({"timestamp": t, "type": "WARD_PLACED", "creatorId": 1, "wardType": ward})
+    for t in (200_000, 330_000):
+        ev.append({"timestamp": t, "type": "WARD_PLACED", "creatorId": 2, "wardType": "YELLOW_TRINKET"})
+
+    def kill(t, killer, victim, x, y, assists=()):
+        ev.append(
+            {
+                "timestamp": t, "type": "CHAMPION_KILL", "killerId": killer, "victimId": victim,
+                "assistingParticipantIds": list(assists), "position": {"x": x, "y": y},
+                "bounty": 300, "shutdownBounty": 0, "killStreakLength": 0, "victimDamageReceived": [], "victimDamageDealt": [],
+            }
+        )
+
+    def monster(t, killer, team, kind, x, y, sub=None, assists=()):
+        event = {"timestamp": t, "type": "ELITE_MONSTER_KILL", "killerId": killer, "killerTeamId": team, "monsterType": kind,
+                 "position": {"x": x, "y": y}, "assistingParticipantIds": list(assists), "bounty": 0}
+        if sub:
+            event["monsterSubType"] = sub
+        ev.append(event)
+
+    kill(310_000, 7, 1, 2200, 13300, assists=[6])  # gank del jungla rojo: adelantado y sin ward
+    for t in (380_000, 385_000, 392_000):
+        monster(t, 7, 200, "HORDE", 5007, 10471)
+    kill(390_000, 2, 9, 11000, 1300, assists=[4])  # gank del jungla azul en bot
+    kill(480_000, 1, 6, 1300, 11000)  # solo kill de pid 1
+    monster(540_000, 2, 100, "DRAGON", 9866, 4414, sub="FIRE_DRAGON", assists=[4, 5])
+    kill(690_000, 6, 1, 1200, 9000)  # 1 contra 1
+    ev.append({"timestamp": 1_000_000, "type": "BUILDING_KILL", "killerId": 6, "teamId": 100, "buildingType": "TOWER_BUILDING",
+               "laneType": "TOP_LANE", "towerType": "OUTER_TURRET", "position": {"x": 981, "y": 10441}, "assistingParticipantIds": [], "bounty": 0})
+    ev.append({"timestamp": 1_110_000, "type": "ITEM_PURCHASED", "participantId": 1, "itemId": 3071})
+    ev.append({"timestamp": 1_320_000, "type": "ITEM_PURCHASED", "participantId": 1, "itemId": 2055})
+    kill(1_440_000, 8, 1, 10979, 6799, assists=[9])  # aislado en la jungla roja con oro sin gastar
+    ev.append({"timestamp": 1_460_000, "type": "ITEM_PURCHASED", "participantId": 1, "itemId": 3047})  # comprando muerto
+    kill(1_545_000, 10, 1, 7400, 7400)
+    monster(1_570_000, 7, 200, "BARON_NASHOR", 5007, 10471, assists=[8, 10])
+    ev.append({"timestamp": TL_DURATION_MIN * 60_000, "type": "GAME_END", "winningTeam": 100, "gameId": 1})
+    return ev
+
+
+def make_timeline(match: dict) -> dict:
+    """Payload de ``/lol/match/v5/matches/{id}/timeline`` coherente con ``make_match``."""
+    events = _tl_events()
+    frames = []
+    for minute in range(TL_DURATION_MIN + 1):
+        t0, t1 = minute * 60_000, (minute + 1) * 60_000
+        frames.append(
+            {
+                "timestamp": t0,
+                "participantFrames": {str(pid): _tl_frame(pid, minute) for pid in range(1, 11)},
+                "events": [e for e in events if t0 <= e["timestamp"] < t1 or (minute == TL_DURATION_MIN and e["timestamp"] >= t0)],
+            }
+        )
+    participants = match["info"]["participants"]
+    return {
+        "metadata": {"dataVersion": "2", "matchId": match["metadata"]["matchId"], "participants": [p["puuid"] for p in participants]},
+        "info": {
+            "endOfGameResult": "GameComplete",
+            "frameInterval": 60_000,
+            "gameId": match["info"]["gameId"],
+            "participants": [{"participantId": p["participantId"], "puuid": p["puuid"]} for p in participants],
+            "frames": frames,
+        },
+    }

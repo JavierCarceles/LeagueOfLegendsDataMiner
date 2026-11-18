@@ -2,7 +2,7 @@
 import { api, filterParams } from "../api.js";
 import { curveChart, gauge } from "../charts.js";
 import { champPicker } from "../components/picker.js";
-import { dd, loadJSON, ROLE_LABEL, ROLES, save } from "../state.js";
+import { dd, loadJSON, ROLE_LABEL, ROLES, save, state } from "../state.js";
 import { champImg, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
@@ -15,6 +15,9 @@ let bottomEl = null;
 let pickers = { ally: {}, enemy: {} };
 let lastResult = null;
 let seq = 0;
+// Recomendaciones automáticas por hueco (sin pulsar nada): caché por draft + filtros.
+const recsCache = new Map();
+let recsShown = null; // { key, res } del último lote ya recibido
 
 const taken = () => new Set([...Object.values(draft.ally), ...Object.values(draft.enemy)].filter(Boolean));
 
@@ -71,6 +74,7 @@ function slot(side, role) {
     value: draft[side][role] || null,
     placeholder: `${ROLE_LABEL[role]} ${side === "ally" ? "aliado" : "rival"}`,
     exclude: taken,
+    recommend: () => slotRecs(side, role).then((res) => pickerRecs(res, side, role)),
     onChange: (id) => {
       if (id) draft[side][role] = id;
       else delete draft[side][role];
@@ -79,12 +83,114 @@ function slot(side, role) {
     },
   });
   pickers[side][role] = picker;
-  return h(
-    `div.slot.${side === "ally" ? "blue" : "red"}`,
-    h("div.slot-role", { title: ROLE_LABEL[role] }, roleIcon(role)),
-    picker,
-    h("div.slot-actions", h("button.btn.btn-ghost.btn-icon.btn-sm", { title: "Sugerir picks para este hueco", onclick: () => openSuggest(side, role) }, icon("spark"))),
+  return h(`div.slot.${side === "ally" ? "blue" : "red"}`, h("div.slot-role", { title: ROLE_LABEL[role] }, roleIcon(role)), picker);
+}
+
+// ------------------------------------------------------------ recomendaciones
+const recsKey = () => JSON.stringify([draft.ally, draft.enemy, state.filters]);
+const emptySlots = () => [
+  ...ROLES.filter((r) => !draft.ally[r]).map((role) => ({ side: "ally", role })),
+  ...ROLES.filter((r) => !draft.enemy[r]).map((role) => ({ side: "enemy", role })),
+];
+
+function fetchRecs(key, slots) {
+  if (!recsCache.has(key)) {
+    const promise = api.post("/api/draft/suggest-batch", { ally: draft.ally, enemy: draft.enemy, slots }, filterParams({ limit: 8 }));
+    recsCache.set(key, promise);
+    promise.catch(() => recsCache.delete(key));
+    while (recsCache.size > 30) recsCache.delete(recsCache.keys().next().value);
+  }
+  return recsCache.get(key);
+}
+
+/** Recomendaciones del hueco: del lote de huecos vacíos o, si está ocupado, de una petición propia. */
+function slotRecs(side, role) {
+  const key = recsKey();
+  const slots = emptySlots();
+  const base = slots.length ? fetchRecs(key, slots) : Promise.resolve({ slots: {}, pool: {} });
+  return base.then((res) => res.slots[`${side}:${role}`] ? res : fetchRecs(`${key}|${side}:${role}`, [{ side, role }]));
+}
+
+function recTitle(s, opp) {
+  return opp
+    ? `vs ${dd.name(opp)}: ${fmt.pct(s.lane_wr)} en ${fmt.int(s.lane_games)} partidas${s.synergy_pp ? ` · sinergias ${fmt.signed(s.synergy_pp, 1, " pp")}` : ""}`
+    : `WR general ${fmt.pct(s.base_wr)}${s.synergy_pp ? ` · sinergias ${fmt.signed(s.synergy_pp, 1, " pp")}` : ""}`;
+}
+
+function pickerRecs(res, side, role) {
+  const slotRes = res.slots[`${side}:${role}`];
+  if (!slotRes) return null;
+  const opp = slotRes.opponent;
+  const sections = [
+    {
+      title: side === "ally" ? (opp ? `Recomendados contra ${dd.name(opp)}` : "Recomendados") : "Mejores picks para el rival",
+      items: slotRes.best.slice(0, 6).map((s) => ({ champ: s.champ, meta: { text: fmt.signed(s.score_pp, 1, " pp"), cls: s.score_pp >= 0 ? "good" : "bad", title: recTitle(s, opp) } })),
+    },
+  ];
+  const pool = side === "ally" ? (res.pool?.[role] || []).filter((p) => !taken().has(p.champ) || p.champ === draft[side][role]) : [];
+  if (pool.length) {
+    sections.push({ title: "Tus campeones en este rol", items: pool.slice(0, 5).map((p) => ({ champ: p.champ, meta: { text: `${p.games} p · ${fmt.pct(p.wr, 0)}`, cls: wrClass(p.wr), title: "De tus partidas analizadas en «Mi progreso»" } })) });
+  }
+  const scores = new Map(Object.entries(slotRes.scores || {}).map(([c, v]) => [Number(c), { text: fmt.signed(v, 1), cls: v >= 0 ? "good" : "bad", title: "Lo que aporta frente a un 50 % (pp)" }]));
+  return { sections, scores };
+}
+
+function pickRec(role, champ) {
+  draft.ally[role] = champ;
+  pickers.ally[role].setValue(champ);
+  persist();
+  analyze();
+}
+
+/** Pinta en el centro de cada línea sin aliado los mejores picks (se actualiza solo). */
+function refreshRecs() {
+  const key = recsKey();
+  const slots = emptySlots();
+  if (!slots.some((s) => s.side === "ally")) return;
+  fetchRecs(key, slots)
+    .then((res) => {
+      if (!root || key !== recsKey()) return;
+      recsShown = { key, res };
+      for (const role of ROLES) {
+        const box = laneEls[role]?.querySelector(".rec-strip");
+        if (box) fillStrip(box, role, res);
+      }
+    })
+    .catch(() => {
+      for (const role of ROLES) {
+        const box = laneEls[role]?.querySelector(".rec-strip");
+        if (box) mount(box, h("span.tiny.faint", "Sin recomendaciones ahora mismo"));
+      }
+    });
+}
+
+function fillStrip(box, role, res) {
+  const slotRes = res.slots[`ally:${role}`];
+  if (!slotRes || !slotRes.best.length) return mount(box, h("span.tiny.faint", "Sin datos suficientes para recomendar"));
+  const pool = new Set((res.pool?.[role] || []).map((p) => p.champ));
+  const opp = slotRes.opponent;
+  mount(
+    box,
+    h("span.rec-label", opp ? `Counters` : "Recomendados"),
+    h(
+      "div.rec-icons",
+      slotRes.best.slice(0, 5).map((s) =>
+        h(
+          `button.rec${pool.has(s.champ) ? ".mine" : ""}`,
+          { type: "button", title: `${dd.name(s.champ)} · ${fmt.signed(s.score_pp, 1, " pp")}\n${recTitle(s, opp)}${pool.has(s.champ) ? "\nEstá en tu pool" : ""}`, onclick: () => pickRec(role, s.champ) },
+          champImg(s.champ, "sm"),
+          h(`span.${s.score_pp >= 0 ? "good" : "bad"}`, fmt.signed(s.score_pp, 1)),
+        ),
+      ),
+    ),
+    h("a.tiny", { href: "javascript:void 0", onclick: () => openSuggest("ally", role), title: "Ver la lista completa y los picks a evitar" }, "más"),
   );
+}
+
+function stripFor(role) {
+  const box = h("div.rec-strip", h("span.rec-label", "Recomendados"), h("div.rec-icons", [0, 1, 2, 3, 4].map(() => h("span.rec.skeleton"))));
+  if (recsShown?.key === recsKey()) fillStrip(box, role, recsShown.res);
+  return box;
 }
 
 function swapTeams() {
@@ -115,11 +221,13 @@ async function analyze() {
   const picks = Object.keys(draft.ally).length + Object.keys(draft.enemy).length;
   if (!picks) {
     lastResult = null;
-    mount(summaryEl, h("div.card", { style: { gridColumn: "1 / -1" } }, empty("Empieza el draft", "Elige campeones en cualquier orden: el análisis se actualiza solo. Pulsa ✦ en un hueco para ver los mejores picks.", "draft")));
+    mount(summaryEl, h("div.card", { style: { gridColumn: "1 / -1" } }, empty("Empieza el draft", "Elige campeones en cualquier orden: el análisis se actualiza solo. Los mejores picks de cada hueco salen en el centro de cada línea y arriba de cada selector.", "draft")));
     ROLES.forEach((r) => renderLane(r, null));
     mount(bottomEl);
+    refreshRecs();
     return;
   }
+  refreshRecs();
   summaryEl.style.opacity = "0.6";
   const slow = setTimeout(() => {
     if (mine === seq) toast("Descargando datos de OP.GG para este draft (solo la primera vez)…");
@@ -218,7 +326,12 @@ function renderLane(role, lane) {
   const el = laneEls[role];
   if (!el) return;
   el.className = "lane-card";
+  const needsAlly = !draft.ally[role];
   if (!lane || lane.kind === "empty") {
+    if (needsAlly) {
+      mount(el, stripFor(role));
+      return;
+    }
     el.classList.add("empty");
     mount(el, "Elige los campeones");
     return;
@@ -228,7 +341,7 @@ function renderLane(role, lane) {
     mount(
       el,
       h("div.lane-top", h(`span.lane-wr.${wrClass(lane.wr_adj)}`, fmt.pct(lane.wr_adj)), h("span.small.muted", `WR general del ${who} en ${ROLE_LABEL[role]}`)),
-      h("div.lane-meta", h("span", "Falta el otro campeón para analizar el enfrentamiento"), h(`span.impact.${lane.impact_pp >= 0 ? "good" : "bad"}`, fmt.signed(lane.impact_pp, 1, " pp"))),
+      needsAlly ? stripFor(role) : h("div.lane-meta", h("span", "Falta el otro campeón para analizar el enfrentamiento"), h(`span.impact.${lane.impact_pp >= 0 ? "good" : "bad"}`, fmt.signed(lane.impact_pp, 1, " pp"))),
     );
     return;
   }
@@ -334,6 +447,7 @@ async function openSuggest(side, role) {
             "div.sugg",
             {
               onclick: () => {
+                if (taken().has(s.champ)) return;
                 draft[side][role] = s.champ;
                 pickers[side][role].setValue(s.champ);
                 persist();

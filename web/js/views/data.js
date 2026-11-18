@@ -65,15 +65,25 @@ async function refresh() {
 
 // ------------------------------------------------------------------ key
 let keyRendered = null;
+
+function keyResultToast(res, okText) {
+  const reason = res.check?.reason || "";
+  if (res.valid) toast(okText, "success");
+  else if (res.valid === false && res.key?.rechecking)
+    toast(`Riot aún no acepta la key (${reason}). Si la acabas de generar puede tardar unos minutos en activarse: la vuelvo a comprobar sola.`, "error", 10000);
+  else if (res.valid === false) toast(`Riot rechaza la key: ${reason}`, "error", 10000);
+  else toast(`No se pudo comprobar con Riot (no es un rechazo de la key): ${reason}`, "error", 10000);
+}
+
 function renderKey(key) {
-  const signature = JSON.stringify([key.status, key.masked, Math.round(key.age_hours || 0)]);
+  const signature = JSON.stringify([key.status, key.masked, Math.round(key.age_hours || 0), key.rechecking, key.detail]);
   if (keyRendered === signature && sections.key.childElementCount) return;
   keyRendered = signature;
   const input = h("input.input", { placeholder: "RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", type: "password", autocomplete: "off", spellcheck: "false" });
   const save = async () => {
     try {
       const res = await api.post("/api/system/riot-key", { key: input.value.trim() });
-      toast(res.valid ? "API key guardada y válida" : "Guardada, pero Riot la rechaza", res.valid ? "success" : "error");
+      keyResultToast(res, "API key guardada y válida");
       keyRendered = null;
       refresh();
     } catch (err) {
@@ -83,7 +93,7 @@ function renderKey(key) {
   const validate = async () => {
     try {
       const res = await api.post("/api/system/validate-key");
-      toast(res.valid ? "La key funciona" : "La key no es válida o ha caducado", res.valid ? "success" : "error");
+      keyResultToast(res, "La key funciona");
       keyRendered = null;
       refresh();
     } catch (err) {
@@ -102,6 +112,11 @@ function renderKey(key) {
     sections.key,
     h("div.row-wrap", statusPill, key.masked ? h("code.small.muted", key.masked) : null, remaining !== null ? h("span.small.muted", `cargada ${fmt.ago(key.loaded_at)} · una development key dura 24 h (quedan ~${fmt.num(remaining, 0)} h)`) : null),
     key.detail ? h("div.small.bad", { style: { marginTop: "6px" } }, key.detail) : null,
+    key.rechecking
+      ? notice("Si la acabas de generar, Riot puede tardar unos minutos en activarla. Se vuelve a comprobar sola cada poco tiempo; no hace falta que hagas nada.", "info")
+      : key.status === "invalid"
+        ? h("p.small.muted", { style: { marginTop: "6px" } }, "Comprueba que has copiado la key completa y la última que generaste (al regenerar, la anterior deja de valer).")
+        : null,
     h("div.input-group", { style: { marginTop: "12px" } }, input, h("button.btn.btn-primary", { onclick: save }, "Guardar"), key.configured ? h("button.btn", { onclick: validate }, "Validar") : null),
     h("p.small.muted", { style: { marginTop: "10px" } }, "Consíguela en ", h("a", { href: "https://developer.riotgames.com/", target: "_blank", rel: "noopener" }, "developer.riotgames.com"), ". Se guarda en tu .env local y se recarga en caliente: no hace falta reiniciar. Sin key siguen funcionando el draft, los matchups y la tier list con OP.GG."),
   );

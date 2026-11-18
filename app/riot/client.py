@@ -94,14 +94,16 @@ class RiotClient:
                 log.warning("429 en %s (%s). Esperando lo que indica Riot…", host, method)
                 continue
             if status == 401:
-                self.keys.mark_invalid("401 Unauthorized")
-                raise RiotKeyError(401, "API key inválida o ausente (401)")
+                detail = f"401 {self._riot_message(response) or 'Unauthorized'}"
+                self.keys.mark_invalid(detail)
+                raise RiotKeyError(401, f"Riot no reconoce la API key ({detail})")
             if status == 403:
                 # 403 suele ser key caducada, pero también endpoint no permitido:
                 # se confirma con un endpoint barato antes de invalidar la key.
                 if validate_on_403 and self.validate_key():
                     raise RiotAPIError(403, f"Acceso denegado a {method}")
-                raise RiotKeyError(403, "API key caducada o no válida (403)")
+                detail = f"403 {self._riot_message(response) or 'Forbidden'}"
+                raise RiotKeyError(403, f"Riot rechaza la API key ({detail}): caducada, mal copiada o aún sin activar")
             if status >= 500:
                 failures += 1
                 if failures > retries:
@@ -118,8 +120,20 @@ class RiotClient:
         else:
             time.sleep(seconds)
 
-    def validate_key(self, platform: str = "euw1") -> bool:
-        """Comprueba la key con status-v4 (1 petición, host de plataforma)."""
+    @staticmethod
+    def _riot_message(response) -> str:
+        """Mensaje de error de Riot (``{"status": {"message": ...}}``) si lo hay."""
+        try:
+            return str((response.json().get("status") or {}).get("message") or "")[:120]
+        except ValueError:
+            return ""
+
+    def check_key(self, platform: str = "euw1") -> dict:
+        """Comprueba la key con status-v4 (1 petición, host de plataforma).
+
+        ``valid`` es True (Riot la acepta), False (Riot la rechaza: 401/403) o
+        None (no se pudo comprobar: red caída o Riot con errores 5xx).
+        """
         with self._validate_lock:
             try:
                 self.request(
@@ -129,12 +143,18 @@ class RiotClient:
                     retries=1,
                     validate_on_403=False,
                 )
-                return True
+                return {"valid": True, "status": 200, "reason": "Riot acepta la key"}
             except RiotKeyError as exc:
                 self.keys.mark_invalid(exc.message)
-                return False
-            except RiotAPIError:
-                return self.keys.status == "valid"
+                return {"valid": False, "status": exc.status, "reason": exc.message}
+            except RiotAPIError as exc:
+                return {"valid": None, "status": exc.status, "reason": exc.message}
+
+    def validate_key(self, platform: str = "euw1") -> bool:
+        result = self.check_key(platform)
+        if result["valid"] is None:  # sin respuesta de Riot: se mantiene lo que se sabía
+            return self.keys.status == "valid"
+        return result["valid"]
 
     # -------------------------------------------------------------- account-v1
     def account_by_riot_id(self, game_name: str, tag_line: str, platform: str, **kw):

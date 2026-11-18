@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.analytics import draft
 from app.analytics.filters import Filters
 from app.api.deps import filters_dep, role_param, sources_dep, svc_from
+from app.riot.routing import ROLES
 
 router = APIRouter(prefix="/api/draft", tags=["draft"])
 
@@ -50,6 +51,44 @@ def suggest(
 ):
     ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
     return draft.suggest(svc, f, ally, enemy, role_param(role), side, limit, min_games, sources)
+
+
+class Slot(BaseModel):
+    side: str = Field("ally", pattern="^(ally|enemy)$")
+    role: str
+
+
+class BatchBody(DraftBody):
+    slots: list[Slot] = Field(default_factory=list, max_length=10)
+
+
+@router.post("/suggest-batch")
+def suggest_batch(
+    body: BatchBody,
+    limit: int = Query(8, ge=1, le=40),
+    min_games: int = Query(200, ge=0),
+    f: Filters = Depends(filters_dep),
+    sources: str = Depends(sources_dep),
+    svc=Depends(svc_from),
+):
+    """Recomendaciones de varios huecos de una vez (las que el draft enseña sin pulsar nada).
+
+    Si tienes perfil guardado incluye tu pool: los campeones que juegas en
+    cada rol de tus huecos aliados, con partidas y WR de tus partidas analizadas.
+    """
+    from app.coach import store
+
+    ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
+    slots = [(s.side, role_param(s.role)) for s in body.slots] or [("ally", r) for r in ROLES if r not in ally]
+    result = draft.suggest_many(svc, f, ally, enemy, slots, limit, min_games, sources)
+    profile = store.get_profile(svc.db)
+    puuids = store.known_puuids(profile)
+    pool = {}
+    for side, role in slots:
+        if side == "ally" and puuids:
+            pool[role] = store.champion_pool(svc.db, puuids, role)[:10]
+    result["pool"] = pool
+    return result
 
 
 @router.get("/backtest")

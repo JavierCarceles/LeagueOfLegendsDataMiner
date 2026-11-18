@@ -40,6 +40,28 @@ def _db_counts(svc) -> dict:
     }
 
 
+def _tracker_brief(svc) -> dict:
+    from app.coach import store
+
+    profile = store.get_profile(svc.db)
+    state = svc.tracker.state
+    return {
+        "profile": {
+            "game_name": profile["game_name"],
+            "tag_line": profile["tag_line"],
+            "platform": profile["platform"],
+            "profile_icon": profile.get("profile_icon"),
+            "linked": bool(profile.get("puuid")),
+        }
+        if profile
+        else None,
+        "status": state.get("status"),
+        "queue": state.get("queue"),
+        "in_game": state.get("in_game"),
+        "last_new_at": state.get("last_new_at"),
+    }
+
+
 @router.get("/system/status")
 def status(svc=Depends(svc_from)):
     return {
@@ -49,6 +71,7 @@ def status(svc=Depends(svc_from)):
         "db": _db_counts(svc),
         "legacy": {**legacy_status(svc.db), "running": svc.legacy_running},
         "crawler": svc.crawler.status(),
+        "tracker": _tracker_brief(svc),
         "ratelimit": svc.limiter.snapshot(),
         "model": {"alpha": get_alpha(svc), "priors": svc.priors.get() if svc.startup_done.is_set() else None, "backtest": last_backtest(svc)},
         "features": {
@@ -67,15 +90,22 @@ def set_key(body: KeyBody, svc=Depends(svc_from)):
         svc.keys.set(body.key)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    valid = svc.riot.validate_key()
-    return {"key": svc.keys.public(), "valid": valid}
+    check = svc.riot.check_key()
+    if check["valid"] is False:
+        # Una key recién generada puede tardar unos minutos en activarse.
+        svc.schedule_key_recheck()
+    return {"key": svc.keys.public(), "valid": check["valid"], "check": check}
 
 
 @router.post("/system/validate-key")
 def validate_key(svc=Depends(svc_from)):
     if not svc.keys.get():
         raise HTTPException(412, "No hay RIOT_API_KEY configurada")
-    return {"valid": svc.riot.validate_key(), "key": svc.keys.public()}
+    check = svc.riot.check_key()
+    age_h = svc.keys.public()["age_hours"]
+    if check["valid"] is False and age_h is not None and age_h < 0.25:
+        svc.schedule_key_recheck()
+    return {"valid": check["valid"], "check": check, "key": svc.keys.public()}
 
 
 @router.post("/system/legacy-import")

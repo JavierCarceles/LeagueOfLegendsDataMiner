@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from app.analytics.aggregates import Aggregates
 from app.analytics.priors import Priors
@@ -36,11 +37,14 @@ class Services:
         self.guides = GuideIndex(settings.coachings_dir, self.dd)
         self.opgg_sync_thread: threading.Thread | None = None
         self.opgg_stop = threading.Event()
+        self.shutdown_event = threading.Event()
+        from app.coach.tracker import GameTracker
         from app.coaching.youtube import YouTubeJobs
         from app.ingest.crawler import Crawler
 
         self.crawler = Crawler(self)
         self.youtube = YouTubeJobs(self)
+        self.tracker = GameTracker(self)
         self.startup_done = threading.Event()
         self.legacy_running = False
 
@@ -58,6 +62,8 @@ class Services:
             log.exception("Fallo en las tareas de arranque")
         finally:
             self.startup_done.set()
+        # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
+        self.tracker.start()
         # Precarga ligera de OP.GG (tier lists del parche actual y anterior).
         if self.opgg.enabled and self.dd.champions:
             try:
@@ -72,6 +78,38 @@ class Services:
                 log.info("OP.GG listo (parches %s).", ", ".join(versions[:2]) or "?")
             except Exception as exc:
                 log.warning("OP.GG no disponible ahora mismo: %s", exc)
+
+    def schedule_key_recheck(self) -> None:
+        """Vuelve a comprobar una key rechazada durante ~9 min.
+
+        Una development key recién generada a veces tarda unos minutos en
+        funcionar. Así el usuario no tiene que estar pulsando «Validar».
+        """
+        keys = self.keys
+        if keys.rechecking:
+            return
+        version = keys.version
+        keys.rechecking = True
+
+        def run() -> None:
+            try:
+                for delay in (15, 30, 45, 60, 90, 120, 180):
+                    keys.next_check_at = time.time() + delay
+                    if self.shutdown_event.wait(delay):
+                        return
+                    if keys.version != version or keys.status == "valid":
+                        return
+                    result = self.riot.check_key()
+                    if result["valid"]:
+                        log.info("Riot ya acepta la API key: lista para usar.")
+                        return
+                    log.info("Riot todavía no acepta la key (%s). Vuelvo a probar en breve…", result["reason"])
+                log.warning("Riot sigue rechazando la key tras ~9 min: comprueba que copiaste la última que generaste.")
+            finally:
+                keys.rechecking = False
+                keys.next_check_at = None
+
+        threading.Thread(target=run, name="key-recheck", daemon=True).start()
 
     def start_opgg_sync(self, tier: str, region: str, patches: list[str]) -> dict:
         if self.opgg_sync_thread and self.opgg_sync_thread.is_alive():
@@ -99,5 +137,7 @@ class Services:
             self.legacy_running = False
 
     def shutdown(self) -> None:
+        self.shutdown_event.set()
         self.opgg_stop.set()
         self.crawler.shutdown()
+        self.tracker.shutdown()

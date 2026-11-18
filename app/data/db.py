@@ -206,6 +206,58 @@ CREATE TABLE IF NOT EXISTS agg_totals (
     minutes REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (patch, tier, platform)
 ) WITHOUT ROWID;
+
+-- Tu perfil (una sola fila) y el seguimiento automático de tus partidas.
+CREATE TABLE IF NOT EXISTS my_profile (
+    id             INTEGER PRIMARY KEY CHECK (id = 1),
+    puuid          TEXT,
+    game_name      TEXT NOT NULL,
+    tag_line       TEXT NOT NULL,
+    platform       TEXT NOT NULL,
+    profile_icon   INTEGER,
+    summoner_level INTEGER,
+    target_tier    TEXT NOT NULL DEFAULT 'PLATINUM',
+    settings       TEXT NOT NULL DEFAULT '{}',
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL
+);
+
+-- Partidas propias: JSON crudo comprimido (match + timeline) para poder
+-- re-analizarlas, el análisis completo y un resumen ligero (digest).
+CREATE TABLE IF NOT EXISTS my_games (
+    match_id     TEXT PRIMARY KEY,
+    puuid        TEXT,
+    pid          INTEGER,
+    queue        INTEGER,
+    game_start   INTEGER,
+    duration     INTEGER,
+    champ        INTEGER,
+    role         TEXT,
+    team         INTEGER,
+    win          INTEGER,
+    status       TEXT NOT NULL,
+    reason       TEXT,
+    tries        INTEGER NOT NULL DEFAULT 0,
+    match_raw    BLOB,
+    timeline_raw BLOB,
+    analysis     BLOB,
+    digest       TEXT,
+    version      INTEGER,
+    fetched_at   INTEGER NOT NULL,
+    analyzed_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_my_games_start ON my_games(status, game_start);
+
+CREATE TABLE IF NOT EXISTS my_goals (
+    id         INTEGER PRIMARY KEY,
+    metric     TEXT NOT NULL,
+    op         TEXT NOT NULL,
+    target     REAL NOT NULL,
+    role       TEXT,
+    label      TEXT NOT NULL,
+    active     INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
 """
 
 

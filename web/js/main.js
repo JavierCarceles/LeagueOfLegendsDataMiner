@@ -1,9 +1,11 @@
 // Arranque de la aplicación: navegación, filtros globales, estado de la API key y logs.
 import { api } from "./api.js";
-import { onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
+import { closePickers } from "./components/picker.js";
+import { dd, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, h, icon, mount, select } from "./ui.js";
 
 const VIEWS = [
+  { id: "progreso", label: "Mi progreso", icon: "target", section: "Tú", load: () => import("./views/coach.js") },
   { id: "draft", label: "Draft", icon: "draft", section: "Análisis", load: () => import("./views/draft.js") },
   { id: "matchups", label: "Matchups", icon: "swords", section: "Análisis", load: () => import("./views/matchups.js") },
   { id: "campeones", label: "Campeones", icon: "crown", section: "Análisis", load: () => import("./views/champions.js") },
@@ -13,7 +15,7 @@ const VIEWS = [
   { id: "guias", label: "Guías", icon: "book", section: "Coaching", load: () => import("./views/guides.js") },
   { id: "datos", label: "Datos y API", icon: "database", section: "Sistema", load: () => import("./views/data.js") },
 ];
-const ALIASES = { campeon: "campeones" };
+const ALIASES = { campeon: "campeones", perfil: "progreso", "mi-progreso": "progreso" };
 
 const main = document.getElementById("main");
 let current = { id: null, module: null, params: [] };
@@ -108,9 +110,13 @@ async function refreshStatus() {
       pill.classList.add("ok");
       text = key.age_hours !== null ? `Riot API · ${Math.max(0, Math.round(24 - key.age_hours))} h` : "Riot API OK";
       pill.title = `Key ${key.masked} válida. Las development keys caducan a las 24 h.`;
+    } else if (key.configured && key.status === "invalid" && key.rechecking) {
+      pill.classList.add("warn");
+      text = "Key activándose…";
+      pill.title = "Riot aún no acepta la key nueva; se vuelve a comprobar sola.";
     } else if (key.configured && key.status === "invalid") {
       pill.classList.add("bad");
-      text = "Key caducada";
+      text = "Key rechazada";
       pill.title = key.detail || "La key ha caducado o no es válida.";
     } else if (key.configured) {
       pill.classList.add("warn");
@@ -121,9 +127,26 @@ async function refreshStatus() {
     }
     if (status.crawler?.running) text += " · recolectando";
     pill.lastChild.textContent = text;
+    renderProfilePill(status.tracker);
   } catch {
     /* el servidor puede estar arrancando */
   }
+}
+
+function renderProfilePill(tracker) {
+  const el = document.getElementById("profile-pill");
+  if (!el || !tracker) return;
+  const p = tracker.profile;
+  el.classList.remove("hidden");
+  el.classList.toggle("empty", !p);
+  if (!p) {
+    mount(el, icon("user"), h("span", "Guardar mi perfil"));
+    el.title = "Guarda tu Riot ID para que tus partidas se recojan y analicen solas";
+    return;
+  }
+  const extra = tracker.status === "syncing" ? h("span.spinner.sm", { title: "Descargando partidas" }) : tracker.in_game ? h("span.pill.pill-warn", "en partida") : !p.linked ? h("span.dot.warn") : null;
+  mount(el, p.profile_icon != null ? h("img", { src: dd.profileIcon(p.profile_icon), alt: "" }) : icon("user"), h("span.name", p.game_name), extra);
+  el.title = `${p.game_name}#${p.tag_line} · Mi progreso${tracker.in_game ? " (estás en partida: se analizará al terminar)" : ""}`;
 }
 
 // ------------------------------------------------------------------ logs
@@ -171,7 +194,8 @@ function parseHash() {
 async function route() {
   const { id, params } = parseHash();
   const view = VIEWS.find((v) => v.id === id);
-  document.querySelectorAll(".modal-backdrop, .picker-pop").forEach((el) => el.remove());
+  closePickers();
+  document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
   highlightNav(id);
   document.getElementById("view-title").textContent = view.label;
   document.title = `${view.label} · Tempu Drafter`;
@@ -209,6 +233,7 @@ async function boot() {
   window.addEventListener("hashchange", route);
   refreshStatus();
   setInterval(refreshStatus, 15000);
+  window.addEventListener("tempu:status", refreshStatus); // p. ej. al guardar o quitar tu perfil
   route();
   // Data Dragon puede tardar unos segundos la primera vez.
   if (!state.champList.length) {

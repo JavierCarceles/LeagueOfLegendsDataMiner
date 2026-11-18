@@ -330,37 +330,31 @@ def analyze(svc, f: Filters, ally: dict, enemy: dict, sources: str = "all") -> d
     }
 
 
-def suggest(
-    svc,
-    f: Filters,
-    ally: dict,
-    enemy: dict,
-    role: str,
-    side: str = "ally",
-    limit: int = 12,
-    min_games: int = 200,
-    sources: str = "all",
-    min_lane_games: int = 100,
-) -> dict:
-    """Mejores picks para el hueco ``role`` del lado ``side`` según el draft actual.
-
-    Si el rival de línea ya está elegido solo se proponen campeones con al
-    menos ``min_lane_games`` partidas de ese enfrentamiento concreto.
-    """
-    ev = Evidence(svc, f, sources)
-    alpha = get_alpha(svc)
-    ally, enemy = _clean(ally), _clean(enemy)
-    mine, theirs = (ally, enemy) if side == "ally" else (enemy, ally)
-    taken = set(ally.values()) | set(enemy.values())
+def _slot_jobs(svc, ev: Evidence, mine: dict[str, int], theirs: dict[str, int], role: str) -> dict:
+    """Descargas de OP.GG que necesita un hueco (clave -> trabajo, sin duplicados)."""
+    jobs = {("tier", role): lambda r=role: ev.tier_list(r)}
     opponent = theirs.get(role)
-    if ev.scope:
-        jobs = [lambda: ev.tier_list(role)]
-        if opponent:
-            jobs.append(lambda: ev.counters(role, opponent))
-        jobs += [lambda r=r, c=c: svc.opgg.synergies(c, r, role) for r, c in mine.items() if r != role]
-        svc.opgg.prefetch(jobs, timeout=20)
-    ev.fetch = False
+    if opponent:
+        jobs[("counters", role, opponent)] = lambda r=role, c=opponent: ev.counters(r, c)
+    for r, c in mine.items():
+        if r != role:
+            jobs[("synergy", c, r, role)] = lambda r=r, c=c, slot=role: svc.opgg.synergies(c, r, slot)
+    return jobs
 
+
+def _suggest_slot(
+    ev: Evidence,
+    alpha: float,
+    mine: dict[str, int],
+    theirs: dict[str, int],
+    taken: set[int],
+    role: str,
+    side: str,
+    limit: int,
+    min_games: int,
+    min_lane_games: int,
+) -> dict:
+    opponent = theirs.get(role)
     results = []
     for champ in ev.champions_in_role(role, min_games):
         if champ in taken:
@@ -400,12 +394,71 @@ def suggest(
         "role": role,
         "side": side,
         "opponent": opponent,
-        "filters": f.public(),
-        "evidence": ev.public(),
         "best": results[:limit],
         "worst": list(reversed(results[-min(5, len(results)) :])) if len(results) > limit else [],
         "evaluated": len(results),
+        "scores": {r["champ"]: r["score_pp"] for r in results},
     }
+
+
+def suggest(
+    svc,
+    f: Filters,
+    ally: dict,
+    enemy: dict,
+    role: str,
+    side: str = "ally",
+    limit: int = 12,
+    min_games: int = 200,
+    sources: str = "all",
+    min_lane_games: int = 100,
+) -> dict:
+    """Mejores picks para el hueco ``role`` del lado ``side`` según el draft actual.
+
+    Si el rival de línea ya está elegido solo se proponen campeones con al
+    menos ``min_lane_games`` partidas de ese enfrentamiento concreto.
+    """
+    ev = Evidence(svc, f, sources)
+    alpha = get_alpha(svc)
+    ally, enemy = _clean(ally), _clean(enemy)
+    mine, theirs = (ally, enemy) if side == "ally" else (enemy, ally)
+    if ev.scope:
+        svc.opgg.prefetch(list(_slot_jobs(svc, ev, mine, theirs, role).values()), timeout=20)
+    ev.fetch = False
+    taken = set(ally.values()) | set(enemy.values())
+    result = _suggest_slot(ev, alpha, mine, theirs, taken, role, side, limit, min_games, min_lane_games)
+    return {**result, "filters": f.public(), "evidence": ev.public()}
+
+
+def suggest_many(
+    svc,
+    f: Filters,
+    ally: dict,
+    enemy: dict,
+    slots: list[tuple[str, str]],
+    limit: int = 8,
+    min_games: int = 200,
+    sources: str = "all",
+    min_lane_games: int = 100,
+) -> dict:
+    """``suggest`` para varios huecos a la vez (comparten evidencia y descargas)."""
+    ev = Evidence(svc, f, sources)
+    alpha = get_alpha(svc)
+    ally, enemy = _clean(ally), _clean(enemy)
+    taken = set(ally.values()) | set(enemy.values())
+    teams = {"ally": (ally, enemy), "enemy": (enemy, ally)}
+    slots = list(dict.fromkeys((side, role) for side, role in slots if side in teams and role in ROLES))
+    if ev.scope:
+        jobs: dict = {}
+        for side, role in slots:
+            jobs.update(_slot_jobs(svc, ev, *teams[side], role))
+        svc.opgg.prefetch(list(jobs.values()), timeout=25)
+    ev.fetch = False
+    out = {}
+    for side, role in slots:
+        mine, theirs = teams[side]
+        out[f"{side}:{role}"] = _suggest_slot(ev, alpha, mine, theirs, taken, role, side, limit, min_games, min_lane_games)
+    return {"filters": f.public(), "evidence": ev.public(), "slots": out}
 
 
 # ------------------------------------------------------------------ backtest
