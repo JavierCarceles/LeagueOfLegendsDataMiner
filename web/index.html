@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tempu Drafter</title>
+    <meta name="description" content="Analizador de drafts, matchups y estadísticas de League of Legends con datos de OP.GG y de tu propia base de datos." />
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" id="sidebar"></aside>
+      <header class="topbar">
+        <h1 id="view-title">Draft</h1>
+        <div class="filters" id="filters"></div>
+        <div class="spacer"></div>
+        <button class="status-pill" id="key-pill" title="Estado de la API key de Riot"><span class="dot"></span><span>API key</span></button>
+        <button class="btn btn-ghost btn-icon" id="log-toggle" title="Actividad en tiempo real"></button>
+      </header>
+      <main class="main" id="main"><div class="loading"><div class="spinner"></div>Cargando…</div></main>
+    </div>
+    <aside class="drawer" id="drawer">
+      <div class="drawer-head">Actividad en tiempo real<span class="spacer"></span><button class="btn btn-ghost btn-sm" id="log-clear">Limpiar</button><button class="btn btn-ghost btn-sm" id="log-close">Cerrar</button></div>
+      <div class="log-list" id="log-list"></div>
+    </aside>
+    <div class="toasts" id="toasts"></div>
+    <script type="module" src="/static/js/main.js"></script>
+  </body>
+</html>

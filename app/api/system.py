@@ -1,0 +1,130 @@
+"""Estado del sistema, API key, metadatos y logs en tiempo real."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import threading
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from app import __version__
+from app.analytics.filters import available_patches
+from app.analytics.draft import get_alpha, last_backtest
+from app.api.deps import svc_from
+from app.coaching.gemini import sdk_available
+from app.coaching.youtube import capabilities
+from app.ingest.legacy import legacy_status
+from app.lcu import available as lcu_available
+from app.logbus import bus
+from app.riot.routing import PLATFORMS, QUEUES, REGION_LABELS, ROLE_LABELS, ROLES, TIER_LABELS, TIERS
+
+router = APIRouter(prefix="/api", tags=["sistema"])
+
+
+class KeyBody(BaseModel):
+    key: str
+
+
+def _db_counts(svc) -> dict:
+    db = svc.db
+    return {
+        "matches": db.scalar("SELECT COUNT(*) FROM matches WHERE aggregated = 1", default=0),
+        "stored_matches": db.scalar("SELECT COUNT(*) FROM matches", default=0),
+        "players": db.scalar("SELECT COUNT(*) FROM players", default=0),
+        "seeds": db.scalar("SELECT COUNT(*) FROM players WHERE is_seed = 1", default=0),
+        "legacy_matches": db.scalar("SELECT SUM(matches) FROM agg_totals WHERE patch = 'legacy'", default=0),
+        "size_mb": round(svc.settings.db_path.stat().st_size / 1_048_576, 1) if svc.settings.db_path.exists() else 0,
+    }
+
+
+@router.get("/system/status")
+def status(svc=Depends(svc_from)):
+    return {
+        "version": __version__,
+        "ready": svc.startup_done.is_set(),
+        "key": svc.keys.public(),
+        "db": _db_counts(svc),
+        "legacy": {**legacy_status(svc.db), "running": svc.legacy_running},
+        "crawler": svc.crawler.status(),
+        "ratelimit": svc.limiter.snapshot(),
+        "model": {"alpha": get_alpha(svc), "priors": svc.priors.get() if svc.startup_done.is_set() else None, "backtest": last_backtest(svc)},
+        "features": {
+            "gemini": bool(svc.settings.gemini_keys) and sdk_available(),
+            "gemini_keys": len(svc.settings.gemini_keys),
+            "youtube": capabilities(),
+            "lcu": lcu_available(),
+        },
+        "guides_dir": str(svc.settings.coachings_dir),
+    }
+
+
+@router.post("/system/riot-key")
+def set_key(body: KeyBody, svc=Depends(svc_from)):
+    try:
+        svc.keys.set(body.key)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    valid = svc.riot.validate_key()
+    return {"key": svc.keys.public(), "valid": valid}
+
+
+@router.post("/system/validate-key")
+def validate_key(svc=Depends(svc_from)):
+    if not svc.keys.get():
+        raise HTTPException(412, "No hay RIOT_API_KEY configurada")
+    return {"valid": svc.riot.validate_key(), "key": svc.keys.public()}
+
+
+@router.post("/system/legacy-import")
+def legacy_import(force: bool = False, svc=Depends(svc_from)):
+    if not svc.dd.champions:
+        raise HTTPException(409, "Data Dragon aún no está cargado")
+    threading.Thread(target=svc.run_legacy_import, kwargs={"force": force}, daemon=True).start()
+    return {"status": "started"}
+
+
+@router.get("/meta")
+def meta(svc=Depends(svc_from)):
+    patches = available_patches(svc.db)
+    has_legacy = bool(svc.db.scalar("SELECT 1 FROM agg_totals WHERE patch = 'legacy' LIMIT 1"))
+    return {
+        "ddragon": svc.dd.public(),
+        "roles": [{"id": r, "label": ROLE_LABELS[r]} for r in ROLES],
+        "tiers": [{"id": t, "label": TIER_LABELS[t]} for t in TIERS],
+        "platforms": [
+            {"id": p, "region": r, "label": label, "name": name} for p, (r, label, name) in PLATFORMS.items()
+        ],
+        "regions": [{"id": r, "label": label} for r, label in REGION_LABELS.items()],
+        "patches": patches,
+        "has_legacy": has_legacy,
+        "queues": {str(k): v for k, v in QUEUES.items()},
+    }
+
+
+@router.get("/system/logs/recent")
+def recent_logs(limit: int = 100):
+    return {"logs": bus.recent(min(max(limit, 1), 400))}
+
+
+@router.get("/system/logs")
+async def stream_logs(request: Request):
+    queue = bus.subscribe()
+
+    async def events():
+        try:
+            yield "retry: 3000\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    entry = await asyncio.wait_for(queue.get(), timeout=15)
+                    yield f"data: {json.dumps(entry, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+        finally:
+            bus.unsubscribe(queue)
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

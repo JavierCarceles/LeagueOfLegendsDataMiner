@@ -1,0 +1,83 @@
+"""Aplicación FastAPI: arranque, rutas y gestión de errores."""
+
+from __future__ import annotations
+
+import asyncio
+import threading
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app import __version__
+from app.api import collector, draft, external, guides, players, stats, system
+from app.config import WEB_DIR, Settings, settings as default_settings
+from app.logbus import bus, get_logger, setup_logging
+from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
+from app.services import Services
+
+log = get_logger("app")
+
+
+class StaticNoCache(StaticFiles):
+    """Ficheros estáticos que el navegador siempre revalida (ETag): tras
+    actualizar el proyecto nunca se queda con JS/CSS antiguos en caché."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+def create_app(settings: Settings | None = None, run_startup: bool = True) -> FastAPI:
+    setup_logging()
+    settings = settings or default_settings
+    svc = Services(settings)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        bus.attach_loop(asyncio.get_running_loop())
+        log.info("Tempu Drafter %s arrancando…", __version__)
+        if run_startup:
+            threading.Thread(target=svc.startup, name="startup", daemon=True).start()
+        else:
+            svc.startup_done.set()
+        yield
+        log.info("Apagando…")
+        svc.shutdown()
+
+    app = FastAPI(title="Tempu Drafter", version=__version__, lifespan=lifespan)
+    app.state.svc = svc
+
+    @app.exception_handler(RiotKeyError)
+    async def _key_error(_: Request, exc: RiotKeyError):
+        return JSONResponse({"detail": exc.message, "code": "riot_key"}, status_code=412)
+
+    @app.exception_handler(RiotAPIError)
+    async def _riot_error(_: Request, exc: RiotAPIError):
+        code = 404 if exc.status == 404 else 502
+        return JSONResponse({"detail": exc.message, "code": "riot_api", "status": exc.status}, status_code=code)
+
+    @app.exception_handler(Cancelled)
+    async def _cancelled(_: Request, __: Cancelled):
+        return JSONResponse({"detail": "Operación cancelada"}, status_code=499)
+
+    @app.exception_handler(ValueError)
+    async def _value_error(_: Request, exc: ValueError):
+        return JSONResponse({"detail": str(exc)}, status_code=400)
+
+    for router in (system.router, stats.router, draft.router, players.router, collector.router, guides.router, external.router):
+        app.include_router(router)
+
+    app.mount("/static", StaticNoCache(directory=WEB_DIR), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        return FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return FileResponse(WEB_DIR / "img" / "favicon.svg", media_type="image/svg+xml")
+
+    return app
