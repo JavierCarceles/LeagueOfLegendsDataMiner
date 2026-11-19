@@ -14,8 +14,6 @@ from app import __version__
 from app.analytics.filters import available_patches
 from app.analytics.draft import get_alpha, last_backtest
 from app.api.deps import svc_from
-from app.coaching.gemini import sdk_available
-from app.coaching.youtube import capabilities
 from app.ingest.legacy import legacy_status
 from app.lcu import available as lcu_available
 from app.logbus import bus
@@ -62,6 +60,12 @@ def _tracker_brief(svc) -> dict:
     }
 
 
+@router.get("/ping")
+def ping():
+    """Respuesta inmediata (sin tocar la base de datos): la usa run.py para saber si la app ya está abierta."""
+    return {"app": "tempu-drafter", "version": __version__}
+
+
 @router.get("/system/status")
 def status(svc=Depends(svc_from)):
     return {
@@ -76,9 +80,6 @@ def status(svc=Depends(svc_from)):
         "ratelimit": svc.limiter.snapshot(),
         "model": {"alpha": get_alpha(svc), "priors": svc.priors.get() if svc.startup_done.is_set() else None, "backtest": last_backtest(svc)},
         "features": {
-            "gemini": bool(svc.settings.gemini_keys) and sdk_available(),
-            "gemini_keys": len(svc.settings.gemini_keys),
-            "youtube": capabilities(),
             "lcu": lcu_available(),
         },
         "guides_dir": str(svc.settings.coachings_dir),

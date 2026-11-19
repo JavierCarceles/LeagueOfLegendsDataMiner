@@ -7,6 +7,7 @@ condición cuyo ``wait(t)`` adelanta el reloj falso ``t`` segundos.
 from __future__ import annotations
 
 import threading
+from collections import deque
 
 import pytest
 
@@ -157,8 +158,10 @@ def test_two_minute_window_blocks_after_100_requests():
 def test_low_priority_keeps_a_reserve_of_the_long_window():
     limiter, clock = make_limiter()  # reserve_frac = 0.15 -> 15 de 100 reservadas
     for _ in range(85):
+        limiter._low_next.clear()  # aquí solo se prueba la reserva (el espaciado tiene su propio test)
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
         clock.advance(0.2)
+    limiter._low_next.clear()
     assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)
     # Las peticiones interactivas (HIGH) sí pueden usar la reserva...
     for _ in range(15):
@@ -172,8 +175,10 @@ def test_my_games_go_ahead_of_the_crawler():
     """Con el recolector (LOW) a tope, el seguimiento de tus partidas (NORMAL) sigue teniendo cupo."""
     limiter, clock = make_limiter()  # 100/120 s: LOW hasta 85, NORMAL hasta 95, HIGH hasta 100
     for _ in range(85):
+        limiter._low_next.clear()  # solo la reserva (el espaciado tiene su propio test)
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
         clock.advance(0.2)
+    limiter._low_next.clear()
     assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)
     for _ in range(10):
         assert limiter.acquire(HOST, METHOD, priority=Priority.NORMAL, timeout=0)
@@ -183,6 +188,44 @@ def test_my_games_go_ahead_of_the_crawler():
         assert limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=0)
         clock.advance(0.2)
     assert not limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=10)
+
+
+def _search_after_crawler(paced: bool, phases: int = 40) -> list[float]:
+    """Segundos que tarda una búsqueda tuya de 22 peticiones llegando en distintos momentos con el recolector a tope."""
+    limiter, clock = make_limiter()  # 100/120 s y 20/1 s
+    if not paced:
+        limiter._app_bucket(HOST).pace = lambda reserve: 0.0
+    start = clock()
+    low = []
+    while clock() - start < 600:  # el recolector pide en cuanto le dejan
+        assert limiter.acquire(HOST, METHOD, priority=Priority.LOW)
+        low.append(clock())
+    out = []
+    for k in range(phases):
+        at = start + 360 + k * 120 / phases  # instantes repartidos por todo el ciclo
+        search, clk = make_limiter()
+        clk.now = at
+        for w in search._app_bucket(HOST).windows:  # la ventana tal y como estaría en ese momento
+            w.stamps = deque(t for t in low if at - w.seconds < t <= at)
+        t0 = clk()
+        for _ in range(22):
+            assert search.acquire(HOST, METHOD, priority=Priority.HIGH)
+        out.append(clk() - t0)
+    return out
+
+
+def test_low_priority_is_spread_over_the_window_so_your_searches_do_not_wait():
+    limiter, clock = make_limiter()
+    gap = limiter._app_bucket(HOST).pace(0.15)
+    assert gap == pytest.approx(120 / 85)
+    times = []
+    for _ in range(200):
+        assert limiter.acquire(HOST, METHOD, priority=Priority.LOW)
+        times.append(clock())
+    assert min(b - a for a, b in zip(times, times[1:])) >= gap - 1e-9  # nunca en ráfaga; misma cuota (85 cada 2 min)
+    paced, bursty = _search_after_crawler(True), _search_after_crawler(False)
+    assert max(paced) < 15  # repartida: tu búsqueda encuentra hueco enseguida
+    assert sorted(bursty)[len(bursty) // 2] > 30  # en ráfaga: hasta que caducaba toda (se midieron 92 s en la app)
 
 
 def test_acquire_returns_false_when_stopped_while_waiting():
@@ -276,3 +319,55 @@ def test_429_without_retry_after_uses_default_backoff(kind, expected):
     headers = {"X-Rate-Limit-Type": kind} if kind else {}
     assert limiter.update(HOST, METHOD, 429, headers) == expected
     assert not limiter.acquire(HOST, METHOD, timeout=expected - 0.5)
+
+
+def test_requests_from_another_app_with_the_same_key_are_measured():
+    limiter, clock = make_limiter()
+    limiter.acquire(HOST, METHOD)
+    limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": "1:1,40:120"})
+    assert limiter.snapshot()[HOST]["foreign"] == 0  # recién arrancado: puede ser lo que Riot recuerda de antes
+    clock.advance(200)
+    limiter.acquire(HOST, METHOD)
+    limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": "1:1,31:120"})  # 1 nuestra + 30 de otra app
+    snap = limiter.snapshot()[HOST]
+    assert snap["foreign"] == 30 and snap["requests"] == 2
+    limiter.acquire(HOST, METHOD)
+    limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": "1:1,33:120"})  # +1 nuestra, +1 ajena: dentro del margen
+    assert limiter.snapshot()[HOST]["foreign"] == 30
+    clock.advance(121)
+    assert limiter.snapshot()[HOST]["foreign"] == 0  # pasados 2 minutos se olvida
+
+
+def test_own_requests_never_count_as_foreign():
+    limiter, clock = make_limiter()
+    clock.advance(300)
+    for i in range(1, 30):
+        limiter.acquire(HOST, METHOD)
+        limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": f"1:1,{i}:120"})
+        clock.advance(1)
+    assert limiter.snapshot()[HOST]["foreign"] == 0
+
+
+def test_foreign_usage_is_pruned_without_anyone_reading_it():
+    from app.riot import ratelimit as rl
+
+    limiter, clock = make_limiter()
+    limiter.acquire(HOST, METHOD)
+    limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": "1:1,1:120"})
+    clock.advance(200)
+    for i in range(200):  # otra app hace 3 peticiones cada 5 s y nadie mira el estado (sin la web abierta)
+        clock.advance(5)
+        limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": f"1:1,{min(40 + 3 * i, 72)}:120"})
+    seen = limiter._foreign[HOST]
+    assert len(seen) > 5  # se registra en cada respuesta…
+    assert len(seen) <= rl.FOREIGN_WINDOW_S / 5 + 2  # …pero solo se guardan los 2 últimos minutos
+
+
+def test_fetch_executor_is_recreated_after_shutdown():
+    from app.external import base
+
+    first = base._executor()
+    base.shutdown_fetches()
+    assert base._EXECUTOR is None
+    second = base._executor()
+    assert second is not first and second.submit(lambda: 7).result(timeout=5) == 7

@@ -331,7 +331,10 @@ export function toast(message, kind = "info", ms = 4200) {
 }
 
 export function modal(title, body, { wide = false } = {}) {
-  const close = () => backdrop.remove();
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKey); // también al cerrar con el botón o pulsando fuera
+  };
   const backdrop = h(
     "div.modal-backdrop",
     { onclick: (e) => e.target === backdrop && close() },
@@ -343,10 +346,7 @@ export function modal(title, body, { wide = false } = {}) {
     ),
   );
   const onKey = (e) => {
-    if (e.key === "Escape") {
-      close();
-      document.removeEventListener("keydown", onKey);
-    }
+    if (e.key === "Escape") close();
   };
   document.addEventListener("keydown", onKey);
   document.body.append(backdrop);
@@ -359,6 +359,16 @@ export function errorBox(err) {
     return notice(h("span", "Falta o ha caducado la API key de Riot. ", h("a", { href: "#/datos" }, "Configúrala en Datos"), "."), "warn");
   }
   return notice(msg, "bad");
+}
+
+// ------------------------------------------------------------ cargas en curso
+// Si una vista lanza otra carga (otro filtro, otro campeón, otra partida…) antes de que llegue la anterior, la
+// respuesta vieja no puede pintarse encima de la nueva: cada carga pide su testigo y, tras cada await, comprueba
+// que sigue siendo la más reciente de su clave.
+const loadTokens = {};
+export function latest(key) {
+  const n = (loadTokens[key] = (loadTokens[key] || 0) + 1);
+  return () => loadTokens[key] === n;
 }
 
 export function debounce(fn, ms = 300) {

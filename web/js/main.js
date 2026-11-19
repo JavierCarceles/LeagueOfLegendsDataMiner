@@ -1,7 +1,7 @@
 // Arranque de la aplicación: navegación, filtros globales, estado de la API key y logs.
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
-import { dd, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
+import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, h, icon, mount, select } from "./ui.js";
 
 const VIEWS = [
@@ -106,9 +106,19 @@ function filtersSummary() {
   if (btn) btn.title = `Filtros: ${text}`;
 }
 
+function hasValue(options, value) {
+  return options.some((o) => (o.group ? o.options.some((x) => String(x.value) === String(value)) : String(o.value) === String(value)));
+}
+
 function renderFilters() {
   const opts = filterOptions();
   const f = state.filters;
+  // Un filtro guardado que ya no existe (un parche que salió de la lista, el histórico borrado…) vuelve a su valor por
+  // defecto: si no, el desplegable salía en blanco y las consultas iban con un valor que el servidor ya no conoce.
+  if (state.meta) {
+    const fixes = Object.fromEntries(Object.keys(opts).filter((k) => !hasValue(opts[k], f[k])).map((k) => [k, DEFAULT_FILTERS[k]]));
+    if (Object.keys(fixes).length) setFilters(fixes);
+  }
   queueMicrotask(filtersSummary);
   const make = (key, label, title) =>
     h("div.filter", { title }, h("label", label), select(opts[key], f[key], (v) => setFilters({ [key]: v }), "select select-sm"));
@@ -223,7 +233,16 @@ function onPending() {
   const routeAtSchedule = location.hash;
   pendingTimer = setTimeout(async function retry() {
     pendingTimer = null;
-    if (location.hash !== routeAtSchedule || !current.module) return;
+    if (location.hash !== routeAtSchedule || !current.module) {
+      // La vista cambió su URL sin navegar (replaceState de las pestañas de rol…) y ya pidió lo suyo: sin esto el
+      // chip se quedaba girando para siempre.
+      chip?.classList.add("hidden");
+      return;
+    }
+    if (current.module.skipSoftReload?.()) {
+      chip?.classList.add("hidden"); // la vista no se puede rehacer sin cortarte (p. ej. el visor reproduciendo)
+      return;
+    }
     if (busyUser()) {
       pendingTimer = setTimeout(retry, 2500);
       return;
@@ -274,7 +293,14 @@ async function setupLogs() {
 
 // ------------------------------------------------------------------ router
 function parseHash() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent).filter((p, i) => p || i === 0);
+  const decode = (p) => {
+    try {
+      return decodeURIComponent(p);
+    } catch {
+      return p; // un enlace mal formado (%E0…) no puede tumbar el router
+    }
+  };
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decode).filter((p, i) => p || i === 0);
   let id = parts[0] || "draft";
   id = ALIASES[id] ? ALIASES[id] : id;
   const params = parts.slice(1);
@@ -282,7 +308,9 @@ function parseHash() {
   return { id: VIEWS.some((v) => v.id === id) ? id : "draft", params };
 }
 
+let routeToken = 0;
 async function route({ keepPending = false } = {}) {
+  const token = ++routeToken; // si llega otra navegación mientras carga esta, gana la última
   const { id, params } = parseHash();
   const view = VIEWS.find((v) => v.id === id);
   if (!keepPending) {
@@ -300,6 +328,7 @@ async function route({ keepPending = false } = {}) {
   document.title = `${view.label} · Tempu Drafter`;
   try {
     const module = await view.load();
+    if (token !== routeToken) return;
     if (current.module?.destroy) current.module.destroy();
     current = { id, module, params };
     const container = h("div.view");

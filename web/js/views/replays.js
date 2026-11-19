@@ -3,18 +3,22 @@
 // #/repeticiones            lista de partidas (filtros y recuento de errores)
 // #/repeticiones/{matchId}  visor: mapa + línea de tiempo + panel de errores
 import { api } from "../api.js";
+import { learnBox, learnCatalog, learnForTags } from "../components/learn.js";
 import { createReplay, SEV_LABEL } from "../components/replay.js";
 import { trackPos } from "../components/minimap.js";
 import { dd, loadJSON, ROLE_LABEL, save, TIER_LABEL } from "../state.js";
-import { champImg, champText, collapsible, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, roleIcon, select, toast } from "../ui.js";
+import { champImg, champText, collapsible, debounce, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, roleIcon, select, toast } from "../ui.js";
 import { buildCard, gameMetrics, goldCharts, jungleGame, scorePill } from "./coach.js";
 
 const PREFS = "tempu.repeticiones.v1";
-let prefs = loadJSON(PREFS, { queue: "all", role: "all", result: "all", sort: "recent", sev: ["high", "medium", "low", "good"], kind: "all" });
+let prefs = loadJSON(PREFS, { queue: "all", role: "all", result: "all", sort: "recent", sev: ["high", "medium", "low", "good", "info"], kind: "all" });
+// Preferencias guardadas antes de existir «Informativo»: si se veía todo, se sigue viendo todo.
+if (["high", "medium", "low", "good"].every((x) => prefs.sev?.includes(x)) && !prefs.sev.includes("info")) prefs.sev = [...prefs.sev, "info"];
 let root = null;
 let player = null;
 let clientTimer = null;
 let clientOpen = null; // null = aún no se sabe; false = el cliente de LoL no está abierto aquí
+let learnCat = null; // «Aprende esto»: catálogo de vídeos y ejercicios por tema
 
 const KIND_LABEL = {
   death: "Muertes",
@@ -46,6 +50,16 @@ const TAG_LABEL = {
   far: ["Lejos del objetivo", ""],
   afk: ["Antes de una desconexión", ""],
   fair_trade: ["Cambio justo", ""],
+  fight_outnumbered: ["Con uno menos", "bad"],
+  collapsed: ["Cazado en su mitad", "bad"],
+  baron_buff: ["Con el barón", "bad"],
+  bounty: ["Recompensa regalada", "bad"],
+  late_recall: ["Base a destiempo", "bad"],
+  late: ["Llegada tarde", "bad"],
+  unconverted: ["Ventaja sin convertir", "bad"],
+  baron_wasted: ["Barón sin aprovechar", "bad"],
+  pink: ["Pink sin usar", ""],
+  team: ["De equipo", ""],
 };
 // Consejos genéricos según lo que se detectó (no afirman nada que el análisis no haya visto).
 const TIPS = [
@@ -54,12 +68,20 @@ const TIPS = [
   [["overextended"], "Estabas más cerca de su torre que de la tuya. Si tu oleada no está empujando, colócate detrás de ella o vuelve hacia tu torre."],
   [["no_ward"], "Usa el trinket o un ward de control antes de pelear o de empujar: casi todas las muertes evitables empiezan sin visión."],
   [["unspent_gold"], "Moriste con oro para una pieza de tu build. Vuelve a base en cuanto te llegue (y la oleada lo permita): peleabas con menos estadísticas de las que podías tener."],
+  [["fight_outnumbered"], "Con un aliado muerto desde antes de la pelea, el objetivo se pelea con uno menos: cédelo o cámbialo al otro lado del mapa (su jungla, una torre) y espera a estar completos."],
   [["before_objective"], "Tu muerte dejó al equipo en inferioridad justo antes de un objetivo que cogió el rival. Antes de un dragón o barón, prioriza no morir y llegar a tiempo."],
+  [["collapsed"], "Al otro lado del río y sin aliados cerca, en cuanto desaparecen varios rivales del mapa vienen a por ti: farmea esa línea solo con visión y retírate antes."],
+  [["baron_buff"], "Con la mejora del barón, morir solo regala su ventaja: asedia con tu equipo o presiona una línea que los demás puedan cubrir."],
   [["enemy_jungle"], "En la jungla rival entra solo con visión y sabiendo dónde están sus jugadores."],
   [["isolated"], "Lejos de tu equipo y sin nadie cerca: a partir de la fase media, separarte solo tiene sentido si presionas una línea con visión o si tu equipo aprovecha al otro lado."],
   [["solo"], "Revisa el intercambio: ¿tenías ventaja de nivel, de objetos o de oleada? Si no, evita el 1 contra 1."],
   [["executed"], "Sal antes de quedarte sin vida bajo la torre o entre súbditos."],
 ];
+
+/** Con el visor abierto no se recarga sola la vista: reiniciaría la reproducción y la revisión guiada. */
+export function skipSoftReload() {
+  return !!player;
+}
 
 export function destroy() {
   root = null;
@@ -71,7 +93,8 @@ export function destroy() {
 export async function render(container, args = []) {
   destroy();
   root = container;
-  if (args[0]) return renderViewer(container, args[0].toUpperCase());
+  if (!learnCat) learnCatalog().then((cat) => (learnCat = cat));
+  if (args[0]) return renderViewer(container, args[0].toUpperCase(), Number(args[1]) || null);
   return renderList(container);
 }
 
@@ -183,7 +206,8 @@ function gameCard(g) {
 }
 
 // ================================================================== visor
-async function renderViewer(container, matchId) {
+async function renderViewer(container, matchId, startAt = null) {
+  const fresh = latest("replays.viewer");
   const body = h("div");
   mount(container, h("div.row", { style: { marginBottom: "12px" } }, h("a.btn.btn-ghost.btn-sm", { href: "#/repeticiones" }, "← Tus repeticiones"), h("span.spacer"), h("a.btn.btn-ghost.btn-sm", { href: "#/progreso" }, icon("target"), "Mi progreso")), body);
   mount(body, loading("Cargando la repetición…"));
@@ -193,14 +217,14 @@ async function renderViewer(container, matchId) {
   } catch (err) {
     return mount(body, errorBox(err));
   }
-  if (!root) return;
+  if (!root || !fresh()) return; // otra partida abierta mientras cargaba esta
   document.title = `${dd.name(a.champ)} · Repetición · Tempu Drafter`;
   clientOpen = null;
   api
     .get(`/api/replay/${a.match_id}/client`)
     .then((st) => (clientOpen = !!st.client_open))
     .catch(() => (clientOpen = null));
-  mount(body, viewer(a));
+  mount(body, viewer(a, startAt));
 }
 
 function headCard(a) {
@@ -239,7 +263,7 @@ function headCard(a) {
   );
 }
 
-function viewer(a) {
+function viewer(a, startAt = null) {
   const head = headCard(a);
   if (!a.has_timeline) {
     return h(
@@ -303,7 +327,7 @@ function viewer(a) {
       );
     mount(
       filtersEl,
-      h("div.chips", ["high", "medium", "low", "good"].map(sevBtn)),
+      h("div.chips", ["high", "medium", "low", "good", "info"].map(sevBtn)),
       h(
         "div.row",
         select([{ value: "all", label: "Todas las categorías" }, ...kinds.map((k) => ({ value: k, label: KIND_LABEL[k] || k }))], prefs.kind, (v) => {
@@ -311,7 +335,7 @@ function viewer(a) {
           apply();
         }, "select select-sm"),
         h("span.spacer"),
-        h("button.btn.btn-ghost.btn-sm", { type: "button", onclick: () => { setPrefs({ sev: ["high", "medium", "low", "good"], kind: "all" }); apply(); } }, "Ver todo"),
+        h("button.btn.btn-ghost.btn-sm", { type: "button", onclick: () => { setPrefs({ sev: ["high", "medium", "low", "good", "info"], kind: "all" }); apply(); } }, "Ver todo"),
       ),
     );
   };
@@ -340,8 +364,20 @@ function viewer(a) {
   };
 
   player = createReplay(a, { moments: visible(), onSelect, onTime });
+  const goTo = (m) => {
+    const mo = all.find((x) => x.kind === m.kind && Math.abs(x.t - m.t) < 0.5);
+    if (mo && visible().includes(mo)) player.select(mo);
+    else player.seek(Math.max(0, m.t - 5));
+    player.el?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
   drawFilters();
   drawList();
+  if (startAt !== null) {
+    // Viene de «Errores que repites»: directo a ese error (o a unos segundos antes de ese minuto).
+    const near = all.find((m) => Math.abs(m.t - startAt) <= 3);
+    if (near && visible().includes(near)) player.select(near);
+    else player.seek(Math.max(0, startAt - 5));
+  }
   mount(detailEl, h("div.small.muted", "Pulsa ▶ para reproducir: se para sola en cada error. También puedes pulsar un error de la lista o de la barra."));
 
   const afk = (a.afk || []).reduce((acc, x) => acc + (x.end - x.start), 0);
@@ -367,11 +403,75 @@ function viewer(a) {
     itemsNotice,
     h("div.grid.replay-main", h("section.card.replay-card-main", h("h3.card-title", icon("play"), "Repetición 2D", h("span.spacer"), h("span.tiny.muted", "Reconstruida con el timeline de Riot")), player.el), panel),
     clientReplayCard(a),
+    collapsible("rep.revision", [icon("edit"), "Revisión guiada: 3 momentos y 3 preguntas"], () => reviewCard(a, goTo), { summary: "método de Mauro Garih · se guarda solo" }),
     a.jungle ? collapsible("rep.jungla", [icon("map"), "Tu ruta de jungla"], () => jungleGame(a), { open: true, summary: "campamentos y ganks" }) : null,
     collapsible("rep.build", [icon("crown"), "Tu build"], () => buildCard(a) || h("div.small.muted", "Sin datos de build."), { summary: "orden, compras y comparación con OP.GG" }),
     collapsible("rep.oro", [icon("activity"), "Oro y ventaja"], () => goldCharts(a), { summary: "frente a tu rival y oro sin gastar" }),
     collapsible("rep.metricas", [icon("chart"), `Todas las estadísticas frente a ${TIER_LABEL[a.target_tier] || a.target_tier}`], () => gameMetrics(a), { summary: "por categorías" }),
   );
+}
+
+// ------------------------------------------------------------ revisión guiada
+function reviewCard(a, goTo) {
+  const box = h("div.review", loading("Preparando la revisión…"));
+  api
+    .get(`/api/coach/games/${a.match_id}/review`)
+    .then((r) => {
+      if (!r.moments?.length) return mount(box, h("div.small.muted", "En esta partida no hay errores que revisar."));
+      const answers = { ...(r.answers || {}) };
+      const total = r.moments.length * r.questions.length;
+      const progress = h("span.tiny.muted");
+      const count = () => (progress.textContent = `${Object.values(answers).filter((v) => v && v.trim()).length} de ${total} respuestas`);
+      count();
+      mount(
+        box,
+        h(
+          "div.row-wrap",
+          h("p.tiny.muted", { style: { margin: 0, flex: "1 1 260px" } }, "Para cada momento, responde a las 3 preguntas antes de ver la solución del análisis. Lo que escribas se guarda solo en tu base de datos local."),
+          progress,
+        ),
+        r.moments.map((m) =>
+          h(
+            "div.review-moment",
+            h(
+              "div.row-wrap",
+              h(`span.sev.${m.severity}`, SEV_LABEL[m.severity] || ""),
+              h("span.mono.small", fmt.duration(Math.max(1, m.t))),
+              h("b.small", { style: { flex: "1 1 200px", minWidth: 0 } }, champText(m.title)),
+              h("button.btn.btn-sm.btn-ghost", { type: "button", onclick: () => goTo(m) }, icon("play"), "Ver en el mapa"),
+            ),
+            r.questions.map((q) => {
+              const key = `${Number(m.t).toFixed(1)}|${q.id}`;
+              const status = h("span.tiny.muted.review-status");
+              const save = debounce(async (value) => {
+                try {
+                  await api.put(`/api/coach/games/${a.match_id}/review`, { t: m.t, question: q.id, answer: value });
+                  status.textContent = value.trim() ? "Guardado" : "";
+                } catch (err) {
+                  status.textContent = "No se pudo guardar";
+                  toast(err.message, "error");
+                }
+              }, 800);
+              const area = h("textarea.review-answer", {
+                rows: 2,
+                maxlength: 2000,
+                placeholder: q.hint,
+                oninput: (e) => {
+                  answers[key] = e.target.value;
+                  count();
+                  status.textContent = "Guardando…";
+                  save(e.target.value);
+                },
+              });
+              area.value = answers[key] || "";
+              return h("label.review-q", h("span.small", q.label, status), area);
+            }),
+          ),
+        ),
+      );
+    })
+    .catch((err) => mount(box, errorBox(err)));
+  return box;
 }
 
 // ------------------------------------------------------------ detalle
@@ -466,6 +566,7 @@ function momentDetail(a, m, player) {
         )
       : null,
     tip ? h("div.weak-tip", { style: { marginTop: "10px" } }, icon("spark"), h("span", tip)) : null,
+    m.severity !== "good" && m.kind !== "afk" ? learnBox(learnForTags(learnCat, m.tags || [])) : null,
     h(
       "div.row-wrap",
       { style: { marginTop: "10px" } },

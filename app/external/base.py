@@ -41,6 +41,20 @@ P_BACKGROUND = 40
 
 FAIL_BACKOFF_S = 600
 FAIL_BACKOFF_MAX_S = 6 * 3600
+# Cortacircuitos por web: si responde 429/403 (límite o bloqueo) o 503, se deja de pedirle NADA durante un rato (lo que
+# diga Retry-After o una espera creciente) y se sirve lo cacheado. Sin esto, cada clave distinta seguía insistiendo.
+CIRCUIT_STATUSES = {403, 429, 503}
+CIRCUIT_BASE_S = 60
+CIRCUIT_MAX_S = 1800
+
+
+def retry_after_seconds(value) -> float | None:
+    """Segundos de la cabecera Retry-After (número; las fechas HTTP no se usan)."""
+    try:
+        seconds = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds > 0 else None
 MEM_ITEMS = 4000
 
 # Dentro de un hilo del precargador lo caducado se refresca en línea (en vez de
@@ -48,8 +62,27 @@ MEM_ITEMS = 4000
 inline_refresh: contextvars.ContextVar[bool] = contextvars.ContextVar("tempu_inline_refresh", default=False)
 
 # Hilos compartidos para las descargas lanzadas desde peticiones de la web: así
-# la petición puede dejar de esperar sin cancelar la descarga.
-_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="fetch")
+# la petición puede dejar de esperar sin cancelar la descarga. Se crean al primer uso
+# y se cierran al apagar la app (``shutdown_fetches``), sin esperar a las que estén en curso.
+_EXECUTOR: ThreadPoolExecutor | None = None
+_EXECUTOR_LOCK = threading.Lock()
+
+
+def _executor() -> ThreadPoolExecutor:
+    global _EXECUTOR
+    with _EXECUTOR_LOCK:
+        if _EXECUTOR is None:
+            _EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="fetch")
+        return _EXECUTOR
+
+
+def shutdown_fetches() -> None:
+    """Cierra los hilos de descarga (las pendientes se cancelan; una nueva petición los vuelve a crear)."""
+    global _EXECUTOR
+    with _EXECUTOR_LOCK:
+        executor, _EXECUTOR = _EXECUTOR, None
+    if executor is not None:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 class _Flight:
@@ -92,7 +125,9 @@ class CachedSource:
         self._inflight: dict[tuple[str, str], _Flight] = {}
         self._inflight_lock = threading.Lock()
         self._failed: dict[tuple[str, str], tuple[float, int]] = {}
-        self.stats: dict = {"requests": 0, "cache_hits": 0, "stale_served": 0, "errors": 0, "last_error": None, "last_ok": None}
+        self._circuit_until = 0.0  # monotonic: hasta cuándo no se le pide nada a esta web
+        self._circuit_trips = 0
+        self.stats: dict = {"requests": 0, "cache_hits": 0, "stale_served": 0, "errors": 0, "last_error": None, "last_ok": None, "circuit_open_for": 0}
 
     # ------------------------------------------------------------ carriles
     def lane_for(self, kind: str) -> str:
@@ -126,19 +161,6 @@ class CachedSource:
         self._remember(kind, key, *item)
         return item
 
-    def is_fresh(self, kind: str, key: str, ttl: float) -> bool:
-        item = self.peek(kind, key)
-        return item is not None and now_s() - item[0] <= ttl
-
-    def _cache_get(self, kind: str, key: str, ttl: float | None):
-        """Compatibilidad: valor si está dentro del TTL (o cualquiera con ``ttl=None``)."""
-        item = self.peek(kind, key)
-        if item is None:
-            return None
-        if ttl is not None and now_s() - item[0] > ttl:
-            return None
-        return item[1]
-
     def _cache_put(self, kind: str, key: str, payload) -> None:
         ts = now_s()
         with self.db.write() as conn:
@@ -149,7 +171,23 @@ class CachedSource:
         self._remember(kind, key, ts, payload)
 
     # ------------------------------------------------------------ backoff
+    def trip(self, status: int, retry_after=None) -> None:
+        """La web respondió con un estado de límite o bloqueo: se abre el cortacircuitos de toda la fuente."""
+        if status not in CIRCUIT_STATUSES:
+            return
+        self._circuit_trips += 1
+        wait = retry_after_seconds(retry_after) or min(CIRCUIT_MAX_S, CIRCUIT_BASE_S * (2 ** (self._circuit_trips - 1)))
+        self._circuit_until = max(self._circuit_until, time.monotonic() + min(wait, CIRCUIT_MAX_S))
+        log.warning("%s respondió %s: no se le pide nada durante %d s (se sirve lo cacheado).", self.name, status, round(wait))
+
+    def circuit_open(self) -> bool:
+        remaining = self._circuit_until - time.monotonic()
+        self.stats["circuit_open_for"] = max(0, round(remaining))
+        return remaining > 0
+
     def _backing_off(self, kind: str, key: str) -> bool:
+        if self.circuit_open():
+            return True
         failed = self._failed.get((kind, key))
         if not failed:
             return False
@@ -204,7 +242,7 @@ class CachedSource:
             if current is None:
                 self._lead(kind, key, fetch, flight)
                 return flight.value
-            _EXECUTOR.submit(budget.run_detached, self._lead, kind, key, fetch, flight)
+            _executor().submit(budget.run_detached, self._lead, kind, key, fetch, flight)
         wait = None if current is None else current.remaining()
         if flight.done.wait(wait):
             return flight.value
@@ -225,6 +263,7 @@ class CachedSource:
                 if value is not None:
                     self._cache_put(kind, key, value)
                     self._failed.pop((kind, key), None)
+                    self._circuit_trips = 0  # vuelve a responder bien: la próxima espera empieza de cero
                     self.stats["last_ok"] = now_s()
                 else:
                     self._fail(kind, key, None)

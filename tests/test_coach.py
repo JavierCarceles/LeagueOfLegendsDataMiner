@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 import app.services
 from app.coach import geometry as geo
 from app.coach import insights, store
-from app.coach.analyzer import NotInMatch, analyze_game, find_me
+from app.coach.analyzer import ANALYSIS_VERSION, NotInMatch, analyze_game, find_me
 from app.coach.benchmarks import References, static_refs
 from app.coach.items import Inventory
 from app.coach.tracker import GameTracker, build_digest, digest
@@ -449,6 +449,10 @@ class FakeCoachRiot:
     def active_platform(self, puuid, platform_hint="euw1", **kw):
         return "euw1"
 
+    def league_entries_by_puuid(self, platform, puuid, **kw):
+        self.calls.append(("league", puuid))
+        return [{"queueType": "RANKED_SOLO_5x5", "tier": "PLATINUM", "rank": "IV", "leaguePoints": 45, "wins": 32, "losses": 31}]
+
     def summoner_by_puuid(self, platform, puuid, **kw):
         return {"profileIconId": 29, "summonerLevel": 321}
 
@@ -541,6 +545,56 @@ def test_reanalyze_outdated(svc):
     assert svc.db.scalar("SELECT status FROM my_games WHERE match_id = 'EUW1_9300000007'") == "pending_timeline"
 
 
+def test_peers_of_your_games_are_sampled_without_requests(svc):
+    fake = _fake_world()
+    svc.riot = fake
+    store.save_profile(svc.db, game_name="Tempu", tag_line="EUW", platform="euw1", puuid=ME)
+    tracker = GameTracker(svc)
+    tracker.sync()
+    calls = len(fake.calls)
+    assert tracker.sample_peers() == 4  # las 4 partidas con timeline
+    assert len(fake.calls) == calls  # ni una petición: el match y el timeline ya estaban guardados
+    assert svc.db.scalar("SELECT COUNT(*) FROM peer_samples WHERE pid > 0") == 36
+    assert svc.db.scalar("SELECT COUNT(*) FROM peer_samples WHERE pid = 1") == 0  # tú no cuentas
+    assert tracker.sample_peers() == 0  # ya están
+
+
+def _peer_db(svc, n: int, role: str = "JUNGLE", metrics=None, prefix: str = "EUW1_"):
+    for i in range(n):
+        store.save_peer_samples(svc.db, f"{prefix}{i}", 1_700_000_000_000 + i, ANALYSIS_VERSION,
+                                [{"pid": 7, "role": role, "reliable": True, "metrics": metrics or {"cs10": 60, "deaths": 6, "deaths_before_objective": 1.6}}])
+
+
+def test_references_calibrated_with_the_players_of_your_games(svc):
+    _peer_db(svc, 25)
+    refs = References(svc, "EMERALD", current="PLATINUM")
+    jungle = refs.for_role("JUNGLE")
+    assert jungle["cs10"] == pytest.approx(60 * 1.0 / 0.96, abs=0.01)  # escalado de Platino a Esmeralda
+    assert jungle["deaths"] == pytest.approx(6 * 1.0 / 1.07, abs=0.01)
+    assert jungle["deaths_before_objective"] == pytest.approx(1.6 / 1.07, abs=0.01)
+    assert refs.source("JUNGLE") == "peers"
+    assert refs.info("JUNGLE")["peer_samples"] == 25 and refs.info("JUNGLE")["from_tier"] == "PLATINUM"
+    assert jungle["vision_min"] == static_refs("JUNGLE", "EMERALD")["vision_min"]  # sin muestras: la orientativa
+    # Las métricas espejo frente a tu rival no se calibran (su media sería tu propia diferencia con el signo cambiado).
+    _peer_db(svc, 25, metrics={"cs_diff10": -15, "gold_diff15": -450, "enemy_ganks_far": 0.4}, prefix="EUW1_9")
+    mirror = References(svc, "EMERALD", current="PLATINUM").for_role("JUNGLE")
+    assert mirror["cs_diff10"] == 0 and mirror["gold_diff15"] == 0 and mirror["enemy_ganks_far"] == static_refs("JUNGLE", "EMERALD")["enemy_ganks_far"]
+    # Sin tu liga no se puede escalar: orientativas. Con pocas muestras, también.
+    assert References(svc, "EMERALD").source("JUNGLE") == "static"
+    assert References(svc, "EMERALD", current="CHALLENGER").info("JUNGLE")["from_tier"] == "MASTER"
+    other = References(svc, "EMERALD", current="PLATINUM")
+    assert other.source("TOP") == "static"
+
+
+def test_peer_references_need_enough_reliable_samples(svc):
+    _peer_db(svc, 19)
+    assert References(svc, "EMERALD", current="PLATINUM").source("JUNGLE") == "static"
+    store.save_peer_samples(svc.db, "EUW1_X", 1, ANALYSIS_VERSION, [{"pid": 7, "role": "JUNGLE", "reliable": False, "metrics": {"cs10": 10}}])
+    assert References(svc, "EMERALD", current="PLATINUM").source("JUNGLE") == "static"  # la poco fiable no suma
+    store.save_peer_samples(svc.db, "EUW1_Y", 2, ANALYSIS_VERSION - 1, [{"pid": 7, "role": "JUNGLE", "reliable": True, "metrics": {"cs10": 10}}])
+    assert References(svc, "EMERALD", current="PLATINUM").source("JUNGLE") == "static"  # ni la de otra versión
+
+
 # ---------------------------------------------------------------------- API
 @pytest.fixture
 def api(tmp_path, monkeypatch):
@@ -604,6 +658,23 @@ def test_full_flow(api, monkeypatch):
     timelines_before = fake.count("timeline")
     assert ok(client.get("/api/matches/EUW1_9300000001/timeline"))["series"]
     assert fake.count("timeline") == timelines_before
+
+    # Hábitos (tilt, sesiones, pool, ventajas) y revisión guiada con las 3 preguntas.
+    habits = summary["habits"]
+    assert habits["tilt"]["games"] == 5 and habits["reviews"] == {"games": 0, "week": 0}
+    review = ok(client.get("/api/coach/games/EUW1_9300000001/review"))
+    assert [q["id"] for q in review["questions"]] == ["knew", "decided", "better"]
+    assert 1 <= len(review["moments"]) <= 3 and review["answers"] == {}
+    t = review["moments"][0]["t"]
+    assert ok(client.put("/api/coach/games/euw1_9300000001/review", json={"t": t, "question": "knew", "answer": " Su jungla estaba arriba "}))["ok"]
+    assert ok(client.get("/api/coach/games/EUW1_9300000001/review"))["answers"] == {f"{t:.1f}|knew": "Su jungla estaba arriba"}
+    assert ok(client.get("/api/coach/summary"))["habits"]["reviews"] == {"games": 1, "week": 1}
+    ok(client.put("/api/coach/games/EUW1_9300000001/review", json={"t": t, "question": "knew", "answer": ""}))  # vaciar = borrar
+    assert ok(client.get("/api/coach/games/EUW1_9300000001/review"))["answers"] == {}
+    assert client.put("/api/coach/games/EUW1_1/review", json={"t": 1, "question": "knew", "answer": "x"}).status_code == 404
+    assert client.put("/api/coach/games/EUW1_9300000001/review", json={"t": 1, "question": "otra", "answer": "x"}).status_code == 422
+    learn = ok(client.get("/api/coach/learn"))
+    assert learn["topics"]["farm"]["videos"] and learn["by_tag"]
 
     catalog = ok(client.get("/api/coach/goals"))["catalog"]
     assert any(c["metric"] == "deaths_to_jungler_pre14" for c in catalog)

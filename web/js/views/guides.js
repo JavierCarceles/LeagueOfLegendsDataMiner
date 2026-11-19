@@ -1,15 +1,12 @@
-// Guías de matchups: biblioteca, generación con IA, vídeos de YouTube y amigos del cliente.
+// Guías de matchups: biblioteca de guías guardadas, enfrentamientos frecuentes sin guía y amigos del cliente.
 import { api, filterParams } from "../api.js";
-import { champPicker } from "../components/picker.js";
 import { dd, ROLE_LABEL, ROLES, state } from "../state.js";
-import { champImg, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, select, toast } from "../ui.js";
+import { champImg, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon } from "../ui.js";
 
 let root = null;
-let jobsTimer = null;
 
 export function destroy() {
   root = null;
-  clearInterval(jobsTimer);
 }
 
 export async function render(container) {
@@ -20,7 +17,7 @@ export async function render(container) {
   const tools = h("div.stack");
   mount(
     container,
-    h("div.section-head", h("div", h("h2", "Guías de matchups"), h("p", "Guías guardadas en tu carpeta de coachings (de vídeos o generadas con IA a partir de tus estadísticas y de OP.GG)."))),
+    h("div.section-head", h("div", h("h2", "Guías de matchups"), h("p", "Guías guardadas en tu carpeta de coachings y los enfrentamientos que más juegas sin guía todavía."))),
     h("div.grid.guides-split", h("div.stack", library, top), tools),
   );
   mount(library, loading());
@@ -35,7 +32,7 @@ async function loadLibrary(box) {
     if (!root) return;
     const roles = Object.entries(tree.roles || {});
     if (!roles.length) {
-      mount(box, h("section.card", h("h3.card-title", icon("book"), "Biblioteca"), empty("Todavía no hay guías", `Se guardan en ${tree.root}. Genera una con IA o procesa un vídeo de coaching.`, "book")));
+      mount(box, h("section.card", h("h3.card-title", icon("book"), "Biblioteca"), empty("Todavía no hay guías", `Se leen de ${tree.root}: guarda ahí tus guías como «Campeón_vs_Rival.txt» y aparecerán aquí.`, "book")));
       return;
     }
     mount(
@@ -99,7 +96,6 @@ async function loadTop(box) {
                   champImg(m.opp, "sm"),
                   h("span.spacer"),
                   h("span.tiny.muted", `${fmt.compact(m.games)} partidas`),
-                  state.status?.features?.gemini ? h("button.btn.btn-sm", { onclick: (e) => generate(m.role, m.champ, m.opp, e.currentTarget) }, icon("spark"), "IA") : null,
                 ),
               ),
             )
@@ -111,91 +107,17 @@ async function loadTop(box) {
   }
 }
 
-async function generate(role, champ, opp, btn) {
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Generando…";
-  }
-  try {
-    const g = await api.post("/api/guides/generate", { role, champ, opp });
-    toast(`Guía generada: ${dd.name(champ)} vs ${dd.name(opp)}`, "success");
-    modal(`${dd.name(champ)} vs ${dd.name(opp)}`, h("div.prose", g.content));
-    if (root) render(root);
-  } catch (err) {
-    toast(err.message, "error", 7000);
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "IA";
-    }
-  }
-}
-
 function renderTools(box) {
   const features = state.status?.features || {};
-  let role = "TOP";
-  const a = champPicker({ placeholder: "Tu campeón", compact: true });
-  const b = champPicker({ placeholder: "Rival", compact: true });
-  const genCard = h(
-    "section.card",
-    h("h3.card-title", icon("spark"), "Generar guía con IA"),
-    features.gemini
-      ? h(
-          "div.col",
-          select(ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] })), role, (v) => (role = v)),
-          a,
-          b,
-          h("button.btn.btn-primary", { onclick: (e) => (a.getValue() && b.getValue() ? generate(role, a.getValue(), b.getValue(), e.currentTarget) : toast("Elige los dos campeones", "error")) }, icon("spark"), "Generar"),
-          h("p.tiny.muted", "Gemini recibe el WR ajustado, la fase de líneas y el consejo de OP.GG del enfrentamiento."),
-        )
-      : notice("Añade GEMINI_KEY_1 (y opcionalmente _2, _3) en .env e instala requirements-coaching.txt para generar guías."),
-  );
-
-  const yt = features.youtube || {};
-  const urlInput = h("input.input", { placeholder: "URL de vídeo o playlist de YouTube" });
-  const jobsBox = h("div.col", { style: { marginTop: "10px" } });
-  const ytCard = h(
-    "section.card",
-    h("h3.card-title", icon("play"), "Procesar coaching de YouTube"),
-    yt.yt_dlp && features.gemini
-      ? h(
-          "div",
-          h("div.input-group", urlInput, h("button.btn.btn-primary", { onclick: async () => { try { await api.post("/api/coaching/youtube", { url: urlInput.value }); toast("Procesando en segundo plano…"); pollJobs(jobsBox); } catch (err) { toast(err.message, "error"); } } }, "Procesar")),
-          h("p.tiny.muted", { style: { marginTop: "8px" } }, `Subtítulos ${yt.transcripts ? "✓" : "✗"} · Whisper ${yt.whisper ? "✓" : "✗ (solo vídeos con subtítulos)"} · Resumen LSA ${yt.sumy ? "✓" : "✗"}`),
-          jobsBox,
-        )
-      : notice("Instala las dependencias opcionales (pip install -r requirements-coaching.txt) y configura Gemini para convertir vídeos de coaching en guías."),
-  );
-
   const friendsBox = h("div");
   const lcuCard = h(
     "section.card",
     h("h3.card-title", icon("user"), "Amigos del cliente de LoL"),
     features.lcu
       ? h("div", h("button.btn", { onclick: () => loadFriends(friendsBox) }, icon("refresh"), "Leer amigos"), friendsBox)
-      : notice("Instala psutil y abre el cliente de League of Legends para leer tu lista de amigos."),
+      : notice("Abre el cliente de League of Legends en este ordenador para leer tu lista de amigos."),
   );
-  mount(box, genCard, ytCard, lcuCard);
-  if (yt.yt_dlp) pollJobs(jobsBox);
-}
-
-function pollJobs(box) {
-  const draw = async () => {
-    try {
-      const { jobs } = await api.get("/api/coaching/youtube");
-      mount(
-        box,
-        jobs.map((j) =>
-          h("div.worker", h("div.row", h(`span.pill.${j.status === "done" ? "pill-good" : j.status === "error" ? "pill-bad" : "pill-warn"}`, j.status === "running" ? "Procesando" : j.status === "done" ? "Terminado" : "Error"), h("span.tiny.muted", `${j.done}/${j.total} vídeos · ${j.saved.length} guías`)), j.errors.slice(-2).map((e) => h("div.tiny.warn", e))),
-        ),
-      );
-      if (!jobs.some((j) => j.status === "running")) clearInterval(jobsTimer);
-    } catch {
-      clearInterval(jobsTimer);
-    }
-  };
-  clearInterval(jobsTimer);
-  draw();
-  jobsTimer = setInterval(draw, 4000);
+  mount(box, lcuCard);
 }
 
 async function loadFriends(box) {

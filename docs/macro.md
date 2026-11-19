@@ -1,0 +1,133 @@
+# Macro: reglas de coaches y detecciones sin falsos positivos
+
+Investigación del 19-11-2026 para `app/coach/analyzer.py` (robots.txt revisado en cada web). Leí 2 páginas de leagueoflegends.com, 5 de la wiki, 8 de dignitas.gg, 6 de wecoach.gg y 4 de maurogarih.com y weteachleague.com (sin cifras de macro). Mobalytics da 403: solo uso su extracto del buscador.
+
+## A) Fuentes
+
+- **R1** Patch 26.1 Notes, Riot Games (EN): https://www.leagueoflegends.com/en-us/news/game-updates/patch-26-1-notes/
+- **R2** 2026 Season One Gameplay Preview, Riot Games (EN): https://www.leagueoflegends.com/en-us/news/dev/dev-2026-season-one-gameplay-preview/
+- **W** Voidgrub, Rift Herald, Baron Nashor, Elder Dragon y Dragon, LoL Wiki (EN): https://wiki.leagueoflegends.com/en-us/Voidgrub (y hermanas)
+- **WC1** Guía de objetivos de League of Legends (2026), Roger, WeCoach (ES): https://wecoach.gg/es/blog/article/league-of-legends-objectives-guide
+- **WC2** How to Climb Out of Every Rank (2026), Barry, WeCoach (EN): https://wecoach.gg/blog/article/how-to-climb-out-of-every-rank-in-league-of-legends
+- **WC3** Control de visión para junglers (2023), Charlene, WeCoach (ES): https://wecoach.gg/es/blog/article/league-of-legends-vision-control-warding-guide-for-junglers
+- **D1** Timing and Tracking Objectives (2020), Cealygosa, Dignitas (EN): https://dignitas.gg/articles/blogs/League-of-Legends/14839/a-guide-on-timing-and-tracking-objectives-in-league-of-legends
+- **D2** Dragon is the Win Condition (2020), Trulliam, Dignitas (EN): https://dignitas.gg/articles/blogs/League-of-Legends/14234/dragon-is-the-win-condition-a-season-10-dragon-control-guide
+- **D3** How to Gain Dragon Control (2019), Friedchicken277, Dignitas (EN): https://dignitas.gg/articles/how-to-gain-dragon-control-in-lol
+- **D4** Improving Your Wave Management (2019), Ahrivve, Dignitas (EN): https://dignitas.gg/articles/a-guide-to-improving-your-wave-management-in-league-of-legends
+- **D5** Split Pushing Tactics (2019), Zooph, Dignitas (EN): https://dignitas.gg/articles/split-pushing-tactics-a-guide-to-proper-splitting-in-league-of-legends
+- **D6** Playing From Behind (2019), Log, Dignitas (EN): https://dignitas.gg/articles/a-guide-to-playing-from-behind-in-league-of-legends
+- **D7** How To Stop Throwing League Games (2021), lolmjlauer, Dignitas (EN): https://dignitas.gg/articles/how-to-stop-throwing-league-games
+- **D8** How to Close Out a Game (2021), RealZesty, Dignitas (EN): https://dignitas.gg/articles/how-to-close-out-a-game-in-league-of-legends
+- **MG** Cómo subir de elo en LoL, Mauro Garih (ES): https://www.maurogarih.com/subir-de-elo-lol
+- **MB** 5 Best Recall Timers, How to Make the Most of Baron y How to Split Push, Mobalytics, solo vía buscador (EN): https://mobalytics.gg/blog/lol-5-best-recall-timers/ https://mobalytics.gg/blog/league-of-legends-what-to-do-after-taking-baron-nashor/ https://mobalytics.gg/blog/how-to-split-push-in-league-of-legends/
+- **Vídeo:** Dishake, «Jugás bien y perdés: dejá de pushear como un BOT» (ES): https://www.youtube.com/watch?v=blVhFqlhYMc (título y canal comprobados, sin verlo).
+
+## B) Reglas
+
+1. **Relojes de 2026 (16.x):** dragón a las 5:00 y 5 min tras cada muerte; ancestral 6 min tras el 4.º dragón de un equipo y luego cada 6. Larvas a las 8:00 (hasta 14:45) y heraldo a las 15:00 (hasta 19:45), una sola vez. Barón a las 20:00 y 6 min tras cada muerte; ya no hay Atakhan. Súbditos desde 0:30, oleadas cada 25 s desde el 14 y cada 20 s desde el 30; campamentos a las 0:55. Placas permanentes; primera torre, 300 de oro. Mejoras: barón 180 s, ancestral 150 s [R1, R2, W, WC1].
+2. **Preparar:** empuja y vuelve a base 60–90 s antes; volver tarde deja al equipo con uno menos [D1, D2].
+3. **Visión:** quita y pon visión (pink en el foso) ~1 min antes: antes te la limpian, después te pillan [D1, D6, WC3].
+4. **Números:** no disputes sin tu equipo y cuenta los rivales vivos; un 5 contra 4 suele ganarse; sin prioridad en mid y bot, empezar el dragón es arriesgado [D1, D2, D3].
+5. **Tempo:** una pelea ganada da ~15 s. Objetivo más cercano, base y siguiente jugada [WC2].
+6. **Jungla rival:** avisa al verlo y tras 30 s sin verlo; prevé dónde estará en 90 s [WC2]. Los campamentos salen 35 s antes que en 2025 [R1, R2].
+7. **Oleadas:** empuja antes de volver, rotar o agruparte (si no da tiempo, congela). No vuelvas con el cañón llegando [D4, WC2, MB].
+8. **Laterales:** cruza el río solo con wards y si ganas la pelea; retírate cuando roten. Split solo si tu equipo aguanta un 4 contra 5; si el rival se agrupa, agrupaos [D5, D7, MB].
+9. **Cerrar:** la mejora del barón potencia a los súbditos. Base y asedio por varias líneas (1-3-1), sin pelear nada más cogerla [W, D8, MB].
+10. **Por detrás:** presiona donde no está el rival y no te confíes al recuperarte [D6]. En Platino y Esmeralda manda la macro: minimapa cada 3–5 s [MG].
+
+## C) Detecciones (por prioridad)
+
+**Base común.** Tabla de relojes por parche (B1 para 16.x; Grieta sin Swiftplay): sin tabla no se calcula, y si en la BD un objetivo muere antes de su hora, se desactiva ese parche. Se reutilizan `reliable()`, `present()`, `respawn_buy`, `game_end` y `_exchange`. Posiciones de frames o eventos, con ≥ 1.500 de margen. La vida está en `championStats.health/healthMax` de cada frame (hoy no se lee). Antes de activar: tests en `tests/test_coach_audit.py` y 20 casos revisados.
+
+**Notación.** S: aparece el objetivo; T: muere. *Disputado*: T − S ≤ 120 s y, en T, ≥ 2 aliados a ≤ 2.600 o un aliado muerto a ≤ 3.000 entre T − 30 y T + 10. *Te tocaba*: `_contest_expected`.
+
+**1. Vuelta a base a destiempo** (P1; valor alto, riesgo bajo; B2)
+- **Salta si:** vuelves a base (compra con vida, no al reaparecer) entre S − 30 y T en un objetivo disputado que te tocaba, y en T estás a > 2.600.
+- **Excepciones:** vuelta forzada (< 50 % de vida en el frame previo o daño en los 40 s anteriores), muerte, AFK y objetivo cogido por tu equipo sin bajas.
+- **Texto:** «Volviste a base {s} s antes de {objetivo} y tu equipo lo peleó sin ti: tocaba volver 60–90 s antes.»
+- **Estado:** existe a medias. Solo cubre objetivos cedidos lejos (jungla, support, mid o grandes) y desde T − 60. Mejora: contar desde S, en todos los roles y sin vueltas forzadas, y marcar acierto si vuelves entre S − 120 y S − 35 y llegas.
+
+**2. Llegada tarde a un objetivo disputado** (P1; valor alto, riesgo bajo; B2, B4)
+- **Salta si:** el rival coge un objetivo disputado que te tocaba. En el frame anterior a S − 30 estabas a > 7.000 del foso y en T, entre 2.600 y 5.500 (más lejos, `obj_lost_far`).
+- **Excepciones:** haber vuelto a base (es la 1), morir entre S − 90 y T (`before_objective`), jugar en otra zona (`_cross_map_play`), `outnumbered` y un cambio justo con tu participación.
+- **Texto:** «Tu equipo peleó {objetivo} sin ti: un minuto antes de que apareciera estabas a {d} unidades.»
+- **Estado:** nueva; hoy ese tramo no se juzga.
+
+**3. Pelea en inferioridad junto a un objetivo** (P1; valor alto, riesgo medio-bajo; B4)
+- **Salta si:** mueres en una pelea (`_fight_cluster`) a ≤ 3.000 de un foso, con el objetivo vivo o que el rival coge en 60 s. Además, 10 s antes de la primera kill el rival tenía uno más presente y tu aliado llevaba ≥ 10 s muerto.
+- **Excepciones:** `fight_won`, `traded`, `game_end`, `afk`, tu base, y su alma o el ancestral (hay que disputarlos).
+- **Texto:** «Disputasteis {objetivo} {a} contra {e} con un aliado muerto: con uno menos, cédelo o cámbialo al otro lado.»
+- **Estado:** nueva; `outnumbered` solo disculpa objetivos perdidos con 2 de diferencia.
+
+**4. Pelea ganada sin aprovechar** (P1; valor alto, riesgo medio; B5)
+- **Salta si:** la pelea deja ≥ 2 rivales muertos, ≥ 2 de ventaja y ≤ 1 aliado caído; había un objetivo vivo a ≤ 7.000 o una torre rival a ≤ 5.000 (tabla fija de torres menos `BUILDING_KILL`); estabas vivo y a ≤ 3.000; y hasta que reaparece el 2.º rival (25–75 s, +15) tu equipo no coge objetivo, torre, inhibidor, 2 placas ni 8 CS de su jungla.
+- **Excepciones:** antes de las 3:00, < 3 aliados vivos para barón o ancestral (< 2 para lo demás) y victoria en 120 s.
+- **Texto:** de equipo (leve), «Ganasteis la pelea del {mm:ss} y no cayó nada: tocaba {objetivo}.» Tuyo (medio), si vuelves a base en ese tiempo con ≥ 60 % de vida: «Volviste a base tras ganar la pelea en vez de ir a por {objetivo}.»
+- **Estado:** nueva (P2.7 de `coaches.md`).
+
+**5. Pink sin usar en un objetivo** (P2; valor medio, riesgo muy bajo; B3)
+- **Salta si:** llevas una pink (`Inventory.at`) de S − 90 a S + 30 sin colocar ninguna (`WARD_PLACED` `CONTROL_WARD`). Además, en algún frame del tramo estuviste a ≤ 4.000 del foso y el objetivo muere antes de S + 180.
+- **Excepciones:** inventario no fiable, muerte o AFK.
+- **Texto:** «Llevabas una pink y no la pusiste en el minuto previo a {objetivo}.»
+- **Estado:** nueva.
+
+**6. Barón sin aprovechar** (P2; valor medio, riesgo bajo; B9)
+- **Salta si:** de equipo (leve), en los 180 s tras vuestro barón no cae torre, inhibidor, 3 placas, ancestral ni alma; tuyo, mueres aislado en ese tramo.
+- **Excepciones:** victoria antes de T + 240, estar muerto al cogerlo y `traded`.
+- **Texto:** «Moriste solo con la mejora del barón: se aprovecha asediando en grupo o por dos líneas.»
+- **Estado:** nueva.
+
+**7. Cazado en su mitad** (P2; valor medio, riesgo bajo; B8)
+- **Salta si:** mueres después del 14 en top o bot, al otro lado del río (`side_of` rival), contra ≥ 3 y sin aliados a ≤ 3.000 (excepciones de `isolated`).
+- **Texto:** «Te cazaron {n} rivales solo en su mitad del mapa: al otro lado del río, entra solo con visión.»
+- **Estado:** mejora de `isolated` (etiqueta `collapsed`, +0,5 de gravedad; alta con `before_objective`).
+
+**8. Gank previsible** (P2; valor medio, riesgo bajo; B6)
+- **Salta si:** juegas top o bot, mueres entre 2:30 y 4:30 con `gank` y `jungler`, y en los frames de los minutos 1 y 2 su jungla estaba en la mitad contraria a tu línea.
+- **Excepciones:** las de `gank`, mid e invasiones.
+- **Texto:** «Su jungla empezó en el otro lado: hacia el 2:45 acaba su primera vuelta en el tuyo; este gank se podía prever.»
+- **Estado:** mejora de `deaths_to_jungler_pre14`. Los consejos de `insights.py` (gank a las 3:15, ward desde las 2:45) pasarían a ≈ 2:40 y ≈ 2:15 (inferencia mía: campamentos 35 s antes).
+
+**Mejoras menores**
+- **Recompensa regalada (P3):** muerte con `shutdownBounty` ≥ 700 e `isolated`, `collapsed` o `enemy_jungle`. Texto: «Regalaste {x} de oro de recompensa muriendo solo». Regla: WC2 (Platino no cierra partidas ganadas). Requiere guardar `shutdownBounty` aparte (hoy va en `value`).
+- **`_contest_expected`:** hoy exige el heraldo (15:00) al ADC y al support. Hasta el 20, no exigir a top, ADC ni support los objetivos del otro lado salvo que haya caído una torre exterior de su línea.
+
+## C bis) Implementado el 19-11-2026 (`ANALYSIS_VERSION = 7`) y comprobado con 58 partidas reales del usuario
+
+- **Relojes** (`app/coach/clocks.py`): los de B1 cuadran con los datos de 16.21-16.23 (ningún objetivo antes de su hora;
+  ≥ 311 s entre dragones, ≥ 383 s entre barones, ancestral ≥ 382 s tras el alma, 3 larvas de una vez, el heraldo que
+  nadie mata «muere» a las 19:45 con `killerTeamId` 300). Si en una partida un objetivo muere antes de su hora, esa
+  partida no se juzga (`clocks: false`). Swiftplay, otros mapas y otras temporadas, igual.
+- **1. Vuelta a base a destiempo** (`late_recall`): hecha con las excepciones de arriba más «buen cambio del equipo» y
+  «sin datos de vida = no se acusa». Daño ≥ 35 % de la vida máxima en ese minuto también cuenta como vuelta obligada
+  (los campamentos pegan al jungla: prudente). 1 caso en 58 partidas, revisado a mano: correcto.
+- **2. Llegada tarde** (`late`): hecha; 0 casos en 58 partidas (las 26 candidatas tenían una excepción válida: muerte
+  justo antes, vuelta a base, a más de 5.500 o cerca del foso).
+- **3. Pelea con uno menos** (`fight_outnumbered`, etiqueta de la muerte, +0,8): 7 casos (2 contra 5 en el barón, 4
+  contra 5 en larvas, heraldo y dragón…), revisados: correctos.
+- **4. Pelea ganada sin aprovechar** (`unconverted`): hecha, pero solo con ≥ 30 s de ventaja numérica real (hasta que
+  reaparece el 2.º rival). Sin ese mínimo salían 9 casos con ventanas de 5-28 s (fase de líneas, peleas largas): no
+  daba tiempo a convertir nada. Con él, 0 casos.
+- **5. Pink sin usar** (`pink`): 2 casos, revisados (p. ej. pink comprada a las 6:24, larvas a las 8:27, pink puesta a
+  las 9:15). Al poner una pink el timeline trae `ITEM_DESTROYED` 2055 (628 de 628 casos): el inventario es fiable.
+- **6. Barón sin aprovechar** (`baron_wasted`, de equipo, leve) y **morir solo con la mejora** (`baron_buff`): 2 + 2.
+- **7. Cazado en su mitad** (`collapsed`): 1 caso. **Recompensa regalada** (`bounty`, ≥ 500; Riot la limita a 700): 0.
+- **8. Gank previsible: NO se implementa.** Con datos reales el lado de inicio del jungla no predice el lado del primer
+  gank (empieza arriba → ganquea abajo 10, arriba 4; empieza abajo → arriba 5, abajo 7): ~55 % de acierto.
+  Tampoco se adelantan los consejos a 2:40: la primera kill de un jungla en línea llega de mediana al 4:01 (p25 3:29,
+  p10 2:33) y a las 3:00 lleva 20 CS de jungla de mediana (24 al limpiar 6 campamentos). El consejo pasa a «3:15-3:45
+  si limpia toda la jungla, desde 2:30 si ganquea tras 3 campamentos; ward hacia el 2:15».
+- **`_contest_expected`**: hasta el 20, top, ADC y support no responden de los objetivos del otro lado salvo que haya
+  caído una torre exterior de su línea (el heraldo de las 15:00 ya no se le pide al ADC).
+- **Ornn** (`BUYS_ANYWHERE`): sus compras no son vueltas a base (ni anclan su posición en la fuente).
+
+## D) No detectable con fiabilidad
+
+- **Oleadas:** freeze, slow push, empujar antes de volver y CS perdido: no hay súbditos.
+- **Wards:** `WARD_PLACED` y `WARD_KILL` no traen posición: ni sitios, ni barridos, ni wards profundos.
+- **Información:** niebla, rivales desaparecidos, pings y chat.
+- **Quién empieza una pelea u objetivo:** solo se sabe cuándo muere: ni barón a ciegas, ni smite, ni robos.
+- **Estado exacto:** vida solo una vez por minuto; maná y enfriamientos, nunca.
+- **Decisiones de equipo:** prioridad de líneas, split o agruparse, uso del TP (solo cuántas veces), condición de victoria y objetivos cedidos a propósito.
+- **Entre frames:** con 60 s interpolados no cabe «llegaste 10 s tarde».
+- **Rotar tras una torre:** con placas en las interiores, quedarse puede ser correcto.

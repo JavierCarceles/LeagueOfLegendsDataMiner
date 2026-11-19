@@ -217,6 +217,7 @@ class Opgg(CachedSource):
         self.stats["web_requests"] += 1
         response = self._http().get(f"{WEB}{path}", params=params, timeout=20)
         if response.status_code != 200:
+            self.trip(response.status_code, response.headers.get("Retry-After"))
             raise OpggError(f"HTTP {response.status_code} en {path}")
         return rsc_payload(response.text)
 
@@ -255,6 +256,11 @@ class Opgg(CachedSource):
 
         def fetch():
             payload = self._page("/lol/champions", {"position": position, "region": region, "tier": tier, "patch": patch})
+            applied = re.search(r'"tier":"([a-z_]+)","position":"' + re.escape(position) + r'","version":"(\d+\.\d+)"', payload)
+            if applied and (applied.group(1) != tier or applied.group(2) != patch):
+                # Como en los counters: sin datos de ese parche, OP.GG devuelve el actual sin avisar (pedir 16.10 da 16.23).
+                log.debug("OP.GG aplicó %s en vez de %s/%s en la tier list: no se guarda", applied.groups(), tier, patch)
+                return None
             out = {}
             for obj in iter_objects(payload, '{"key":"'):
                 if "positionWinRate" not in obj:
@@ -293,8 +299,13 @@ class Opgg(CachedSource):
                 {"region": region, "type": "ranked", "tier": tier, "patch": patch},
             )
             applied = re.search(r'"game_tier":"([^"]+)","game_patch_version":"([^"]+)"', payload)
-            if applied and (applied.group(1) != tier or applied.group(2) != patch):
-                log.debug("OP.GG aplicó %s en vez de %s/%s", applied.groups(), tier, patch)
+            if not applied:
+                return None  # sin la marca de elo/parche (página de error o cambio de formato): no se guarda nada
+            if applied.group(1) != tier or applied.group(2) != patch:
+                # OP.GG devuelve en silencio otro elo/parche cuando no tiene el pedido (p. ej. un parche antiguo → el
+                # actual): guardarlo con la clave pedida mostraría datos de otro parche como si fueran de ese.
+                log.debug("OP.GG aplicó %s en vez de %s/%s: no se guarda", applied.groups(), tier, patch)
+                return None
             out: dict[str, list[int]] = {}
             for match in re.finditer(r'\{"play":(\d+),"win":(\d+),"win_rate":[\d.]+,"champion":(\{[^{}]*\})\}', payload):
                 try:
@@ -318,6 +329,7 @@ class Opgg(CachedSource):
             headers["Mcp-Session-Id"] = session
         response = self._http().post(MCP_URL, headers=headers, json=payload, timeout=45)
         if response.status_code >= 400:
+            self.trip(response.status_code, response.headers.get("Retry-After"))
             raise OpggError(f"MCP HTTP {response.status_code}")
         body = response.text.strip()
         if not body:

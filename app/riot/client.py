@@ -207,17 +207,21 @@ class RiotClient:
         queue: int | None = None,
         ranked_only: bool = False,
         start_time: int | None = None,
+        end_time: int | None = None,
         start: int = 0,
         count: int = 20,
         **kw,
     ) -> list[str]:
-        params: dict = {"start": start, "count": max(1, min(count, 100))}
+        """Ids de partidas (de la más reciente a la más antigua). ``start``/``count`` paginan de 100 en 100 como mucho."""
+        params: dict = {"start": max(0, int(start)), "count": max(1, min(count, 100))}
         if queue is not None:
             params["queue"] = queue
         if ranked_only:
             params["type"] = "ranked"
         if start_time:
             params["startTime"] = int(start_time)
+        if end_time:
+            params["endTime"] = int(end_time)
         path = f"/lol/match/v5/matches/by-puuid/{puuid}/ids"
         return self.request(region_of(platform), path, method="match-v5.ids", params=params, **kw) or []
 

@@ -112,11 +112,6 @@ def region_of(platform: str) -> str:
     raise ValueError(f"Plataforma desconocida: {platform}")
 
 
-def platform_from_match_id(match_id: str) -> str:
-    """``EUW1_7234`` -> ``euw1``."""
-    return match_id.split("_", 1)[0].lower()
-
-
 def account_route(platform: str) -> str:
     return ACCOUNT_ROUTE[region_of(platform)]
 

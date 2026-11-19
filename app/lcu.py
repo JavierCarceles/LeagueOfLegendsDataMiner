@@ -21,6 +21,7 @@ import importlib.util
 import os
 import re
 import shutil
+import stat
 from pathlib import Path
 
 import requests
@@ -52,11 +53,14 @@ def _riot_client_installs() -> list[Path]:
     return out
 
 
+from app.config import env as _config_env  # noqa: E402
+
 for _folder in _riot_client_installs():
     if _folder not in INSTALL_DIRS:
         INSTALL_DIRS.insert(0, _folder)
-if os.environ.get("LOL_INSTALL_DIR"):
-    INSTALL_DIRS.insert(0, Path(os.environ["LOL_INSTALL_DIR"]))
+_custom_dir = _config_env("LOL_INSTALL_DIR")  # del .env (o del entorno), como dice .env.example
+if _custom_dir:
+    INSTALL_DIRS.insert(0, Path(_custom_dir))
 
 # Región del cliente -> plataforma de la API.
 CLIENT_REGION = {
@@ -201,11 +205,20 @@ def gameflow_phase() -> str | None:
 
 
 # ---------------------------------------------------------------- instalación
+def _is_pbe(folder: Path) -> bool:
+    return "pbe" in folder.name.lower() or "(pbe)" in str(folder).lower()
+
+
 def install_dir() -> Path | None:
-    """Carpeta de instalación de LoL (la del ``lockfile`` o la del proceso del cliente)."""
-    for folder in INSTALL_DIRS:
-        if (folder / "lockfile").exists() or (folder / "Config").is_dir():
-            return folder
+    """Carpeta de instalación de LoL.
+
+    Primero la del cliente abierto (``lockfile``), luego la versión normal antes que la PBE (con las dos
+    instaladas, ``RiotClientInstalls.json`` puede listar la PBE primero) y, si no, la del proceso del cliente.
+    """
+    candidates = [f for f in INSTALL_DIRS if (f / "lockfile").exists() or (f / "Config").is_dir()]
+    candidates.sort(key=lambda f: (not (f / "lockfile").exists(), _is_pbe(f)))
+    if candidates:
+        return candidates[0]
     if importlib.util.find_spec("psutil") is None:
         return None
     import psutil
@@ -255,6 +268,28 @@ def replay_api_enabled() -> bool | None:
     return bool(match and match.group(1).strip().lower() in ("1", "true"))
 
 
+def _write_atomic(path: Path, text: str) -> None:
+    """Escribe en un temporal junto al archivo y lo cambia de golpe (un corte a medias nunca deja game.cfg roto).
+
+    Si el archivo estaba en solo lectura (hay quien lo pone para que el cliente no le cambie la configuración), se
+    quita lo justo para escribir y se vuelve a poner.
+    """
+    mode = stat.S_IMODE(path.stat().st_mode)
+    read_only = not os.access(path, os.W_OK)
+    tmp = path.with_name(path.name + ".tempu-tmp")
+    tmp.write_text(text, encoding="utf-8", newline="")
+    try:
+        if read_only:
+            os.chmod(path, mode | stat.S_IWRITE)  # Windows no deja reemplazar un archivo de solo lectura
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        if read_only and path.exists():
+            os.chmod(path, mode)
+        raise
+    os.chmod(path, mode)  # los mismos permisos que tenía (también el «solo lectura»)
+
+
 def enable_replay_api() -> Path:
     """Pone ``EnableReplayApi=1`` en la sección [General] de game.cfg (guardando una copia antes)."""
     path = game_cfg()
@@ -275,9 +310,9 @@ def enable_replay_api() -> Path:
             text = re.sub(r"^(\[General\][ \t]*)(\r?\n|$)", lambda m: m.group(1) + newline + "EnableReplayApi=1" + (m.group(2) or newline), text, count=1, flags=re.M)
         else:
             text = f"[General]{newline}EnableReplayApi=1{newline}" + text
-        path.write_text(text, encoding="utf-8", newline="")
+        _write_atomic(path, text)
     except PermissionError as exc:
-        raise LCUError("Windows no deja modificar game.cfg (¿está en solo lectura o abierto el juego?). Ciérralo y vuelve a intentarlo.") from exc
+        raise LCUError("Windows no deja modificar game.cfg (¿está abierto el juego?). Ciérralo y vuelve a intentarlo.") from exc
     except OSError as exc:
         raise LCUError(f"No se pudo modificar game.cfg: {exc}") from exc
     return path

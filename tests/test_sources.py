@@ -346,6 +346,36 @@ def test_enable_replay_api_edits_game_cfg_with_backup(tmp_path, monkeypatch):
     assert cfg.read_bytes().decode("utf-8").count("EnableReplayApi") == 1
 
 
+def test_enable_replay_api_keeps_read_only_and_leaves_no_temp_file(tmp_path, monkeypatch):
+    import os
+    import stat
+
+    cfg = tmp_path / "Config" / "game.cfg"
+    cfg.parent.mkdir()
+    cfg.write_bytes(b"[General]\r\nWindowMode=2\r\n")
+    os.chmod(cfg, stat.S_IREAD)  # el usuario lo tiene en solo lectura
+    monkeypatch.setattr(lcu, "game_cfg", lambda: cfg)
+    try:
+        lcu.enable_replay_api()
+        assert lcu.replay_api_enabled() is True
+        assert not os.access(cfg, os.W_OK)  # sigue en solo lectura
+        assert sorted(p.name for p in cfg.parent.iterdir()) == ["game.cfg", "game.cfg.tempu-backup"]  # sin temporales
+    finally:
+        os.chmod(cfg, stat.S_IREAD | stat.S_IWRITE)
+        os.chmod(cfg.parent / "game.cfg.tempu-backup", stat.S_IREAD | stat.S_IWRITE)
+
+
+def test_install_dir_prefers_the_running_client_then_live_over_pbe(tmp_path, monkeypatch):
+    pbe = tmp_path / "League of Legends (PBE)"
+    live = tmp_path / "League of Legends"
+    for folder in (pbe, live):
+        (folder / "Config").mkdir(parents=True)
+    monkeypatch.setattr(lcu, "INSTALL_DIRS", [pbe, live])  # RiotClientInstalls.json puede listar la PBE primero
+    assert lcu.install_dir() == live
+    (pbe / "lockfile").write_text("x")  # pero si la que está abierta es la PBE, esa
+    assert lcu.install_dir() == pbe
+
+
 def test_enable_replay_api_without_install_is_a_clear_error(monkeypatch):
     monkeypatch.setattr(lcu, "game_cfg", lambda: None)
     with pytest.raises(lcu.LCUError, match="game.cfg"):
@@ -481,3 +511,99 @@ def test_item_catalog_for_each_game_patch(svc):
     # Sin item.json ni red: None (el análisis usa el catálogo actual y, si no encaja, omite oro/build).
     assert dd.catalog_for("14.3.1.1", allow_network=False) is None
     assert dd.catalog_for("raro") is None
+
+
+# ------------------------------------------------------------ OP.GG: página de counters
+def test_opgg_counters_never_cache_another_patch_or_a_broken_page(svc):
+    from app.external.opgg import Opgg
+    from tests.factories import DARIUS, GAREN, offline_ddragon
+
+    dd = offline_ddragon(svc.settings.ddragon_dir)
+    opgg = Opgg(svc.db, dd, enabled=True)
+    row = '{"play":120,"win":66,"win_rate":55.0,"champion":{"key":"Garen","name":"Garen"}}'
+    pages = {
+        "16.23": '"game_tier":"emerald_plus","game_patch_version":"16.23"' + row,
+        "16.10": '"game_tier":"emerald_plus","game_patch_version":"16.23"' + row,  # OP.GG ya no tiene ese parche
+        "16.22": "<html>Error</html>",  # sin la marca: cambio de formato o página de error
+        "16.21": '"game_tier":"emerald_plus","game_patch_version":"16.21"',  # nadie lo juega ahí: vacío legítimo
+    }
+    opgg._page = lambda path, params: pages[params["patch"]]
+    assert opgg.counters(DARIUS, "TOP", "emerald_plus", "global", "16.23") == {GAREN: (120, 66)}
+    assert opgg.counters(DARIUS, "TOP", "emerald_plus", "global", "16.10") is None  # no se hace pasar por el 16.10
+    assert opgg.counters(DARIUS, "TOP", "emerald_plus", "global", "16.22") is None
+    assert opgg.counters(DARIUS, "TOP", "emerald_plus", "global", "16.21") == {}
+    cached = {key.split("|")[-1] for key, _ in opgg.cached_entries("counters")}
+    assert cached == {"16.23", "16.21"}
+
+
+def test_a_rate_limited_web_stops_all_requests_for_a_while(db, monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(base_mod.time, "monotonic", lambda: clock[0])
+    source = CachedSource(db)
+    calls = []
+    blocked = [True]
+
+    class Blocked(Exception):
+        pass
+
+    def fetch(key):
+        def run():
+            calls.append(key)
+            if blocked[0]:
+                source.trip(429, "90")  # la web dice «vuelve en 90 s»
+                raise Blocked()
+            return {"ok": key}
+        return run
+
+    assert source._cached("x", "a", 60, fetch("a")) is None
+    # Mientras dura, ninguna otra clave pide nada (antes cada clave insistía por su cuenta).
+    assert source._cached("x", "b", 60, fetch("b")) is None and source._cached("x", "c", 60, fetch("c")) is None
+    assert calls == ["a"] and source.circuit_open() and source.stats["circuit_open_for"] == 90
+    clock[0] += 91
+    blocked[0] = False
+    assert not source.circuit_open()
+    assert source._cached("x", "b", 60, fetch("b")) == {"ok": "b"}
+    # Sin Retry-After la espera crece con cada bloqueo y vuelve a empezar tras una respuesta buena.
+    source.trip(403)
+    first = source._circuit_until - clock[0]
+    source.trip(403)
+    assert source._circuit_until - clock[0] > first
+    source.trip(404)  # un 404 no es un bloqueo
+    assert base_mod.retry_after_seconds("abc") is None and base_mod.retry_after_seconds("12") == 12.0
+
+
+def test_client_watch_runs_in_its_own_thread(svc, monkeypatch):
+    """«En partida» se refresca aunque el seguimiento esté atascado en una sincronización larga."""
+    from app.coach import tracker as tracker_mod
+
+    phases = iter(["InProgress"] * 1000)
+    monkeypatch.setattr(tracker_mod.lcu, "available", lambda: True)
+    monkeypatch.setattr(tracker_mod.lcu, "gameflow_phase", lambda: next(phases))
+    blocked = threading.Event()
+    monkeypatch.setattr(svc.tracker, "_run", lambda: blocked.wait(5))  # el bucle principal, ocupado
+    svc.tracker.start()
+    try:
+        deadline = time.time() + 3
+        while not svc.tracker.state.get("in_game") and time.time() < deadline:
+            time.sleep(0.02)
+        assert svc.tracker.state["in_game"] is True
+        assert any(t.name == "lol-client-watch" for t in threading.enumerate())
+    finally:
+        blocked.set()
+        svc.tracker.shutdown()
+
+
+def test_opgg_tier_list_is_not_stored_as_another_patch(svc):
+    from app.external.opgg import Opgg
+    from tests.factories import DARIUS, offline_ddragon
+
+    opgg = Opgg(svc.db, offline_ddragon(svc.settings.ddragon_dir), enabled=True)
+    champ = '{"key":"Darius","name":"Darius","positionName":"top","positionWinRate":51.2,"positionPickRate":5,"positionBanRate":3,"positionRoleRate":90,"positionTier":2,"positionRank":7,"positionCounters":[]}'
+
+    def page(path, params):
+        applied = "16.23" if params["patch"] in ("16.23", "16.10") else params["patch"]
+        return '{"type":"ranked","region":"global","tier":"emerald_plus","position":"top","version":"' + applied + '"}' + champ
+
+    opgg._page = page
+    assert opgg.tier_list("TOP", "emerald_plus", "global", "16.23")[DARIUS]["wr"] == 51.2
+    assert opgg.tier_list("TOP", "emerald_plus", "global", "16.10") is None  # OP.GG dio el 16.23

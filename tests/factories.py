@@ -122,6 +122,8 @@ ITEMS: dict[str, dict] = {
     "3865": {'name': 'Atlas mundial', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': True}, 'tags': ['Health', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}},
     "3866": {'name': 'Brújula rúnica', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': False}, 'tags': ['SpellDamage', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'inStore': False},
     "3867": {'name': 'Botín universal', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': False}, 'tags': ['SpellDamage', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'into': ['3870'], 'inStore': False},
+    "2422": {'name': 'Calzado ligeramente mágico', 'gold': {'base': 300, 'total': 300, 'sell': 90, 'purchasable': False}, 'tags': ['Boots'], 'maps': {'11': True}, 'into': ['3006', '3047', '3111'], 'inStore': False},
+    "2010": {'name': 'Galleta de la voluntad eterna', 'gold': {'base': 50, 'total': 50, 'sell': 5, 'purchasable': False}, 'tags': [], 'maps': {'11': True}, 'consumed': True, 'inStore': False},
     "3870": {'name': 'Tejesueños', 'gold': {'base': 0, 'total': 400, 'sell': 160, 'purchasable': True}, 'tags': ['Health', 'HealthRegen', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'from': ['3867'], 'depth': 2},
 }
 
@@ -406,12 +408,11 @@ def make_settings(base: Path):
         legacy_dir=data / "legacy",
         coachings_dir=data / "coachings",
         ddragon_dir=data / "ddragon",
-        gemini_keys=[],
-        gemini_models=[],
         opgg_enabled=False,
         lolalytics_enabled=False,
         patchnotes_enabled=False,
         warmer_enabled=False,
+        calibrate_enabled=False,
         low_priority=False,
     )
 
@@ -558,7 +559,7 @@ class FakeRiotClient:
             return [dict(e, tier=tier, queueType="RANKED_SOLO_5x5", leagueId="fake-league") for e in self._entries()]
         return []
 
-    def match_ids(self, platform, puuid, *, queue=None, ranked_only=False, start_time=None, start=0, count=20, **kw):
+    def match_ids(self, platform, puuid, *, queue=None, ranked_only=False, start_time=None, end_time=None, start=0, count=20, **kw):
         self._record("match_ids", platform, puuid, queue, ranked_only, start_time, count)
         return list(self.ladder.get(puuid, []))[start : start + count]
 

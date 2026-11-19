@@ -16,39 +16,30 @@ partidas y, si lo dejaste en marcha, el recolector sigue recogiendo partidas. Mi
 | **Campeones** | Tier list por rol (OP.GG + Lolalytics + tu BD) y ficha de campeón: roles, mejores y peores matchups, sinergias, perfil y cambios recientes. |
 | **Jugador** / **Partida** | Perfil de cualquier jugador y detalle de cualquier partida (Riot API). |
 | **Regiones** | Meta por región y, con datos propios, objetivos, duración, lado azul/rojo y elo. |
-| **Guías** | Guías guardadas, generación con IA (Gemini) y conversión de vídeos de coaching de YouTube en guías. |
+| **Guías** | Guías de matchup guardadas en tu carpeta de coachings, enfrentamientos frecuentes sin guía y amigos del cliente de LoL. |
 | **Datos y API** | API key, estado de la precarga y de cada fuente, recolector de partidas por servidores y elo (también **solo de OTPs o jugadores con muchísima maestría de los campeones que elijas**, p. ej. KR + Aspirante + Ahri), límites de la API, base de datos y calibración del modelo. |
 
 ## Puesta en marcha
 
 ### Windows (recomendado)
 
-1. Instala **Python 3.14** desde [python.org](https://www.python.org/downloads/) (marca *Add python.exe to PATH*).
-2. Doble clic en **`iniciar.bat`**. La primera vez crea el entorno e instala las dependencias (~1 minuto); las siguientes
-   arranca al momento. Se abre el navegador solo en http://localhost:8000.
+1. Instala **Python 3.14** desde [python.org](https://www.python.org/downloads/).
+2. Ejecuta **`run.py`**: doble clic, el botón *Run* de tu editor (PyCharm, VS Code) o `py run.py` en una consola. No hay
+   que instalar nada a mano: la primera vez crea su entorno en `%LOCALAPPDATA%\TempuDrafter` (fuera del proyecto y de
+   OneDrive) e instala las dependencias (~1 minuto); después solo las reinstala si cambia `requirements.txt`, y si el
+   entorno quedó a medias lo repara solo. El navegador se abre en http://localhost:8000 cuando la web está lista.
 
-Si ya estaba abierta, `iniciar.bat` solo abre el navegador. Si el puerto 8000 lo usa otro programa, busca el siguiente
-libre. Para cerrarla, cierra la ventana negra (o `Ctrl+C`).
+Si ya estaba abierta (o arrancando), solo abre el navegador: nunca hay dos copias con los mismos datos. Si el puerto 8000
+lo usa otro programa, busca el siguiente libre. Para cerrarla, cierra la ventana (o `Ctrl+C`, se cierra en ~3 s).
 
-### Manual (cualquier sistema)
-
-```bash
-python -m venv .venv
-```
+### macOS / Linux
 
 ```bash
-.venv\Scripts\activate        # macOS/Linux: source .venv/bin/activate
+python3 run.py
 ```
 
-```bash
-pip install -r requirements.txt
-```
-
-```bash
-python run.py
-```
-
-Opciones: `--port 8001`, `--no-browser`, `--reload` (desarrollo).
+El entorno se crea en `.venv` dentro del proyecto. Opciones: `--port 8001`, `--no-browser`, `--reload` (desarrollo) y
+`--no-venv` (usar tu Python actual tal cual).
 
 **API key de Riot.** Pégala en *Datos y API* (o en `.env`, ver `.env.example`). Se recarga en caliente: cuando caduque
 la development key (24 h), pega la nueva y todo sigue solo. Sin key funcionan el draft, los matchups, la tier list y las
@@ -58,8 +49,7 @@ regiones con OP.GG y Lolalytics; la key hace falta para tus partidas, perfiles y
 ahí no tienes que hacer nada: cada 3 minutos se buscan tus partidas nuevas y se analizan; si el cliente está abierto en el
 mismo ordenador, la partida se analiza en cuanto Riot la publica (1-3 min tras terminar).
 
-**Opcional:** guías con IA, YouTube y amigos del cliente: `pip install -r requirements-coaching.txt` y las claves
-`GEMINI_KEY_*` en `.env`. Tests: `pip install -r requirements-dev.txt` y `python -m pytest`.
+Tests: `pip install -r tests/requirements.txt` y `python -m pytest`.
 
 ## Todo automático y sin esperas
 
@@ -102,11 +92,15 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 - **Repetición 2D**: de cada partida se descargan el detalle y el *timeline* de match-v5 (posición de los 10 jugadores
   cada minuto y en cada evento). Entre medias la posición se interpola. Sobre el mapa: tus errores con su gravedad
   (grave, a mejorar, leve) y tus aciertos, un globo donde ocurrió cada uno, los campeones implicados resaltados, tu
-  rastro de los últimos segundos y, en cada instante, marcador, oro de equipo, tu nivel, CS y oro sin gastar.
-  - Al reproducir se para en cada error (desactivable). Teclas: espacio (reproducir/pausar), ← → (5 s; con Mayús 30 s),
+  rastro de los últimos segundos y, en cada instante, marcador, oro de equipo, tu nivel, CS y oro sin gastar. Lo que no
+  es un error (desconexiones, empujón final, objetivos imposibles de disputar) sale como *informativo*.
+  - Al reproducir se para en cada error (desactivable; nunca en lo informativo). Teclas: espacio (reproducir/pausar), ← → (5 s; con Mayús 30 s),
     N / P (siguiente/anterior error).
   - Panel de errores filtrable por gravedad y categoría, con la explicación, las etiquetas (sin ward, adelantado, jungla
-    rival…), quién te mató, vuestro nivel y oro en ese momento, quién estaba cerca y un consejo.
+    rival…), quién te mató, vuestro nivel y oro en ese momento, quién estaba cerca, un consejo y **«Aprende esto»**:
+    2-3 vídeos gratis de coaches (primero en español), un ejercicio y su propósito.
+  - **Revisión guiada** (método de Mauro Garih): 3 momentos de la partida (los más graves, de tipos distintos) con 3
+    preguntas en cada uno (qué sabías, qué decidiste, qué era mejor). Tus respuestas se guardan solas.
 - **Repetición real en el cliente**: con el cliente de LoL abierto, *Ver en el cliente de LoL* descarga (si hace falta) y
   abre la repetición (.rofl) y salta a unos segundos antes del error.
   - Solo existen para partidas del **parche actual**, y Riot limita las descargas a **50 al día**: solo se descarga la
@@ -134,9 +128,17 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   hueco. Cada partida se analiza con el catálogo de objetos de **su** parche (Data Dragon); si aun así aparecen objetos
   desconocidos, el análisis de oro y build se omite en vez de arriesgar avisos falsos.
 - **Objetivos y cambios.** Si el rival coge un objetivo y estabas lejos, se suma lo que sacó tu equipo alrededor (kills,
-  torres, placas, su jungla, otro objetivo) y se compara con lo que vale. Solo es *buen cambio* si participaste (si tu
-  equipo lo compensó sin ti, no se dice nada); en inferioridad numérica, recién muerto o justo al reaparecer no se te
-  culpa, y antes del 14 no se culpa a un top o a la pareja de bot de un objetivo menor al otro lado del mapa.
+  torres, placas, su jungla, otro objetivo) y se compara con lo que vale; una misma ganancia no compensa dos objetivos.
+  Solo es *buen cambio* si participaste (si tu equipo lo compensó sin ti, no se dice nada); en inferioridad numérica,
+  recién muerto o justo al reaparecer no se te culpa, y hasta el 20 no se culpa a un top o a la pareja de bot de un
+  objetivo menor al otro lado del mapa (salvo que ya cayera una torre exterior de su línea).
+- **Macro con los relojes de 2026** (`app/coach/clocks.py`: dragón 5:00 y cada 5 min, larvas 8:00, heraldo 15:00,
+  barón 20:00 y cada 6 min, ancestral 6 min tras el alma; comprobados con partidas reales): volver a base cuando ya no da
+  tiempo a llegar a un objetivo disputado, llegar tarde a uno, pelear junto a un objetivo con un aliado muerto desde
+  antes, llevar una pink sin ponerla en el minuto previo, barón o pelea ganada (≥ 30 s de ventaja numérica) sin
+  convertir, que te cacen solo en su mitad del mapa y regalar una recompensa grande. Cada regla tiene sus excepciones
+  (vuelta obligada por poca vida, buen cambio, inferioridad…); si los relojes no cuadran con la partida, no se juzga.
+  Detalle y fuentes en `docs/macro.md`.
 - **Build.** Orden y minuto de cada objeto, compras por vuelta, inventario lleno de componentes, objetos vendidos, la R a
   tiempo (6, 11 y 16), Heridas graves contra curanderos y resistencias frente al daño recibido, comparado con la build
   más jugada de tu campeón y rol en OP.GG.
@@ -146,11 +148,20 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   avisan aparte; con un AFK tampoco se juzgan la fase de líneas ni la R a tiempo.
 - **Jungla.** Campamento inicial, ruta de los minutos 1-8, presencia en cada línea, impacto antes del 10 (kills, placas,
   objetivos, invasiones), CS de jungla y ganks del jungla rival en la otra mitad del mapa.
-- **Referencias.** Cada métrica se compara con una referencia de tu rol escalada a tu *elo objetivo* (o las medias reales
-  de tu BD si hay ≥ 300 partidas de ese elo y rol). Los puntos débiles necesitan al menos 5 partidas (y que la diferencia
+- **Referencias.** Cada métrica se compara con una referencia de tu rol escalada a tu *elo objetivo*. En cuanto hay
+  ≥ 20 jugadores de tu rol en tus partidas (se analizan en segundo plano con el mismo código, sin peticiones a Riot) y se
+  sabe tu liga, la referencia se **calibra** con sus medias reales, escaladas de tu liga a tu elo objetivo (salvo las
+  métricas «frente a tu rival», que en tu rol serían tu propia diferencia con el signo cambiado). Además, en segundo plano
+  se bajan poco a poco partidas reales de SoloQ de tu elo objetivo (6 cada 10 min con prioridad baja, en pausa mientras
+  juegas, hasta 80) y se analizan igual: con ≥ 20 jugadores de tu rol, esas medias mandan (`CALIBRATE_ENABLED=0` lo
+  desactiva). Si el recolector tiene ≥ 300 partidas de ese elo y rol, las métricas del resumen usan esas medias. Los puntos débiles necesitan al menos 5 partidas (y que la diferencia
   sea real, no ruido); las tendencias *mejorando/empeorando*, al menos 8 del mismo rol y un cambio mayor que su error;
   los propósitos solo se comprueban en partidas donde la métrica aplica a tu rol. Las partidas de Swiftplay o con alguien
-  desconectado 3 minutos o más no cuentan en los agregados ni en la nota (se ven igual en *Repeticiones*).
+  desconectado 3 minutos o más (o marcado como AFK por Riot) no cuentan en los agregados ni en la nota (se ven igual en
+  *Repeticiones*).
+- **Hábitos.** Tu porcentaje de victorias tras 2 derrotas seguidas (solo avisa si la caída es clara) y por número de
+  partida en la sesión, sesiones largas, tu pool por rol (más de 3 campeones → núcleo propuesto), derrotas yendo con
+  +2.000 de oro de equipo a favor (con enlace al minuto) y cuántas partidas revisaste esta semana.
 - **¿Listo para clasificatorias?** Nota 0-100 con tus últimas 10 partidas: 60 % los propósitos que cumples y 40 % la
   nota de fundamentos (0-10, 5 = como la referencia).
 
@@ -163,11 +174,11 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 | `OPGG_ENABLED`, `LOLALYTICS_ENABLED`, `PATCHNOTES_ENABLED` | `1` | Activar o desactivar cada fuente. |
 | `PRELOAD_ENABLED` | `1` | Precarga en segundo plano. |
 | `PAUSE_IN_GAME` | `1` | Pausar descargas de fondo mientras juegas. |
+| `CALIBRATE_ENABLED` | `1` | Bajar poco a poco partidas reales de tu elo objetivo para calibrar las referencias. |
 | `LOW_PRIORITY` | `1` | Windows: prioridad baja del proceso. |
 | `STATS_QUEUES` | `420,440` | Colas que alimentan tus estadísticas propias. |
 | `DDRAGON_LANG` | `es_ES` | Idioma de campeones, objetos y notas de parche. |
 | `LOL_INSTALL_DIR` | — | Carpeta de LoL si no se detecta sola (se busca en las rutas por defecto, en `RiotClientInstalls.json` del Riot Client y en el proceso del cliente abierto). |
-| `GEMINI_KEY_1..3`, `GEMINI_MODELS` | — | Guías con IA (opcional). |
 | `DATA_DIR`, `COACHINGS_DIR` | `data`, `data/coachings` | Carpetas. |
 
 ## Cómo se calcula (resumen)
@@ -188,12 +199,25 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   de los elegidos entre sus 3 primeros con el mínimo de puntos). La API de Riot no ofrece un ranking de maestría por
   campeón, así que se mira la maestría de cada jugador del ranking de esos servidores y elos (1 llamada por jugador, se
   recuerda 7 días) y solo se recogen las partidas de los que cumplen; opcionalmente, solo las que jugaron con esos
-  campeones (las demás se recuerdan para no volver a pedirlas).
+  campeones (las demás se recuerdan para no volver a pedirlas; si en esa partida otro OTP buscado jugó uno de los
+  campeones elegidos, se guarda igual).
+- **Historial completo de cada OTP (sin tope de partidas):** de cada OTP se baja su historial entero, de 100 en 100
+  hacia atrás con `endTime` fijo (la lista no se mueve aunque siga jugando), hasta la profundidad elegida: *temporada
+  actual* (por defecto: desde el 1 de enero del año del parche, parando en la primera partida de un parche anterior),
+  90/180/365 días o todo lo que guarde Riot. Reparto justo: primero los OTPs recién encontrados, luego sus partidas
+  nuevas y después el historial antiguo empezando por quien menos lleva bajado; cada visita baja hasta 100 partidas y
+  pasa al siguiente. El avance se guarda (`otp_progress`) y sigue donde se quedó aunque cierres la app. Si una página
+  del historial tiene ≤ 10 % de partidas con esos campeones, se deja de bajar (más atrás ya no lo jugaba). La búsqueda
+  de OTPs (maestría y ligas, host de plataforma) va en un hilo aparte de la descarga (host de región): Riot los limita
+  por separado, así que buscar no frena la descarga.
+- **Key compartida:** el limitador compara lo que cuenta Riot con lo que pidió la app; si otra app (otra copia de Tempu
+  Drafter en otro ordenador, por ejemplo) usa la misma key, *Datos y API* lo avisa: el cupo es por key y se reparte.
 
 ## Estructura
 
 ```
-iniciar.bat, launcher.py, run.py   arranque en Windows (doble clic), entorno y servidor
+run.py       único punto de entrada: prepara el entorno, instala dependencias y arranca la web
+docs/        CONTINUAR.md (traspaso), coaches.md (recursos gratis de coaches), macro.md (reglas de macro → detecciones), enlaces.txt (privado)
 app/
   main.py, services.py, config.py, logbus.py, budget.py   arranque, servicios, .env, logs (SSE), presupuesto por petición
   warmer.py    precarga en segundo plano (carriles, prioridades, pausa en partida)
@@ -203,7 +227,7 @@ app/
   ingest/      parseo de partidas, recolector e importación del histórico
   analytics/   estadística, evidencia combinada, matchups, campeones, draft, jugadores, partidas, regiones
   coach/       tus partidas: perfil, seguimiento, geometría del mapa, análisis, propósitos y repeticiones en el cliente
-  coaching/    índice de guías, Gemini y YouTube
+  coaching/    índice de guías guardadas
   lcu.py       cliente de LoL abierto (cuenta, fin de partida, repeticiones, Replay API)
   api/         endpoints REST (documentación interactiva en /docs)
 web/           interfaz (HTML + CSS + módulos JS, sin compilación)

@@ -13,6 +13,7 @@ huecos libres tenías y qué podías comprar con tu oro para avanzar en tu build
 
 from __future__ import annotations
 
+import bisect
 import math
 import re
 from collections import Counter
@@ -28,6 +29,12 @@ TRANSFORMS = {
     3004: 3042,  # Manamune -> Muramana
     3003: 3040,  # Bastón del arcángel -> Abrazo de serafín
     3119: 3121,  # Llegada del invierno -> Fimbulvetr
+}
+# Objetos que llegan sin evento de compra y ocupan hueco: solo se ven cuando se gastan (ITEM_DESTROYED). Se dan por
+# llevados desde lo antes que pueden llegar (lo prudente: así nunca se dice «tenías hueco» si quizá no lo había).
+RECEIVED_FREE = {
+    2010: 2 * 60_000,  # Galletas de la runa «Entrega de galletas»
+    2422: 6 * 60_000,  # Calzado ligeramente mágico (runa «Calzado mágico»: a los 12 min o antes con derribos)
 }
 # Objetos con Heridas graves si la descripción no lo dice (nombres cambian por idioma).
 ANTI_HEAL_FALLBACK = {3033, 3123, 3165, 3916, 3075, 3076, 6609, 3011}
@@ -233,6 +240,7 @@ class Inventory:
         self.purchases: list[dict] = []  # {"t", "item", "cost", "undone", "consumed"}
         self.sold: list[dict] = []
         self.unknown: set[int] = set()  # objetos comprados que el catálogo no conoce
+        self._free_last: dict[int, int] = {}  # último ITEM_DESTROYED de cada objeto que llega sin compra
         inv: Counter = Counter()
         # Objetos gastados en este instante: si a continuación hay una compra, eran su receta;
         # si no, se gastaron (poción, pink) o se transformaron (Manamune -> Muramana).
@@ -255,6 +263,8 @@ class Inventory:
             if pending and not (pending[-1][0] == t and kind in ("ITEM_DESTROYED", "ITEM_PURCHASED")):
                 flush()
             if kind == "ITEM_DESTROYED":
+                if inv[item] <= 0 and item in RECEIVED_FREE:
+                    self._received(item, t, inv)
                 if inv[item] > 0:
                     inv[item] -= 1
                     pending.append((t, item))
@@ -289,6 +299,19 @@ class Inventory:
             self.times.append(t)
             self.snaps.append(Counter({k: v for k, v in inv.items() if v > 0}))
         flush()
+
+    def _received(self, item: int, t: int, inv: Counter) -> None:
+        """Un objeto que llegó sin compra (lo delata su ITEM_DESTROYED): se añade desde que pudo llegar hasta ``t``."""
+        # Desde lo antes que puede llegar, o desde que se gastó el anterior (ese ya se contó hasta su ITEM_DESTROYED).
+        since = min(max(RECEIVED_FREE[item], self._free_last.get(item, 0)), t)
+        self._free_last[item] = t
+        i = bisect.bisect_left(self.times, since)
+        if i == len(self.times) or self.times[i] != since:
+            self.times.insert(i, since)
+            self.snaps.insert(i, Counter(self.snaps[i - 1]) if i > 0 else Counter())
+        for j in range(i, len(self.times)):
+            self.snaps[j][item] += 1
+        inv[item] += 1
 
     def at(self, t: int) -> Counter:
         """Inventario justo en el instante ``t`` (después de los eventos de ese instante)."""

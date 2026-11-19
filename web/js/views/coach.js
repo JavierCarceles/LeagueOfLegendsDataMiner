@@ -2,9 +2,10 @@
 // propósitos para llegar a clasificatorias y una repetición 2D de cada partida.
 import { api } from "../api.js";
 import { lineChart } from "../charts.js";
+import { learnBox } from "../components/learn.js";
 import { DEATH_KINDS, deathMap, pathMap } from "../components/minimap.js";
 import { dd, loadJSON, ROLE_LABEL, save, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
+import { champImg, champText, collapsible, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
 
 const PREFS = "tempu.progreso.v1";
 let prefs = loadJSON(PREFS, { queue: "all", role: "all", last: 30 });
@@ -83,9 +84,10 @@ async function refresh(full) {
 }
 
 async function loadSummary(data) {
+  const fresh = latest("progreso.summary"); // cambiar de filtro rápido: solo pinta la última respuesta
   try {
     const s = await api.get("/api/coach/summary", { queue: prefs.queue, role: prefs.role, last: prefs.last });
-    if (!root || mode !== "summary") return;
+    if (!root || mode !== "summary" || !fresh()) return;
     mount(bodyEl, summaryView(s, data));
   } catch (err) {
     mount(bodyEl, errorBox(err));
@@ -311,6 +313,30 @@ function setPrefs(patch) {
   loadSummary();
 }
 
+function refsLabel(s, sources) {
+  const target = TIER_LABEL[s.target_tier] || s.target_tier;
+  const infos = Object.values(s.refs_info || {});
+  const tier = infos.find((i) => i.source === "tier");
+  const peers = infos.find((i) => i.source === "peers");
+  const cal = s.calibration;
+  const progress = cal && cal.tier === s.target_tier && cal.status !== "done" && cal.status !== "disabled" ? ` · calibrando con partidas reales de ${target}: ${cal.games}/${cal.target}` : "";
+  const kind = sources.includes("db")
+    ? "de tu base de datos"
+    : tier
+      ? `de ${tier.tier_samples} jugadores en partidas reales de ${target}`
+      : peers
+        ? `calibrada con ${peers.peer_samples} jugadores de tus partidas`
+        : "orientativa";
+  const title = tier
+    ? `Media de jugadores de tu rol en partidas de SoloQ de ${target} descargadas en segundo plano y analizadas con el mismo código que las tuyas.`
+    : peers
+    ? `Media de los jugadores de tu rol en tus partidas recientes (analizados con el mismo código), escalada de ${TIER_LABEL[peers.from_tier] || peers.from_tier} a ${target}. Son tus rivales directos: si les ganas, su media baja un poco, así que es la referencia de tu elo, no una meta.`
+    : sources.includes("db")
+      ? "Medias reales de las partidas de ese elo guardadas por el recolector."
+      : "Medias aproximadas. Se calibran solas cuando haya al menos 20 jugadores de tu rol en tus partidas y se sepa tu liga.";
+  return h("span.tiny.muted", { title }, `Comparado con ${target} · referencia ${kind}${progress}`);
+}
+
 function filtersBar(s) {
   const sources = Object.values(s.refs_source || {});
   return h(
@@ -319,7 +345,7 @@ function filtersBar(s) {
     tabs([{ value: "all", label: "Todos los roles" }, ...(s.all_roles || []).map((r) => ({ value: r, label: ROLE_LABEL[r], icon: roleIcon(r) }))], prefs.role, (v) => setPrefs({ role: v })),
     select([10, 20, 30, 50, 100, 200].map((n) => ({ value: n, label: `Últimas ${n}` })), prefs.last, (v) => setPrefs({ last: Number(v) }), "select select-sm"),
     h("span.spacer"),
-    h("span.tiny.muted", `Comparado con ${TIER_LABEL[s.target_tier] || s.target_tier} · referencia ${sources.includes("db") ? "de tu base de datos" : "orientativa"}`),
+    refsLabel(s, sources),
   );
 }
 
@@ -348,6 +374,7 @@ function summaryView(s, data) {
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     weaknessesCard(s),
     gamesCard(s),
+    habitsCard(s),
     collapsible("progreso.muertes", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { open: true, summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
     s.jungle ? collapsible("progreso.jungla", [icon("map"), "Tu pathing de jungla (minutos 1-8)"], () => jungleCard(s), { open: true, summary: `${s.jungle.games} ${s.jungle.games === 1 ? "partida" : "partidas"}` }) : null,
     collapsible("progreso.tiempo", [icon("clock"), "En qué pierdes el tiempo"], () => timeCard(s), {
@@ -523,13 +550,56 @@ async function addGoalModal(s) {
   }
 }
 
+/** Enlaces a los momentos exactos de la repetición donde se repite un error. */
+function recurringExamples(r) {
+  return h(
+    "div.row-wrap",
+    { style: { gap: "4px", marginTop: "6px" } },
+    h("span.tiny.muted", "Velo en:"),
+    r.examples.map((e) =>
+      h(`a.chip.otp-game.${e.win ? "win" : "loss"}`, { href: `#/repeticiones/${e.match_id}/${Math.floor(e.t)}`, title: champText(e.title) }, champImg(e.champ, "xs"), fmt.duration(e.t)),
+    ),
+  );
+}
+
+function recurringLine(r) {
+  return h("div.small", { style: { marginTop: "4px" } }, h("b", `En ${r.games} de ${r.of} partidas`), ` (${r.count} ${r.count === 1 ? "vez" : "veces"}, el ${r.rate} % de tus partidas).`);
+}
+
+function targetHint(s) {
+  if (!s.target_hint) return null;
+  const rank = s.rank ? `${TIER_LABEL[s.rank.tier] || s.rank.tier}${s.rank.division && !["MASTER", "GRANDMASTER", "CHALLENGER"].includes(s.rank.tier) ? ` ${s.rank.division}` : ""}` : null;
+  const next = TIER_LABEL[s.target_hint] || s.target_hint;
+  return h(
+    "div.notice.notice-info",
+    icon("info"),
+    h(
+      "div",
+      `Te comparas con ${TIER_LABEL[s.target_tier] || s.target_tier}${rank ? ` y tu liga es ${rank}` : ""}: así solo salen los fallos de alguien por debajo de su elo. Para subir, compárate con ${next}.`,
+      h("div", { style: { marginTop: "6px" } }, h("button.btn.btn-sm.btn-primary", {
+        onclick: async () => {
+          try {
+            await api.patch("/api/profile", { target_tier: s.target_hint });
+            toast(`Ahora te comparas con ${next}`, "success");
+            refresh(true);
+          } catch (err) {
+            toast(err.message, "error");
+          }
+        },
+      }, icon("target"), `Compararme con ${next}`)),
+    ),
+  );
+}
+
 function weaknessesCard(s) {
   const active = new Set((s.goals || []).map((g) => `${g.metric}|${g.op}`));
   const items = s.weaknesses || [];
+  const recurring = s.recurring || [];
   const TOP = 3;
   return h(
     "section.card",
     h("h3.card-title", icon("alert"), "Qué haces mal (ordenado por lo que más te cuesta)"),
+    targetHint(s),
     items.length
       ? weakList(items, TOP, (w) =>
             h(
@@ -545,7 +615,10 @@ function weaknessesCard(s) {
                   w.trend?.improving === false ? h("span.pill.pill-bad", { title: `Últimas: ${w.trend.recent} · antes: ${w.trend.older}` }, "Empeorando") : null,
                 ),
                 h("div.small", { style: { marginTop: "4px" } }, w.detail),
+                w.recurring ? recurringLine(w.recurring) : null,
                 h("div.weak-tip", icon("spark"), h("span", w.tip)),
+                w.recurring ? recurringExamples(w.recurring) : null,
+                learnBox(w.learn),
               ),
               w.goal
                 ? active.has(`${w.goal.metric}|${w.goal.op}`)
@@ -556,8 +629,126 @@ function weaknessesCard(s) {
         )
       : (s.weakness_sample ?? s.games) < (s.min_games_weakness ?? 5)
         ? notice(`Aún no hay muestra suficiente para señalar puntos débiles fiables: hacen falta al menos ${s.min_games_weakness ?? 5} partidas válidas del mismo rol (sin Swiftplay ni desconexiones) y llevas ${s.weakness_sample ?? 0}. Se calculan solas a medida que juegues.`, "info")
-        : notice(`No hay puntos débiles claros frente a ${TIER_LABEL[s.target_tier] || s.target_tier} en estas ${s.reliable_games ?? s.games} partidas. Sube tu elo objetivo para exigirte más.`, "info"),
+        : notice(noWeaknessText(s, recurring), "info"),
+    recurring.length
+      ? h(
+          "div",
+          { style: { marginTop: "14px" } },
+          h("div.small", { style: { fontWeight: 650 } }, icon("film"), " Errores que repites en tus partidas"),
+          h("p.tiny.muted", { style: { margin: "4px 0 10px" } }, `Jugadas concretas que el análisis marca como error (no medias): se repiten en al menos el 20 % de tus ${s.recurring_sample} partidas con timeline. Pulsa un minuto para verlo en la repetición.`),
+          weakList(recurring, TOP, (r) =>
+            h(
+              `div.weak.${r.severity >= 2.5 ? "high" : r.severity >= 1.6 ? "medium" : "low"}`,
+              h("div.weak-sev", { title: `Frecuencia ${r.rate} %` }, h("span", { style: { height: `${Math.max(8, Math.min(100, r.rate))}%` } })),
+              h("div.weak-body", h("b", r.title), recurringLine(r), r.tip ? h("div.weak-tip", icon("spark"), h("span", r.tip)) : null, recurringExamples(r), learnBox(r.learn)),
+            ),
+          ),
+        )
+      : null,
   );
+}
+
+/** Hábitos entre partidas: tilt, sesiones, pool de campeones y ventajas que se escapan. */
+function habitsCard(s) {
+  const hb = s.habits || {};
+  const t = hb.tilt;
+  const leads = hb.leads;
+  const pools = hb.pool || [];
+  if (!t && !leads && !pools.length) return null;
+  const alerts = [t?.tilted, (leads?.wasted || 0) >= 2, pools.some((p) => p.wide)].filter(Boolean).length;
+  const body = () =>
+    h(
+      "div.grid.habits",
+      t
+        ? h(
+            "div.habit",
+            h("div.small", { style: { fontWeight: 650 } }, icon("activity"), " Tilt y sesiones"),
+            h(`div.small${t.tilted ? ".bad" : ""}`, { style: { marginTop: "6px" } }, t.message),
+            h(
+              "div.habit-bars",
+              t.by_game.map((b) =>
+                h(
+                  "div.habit-bar",
+                  { title: `${b.games} partidas` },
+                  h("span.tiny.muted", `${b.label} partida`),
+                  h(`div.tagbar-track.${b.wr !== null && b.wr < 50 ? "bad" : "good"}`, h("span", { style: { width: `${b.wr ?? 0}%` } })),
+                  h("b.tiny", b.wr === null ? "—" : `${b.wr} %`),
+                  h("span.tiny.muted", `(${b.games})`),
+                ),
+              ),
+            ),
+            h("div.tiny.muted", { style: { marginTop: "6px" } }, `${t.games} partidas en ${t.sessions} sesiones (más de 1 h entre partidas = otra sesión)${t.long_sessions ? ` · ${t.long_sessions} ${t.long_sessions === 1 ? "sesión" : "sesiones"} de 5 o más partidas: los coaches recomiendan 3-5 concentradas` : ""}.`),
+            learnBox(t.learn),
+          )
+        : null,
+      leads
+        ? h(
+            "div.habit",
+            h("div.small", { style: { fontWeight: 650 } }, icon("chart"), " Ventajas que se escapan"),
+            h(
+              `div.small${leads.wasted >= 2 ? ".bad" : ""}`,
+              { style: { marginTop: "6px" } },
+              leads.wasted
+                ? `${leads.wasted} de tus ${leads.losses} derrotas fueron yendo con +2.000 de oro de equipo a favor en algún momento.`
+                : `Ninguna de tus ${leads.losses} derrotas fue yendo con +2.000 de oro de equipo a favor.`,
+            ),
+            leads.comebacks ? h("div.tiny.muted", { style: { marginTop: "4px" } }, `Remontaste ${leads.comebacks} ${leads.comebacks === 1 ? "partida" : "partidas"} yendo 2.000 de oro por detrás.`) : null,
+            leads.examples?.length
+              ? h(
+                  "div.row-wrap",
+                  { style: { gap: "4px", marginTop: "6px" } },
+                  h("span.tiny.muted", "Mira qué pasó después de ir por delante:"),
+                  leads.examples.map((e) => h("a.chip.otp-game.loss", { href: `#/repeticiones/${e.match_id}/${e.t}`, title: `+${fmt.num(e.lead, 0)} de oro` }, champImg(e.champ, "xs"), fmt.duration(e.t))),
+                )
+              : null,
+            learnBox(leads.learn),
+          )
+        : null,
+      hb.reviews
+        ? h(
+            "div.habit",
+            h("div.small", { style: { fontWeight: 650 } }, icon("edit"), " Revisión de partidas"),
+            h(
+              `div.small${hb.reviews.week ? "" : ".bad"}`,
+              { style: { marginTop: "6px" } },
+              hb.reviews.week
+                ? `Has revisado ${hb.reviews.week} ${hb.reviews.week === 1 ? "partida" : "partidas"} esta semana (${hb.reviews.games} en total).`
+                : "No has revisado ninguna partida esta semana.",
+            ),
+            h("div.tiny.muted", { style: { marginTop: "4px" } }, "Los coaches recomiendan revisar 1-2 partidas por semana: abre una en Repeticiones y usa «Revisión guiada» (3 momentos, 3 preguntas)."),
+          )
+        : null,
+      pools.map((p) =>
+        h(
+          "div.habit",
+          h("div.small", { style: { fontWeight: 650 } }, roleIcon(p.role), ` Tu pool de ${ROLE_LABEL[p.role] || p.role}`),
+          h(`div.small${p.wide ? ".bad" : ""}`, { style: { marginTop: "6px" } }, p.message),
+          p.core?.length
+            ? h(
+                "div.row-wrap",
+                { style: { gap: "6px", marginTop: "6px" } },
+                h("span.tiny.muted", p.wide ? "Núcleo propuesto:" : "Tus campeones:"),
+                p.core.map((c) => h("span.row", { style: { gap: "4px" } }, champImg(c.champ, "xs"), h("span.tiny", `${dd.name(c.champ)} · ${c.games} p · ${c.wr} %`))),
+              )
+            : null,
+        ),
+      ),
+    );
+  return collapsible("progreso.habitos", [icon("activity"), "Hábitos: tilt, sesiones y pool"], body, {
+    open: alerts > 0,
+    summary: alerts ? `${alerts} ${alerts === 1 ? "aviso" : "avisos"}` : "Sin avisos",
+  });
+}
+
+function noWeaknessText(s, recurring) {
+  const tier = TIER_LABEL[s.target_tier] || s.target_tier;
+  const rows = s.metrics || [];
+  const better = rows.filter((m) => m.status === "good").length;
+  const head = better
+    ? `Ninguna de tus medias está claramente por debajo de ${tier} en estas ${s.reliable_games ?? s.games} partidas, y en ${better} de ${rows.length} estás por encima`
+    : `Tus medias están al nivel de ${tier} en estas ${s.reliable_games ?? s.games} partidas`;
+  const tail = recurring.length ? ": lo que te queda por corregir son los errores que repites (abajo)." : ".";
+  return head + tail + (s.target_hint ? "" : " Sube tu elo objetivo para exigirte más.");
 }
 
 /** Los ``top`` primeros a la vista y el resto en un desplegable. */

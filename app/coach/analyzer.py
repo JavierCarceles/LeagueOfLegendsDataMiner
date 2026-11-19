@@ -42,11 +42,18 @@ from __future__ import annotations
 import bisect
 from collections import Counter
 
+from app.coach import clocks as clk
 from app.coach import geometry as geo
 from app.coach.items import Inventory, ItemCatalog, season
 from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 
-ANALYSIS_VERSION = 5  # 5: placas 2026 (120, sin doble conteo), las botas nunca «sobran», intercambios explicados por ambos lados
+# 7: macro con los relojes de 2026 (vuelta a base a destiempo, llegar tarde, pelear con uno menos, pink sin usar,
+#    barón y peleas ganadas sin convertir, cazado en su mitad, recompensa regalada) y objetivos del otro lado hasta el 20;
+#    auditoría: gank solo en tu línea, 1 contra 1 sin muerte mutua, ganks rivales en mid no son «la otra mitad», pinks
+#    destruidas asignadas con prudencia, una ganancia no paga dos objetivos, AFK de Riot, objetos que llegan sin compra;
+# 6: el resumen guarda cada error (para «Errores que repites»); 5: placas 2026 (120, sin doble conteo), las botas nunca
+#    «sobran», intercambios explicados por ambos lados
+ANALYSIS_VERSION = 7
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -82,6 +89,33 @@ CONTEXT_OK = ("fight_won", "traded", "game_end", "afk")  # muertes que no cuenta
 R_LATE_S = 30
 NO_R_CHECK = {43, 60, 76, 77, 126, 910}  # Karma, Elise, Nidalee, Udyr, Jayce, Hwei: su R no sigue la regla 6/11/16
 NO_BOOTS = {69}  # Cassiopeia no puede comprar botas
+BUYS_ANYWHERE = {516}  # Ornn compra en cualquier sitio: sus compras no son vueltas a base
+LANE_PHASE_END_MS = 20 * 60_000  # hasta el 20, top, ADC y support no van a los objetivos del otro lado (salvo que cayera su torre exterior)
+
+# Macro con los relojes de cada temporada (``clocks.py``): S = aparece el objetivo, T = muere.
+CONTEST_WINDOW_MS = 120_000  # disputado: muere ≤ 2 min después de aparecer…
+CONTEST_DEATH_RADIUS = 3000  # …con 2 aliados cerca o un aliado caído junto al foso
+RECALL_LATE_FROM_MS = 30_000  # volver a base desde S − 30 s (o en los 75 s previos a T) ya no deja llegar
+RECALL_LATE_LAST_MS = 75_000
+FORCED_RECALL_HP = 0.5  # con menos vida, volver a base es obligado
+FORCED_RECALL_FIGHT_MS = 40_000  # o si acababas de pelear
+FORCED_RECALL_TAKEN = 800  # o si recibiste mucho daño en ese minuto
+LATE_FAR_BEFORE = 7000  # llegar tarde: un minuto antes de aparecer estabas a más de esto del foso…
+OBJ_FIGHT_RADIUS = 3000  # pelear con uno menos «junto al objetivo»
+OUTNUMBERED_DEAD_MS = 10_000  # el aliado llevaba al menos esto muerto 10 s antes de la primera kill
+PINK_BEFORE_MS = 90_000  # llevar una pink de S − 90 s a S + 30 s sin ponerla, cerca del foso
+PINK_AFTER_MS = 30_000
+PINK_NEAR = 4000
+PINK_ALIVE_MS = 270_000  # una pink tuya puesta poco antes puede seguir viva: no hace falta otra
+BARON_WINDOW_MS = 180_000
+WON_FIGHT_OBJECTIVE = 7000  # pelea ganada: objetivo vivo a esta distancia…
+WON_FIGHT_TOWER = 5000  # …o una torre rival atacable
+WON_FIGHT_RESPAWN_MARGIN = 15_000
+WON_FIGHT_MIN_WINDOW = 30_000  # ventaja numérica mínima (hasta que reaparece el 2.º rival) para exigir convertirla
+COLLAPSED_RADIUS = 3000
+GANK_LANE_RADIUS = 2500  # morir en el río junto a tu línea también es un gank
+FAR_GANK = 5000  # ganks del jungla rival «en la otra mitad»: además, a más de esta distancia de ti
+BOUNTY_GIFT = 500  # recompensa (shutdown) que regalas muriendo solo; Riot la limita a 700
 
 # Tiempo base de reaparición por nivel (s) y factor por minuto de partida.
 BRW = [10, 10, 12, 12, 14, 16, 20, 25, 28, 32.5, 35, 37.5, 40, 42.5, 45, 47.5, 50, 52.5]
@@ -285,6 +319,12 @@ class _Game:
         self.catalog = catalog if catalog else None
         self._index_events()
         self._detect_afk()
+        # Relojes de los objetivos (cuándo apareció cada uno). Si no cuadran con la partida, nada de lo que
+        # depende de ellos se juzga (``clocks_ok`` False).
+        self.clocks = clk.clocks_for(info) if self.has_timeline else None
+        self.clocks_ok = clk.assign_spawns(self.objectives, self.clocks)
+        self.flagged: set[int] = set()  # objetivos que ``_objectives`` ya señaló (no repetir el mismo momento)
+        self.used_gains: set[int] = set()  # kills, estructuras y objetivos que ya compensaron un objetivo rival
         self.inv = Inventory(self.catalog, self.item_events[me_pid]) if self.catalog and self.has_timeline else None
         # Oro y build solo se juzgan si el inventario se puede reconstruir con fiabilidad: catálogo de la
         # misma temporada que la partida y ningún objeto desconocido (si no, los huecos y precios no cuadran).
@@ -350,6 +390,7 @@ class _Game:
                         "assists": [_num(a) for a in e.get("assistingParticipantIds") or []],
                         "pos": _pos(e),
                         "value": max(300, min(1000, bounty)) if bounty else 300,
+                        "shutdown": _num(e.get("shutdownBounty")),  # recompensa extra por la racha de la víctima
                     }
                 )
             elif kind == "ELITE_MONSTER_KILL":
@@ -390,6 +431,7 @@ class _Game:
                         "owner": owner,
                         "kind": "plate" if kind == "TURRET_PLATE_DESTROYED" else ("tower" if e.get("buildingType") == "TOWER_BUILDING" else "inhibitor"),
                         "lane": (e.get("laneType") or "").replace("_LANE", "").lower(),
+                        "tower_type": e.get("towerType"),
                         "takers": {_num(e.get("killerId")), *[_num(a) for a in e.get("assistingParticipantIds") or []]},
                         "pos": _pos(e),
                     }
@@ -494,6 +536,27 @@ class _Game:
         """Compra al reaparecer (con margen por la estimación del tiempo de muerte): no es volver a base."""
         return any(end - 5_000 <= t <= end + RESPAWN_BUY_MS for _s, end, _p in self.dead.get(pid) or [])
 
+    def buys_in_base(self, pid: int) -> bool:
+        """¿Sus compras le sitúan en la base? (Ornn compra en cualquier parte del mapa)."""
+        return self.players[pid]["champ"] not in BUYS_ANYWHERE
+
+    def recalls(self, pid: int, t0: int, t1: int) -> list[int]:
+        """Vueltas a base entre ``t0`` y ``t1``: compras estando vivo que no son las de al reaparecer."""
+        if not self.buys_in_base(pid):
+            return []
+        return [t for t, _item in self.purchases[pid] if t0 <= t <= t1 and not self.is_dead(pid, t) and not self.respawn_buy(pid, t)]
+
+    def health_ratio(self, pid: int, i: int | None) -> float | None:
+        """Vida actual / máxima en el frame ``i`` (``None`` si el frame no la trae)."""
+        if i is None or pid not in self.pf or i >= len(self.pf[pid]):
+            return None
+        stats = (self.pf[pid][i] or {}).get("championStats") or {}
+        hp, top = stats.get("health"), stats.get("healthMax")
+        try:
+            return max(0.0, min(1.0, float(hp) / float(top))) if hp is not None and top else None
+        except (TypeError, ValueError):
+            return None
+
     def _tracks(self) -> None:
         """Puntos de paso de cada jugador: frames + eventos con posición + tienda y reapariciones."""
         anchors: dict[int, list[tuple[int, int, int, int]]] = {pid: [] for pid in self.players}
@@ -508,7 +571,7 @@ class _Game:
                 p = _pos(self.pf[pid][i])
                 if p and not self.is_dead(pid, t):
                     add(pid, t, p, 0)
-            for t, _item in self.purchases[pid]:
+            for t, _item in self.purchases[pid] if self.buys_in_base(pid) else []:
                 if not self.is_dead(pid, t):
                     add(pid, t, fountain, 2)
             for start, end, pos in self.dead.get(pid) or []:
@@ -651,6 +714,8 @@ def analyze_game(
         "wards_killed": _num(me_raw.get("wardsKilled")),
         "time_dead_pct": round(time_dead / max(1, g.duration) * 100, 1),
         "solo_kills": _num(ch.get("soloKills")) if "soloKills" in ch else None,
+        # Jugadores que Riot marcó como AFK (``wasAfk``): aunque fuera poco rato, la partida no es comparable.
+        "riot_afk": sum(1 for p in info.get("participants") or [] if p.get("wasAfk")),
         "plates": _num(ch.get("turretPlatesTaken")) if "turretPlatesTaken" in ch else None,
     }
 
@@ -668,6 +733,7 @@ def analyze_game(
         "duration": g.duration,
         "patch": ".".join((info.get("gameVersion") or "").split(".")[:2]),
         "has_timeline": g.has_timeline,
+        "clocks": g.clocks_ok,  # False: sin relojes fiables no se juzga la preparación de objetivos
         "items_known": g.inv is not None,
         "items_reliable": g.items_reliable,  # False: oro y build sin veredictos (catálogo de otra temporada u objetos desconocidos)
         "unknown_items": sorted(g.inv.unknown) if g.inv is not None else [],
@@ -717,6 +783,8 @@ def analyze_game(
             "deaths_unspent_gold": count("unspent_gold", unless=("game_end", "afk")) if g.items_reliable else None,
             "deaths_before_objective": count("before_objective", unless=("fight_won", "game_end", "afk")),
             "deaths_isolated_late": count("isolated", unless=CONTEXT_OK),
+            "deaths_collapsed": count("collapsed", unless=CONTEXT_OK),
+            "deaths_outnumbered_obj": count("fight_outnumbered", unless=CONTEXT_OK) if g.clocks_ok else None,
             "deaths_fight_won": count("fight_won"),
             "wards_pre14": sum(1 for t in g.wards[me] if t < EARLY_MS),
             "control_wards_placed": g.control_wards_placed[me],
@@ -729,6 +797,7 @@ def analyze_game(
     _afk_moments(g, moments)
     _lane_phase(g, metrics, moments)
     _objectives(g, metrics, moments)
+    _macro(g, metrics, moments)
     _gold_use(g, metrics, moments)
     _time_use(g, metrics, moments)
     if g.role == "JUNGLE":
@@ -742,6 +811,13 @@ def analyze_game(
     moments.sort(key=lambda m: m["t"])
     result["afk"] = [{"start": round(s / 1000, 1), "end": round(e / 1000, 1)} for s, e in g.afk[me]]
     result["series"] = _series(g)
+    # Mayor ventaja y desventaja de oro de equipo (para «ventajas que se escapan» y remontadas).
+    diffs = [d for d in result["series"]["team_gold_diff"] if d is not None]
+    if diffs and len(diffs) == len(result["series"]["minute"]):
+        best = max(range(len(diffs)), key=lambda j: diffs[j])
+        metrics["max_lead"] = diffs[best]
+        metrics["max_lead_min"] = result["series"]["minute"][best]
+        metrics["max_deficit"] = min(diffs)
     result["replay"] = _replay(g)
     return result
 
@@ -848,11 +924,15 @@ def _classify_death(g: _Game, k: dict) -> dict:
     outsiders = _outsiders(g, enemies)
     if not enemies:
         tags.append("executed")
-    if len(enemies) == 1 and fight["allies"] == 1:  # si caen más aliados, es una escaramuza
+    # 1 contra 1 perdido: un único rival, sin más caídos en tu lado (si no, es una escaramuza), sin que cayera él
+    # también (muerte mutua) y, en la fase de líneas, que sea de tu línea (si es el jungla u otro, es un gank).
+    if len(enemies) == 1 and fight["allies"] == 1 and not fight["enemies"] and not (early and outsiders):
         tags.append("solo")
     if g.enemy_jungler and g.enemy_jungler in enemies and g.role != "JUNGLE":
         tags.append("jungler")
-    if early and g.role and g.role != "JUNGLE" and outsiders:
+    # Gank: rivales de fuera de tu línea cuando estabas en ella (o en el río junto a ella). Morir en otra línea o en una
+    # jungla tras rotar no es que te ganqueen.
+    if early and g.role and g.role != "JUNGLE" and outsiders and _near_own_lane(lane, pos):
         tags.append("gank")
     if zone and geo.is_jungle_of(zone, 300 - g.team):
         tags.append("enemy_jungle")
@@ -870,7 +950,11 @@ def _classify_death(g: _Game, k: dict) -> dict:
         tags.append("fight_won")
     elif fight["enemies"] and fight["enemies"] == fight["allies"]:
         tags.append("fight_even")
-    gained = _team_gain(g, t, exclude=cluster, with_kills=len(enemies) >= 2) if g.has_timeline else None
+    # Solo «compra» algo la muerte que atrajo a varios rivales: un 1 contra 1 perdido o una ejecución no se
+    # cambian por lo que haga tu equipo en otra parte del mapa, y un error claro (adelantado o gank sin ward) tampoco.
+    avoidable = "overextended" in tags or ("gank" in tags and "no_ward" in tags)
+    can_trade = len(enemies) >= 2 and "solo" not in tags and not avoidable
+    gained = _team_gain(g, t, exclude=cluster, with_kills=True) if g.has_timeline and can_trade else None
     if gained and gained["value"] >= 600 and gained["solid"]:
         tags.append("traded")
     else:
@@ -893,6 +977,22 @@ def _classify_death(g: _Game, k: dict) -> dict:
         tags.append("game_end")
     if g.has_timeline and _afk_after_death(g, k):
         tags.append("afk")
+    excused = any(x in tags for x in CONTEXT_OK)
+    # Macro con los relojes: pelear junto a un objetivo con uno menos, que te cacen solo en su mitad, morir solo con
+    # la mejora del barón y regalar una recompensa grande.
+    numbers = _numbers_down(g, k, cluster, pos) if g.has_timeline and not excused else None
+    if numbers:
+        tags.append("fight_outnumbered")
+    if (
+        "isolated" in tags and pos and zone in ("top", "bot") and geo.side_of(pos) == 300 - g.team and len(enemies) >= 3
+        and not any((ap := g.pos_at(a, t)) is not None and geo.dist(ap, pos) <= COLLAPSED_RADIUS for a in g.allies)
+    ):
+        tags.append("collapsed")
+    if "isolated" in tags and _baron_buff(g, t):
+        tags.append("baron_buff")
+    shutdown = _num(k.get("shutdown"))
+    if not excused and shutdown >= BOUNTY_GIFT and any(x in tags for x in ("isolated", "collapsed", "enemy_jungle")):
+        tags.append("bounty")
 
     names = [_champ_ref(g, pid) for pid in sorted(enemies)]
     killer_name = _champ_ref(g, k["killer"]) if k["killer"] in g.players else "torre/súbditos"
@@ -904,10 +1004,14 @@ def _classify_death(g: _Game, k: dict) -> dict:
         title = f"Caíste, pero ganasteis la pelea ({_score(fight)})"
     elif "gank" in tags:
         title = f"Gank de {_champ_ref(g, g.enemy_jungler)} (jungla rival)" if "jungler" in tags else f"Gank ({', '.join(names)})"
+    elif "fight_outnumbered" in tags:
+        title = f"Muerte junto {_al(numbers['label'])} con uno menos ({numbers['allies']} contra {numbers['enemies']})"
     elif "enemy_jungle" in tags:
         title = "Muerte en la jungla rival"
     elif "solo" in tags:
         title = f"Muerte 1 contra 1 contra {killer_name}"
+    elif "collapsed" in tags:
+        title = f"Te cazaron solo en su mitad del mapa ({_plural(len(enemies), 'rival', 'rivales')})"
     elif "isolated" in tags:
         title = "Muerte aislado de tu equipo"
     elif "executed" in tags:
@@ -933,6 +1037,18 @@ def _classify_death(g: _Game, k: dict) -> dict:
         details.append(f"tu equipo cogió {gained['label']} a cambio")
     if "isolated" in tags and "fight_won" not in tags:
         details.append("sin ningún aliado cerca")
+    if "collapsed" in tags:
+        details.append(f"te cazaron {len(enemies)} rivales al otro lado del río: en su mitad del mapa, entra solo con visión y sabiendo dónde están")
+    if "baron_buff" in tags:
+        details.append("con la mejora del barón, que se aprovecha asediando en grupo o por dos líneas, no farmeando solo")
+    if "bounty" in tags:
+        details.append(f"y regalaste {_int(shutdown)} de oro de recompensa")
+    if numbers:
+        dead = _join([_champ_ref(g, a) for a in numbers["dead"]])
+        details.append(
+            f"peleasteis junto {_al(numbers['label'])} {numbers['allies']} contra {numbers['enemies']}, con {dead} "
+            f"{'muerto' if len(numbers['dead']) == 1 else 'muertos'} desde antes de la pelea: con uno menos, cede el objetivo o cámbialo al otro lado"
+        )
     if "afk" in tags:
         details.append("al reaparecer ya no te moviste (desconexión o AFK): no se valora como error")
 
@@ -942,11 +1058,18 @@ def _classify_death(g: _Game, k: dict) -> dict:
     score += 1.0 if "before_objective" in tags else 0
     score += 0.5 if "unspent_gold" in tags else 0
     score += 0.6 if "enemy_jungle" in tags and "no_ward" in tags else 0
+    # Que te cojan solo (o en su jungla a mitad de partida) regala ventaja numérica para el siguiente objetivo.
+    score += 0.7 if "isolated" in tags and "fight_won" not in tags else 0
+    score += 0.5 if "enemy_jungle" in tags and not early and "no_ward" not in tags else 0
+    score += 0.8 if "fight_outnumbered" in tags else 0
+    score += 0.5 if "collapsed" in tags else 0
+    score += 0.5 if "baron_buff" in tags else 0
+    score += 0.3 if "bounty" in tags else 0
     score -= 1.0 if "fight_won" in tags else 0.5 if "fight_even" in tags else 0
     score -= 0.7 if "traded" in tags else 0
     severity = "high" if score >= 2.5 else "medium" if score >= 1.5 else "low"
     if "game_end" in tags or "afk" in tags:
-        severity = "low"
+        severity = "info"  # no es un error: se enseña para entender la partida
     entry = {
         "t": round(t / 1000, 1),
         "x": pos[0] if pos else None,
@@ -970,6 +1093,16 @@ def _classify_death(g: _Game, k: dict) -> dict:
         "tags": tags,
     }
     return entry
+
+
+def _near_own_lane(lane: str | None, pos) -> bool:
+    """¿Moriste en tu línea o en el río junto a ella? (sin posición no se puede afirmar)."""
+    if not lane or pos is None:
+        return False
+    z = geo.zone(pos)
+    if z == lane:
+        return True
+    return z == "river" and geo.dist_polyline(pos, geo.LANES[lane][0]) <= GANK_LANE_RADIUS
 
 
 def _outsiders(g: _Game, enemies: set[int]) -> set[int]:
@@ -1000,7 +1133,7 @@ def _had_vision(g: _Game, t: int, pos) -> bool:
                 break
             if t - wt > WARD_LIFE_MS.get(kind, WARD_WINDOW_MS):
                 continue
-            if kind == "CONTROL_WARD" and not _pinks_alive(g, wt, t):
+            if kind == "CONTROL_WARD" and not _pinks_alive(g, pid, wt, t):
                 continue
             if pid == me or pos is None:
                 return True
@@ -1010,12 +1143,32 @@ def _had_vision(g: _Game, t: int, pos) -> bool:
     return False
 
 
-def _pinks_alive(g: _Game, since: int, t: int) -> bool:
-    placed = sum(
-        1 for pid in (g.me["pid"], *g.allies) for wt, kind in g.ward_events.get(pid) or [] if kind == "CONTROL_WARD" and since <= wt <= t
-    )
-    killed = sum(1 for x in g.pinks_lost.get(g.team) or [] if since < x <= t)
-    return killed < placed
+def _pinks_alive(g: _Game, pid: int, since: int, t: int) -> bool:
+    """¿Seguía viva en ``t`` la pink que ``pid`` puso en ``since``?
+
+    El timeline no dice qué pink destruyó el rival. Lo prudente (nunca dar por muerta una pink que pudo seguir viva)
+    es suponer que cada pink destruida era otra de tu equipo que siguiera en pie: esta solo cae si era la única.
+    Si el mismo jugador puso otra después, la primera ya no está (solo puede haber una pink suya en el mapa).
+    """
+    if any(since < wt <= t for wt, kind in g.ward_events.get(pid) or [] if kind == "CONTROL_WARD"):
+        return False
+    events = [
+        (wt, 1, p) for p in (g.me["pid"], *g.allies) for wt, kind in g.ward_events.get(p) or [] if kind == "CONTROL_WARD" and wt <= t
+    ]
+    events += [(x, 0, None) for x in g.pinks_lost.get(g.team) or [] if x <= t]
+    others = 0
+    alive = False
+    for when, placed, owner in sorted(events, key=lambda e: (e[0], e[1])):  # a la vez, la destrucción va antes
+        if placed:
+            if not alive and owner == pid and when == since:
+                alive = True
+            else:
+                others += 1
+        elif others:
+            others -= 1
+        elif alive:
+            return False
+    return alive
 
 
 def _overextended(g: _Game, lane: str, pos, t: int) -> bool:
@@ -1044,6 +1197,56 @@ def _afk_after_death(g: _Game, k: dict) -> bool:
     return any(end - 5_000 <= s <= end + AFK_AFTER_RESPAWN_MS for s, _e in g.afk.get(me) or [])
 
 
+def _numbers_down(g: _Game, k: dict, cluster: list[dict], pos) -> dict | None:
+    """¿Moriste peleando junto a un objetivo con uno menos?
+
+    El objetivo estaba vivo (según los relojes) o el rival lo cogió en el minuto siguiente; 10 s antes de la
+    primera kill de la pelea el rival tenía más jugadores presentes y un aliado tuyo llevaba ya ≥ 10 s muerto
+    (la inferioridad se sabía antes de pelear: no la creó la propia pelea). No cuenta en tu base ni con el
+    ancestral o el alma del rival en juego (esos hay que disputarlos aunque sea con uno menos).
+    """
+    if not g.clocks_ok or pos is None or geo.zone(pos).startswith("base_"):
+        return None
+    found = None
+    for pit_kind in ("dragon", "baron"):
+        pit = geo.PITS[pit_kind]
+        if geo.dist(pos, pit) > OBJ_FIGHT_RADIUS:
+            continue
+        taken = next(
+            (o for o in g.objectives if o["team"] != g.team and k["t"] - 5_000 <= o["t"] <= k["t"] + 60_000 and clk.pit_of(o["kind"]) == pit),
+            None,
+        )
+        alive = [x for x in clk.alive_at(g.objectives, g.clocks, k["t"]) if clk.pit_of(x) == pit]
+        if taken or alive:
+            found = (taken["kind"] if taken else alive[0], taken)
+            break
+    if not found:
+        return None
+    kind, taken = found
+    enemy_dragons = sum(1 for x in g.objectives if x["kind"] == "dragon" and x["team"] != g.team and x["t"] < k["t"])
+    if kind == "elder" or (kind == "dragon" and enemy_dragons >= 3):
+        return None
+    before = min(f["t"] for f in cluster) - 10_000
+    allies_up = sum(1 for a in (g.me["pid"], *g.allies) if g.present(a, before))
+    enemies_up = sum(1 for e in g.enemies if g.present(e, before))
+    if enemies_up <= allies_up:
+        return None
+    dead = [a for a in g.allies if any(s <= before - OUTNUMBERED_DEAD_MS and before < e for s, e, _p in g.dead.get(a) or [])]
+    if not dead:
+        return None
+    label = _obj_label(g, taken) if taken else OBJ_LABEL[kind]
+    return {"kind": kind, "label": label, "allies": allies_up, "enemies": enemies_up, "dead": dead}
+
+
+def _baron_buff(g: _Game, t: int) -> dict | None:
+    """El barón que cogió tu equipo en los 3 minutos anteriores a ``t`` estando tú vivo (llevabas la mejora)."""
+    me = g.me["pid"]
+    return next(
+        (o for o in g.objectives if o["kind"] == "baron" and o["team"] == g.team and 0 < t - o["t"] <= BARON_WINDOW_MS and not g.is_dead(me, o["t"])),
+        None,
+    )
+
+
 def _same_season(catalog: ItemCatalog | None, info: dict) -> bool:
     """¿El catálogo de objetos es de la misma temporada que la partida? (si no se sabe, se da por bueno)."""
     mine, game = season(getattr(catalog, "version", None)), season(info.get("gameVersion"))
@@ -1055,12 +1258,6 @@ def _champ_ref(g: _Game, pid: int | None) -> str:
     if not pid or pid not in g.players:
         return "?"
     return f"{{champ:{g.players[pid]['champ']}}}"
-
-
-def _item_name(g: _Game, item: int | None) -> str:
-    if not item or not g.catalog:
-        return "un componente"
-    return g.catalog.name(item)
 
 
 def _buy_text(g: _Game, item: int | None, cost: int | None) -> str:
@@ -1260,7 +1457,7 @@ def _gold_use(g: _Game, metrics: dict, moments: list) -> None:
             _moment(
                 g.ts[run[0]],
                 "gold",
-                "low",
+                "info",
                 f"Build completa con {_int(rows[run[-1]]['gold'])} de oro sin uso",
                 "Con el inventario lleno de objetos terminados ese oro no es un error, pero puedes convertirlo en elixires (500) y pinks antes de cada pelea u objetivo.",
                 tags=["gold", "full_build"],
@@ -1278,7 +1475,7 @@ def _afk_moments(g: _Game, moments: list) -> None:
             _moment(
                 start,
                 "afk",
-                "low",
+                "info",
                 f"Desconexión o AFK: {_secs(end - start)} sin moverte",
                 "Esos minutos no cuentan como minutos vacíos ni como oro sin gastar.",
                 tags=["afk"],
@@ -1291,7 +1488,7 @@ def _afk_moments(g: _Game, moments: list) -> None:
             _moment(
                 start,
                 "afk",
-                "low",
+                "info",
                 f"{_champ_ref(g, a)} (tu equipo) estuvo AFK {_secs(ms)}",
                 "Jugasteis en inferioridad: se tiene en cuenta al valorar los objetivos que perdisteis.",
                 tags=["afk", "ally"],
@@ -1355,9 +1552,15 @@ def _obj_label(g: _Game, o: dict) -> str:
     return OBJ_LABEL[o["kind"]]
 
 
-def _exchange(g: _Game, o: dict) -> dict:
-    """Qué ganó y qué perdió tu equipo alrededor de un objetivo del rival."""
+def _exchange(g: _Game, o: dict, used: set[int] | None = None) -> dict:
+    """Qué ganó y qué perdió tu equipo alrededor de un objetivo del rival.
+
+    ``used``: lo que ya compensó otro objetivo (una misma torre no paga dos objetivos). ``ids`` devuelve lo que
+    entra en este cambio, para marcarlo si se da por bueno.
+    """
     me, team = g.me["pid"], g.team
+    used = used if used is not None else set()
+    ids: list[int] = []
     t0, t1 = o["t"] - TRADE_BEFORE_MS, o["t"] + TRADE_AFTER_MS
     gain = {"kills": 0, "towers": 0, "inhibitors": 0, "plates": 0, "objectives": [], "jungle_cs": 0}
     mine = {"takedowns": 0, "towers": 0, "plates": 0, "jungle_cs": 0, "objectives": []}
@@ -1369,6 +1572,9 @@ def _exchange(g: _Game, o: dict) -> dict:
         if not t0 <= k["t"] <= t1:
             continue
         if g.players[k["victim"]]["team"] != team:
+            if id(k) in used:
+                continue
+            ids.append(id(k))
             gain["kills"] += 1
             value_gain += k["value"]
             mine["takedowns"] += int(me == k["killer"] or me in k["assists"])
@@ -1384,6 +1590,9 @@ def _exchange(g: _Game, o: dict) -> dict:
             ours.append(b)
             loss[key] += 1
             continue
+        if id(b) in used:
+            continue
+        ids.append(id(b))
         theirs.append(b)
         gain[key] += 1
         if me in b["takers"]:
@@ -1391,8 +1600,9 @@ def _exchange(g: _Game, o: dict) -> dict:
     value_loss += _structures_value(ours)
     value_gain += _structures_value(theirs)
     for x in g.objectives:
-        if x is o or x["team"] != team or not t0 <= x["t"] <= t1:
+        if x is o or x["team"] != team or not t0 <= x["t"] <= t1 or id(x) in used:
             continue
+        ids.append(id(x))
         gain["objectives"].append(x["kind"])
         value_gain += _obj_value(g, x)
         if me in x["takers"]:
@@ -1403,12 +1613,17 @@ def _exchange(g: _Game, o: dict) -> dict:
         if pid == me:
             mine["jungle_cs"] = cs
     value_gain += gain["jungle_cs"] * ENEMY_JUNGLE_CS_VALUE
-    return {"gain": gain, "mine": mine, "loss": loss, "value_gain": value_gain, "value_loss": value_loss, "ratio": value_gain / max(1, value_loss)}
+    return {"gain": gain, "mine": mine, "loss": loss, "value_gain": value_gain, "value_loss": value_loss, "ratio": value_gain / max(1, value_loss), "ids": ids}
 
 
 def _de(label: str) -> str:
     """«de» + etiqueta con la contracción: «del heraldo», «de las larvas»."""
     return f"del {label[3:]}" if label.startswith("el ") else f"de {label}"
+
+
+def _al(label: str) -> str:
+    """«a» + etiqueta con la contracción: «al dragón», «a las larvas»."""
+    return f"al {label[3:]}" if label.startswith("el ") else f"a {label}"
 
 
 def _gain_text(gain: dict) -> str:
@@ -1434,17 +1649,25 @@ def _is_big(g: _Game, o: dict) -> bool:
 def _contest_expected(g: _Game, o: dict) -> bool:
     """¿Te tocaba disputar ese objetivo?
 
-    En la fase de líneas (antes del 14) un objetivo que no es grande y está al otro lado del mapa no es
-    cosa de tu línea (top con los dragones; ADC y support con las larvas o el heraldo): ahí se juzga al
-    jungla y al mid. Los grandes (barón, ancestral, alma) y todo lo de después del 14, a todos. Si no se
-    sabe tu rol, antes del 14 solo los grandes.
+    Los grandes (barón, ancestral, alma) siempre, y al jungla y al mid todos. Un objetivo al otro lado del
+    mapa no es cosa de tu línea (top con los dragones; ADC y support con las larvas o el heraldo) mientras
+    dura la fase de líneas: hasta el 14 nunca, y hasta el 20 solo si ya cayó una torre exterior de tu línea
+    (entonces se rota; antes, el heraldo de las 15:00 llega con el ADC y el support aún en su línea). Si no
+    se sabe tu rol, antes del 14 solo los grandes.
     """
-    if o["t"] >= EARLY_MS or _is_big(g, o):
+    if _is_big(g, o) or g.role in ("JUNGLE", "MID"):
         return True
-    if g.role in ("JUNGLE", "MID"):
-        return True
+    if not g.role:
+        return o["t"] >= EARLY_MS
     side = "top" if o["kind"] in ("grubs", "herald") else "bot"
-    return ROLE_SIDE.get(g.role or "") == side
+    if ROLE_SIDE.get(g.role) == side or o["t"] >= LANE_PHASE_END_MS:
+        return True
+    if o["t"] < EARLY_MS:
+        return False
+    lane = geo.ROLE_LANE.get(g.role)
+    return any(
+        b["kind"] == "tower" and b["lane"] == lane and b.get("tower_type") in ("OUTER_TURRET", None) and b["t"] < o["t"] for b in g.buildings
+    )
 
 
 def _contributed(mine: dict) -> bool:
@@ -1473,19 +1696,23 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
             continue  # no te tocaba disputarlo: ni error ni mérito tuyo
         label = _obj_label(g, o)
         big = _is_big(g, o)
-        ex = _exchange(g, o)
+        ex = _exchange(g, o, g.used_gains)
+        if ex["ratio"] >= FAIR_TRADE and ex["value_gain"]:
+            g.used_gains.update(ex["ids"])  # esto ya compensa este objetivo: no puede pagar otro
         got = _gain_text(ex["gain"])
         mine = _gain_text(ex["mine"])
         if g.is_dead(me, o["t"]):
             if ex["ratio"] >= GOOD_TRADE:  # lo compensó tu equipo (no cuenta como cambio tuyo)
+                g.flagged.add(id(o))
                 moments.append(
-                    _moment(o["t"], "trade", "low", f"El rival cogió {label} mientras estabas muerto, pero tu equipo lo compensó",
+                    _moment(o["t"], "trade", "info", f"El rival cogió {label} mientras estabas muerto, pero tu equipo lo compensó",
                             f"Mientras tanto sacasteis {got}.", o["pos"], ["objective", "dead", "trade"])
                 )
                 continue
             lost_dead += 1
             if any(o["t"] - OBJECTIVE_WINDOW_MS <= d <= o["t"] for d in my_deaths):
                 continue  # la muerte de antes ya lo cuenta
+            g.flagged.add(id(o))
             moments.append(
                 _moment(o["t"], "objective", "high" if o["kind"] in ("baron", "elder", "dragon") else "medium",
                         f"El rival cogió {label} mientras estabas muerto", "Una muerte antes de un objetivo se paga doble: no puedes disputarlo.",
@@ -1502,6 +1729,7 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
         if ex["ratio"] >= GOOD_TRADE:
             if contributed:  # solo es mérito tuyo si participaste en lo que sacasteis
                 trades += 1
+                g.flagged.add(id(o))
                 moments.append(
                     _moment(o["t"], "trade", "good", f"Buen cambio: {label} por {got}",
                             f"Estabas en {where}{you}. Si no se puede disputar un objetivo, cambiarlo por algo al otro lado es la decisión correcta.",
@@ -1511,6 +1739,7 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
         if ex["ratio"] >= FAIR_TRADE and got:
             if contributed:
                 fair += 1
+                g.flagged.add(id(o))
                 moments.append(
                     _moment(o["t"], "trade", "low", f"Cambio justo: {label} por {got}",
                             f"Estabas en {where}{you}. Valía algo menos que el objetivo: si llegabais, era mejor disputarlo.", p,
@@ -1520,8 +1749,9 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
         allies_up = sum(1 for a in (me, *g.allies) if g.present(a, o["t"]))
         enemies_up = sum(1 for e in g.enemies if g.present(e, o["t"]))
         if enemies_up - allies_up >= 2:
+            g.flagged.add(id(o))
             moments.append(
-                _moment(o["t"], "objective", "low", f"El rival cogió {label} con ventaja numérica ({allies_up} contra {enemies_up})",
+                _moment(o["t"], "objective", "info", f"El rival cogió {label} con ventaja numérica ({allies_up} contra {enemies_up})",
                         "No se podía disputar: lo que costó el objetivo fueron las muertes de antes.", p, ["objective", "outnumbered"])
             )
             continue
@@ -1548,6 +1778,7 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
             detail += ". Si no vas a disputarlo, cámbialo: invade su jungla al otro lado, presiona una torre o haz un dive."
             free = ex["value_gain"] < 0.25 * _obj_value(g, o)
             title = f"El rival cogió {label} gratis y estabas lejos" if free else f"El rival cogió {label} y no lo compensasteis"
+            g.flagged.add(id(o))
             moments.append(_moment(o["t"], "objective", "high" if big else "medium", title, detail, p, ["objective", "far"]))
     metrics["objectives_team"] = taken
     if taken:
@@ -1556,6 +1787,304 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
     metrics["obj_lost_far"] = conceded
     metrics["obj_trades"] = trades  # solo buenos cambios en los que participaste
     metrics["obj_fair_trades"] = fair
+
+
+# ------------------------------------------------------------------- macro
+MACRO_METRICS = ("obj_late_recall", "obj_late_arrival", "pink_unused", "baron_wasted", "fights_unconverted")
+
+
+def _macro(g: _Game, metrics: dict, moments: list) -> None:
+    """Preparación de los objetivos y conversión de ventajas, con los relojes de la temporada.
+
+    Sin relojes fiables para la partida (otra temporada, Swiftplay, un objetivo que «muere» antes de su hora)
+    no se juzga nada de esto: las métricas quedan en ``None``.
+    """
+    if not g.clocks_ok:
+        for key in MACRO_METRICS:
+            metrics[key] = None
+        return
+    metrics["obj_late_recall"] = _late_recalls(g, moments)
+    metrics["obj_late_arrival"] = _late_arrivals(g, moments)
+    metrics["pink_unused"] = _pinks_unused(g, moments)
+    metrics["baron_wasted"] = _baron_wasted(g, moments)
+    metrics["fights_unconverted"] = _unconverted_fights(g, moments)
+
+
+def _contested(g: _Game, o: dict) -> bool:
+    """¿Se disputó? Murió ≤ 2 min después de aparecer con al menos 2 aliados tuyos cerca o uno caído junto al foso."""
+    if o.get("spawn") is None or o["t"] - o["spawn"] > CONTEST_WINDOW_MS:
+        return False
+    t = o["t"]
+    near = sum(1 for a in g.allies if (p := g.pos_at(a, t)) is not None and geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE)
+    return near >= 2 or _ally_losses(g, o) > 0
+
+
+def _ally_losses(g: _Game, o: dict) -> int:
+    """Aliados tuyos (sin contarte) caídos junto al foso mientras se peleaba el objetivo."""
+    t = o["t"]
+    return sum(
+        1 for k in g.kills
+        if k["victim"] in g.allies and t - 30_000 <= k["t"] <= t + 10_000 and k["pos"] and geo.dist(k["pos"], o["pos"]) <= CONTEST_DEATH_RADIUS
+    )
+
+
+def _forced_recall(g: _Game, pt: int) -> bool:
+    """¿Volver a base era obligado? Poca vida en el frame anterior, una pelea justo antes o mucho daño recibido.
+
+    Sin datos de vida en el frame no se puede descartar: se da por obligada (nunca se acusa sin pruebas).
+    """
+    me = g.me["pid"]
+    i = g.frame_before(pt)
+    hp = g.health_ratio(me, i)
+    if hp is None or hp < FORCED_RECALL_HP:
+        return True
+    if any(pt - FORCED_RECALL_FIGHT_MS <= k["t"] <= pt and me in (k["killer"], k["victim"], *k["assists"]) for k in g.kills):
+        return True
+    if i is not None and i + 1 < len(g.ts):
+        a, b = g.fval(me, i, "taken"), g.fval(me, i + 1, "taken")
+        stats = (g.pf[me][i] or {}).get("championStats") or {}
+        top = _num(stats.get("healthMax"), 0.0)
+        # Mucho daño recibido ese minuto (≥ 35 % de tu vida máxima; los campamentos de jungla también cuentan, así que es prudente).
+        if a is not None and b is not None and b - a >= max(FORCED_RECALL_TAKEN, 0.35 * top):
+            return True
+    return False
+
+
+def _late_recalls(g: _Game, moments: list) -> int:
+    """Volver a base cuando ya no daba tiempo a llegar a un objetivo disputado que te tocaba (desde S − 30 s)."""
+    me = g.me["pid"]
+    my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
+    n = 0
+    for o in g.objectives:
+        spawn, t = o.get("spawn"), o["t"]
+        if spawn is None or id(o) in g.flagged or me in o["takers"]:
+            continue
+        if not _contested(g, o) or not _contest_expected(g, o):
+            continue
+        if not g.present(me, t) or any(spawn - 90_000 <= d <= t for d in my_deaths):
+            continue
+        p = g.pos_at(me, t)
+        if p is None or geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE:
+            continue
+        ours = o["team"] == g.team
+        losses = _ally_losses(g, o)
+        if ours and not losses:
+            continue  # lo cogió tu equipo sin bajas: tu vuelta a base no costó nada
+        if not ours and _exchange(g, o, g.used_gains)["ratio"] >= GOOD_TRADE:
+            continue  # tu equipo lo compensó al otro lado
+        recalls = g.recalls(me, max(spawn - RECALL_LATE_FROM_MS, t - RECALL_LATE_LAST_MS), t)
+        if not recalls or _forced_recall(g, recalls[0]):
+            continue
+        pt = recalls[0]
+        label = _obj_label(g, o)
+        when = f"{_secs(spawn - pt)} antes de que apareciera {label}" if pt < spawn else f"con {label} ya en el mapa"
+        result = f"lo cogisteis, pero con {_plural(losses, 'caído', 'caídos')}" if ours else "el rival se lo llevó"
+        g.flagged.add(id(o))
+        n += 1
+        moments.append(
+            _moment(
+                pt, "objective", "high" if _is_big(g, o) else "medium", f"Volviste a base a destiempo antes {_de(label)}",
+                f"Volviste a base {when}, con más de la mitad de la vida, y tu equipo lo peleó sin ti: {result}. "
+                "Vuelve a base 60-90 s antes de que aparezca para llegar con el oro gastado y la vida llena.",
+                o["pos"], ["objective", "late_recall"],
+            )
+        )
+    return n
+
+
+def _late_arrivals(g: _Game, moments: list) -> int:
+    """Tu equipo disputó un objetivo que te tocaba y el rival lo cogió mientras tú aún llegabas (a 2.600-5.500)."""
+    me = g.me["pid"]
+    my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
+    n = 0
+    for o in g.objectives:
+        spawn, t = o.get("spawn"), o["t"]
+        if spawn is None or id(o) in g.flagged or o["team"] == g.team or me in o["takers"]:
+            continue
+        if not _contested(g, o) or not _contest_expected(g, o):
+            continue
+        if not g.present(me, t) or any(spawn - 90_000 <= d <= t for d in my_deaths):
+            continue
+        p = g.pos_at(me, t)
+        if p is None or not NEAR_OBJECTIVE < geo.dist(p, o["pos"]) <= FAR_FROM_OBJECTIVE:
+            continue
+        i = g.frame_before(spawn - 30_000)
+        q = g.frame_pos(me, i) if i is not None else None
+        if q is None or geo.dist(q, o["pos"]) <= LATE_FAR_BEFORE:
+            continue
+        if g.recalls(me, spawn - 120_000, t) or _cross_map_play(g, t, geo.half_of(o["pos"])):
+            continue  # volviste a base (se juzga aparte) o hiciste algo al otro lado
+        allies_up = sum(1 for a in (me, *g.allies) if g.present(a, t))
+        enemies_up = sum(1 for e in g.enemies if g.present(e, t))
+        if enemies_up - allies_up >= 2:
+            continue
+        ex = _exchange(g, o, g.used_gains)
+        if ex["ratio"] >= FAIR_TRADE and _contributed(ex["mine"]):
+            continue
+        label = _obj_label(g, o)
+        where = geo.zone_label(geo.zone(q), g.team)
+        g.flagged.add(id(o))
+        n += 1
+        moments.append(
+            _moment(
+                t, "objective", "high" if _is_big(g, o) else "low" if o["kind"] == "grubs" else "medium", f"Llegaste tarde {_al(label)}",
+                f"Tu equipo peleó {label} sin ti: un minuto antes de que apareciera estabas en {where}, a {_int(geo.dist(q, o['pos']))} unidades, "
+                f"y cuando cayó seguías a {_int(geo.dist(p, o['pos']))}. Empuja tu oleada o acaba el campamento y ve hacia el foso 60-90 s antes.",
+                p, ["objective", "late"],
+            )
+        )
+    return n
+
+
+def _pinks_unused(g: _Game, moments: list) -> int | None:
+    """Llevabas una pink de S − 90 s a S + 30 s, estuviste cerca del foso y no la pusiste."""
+    if not g.items_reliable or g.inv is None:
+        return None
+    me = g.me["pid"]
+    placed = [t for t, kind in g.ward_events[me] if kind == "CONTROL_WARD"]
+    n = 0
+    for o in g.objectives:
+        spawn = o.get("spawn")
+        if spawn is None or o["t"] > spawn + 180_000:
+            continue
+        t0, t1 = spawn - PINK_BEFORE_MS, spawn + PINK_AFTER_MS
+        if g.dead_overlap(me, t0, t1) > 0 or any(s < t1 and e > t0 for s, e in g.afk[me]):
+            continue
+        if any(t0 - PINK_ALIVE_MS <= x <= t1 for x in placed):
+            continue  # la pusiste (o tenías una puesta hace poco: solo puede haber una tuya)
+        if any(g.inv.at(x)[CONTROL_WARD] < 1 for x in (t0, spawn, t1)):
+            continue
+        near = any(
+            t0 <= ts <= t1 and (fp := g.frame_pos(me, i)) is not None and geo.dist(fp, o["pos"]) <= PINK_NEAR for i, ts in enumerate(g.ts)
+        )
+        if not near:
+            continue
+        label = OBJ_LABEL["dragon"] if o["kind"] == "dragon" else OBJ_LABEL[o["kind"]]
+        n += 1
+        moments.append(
+            _moment(
+                spawn, "vision", "low", f"Pink sin usar antes {_de(label)}",
+                f"Llevabas una pink desde antes del {_mmss(t0)}, estuviste cerca del foso y no la pusiste en el minuto previo {_al(label)}. "
+                "Ponla en el foso o en el arbusto de entrada unos 60 s antes: te da la visión del objetivo y quita la suya.",
+                o["pos"], ["vision", "pink"],
+            )
+        )
+    return n
+
+
+def _baron_wasted(g: _Game, moments: list) -> int:
+    """Barón de tu equipo sin convertir: en 3 minutos no cae torre, inhibidor, 3 placas, ancestral ni alma."""
+    me = g.me["pid"]
+    enemy = 300 - g.team
+    n = 0
+    for o in g.objectives:
+        if o["kind"] != "baron" or o["team"] != g.team:
+            continue
+        t, until = o["t"], o["t"] + BARON_WINDOW_MS
+        if until > g.duration_ms or (g.won and g.duration_ms <= t + 240_000) or g.is_dead(me, t):
+            continue
+        gained = [b for b in g.buildings if b["owner"] == enemy and t <= b["t"] <= until]
+        if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 3:
+            continue
+        if any(x["team"] == g.team and t < x["t"] <= until and (x["kind"] == "elder" or _obj_label(g, x).startswith("el alma")) for x in g.objectives):
+            continue
+        if sum(1 for k in g.kills if k["victim"] in (me, *g.allies) and t <= k["t"] <= t + 30_000) >= 2:
+            continue  # perdisteis la pelea de después del barón: lo que falló fue esa pelea
+        n += 1
+        moments.append(
+            _moment(
+                t, "objective", "low", "Barón sin aprovechar",
+                "En los 3 minutos con la mejora del barón no cayó ninguna torre ni inhibidor. La mejora potencia a vuestros súbditos: "
+                "asediad en grupo o por dos líneas a la vez (1-3-1) en vez de separaros a farmear o pelear lejos de sus torres.",
+                o["pos"], ["objective", "baron_wasted", "team"],
+            )
+        )
+    return n
+
+
+def _fights(g: _Game) -> list[list[dict]]:
+    """Peleas de la partida (kills encadenadas), cada una ordenada por tiempo."""
+    seen: set[int] = set()
+    out = []
+    for k in g.kills:
+        if id(k) in seen or not k["pos"]:
+            continue
+        cluster = sorted(_fight_cluster(g, k), key=lambda f: f["t"])
+        seen.update(id(f) for f in cluster)
+        out.append(cluster)
+    return out
+
+
+def _unconverted_fights(g: _Game, moments: list) -> int:
+    """Peleas ganadas con claridad (≥ 2 kills de ventaja) tras las que no cae nada hasta que reaparece el 2.º rival."""
+    me = g.me["pid"]
+    n = 0
+    for cluster in _fights(g):
+        t0, t1 = cluster[0]["t"], cluster[-1]["t"]
+        if t0 < 3 * 60_000:
+            continue
+        enemy_dead = [f for f in cluster if g.players[f["victim"]]["team"] != g.team]
+        ally_dead = [f for f in cluster if g.players[f["victim"]]["team"] == g.team]
+        if len(enemy_dead) < 2 or len(enemy_dead) - len(ally_dead) < 2 or len(ally_dead) > 1:
+            continue
+        if g.won and g.duration_ms <= t1 + 120_000:
+            continue
+        center = cluster[-1]["pos"]
+        p = g.pos_at(me, t1)
+        if not g.present(me, t1) or p is None or geo.dist(p, center) > CONTEST_DEATH_RADIUS:
+            continue
+        ends = sorted(e for f in enemy_dead for s, e, _p in g.dead.get(f["victim"]) or [] if s == f["t"])
+        if len(ends) < 2:
+            continue
+        if ends[1] - t1 < WON_FIGHT_MIN_WINDOW:
+            continue  # reaparecen enseguida (fase de líneas, peleas largas): no da tiempo a convertir nada
+        until = min(ends[1] + WON_FIGHT_RESPAWN_MARGIN, g.duration_ms)
+        allies_up = sum(1 for a in (me, *g.allies) if g.present(a, t1))
+        options = [
+            (geo.dist(center, clk.pit_of(kind)), OBJ_LABEL[kind])
+            for kind in clk.alive_at(g.objectives, g.clocks, t1)
+            if geo.dist(center, clk.pit_of(kind)) <= WON_FIGHT_OBJECTIVE and allies_up >= (3 if kind in ("baron", "elder") else 2)
+        ]
+        if allies_up >= 2:
+            options += [
+                (geo.dist(center, pos), f"la torre {clk.TURRET_LABEL[kind]} de {lane}")
+                for lane, kind, pos in clk.standing_turrets(g.buildings, 300 - g.team, t1)
+                if geo.dist(center, pos) <= WON_FIGHT_TOWER
+            ]
+        if not options:
+            continue
+        lo = t0 - TRADE_GAIN_BEFORE_MS
+        if any(o["team"] == g.team and lo <= o["t"] <= until for o in g.objectives):
+            continue
+        gained = [b for b in g.buildings if b["owner"] != g.team and lo <= b["t"] <= until]
+        if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 2:
+            continue
+        if sum(g.enemy_jungle_cs(a, t1, until) for a in (me, *g.allies)) >= 8:
+            continue
+        n += 1
+        target = min(options)[1]
+        score = f"{len(enemy_dead)} kills y {_plural(len(ally_dead), 'caído', 'caídos')}"
+        recall = next(iter(g.recalls(me, t1 + 1, until)), None)
+        hp = g.health_ratio(me, g.frame_before(recall)) if recall is not None else None
+        if recall is not None and hp is not None and hp >= 0.6 and not _forced_recall(g, recall):
+            moments.append(
+                _moment(
+                    recall, "objective", "medium", f"Volviste a base tras ganar la pelea en vez de ir a por {target}",
+                    f"Ganasteis la pelea del {_mmss(t1)} ({score}) y volviste a base antes de que reaparecieran. Con ventaja numérica, "
+                    f"primero el objetivo más cercano ({target}) y después la base.",
+                    center, ["objective", "unconverted"],
+                )
+            )
+        else:
+            moments.append(
+                _moment(
+                    t1, "objective", "low", f"Pelea ganada sin aprovechar ({score})",
+                    f"Ganasteis la pelea del {_mmss(t1)} y, hasta que reaparecieron, no cayó nada: tocaba {target}. "
+                    "La ventaja de una pelea ganada dura poco: conviértela en un objetivo o una torre antes de volver a base.",
+                    center, ["objective", "unconverted", "team"],
+                )
+            )
+    return n
 
 
 # ---------------------------------------------------------- uso del tiempo
@@ -1653,12 +2182,11 @@ def _time_use(g: _Game, metrics: dict, moments: list) -> None:
 
     # Viajes a base (compras estando vivo, sin contar la compra inicial ni la de al reaparecer).
     trips: list[int] = []
-    for t, _item in g.purchases[me]:
-        if t < 90_000 or g.is_dead(me, t) or g.respawn_buy(me, t):
-            continue
+    for t in g.recalls(me, 90_000, g.duration_ms + 1):
         if not trips or t - trips[-1] > 40_000:
             trips.append(t)
-    metrics["recalls"] = len(trips)
+    known = g.buys_in_base(me)  # Ornn compra en cualquier sitio: sus compras no dicen cuándo volvió a base
+    metrics["recalls"] = len(trips) if known else None
     metrics["first_recall_min"] = round(trips[0] / 60_000, 1) if trips else None
     metrics["control_wards_bought"] = sum(1 for _t, item in g.purchases[me] if item == CONTROL_WARD)
 
@@ -1743,12 +2271,17 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
             continue
         if ej != k["killer"] and ej not in k["assists"]:
             continue
-        if not geo.is_lane(geo.zone(k["pos"])):
+        gank_zone = geo.zone(k["pos"])
+        if not geo.is_lane(gank_zone):
             continue
         enemy_ganks += 1
+        if gank_zone == "mid":
+            continue  # mid se alcanza desde las dos mitades: no es «la otra mitad del mapa»
         p = g.pos_at(me, k["t"])
+        if p is None or geo.zone(p).startswith("base_") or geo.dist(p, k["pos"]) <= FAR_GANK:
+            continue  # en base (volviendo o reapareciendo) o lo bastante cerca para responder
         # En la otra mitad haciendo algo (objetivo, torre, kill, su jungla) es justo el cambio que se recomienda.
-        if p is not None and geo.half_of(p) != geo.half_of(k["pos"]) and not _cross_map_play(g, k["t"], geo.half_of(k["pos"])):
+        if geo.half_of(p) != geo.half_of(k["pos"]) and not _cross_map_play(g, k["t"], geo.half_of(k["pos"])):
             far += 1
 
     i10 = g.frame_at_minute(10)

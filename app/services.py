@@ -45,15 +45,16 @@ class Services:
         self.opgg_stop = threading.Event()
         self.shutdown_event = threading.Event()
         from app.coach.tracker import GameTracker
-        from app.coaching.youtube import YouTubeJobs
         from app.ingest.crawler import Crawler
 
         from app.coach.replay_client import ClientReplays
 
         self.client_replays = ClientReplays()
         self.crawler = Crawler(self)
-        self.youtube = YouTubeJobs(self)
         self.tracker = GameTracker(self)
+        from app.coach.calibrate import TierCalibrator
+
+        self.calibrator = TierCalibrator(self, enabled=settings.calibrate_enabled)
         self.startup_done = threading.Event()
         self.legacy_running = False
 
@@ -82,6 +83,8 @@ class Services:
         self.tracker.start()
         # Precarga de OP.GG, Lolalytics y notas de parche en segundo plano.
         self.warmer.start()
+        # Referencias de tu elo objetivo con partidas reales (tandas pequeñas, prioridad baja).
+        self.calibrator.start()
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.
         try:
             self.crawler.autostart()
@@ -168,3 +171,7 @@ class Services:
         self.warmer.shutdown()
         self.crawler.shutdown()
         self.tracker.shutdown()
+        self.calibrator.shutdown()
+        from app.external.base import shutdown_fetches
+
+        shutdown_fetches()

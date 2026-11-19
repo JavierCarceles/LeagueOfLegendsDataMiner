@@ -1,7 +1,7 @@
 // Estado global: metadatos (campeones, plataformas…) y filtros persistentes.
 
 const STORAGE_KEY = "tempu.filters.v2";
-const DEFAULT_FILTERS = { sources: "all", tier: "emerald_plus", platform: "all", patch: "all" };
+export const DEFAULT_FILTERS = { sources: "all", tier: "emerald_plus", platform: "all", patch: "all" };
 
 function load(key, fallback) {
   try {

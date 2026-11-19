@@ -213,9 +213,36 @@ CREATE TABLE IF NOT EXISTS mastery_checks (
     puuid      TEXT PRIMARY KEY,
     platform   TEXT NOT NULL,
     checked_at INTEGER NOT NULL,
-    top        TEXT NOT NULL            -- JSON [[campeón, puntos], …] (los 3 primeros)
+    top        TEXT NOT NULL            -- JSON [[campeón, puntos, última partida (s)], …] (los 3 primeros)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_mastery_platform ON mastery_checks(platform, checked_at);
+
+-- Historial de cada OTP: se recorre hacia atrás desde ``anchor`` (s) de 100 en 100 sin tope de partidas.
+CREATE TABLE IF NOT EXISTS otp_progress (
+    puuid            TEXT PRIMARY KEY,
+    list_key         TEXT NOT NULL,         -- colas pedidas (420 o ranked); si cambia, se recorre de nuevo
+    anchor           INTEGER NOT NULL,      -- endTime fijo del historial; lo posterior son «partidas nuevas»
+    back_offset      INTEGER NOT NULL DEFAULT 0,  -- ids del historial ya recorridos
+    back_done_at     INTEGER,               -- historial completo (NULL = queda por bajar)
+    back_done_start  INTEGER,               -- startTime con el que se completó (0 = todo lo disponible)
+    back_done_reason TEXT,                  -- end (no hay más) | share (más atrás ya no jugaba esos campeones)
+    fwd_more         INTEGER NOT NULL DEFAULT 0,  -- quedaron partidas nuevas por bajar
+    fwd_newest       INTEGER,               -- ms: partida nueva más reciente ya recorrida (cursor propio)
+    low_pages        INTEGER NOT NULL DEFAULT 0,  -- páginas seguidas casi sin los campeones elegidos
+    config_key       TEXT,                  -- campeones y filtro con los que se paró por «ya no lo jugaba»
+    seen             INTEGER NOT NULL DEFAULT 0,  -- partidas suyas revisadas
+    hits             INTEGER NOT NULL DEFAULT 0,  -- … de ellas, con los campeones elegidos
+    updated_at       INTEGER NOT NULL
+) WITHOUT ROWID;
+
+-- Partidas de un OTP con otro campeón descartadas por «solo sus partidas con esos campeones»: solo para su
+-- recorrido (para el resto del programa la partida sigue disponible).
+CREATE TABLE IF NOT EXISTS otp_skips (
+    puuid    TEXT NOT NULL,
+    match_id TEXT NOT NULL,
+    champ    INTEGER NOT NULL DEFAULT 0,  -- con quién jugó: si luego eliges ese campeón, se vuelve a pedir
+    PRIMARY KEY (puuid, match_id)
+) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS my_profile (
     id             INTEGER PRIMARY KEY CHECK (id = 1),
@@ -257,6 +284,32 @@ CREATE TABLE IF NOT EXISTS my_games (
 );
 CREATE INDEX IF NOT EXISTS idx_my_games_start ON my_games(status, game_start);
 
+-- Métricas de otros jugadores analizados con el mismo código, para calibrar las referencias: los otros 9 de tus
+-- partidas (source 'own') o partidas reales de tu elo objetivo (source 'tier:EMERALD'…). pid 0 = partida ya
+-- procesada sin muestras.
+CREATE TABLE IF NOT EXISTS peer_samples (
+    match_id   TEXT NOT NULL,
+    pid        INTEGER NOT NULL,
+    source     TEXT NOT NULL DEFAULT 'own',
+    role       TEXT,
+    game_start INTEGER,
+    version    INTEGER NOT NULL,
+    reliable   INTEGER NOT NULL,
+    metrics    TEXT NOT NULL,
+    PRIMARY KEY (match_id, pid)
+);
+CREATE INDEX IF NOT EXISTS idx_peer_samples_role ON peer_samples(source, role, version, game_start);
+
+-- Revisión guiada: tus respuestas a 3 preguntas (qué sabías, qué decidiste, qué era mejor) en 3 momentos de cada partida.
+CREATE TABLE IF NOT EXISTS my_reviews (
+    match_id   TEXT NOT NULL,
+    t          REAL NOT NULL,
+    question   TEXT NOT NULL,
+    answer     TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (match_id, t, question)
+);
+
 CREATE TABLE IF NOT EXISTS my_goals (
     id         INTEGER PRIMARY KEY,
     metric     TEXT NOT NULL,
@@ -297,6 +350,11 @@ class Database:
         with self.write_lock:
             conn = self.conn()
             conn.executescript(SCHEMA)
+            # Antes los descartes «otro campeón» del recolector de OTPs se guardaban para todo el programa (y esa
+            # partida desaparecía también de perfiles y de otros OTPs). Ahora van por OTP: se liberan una vez.
+            if conn.execute("SELECT 1 FROM meta WHERE key = 'otp_skips_v1'").fetchone() is None:
+                conn.execute("DELETE FROM skipped_matches WHERE reason = 'otro campeón'")
+                conn.execute("INSERT INTO meta(key, value) VALUES('otp_skips_v1', '1')")
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES('schema_version', ?) ON CONFLICT(key) DO NOTHING",
                 (str(SCHEMA_VERSION),),

@@ -1,5 +1,5 @@
 // Analizador de draft: probabilidad de victoria, nota, líneas, sinergias y composición.
-import { api, filterParams } from "../api.js";
+import { api, filterParams, isPending } from "../api.js";
 import { curveChart, gauge } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, loadJSON, ROLE_LABEL, ROLES, save, state } from "../state.js";
@@ -124,7 +124,8 @@ function fetchRecs(key, slots) {
   if (!recsCache.has(key)) {
     const promise = api.post("/api/draft/suggest-batch", { ally: draft.ally, enemy: draft.enemy, slots }, filterParams({ limit: 8 }));
     recsCache.set(key, promise);
-    promise.catch(() => recsCache.delete(key));
+    // Si faltaban datos (aún descargándose) no se guarda: la recarga suave y el siguiente cambio vuelven a pedirlo.
+    promise.then((data) => isPending(data) && recsCache.get(key) === promise && recsCache.delete(key)).catch(() => recsCache.delete(key));
     while (recsCache.size > 30) recsCache.delete(recsCache.keys().next().value);
   }
   return recsCache.get(key);

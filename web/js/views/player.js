@@ -1,10 +1,7 @@
 // Perfil de jugador: rango, resumen, campeones, comparativa con la media y partidas.
 import { api } from "../api.js";
 import { dd, loadJSON, platformLabel, ROLE_LABEL, save, state, TIER_LABEL as TIER } from "../state.js";
-import { collapsible,
-  champ, champImg, debounce, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, mount, rankImg,
-  roleIcon, runeImg, select, spellImg, table, wrClass,
-} from "../ui.js";
+import { champ, champImg, collapsible, debounce, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, mount, rankImg, roleIcon, runeImg, select, spellImg, table, wrClass } from "../ui.js";
 
 const RECENT = "tempu.players.recent";
 let root = null;
@@ -103,10 +100,11 @@ function recentBlock() {
 }
 
 async function load() {
+  const fresh = latest("player");
   mount(resultEl, loading("Consultando a Riot (respetando el límite de la API)…"));
   try {
     const p = await api.get(`/api/players/${query.platform}/${encodeURIComponent(query.name)}/${encodeURIComponent(query.tag)}`, { queue: query.queue, count: query.count });
-    if (!root) return;
+    if (!root || !fresh()) return;
     const recent = loadJSON(RECENT, []).filter((r) => !(r.name.toLowerCase() === p.account.game_name.toLowerCase() && r.tag.toLowerCase() === p.account.tag_line.toLowerCase()));
     recent.unshift({ name: p.account.game_name, tag: p.account.tag_line, platform: p.platform, icon: p.summoner.icon });
     save(RECENT, recent.slice(0, 10));

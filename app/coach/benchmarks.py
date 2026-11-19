@@ -1,10 +1,15 @@
 """Métricas de tus partidas y valores de referencia por rol y elo.
 
-Las referencias son **orientativas**: medias aproximadas de clasificatoria
-en cada rol, escaladas según el elo objetivo de tu perfil. Si el
-recolector ya ha guardado bastantes partidas de ese elo (≥ 300 por rol), las
-métricas que existen en tu base de datos (CS/min, visión, muertes, KP…)
-se sustituyen por las medias reales de esas partidas.
+Tres capas, de menos a más fiable:
+
+1. **Orientativas** (``BASE``): medias aproximadas de clasificatoria en cada rol, escaladas al elo objetivo.
+2. **Calibradas con tus partidas**: los otros 9 jugadores de cada partida tuya se analizan con el mismo código
+   (``peer_samples``; sin peticiones a Riot). Con ≥ 20 muestras de tu rol, la media de esos jugadores (tu elo
+   real, en 2026) sustituye a la orientativa, escalada de tu liga actual a tu elo objetivo con los mismos factores.
+   Así las referencias miden lo mismo que tus métricas (las orientativas eran estimaciones: p. ej. «muertes justo
+   antes de un objetivo» 0,3 por partida, cuando los junglas de las partidas reales del usuario hacían 1,6).
+3. **De tu base de datos**: si el recolector ya guardó ≥ 300 partidas de ese elo por rol, las métricas del resumen
+   de la partida (CS/min, visión, muertes, KP…) usan esas medias reales.
 """
 
 from __future__ import annotations
@@ -18,6 +23,15 @@ ROLES = ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")
 TARGET_TIERS = ("SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER")
 DEFAULT_TARGET = "PLATINUM"
 MIN_DB_GAMES = 300
+MIN_PEER_SAMPLES = 20  # muestras de tu rol (jugadores de tus partidas) para calibrar una métrica
+# En los recuentos (muertes de un tipo, objetivos…) lo que da precisión son los sucesos, no las partidas: con 2 muertes en
+# 24 junglas la media (0,08) puede ser 0,01 o 0,25. Sin al menos estos sucesos no se calibra esa métrica.
+MIN_REF_EVENTS = 10
+PEER_SAMPLES = 150  # las más recientes
+# En tu rol, los jugadores de tus partidas son tus rivales directos: en las métricas «frente a tu rival» su media es tu
+# propia diferencia cambiada de signo, y «ganks del jungla rival al otro lado» cuenta tus propios ganks. Esas no se
+# calibran (se quedan las orientativas). En el resto queda un sesgo pequeño: si les ganas, su media baja un poco.
+PEER_EXCLUDED = {"cs_diff10", "gold_diff15", "enemy_ganks_far"}
 
 
 @dataclass(frozen=True)
@@ -59,9 +73,11 @@ METRICS: dict[str, Metric] = {
         Metric("deaths_enemy_jungle", "Muertes en la jungla rival", "lower", "muertes", decimals=2, count=True),
         Metric("deaths_isolated_late", "Muertes aislado (después del 14)", "lower", "muertes", decimals=2, count=True),
         Metric("deaths_unspent_gold", "Muertes con oro para tu build sin gastar", "lower", "tiempo", decimals=2, count=True),
-        Metric("time_dead_pct", "Tiempo muerto", "lower", "tiempo", unit="%"),
+        Metric("time_dead_pct", "Tiempo muerto", "lower", "tiempo", unit="%", floor=3),
         Metric("gold_hoard_min", "Minutos de más con oro útil sin gastar", "lower", "tiempo", decimals=1),
-        Metric("idle_pct", "Minutos vacíos desde el 15", "lower", "tiempo", unit="%"),
+        # Suelo de 10 puntos: los junglas casi nunca tienen minutos vacíos (siempre hay campamentos), así que su media
+        # calibrada es ~0 % y sin suelo un solo minuto vacío salía como punto débil.
+        Metric("idle_pct", "Minutos vacíos desde el 15", "lower", "tiempo", unit="%", floor=10),
         Metric("cs_min", "CS por minuto", "higher", "farm", decimals=2, roles=("TOP", "JUNGLE", "MID", "ADC")),
         Metric("cs10", "CS a los 10", "higher", "farm", decimals=0, roles=("TOP", "JUNGLE", "MID", "ADC")),
         Metric("cs_diff10", "Δ CS a los 10 vs tu rival", "higher", "farm", decimals=1, roles=("TOP", "JUNGLE", "MID", "ADC"), scale=False, floor=20),
@@ -159,6 +175,68 @@ def static_refs(role: str, tier: str) -> dict[str, float]:
     return out
 
 
+def factor_tier(tier: str | None) -> str | None:
+    """Liga para los factores de escala (Gran Maestro y Aspirante cuentan como Maestro; sin liga, ``None``)."""
+    tier = (tier or "").upper()
+    if tier in ("GRANDMASTER", "CHALLENGER"):
+        return "MASTER"
+    return tier if tier in UP else None
+
+
+def _peer_refs(svc, role: str, target: str, current: str | None) -> tuple[dict[str, float], int]:
+    """Medias de los jugadores de tu rol en tus partidas, escaladas de tu liga actual al elo objetivo."""
+    if current is None:
+        return {}, 0, {}
+    from app.coach import store
+    from app.coach.analyzer import ANALYSIS_VERSION
+
+    try:
+        values = store.peer_values(svc.db, role, ANALYSIS_VERSION, PEER_SAMPLES)
+    except Exception:  # BD vieja o en migración: se usan las orientativas
+        return {}, 0, {}
+    out: dict[str, float] = {}
+    sizes: dict[str, int] = {}
+    samples = 0
+    for key, vals in values.items():
+        m = METRICS.get(key)
+        if m is None or key in PEER_EXCLUDED or len(vals) < MIN_PEER_SAMPLES or not applies(m, role):
+            continue
+        if m.count and sum(vals) < MIN_REF_EVENTS:
+            continue
+        mean = sum(vals) / len(vals)
+        sizes[key] = len(vals)
+        if m.scale:
+            factors = UP if m.better == "higher" else DOWN
+            mean *= factors[target] / factors[current]
+        out[key] = round(mean, 3)
+        samples = max(samples, len(vals))
+    return out, samples, sizes
+
+
+def _tier_refs(svc, role: str, target: str) -> tuple[dict[str, float], int]:
+    """Medias de partidas reales de tu elo objetivo (``calibrate.TierCalibrator``): sin escalar ni sesgo de rivales."""
+    from app.coach import store
+    from app.coach.analyzer import ANALYSIS_VERSION
+
+    try:
+        values = store.peer_values(svc.db, role, ANALYSIS_VERSION, PEER_SAMPLES, source=f"tier:{target}")
+    except Exception:  # BD vieja o en migración
+        return {}, 0, {}
+    out: dict[str, float] = {}
+    sizes: dict[str, int] = {}
+    samples = 0
+    for key, vals in values.items():
+        m = METRICS.get(key)
+        if m is None or key in PEER_EXCLUDED or len(vals) < MIN_PEER_SAMPLES or not applies(m, role):
+            continue
+        if m.count and sum(vals) < MIN_REF_EVENTS:
+            continue
+        out[key] = round(sum(vals) / len(vals), 3)
+        sizes[key] = len(vals)
+        samples = max(samples, len(vals))
+    return out, samples, sizes
+
+
 def _db_refs(svc, role: str, tier: str) -> dict[str, float]:
     """Medias reales de tu BD para ese rol y elo (si hay muestra suficiente)."""
     try:
@@ -189,27 +267,68 @@ def _db_refs(svc, role: str, tier: str) -> dict[str, float]:
 
 
 class References:
-    """Referencias por rol para un elo objetivo (con caché por petición)."""
+    """Referencias por rol para un elo objetivo (con caché por petición).
 
-    def __init__(self, svc, tier: str | None) -> None:
+    ``current``: tu liga actual (para escalar las medias de los jugadores de tus partidas a tu elo objetivo).
+    """
+
+    def __init__(self, svc, tier: str | None, current: str | None = None) -> None:
         self.svc = svc
         self.tier = normalize_tier(tier)
+        self.current = factor_tier(current)
         self._cache: dict[str, dict] = {}
+        self._info: dict[str, dict] = {}
+        self._sizes: dict[str, dict[str, int]] = {}
 
     def for_role(self, role: str | None) -> dict[str, float]:
         if not role:
             return {}
         if role not in self._cache:
             refs = static_refs(role, self.tier)
+            peers, samples, peer_sizes = _peer_refs(self.svc, role, self.tier, self.current) if self.svc is not None else ({}, 0, {})
+            refs.update(peers)
+            tier, tier_samples, tier_sizes = _tier_refs(self.svc, role, self.tier) if self.svc is not None else ({}, 0, {})
+            refs.update(tier)
             db = _db_refs(self.svc, role, self.tier) if self.svc is not None else {}
             refs.update(db)
             self._cache[role] = refs
-            self._cache[f"{role}:db"] = db
+            # Tamaño de la muestra de cada referencia calibrada (las orientativas y las de la BD no tienen: None).
+            self._sizes[role] = {k: n for k, n in {**peer_sizes, **tier_sizes}.items() if k not in db}
+            self._info[role] = {
+                "source": "db" if db else "tier" if tier else "peers" if peers else "static",
+                "peer_samples": samples,
+                "tier_samples": tier_samples,
+                "calibrated": sorted(set(peers) | set(tier)),
+                "from_tier": self.current if peers and not tier else None,
+            }
         return self._cache[role]
+
+    def sample_size(self, role: str | None, key: str) -> int | None:
+        """Jugadores de los que sale la referencia de esa métrica (``None`` si no es calibrada)."""
+        if not role:
+            return None
+        self.for_role(role)
+        return self._sizes.get(role, {}).get(key)
 
     def source(self, role: str) -> str:
         self.for_role(role)
-        return "db" if self._cache.get(f"{role}:db") else "static"
+        return self._info.get(role, {}).get("source", "static")
+
+    def info(self, role: str) -> dict:
+        self.for_role(role)
+        return self._info.get(role, {"source": "static", "peer_samples": 0, "tier_samples": 0, "calibrated": [], "from_tier": None})
+
+
+def next_target(current: str | None, target: str | None) -> str | None:
+    """Elo con el que compararte para subir si tu objetivo no está por encima de tu liga actual (None si ya lo está)."""
+    from app.riot.routing import TIER_INDEX
+
+    current = (current or "").upper()
+    if current not in TIER_INDEX:
+        return None
+    if TIER_INDEX[normalize_tier(target)] > TIER_INDEX[current]:
+        return None
+    return next((t for t in TARGET_TIERS if TIER_INDEX[t] > TIER_INDEX[current]), None)
 
 
 def applies(metric: Metric, role: str | None) -> bool:

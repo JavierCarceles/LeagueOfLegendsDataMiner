@@ -9,7 +9,7 @@ import { champImg, champText, fmt, h, icon } from "../ui.js";
 import { minimap, OBJ_ICON, pct, trackPos } from "./minimap.js";
 
 const NS = "http://www.w3.org/2000/svg";
-export const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve", good: "Bien hecho" };
+export const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve", good: "Bien hecho", info: "Informativo" };
 const OBJ_NAME = { dragon: "Dragón", elder: "Dragón ancestral", baron: "Barón", herald: "Heraldo", grubs: "Larvas", atakhan: "Atakhan" };
 const SPEEDS = [1, 2, 5, 10, 20, 40];
 const CALLOUT_BEFORE = 8; // s antes del momento en que aparece el globo
@@ -251,7 +251,7 @@ export function createReplay(a, opts = {}) {
     const before = t;
     t = Math.min(duration, t + dt * speed);
     if (autoPause) {
-      const crossed = moments.find((m) => m.t > before && m.t <= t && m !== selected);
+      const crossed = moments.find((m) => m.t > before && m.t <= t && m !== selected && m.severity !== "info"); // lo informativo no para
       if (crossed) {
         t = crossed.t;
         draw();

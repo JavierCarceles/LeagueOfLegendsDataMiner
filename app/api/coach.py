@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import threading
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app import lcu
 from app.api.deps import role_param, svc_from
-from app.coach import insights, store
-from app.coach.benchmarks import METRICS, TARGET_TIERS, References, normalize_tier, public_metrics
+from app.coach import insights, learn, store
+from app.coach.benchmarks import METRICS, TARGET_TIERS, References, next_target, normalize_tier, public_metrics
 from app.coach.tracker import ProfileNotFound, build_digest, resolve_account
 from app.logbus import get_logger
 from app.riot.client import RiotAPIError, RiotKeyError
@@ -19,6 +20,7 @@ from app.riot.routing import PLATFORMS, QUEUES
 router = APIRouter(prefix="/api", tags=["progreso"])
 log = get_logger("progreso")
 _fetching: set[tuple[int, str]] = set()
+HABITS_GAMES = 100  # partidas recientes (de cualquier cola y rol) para el tilt, las sesiones y el pool
 
 
 class ProfileBody(BaseModel):
@@ -45,6 +47,12 @@ class GoalBody(BaseModel):
     target: float
     role: str | None = None
     label: str | None = None
+
+
+class ReviewAnswer(BaseModel):
+    t: float = Field(..., ge=0, le=36_000)
+    question: str = Field(..., pattern=r"^(knew|decided|better)$")
+    answer: str = Field("", max_length=2000)
 
 
 class GoalUpdate(BaseModel):
@@ -198,6 +206,12 @@ def _row(g: dict, refs: References) -> dict:
     }
 
 
+def _references(svc, profile: dict) -> References:
+    """Referencias de tu elo objetivo, calibradas con los jugadores de tus partidas desde tu liga actual."""
+    rank = (profile.get("settings") or {}).get("rank") or {}
+    return References(svc, profile["target_tier"], current=rank.get("tier"))
+
+
 def _build_refs(svc, keys) -> dict:
     """Build más jugada (OP.GG) de cada campeón y rol, solo desde la caché; lo que falte se pide en segundo plano."""
     refs: dict = {}
@@ -241,19 +255,28 @@ def summary(
         return {"profile": None, "games": 0}
     puuids = store.known_puuids(profile)
     games = store.list_games(svc.db, puuids, queue=_queue(queue), role=_role(role), limit=last)
-    refs = References(svc, profile["target_tier"])
+    refs = _references(svc, profile)
     counts: dict = {}
     for g in games:
         if g.get("build"):
             counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
     top = [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
     data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top))
+    # Hábitos entre partidas: con todas tus partidas recientes (los filtros romperían las rachas y las sesiones).
+    data["habits"] = insights.habits(store.list_games(svc.db, puuids, limit=HABITS_GAMES))
+    data["habits"]["reviews"] = store.review_stats(svc.db, since=int(time.time()) - 7 * 86_400)
     roles_played = {g["role"] for g in games if g["role"]}
+    rank = (profile.get("settings") or {}).get("rank") or {}
     data.update(
         {
             "profile": _public(profile),
             "target_tier": profile["target_tier"],
+            "rank": rank if rank.get("tier") else None,
+            # Si te comparas con tu propia liga (o una inferior), qué elo te exigiría lo necesario para subir.
+            "target_hint": next_target(rank.get("tier"), profile["target_tier"]),
             "refs_source": {r: refs.source(r) for r in sorted(roles_played)},
+            "refs_info": {r: refs.info(r) for r in sorted(roles_played)},
+            "calibration": svc.calibrator.status() if getattr(svc, "calibrator", None) else None,
             "filters": {"queue": _queue(queue), "role": _role(role) or "all", "last": last},
             "recent": [_row(g, refs) for g in games[:60]],
             "all_roles": sorted({p["role"] for p in store.champion_pool(svc.db, puuids) if p["role"]}),
@@ -270,7 +293,7 @@ def list_games(
     svc=Depends(svc_from),
 ):
     profile = _require_profile(svc)
-    refs = References(svc, profile["target_tier"])
+    refs = _references(svc, profile)
     games = store.list_games(svc.db, store.known_puuids(profile), queue=_queue(queue), role=_role(role), limit=limit)
     return {"games": [_row(g, refs) for g in games]}
 
@@ -281,7 +304,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     analysis = store.get_game(svc.db, match_id.strip().upper())
     if not analysis:
         raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
-    refs = References(svc, profile["target_tier"])
+    refs = _references(svc, profile)
     role_refs = refs.for_role(analysis.get("role"))
     analysis["refs"] = role_refs
     analysis["refs_source"] = refs.source(analysis["role"]) if analysis.get("role") else None
@@ -297,6 +320,37 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     return analysis
+
+
+@router.get("/coach/games/{match_id}/review")
+def get_review(match_id: str, svc=Depends(svc_from)):
+    """Revisión guiada de una partida: 3 momentos, 3 preguntas en cada uno y tus respuestas guardadas."""
+    _require_profile(svc)
+    match_id = match_id.strip().upper()
+    analysis = store.get_game(svc.db, match_id)
+    if not analysis:
+        raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
+    return {
+        "questions": insights.REVIEW_QUESTIONS,
+        "moments": insights.review_moments(analysis.get("moments") or []),
+        "answers": store.review_answers(svc.db, match_id),
+    }
+
+
+@router.put("/coach/games/{match_id}/review")
+def put_review(match_id: str, body: ReviewAnswer, svc=Depends(svc_from)):
+    _require_profile(svc)
+    match_id = match_id.strip().upper()
+    if not svc.db.scalar("SELECT 1 FROM my_games WHERE match_id = ?", (match_id,)):
+        raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
+    store.save_review_answer(svc.db, match_id, body.t, body.question, body.answer)
+    return {"ok": True}
+
+
+@router.get("/coach/learn")
+def learn_catalog():
+    """Material gratuito de coaches por tema («Aprende esto») y qué etiquetas de cada momento llevan a cada tema."""
+    return learn.catalog()
 
 
 @router.post("/coach/reanalyze")

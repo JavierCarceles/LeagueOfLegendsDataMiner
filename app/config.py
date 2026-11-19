@@ -8,7 +8,7 @@ gestiona :mod:`app.riot.keys` para poder recargarla en caliente.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -60,8 +60,6 @@ class Settings:
     coachings_dir: Path = BASE_DIR / "data" / "coachings"
     ddragon_dir: Path = BASE_DIR / "data" / "ddragon"
     ddragon_lang: str = "es_ES"
-    gemini_keys: list[str] = field(default_factory=list)
-    gemini_models: list[str] = field(default_factory=list)
     # Colas que alimentan las estadísticas agregadas (420 = SoloQ, 440 = Flex).
     stats_queues: tuple[int, ...] = (420, 440)
     # Datos de OP.GG (counters, tier list, sinergias, guías de matchup).
@@ -73,6 +71,8 @@ class Settings:
     warmer_enabled: bool = True
     # Pausa las descargas en segundo plano mientras juegas (cliente de LoL abierto aquí).
     pause_in_game: bool = True
+    # Referencias de tu elo objetivo con partidas reales (tandas pequeñas en segundo plano, prioridad baja).
+    calibrate_enabled: bool = True
     # Prioridad baja del proceso (Windows): el juego siempre va primero.
     low_priority: bool = True
 
@@ -93,12 +93,6 @@ class Settings:
         else:
             coachings_dir = data_dir / "coachings"
 
-        gemini_keys = _split(env("GEMINI_KEYS"))
-        for name in ("GEMINI_KEY_1", "GEMINI_KEY_2", "GEMINI_KEY_3"):
-            value = env(name)
-            if value and value not in gemini_keys:
-                gemini_keys.append(value)
-
         queues = tuple(int(q) for q in _split(env("STATS_QUEUES", "420,440")) if q.isdigit())
 
         return cls(
@@ -110,14 +104,13 @@ class Settings:
             coachings_dir=coachings_dir,
             ddragon_dir=data_dir / "ddragon",
             ddragon_lang=env("DDRAGON_LANG", "es_ES") or "es_ES",
-            gemini_keys=gemini_keys,
-            gemini_models=_split(env("GEMINI_MODELS", "gemini-2.5-flash,gemini-2.5-flash-lite")),
             stats_queues=queues or (420, 440),
             opgg_enabled=_flag("OPGG_ENABLED"),
             lolalytics_enabled=_flag("LOLALYTICS_ENABLED"),
             patchnotes_enabled=_flag("PATCHNOTES_ENABLED"),
             warmer_enabled=_flag("PRELOAD_ENABLED"),
             pause_in_game=_flag("PAUSE_IN_GAME"),
+            calibrate_enabled=_flag("CALIBRATE_ENABLED"),
             low_priority=_flag("LOW_PRIORITY"),
         )
 

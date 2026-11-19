@@ -8,7 +8,9 @@ host** (cada plataforma y cada región tienen su propio cupo). Este limitador:
 * Se **auto-ajusta** leyendo ``X-App-Rate-Limit`` / ``X-Method-Rate-Limit``:
   si mañana usas una key personal o de producción, aprovecha su cupo.
 * Sincroniza los contadores con ``*-Count``: tras reiniciar el servidor no
-  vuelve a quemar el cupo que Riot aún recuerda.
+  vuelve a quemar el cupo que Riot aún recuerda. Lo que Riot cuenta y este
+  proceso no pidió es de **otra app con la misma key** (otra copia abierta en
+  otro ordenador, por ejemplo): se mide para avisarte, porque os repartís el cupo.
 * Respeta ``Retry-After`` en los 429.
 * Tiene **prioridades**: el recolector en segundo plano deja libre un
   porcentaje del cupo para que las búsquedas interactivas respondan rápido, y
@@ -25,6 +27,8 @@ from collections import defaultdict, deque
 
 DEV_KEY_LIMITS: list[tuple[int, int]] = [(20, 1), (100, 120)]
 MARGIN = 0.12  # segundos extra por jitter de red / reloj
+FOREIGN_GRACE_S = 130  # al arrancar, lo que Riot recuerda de la ejecución anterior no es «otra app»
+FOREIGN_WINDOW_S = 120
 
 
 class Priority:
@@ -92,6 +96,13 @@ class _Bucket:
     def wait(self, now: float, reserve_frac: float = 0.0) -> float:
         return max((w.wait(now, reserve_frac) for w in self.windows), default=0.0)
 
+    def pace(self, reserve_frac: float) -> float:
+        """Separación mínima para repartir una cuota a lo largo de la ventana larga (s por petición)."""
+        longest = max(self.windows, key=lambda w: w.seconds, default=None)
+        if longest is None or longest.seconds < 10:
+            return 0.0
+        return longest.seconds / max(1, longest.capacity(reserve_frac))
+
     def record(self, now: float) -> None:
         for window in self.windows:
             window.stamps.append(now)
@@ -103,8 +114,11 @@ class _Bucket:
         self.windows = [_Window(limit, seconds, deque(history)) for limit, seconds in limits]
         return True
 
-    def sync_counts(self, counts: list[tuple[int, int]], now: float) -> None:
+    def sync_counts(self, counts: list[tuple[int, int]], now: float) -> int:
+        """Ajusta las ventanas a lo que cuenta Riot. Devuelve cuántas peticiones de la ventana larga no eran nuestras."""
         server = {seconds: count for count, seconds in counts}
+        longest = max((w.seconds for w in self.windows), default=0)
+        foreign = 0
         for window in self.windows:
             count = server.get(window.seconds)
             if count is None:
@@ -113,6 +127,9 @@ class _Bucket:
             missing = count - len(window.stamps)
             if missing > 1:  # tolerancia para peticiones en vuelo
                 window.stamps.extend([now] * missing)
+                if window.seconds == longest:
+                    foreign = missing
+        return foreign
 
     def usage(self, now: float) -> list[dict]:
         out = []
@@ -131,6 +148,9 @@ class RateLimiter:
         self._blocked: dict[str, float] = {}
         self.reserve_frac = reserve_frac
         self._stats: dict[str, dict[str, int]] = defaultdict(lambda: {"requests": 0, "rate_limited": 0})
+        self._foreign: dict[str, deque] = defaultdict(lambda: deque(maxlen=5000))  # host -> [(cuándo, peticiones ajenas)]
+        self._low_next: dict[str, float] = {}  # host -> desde cuándo puede salir la siguiente de prioridad baja
+        self._born: float | None = None
         self._clock = time.monotonic
 
     def _app_bucket(self, host: str) -> _Bucket:
@@ -149,6 +169,7 @@ class RateLimiter:
     ) -> bool:
         """Bloquea hasta poder lanzar la petición. False si se cancela/expira."""
         reserve = _reserve_for(priority, self.reserve_frac)
+        paced = priority == Priority.LOW
         deadline = None if timeout is None else self._clock() + timeout
         method_key = f"{host}|{method}"
         with self._cond:
@@ -163,8 +184,13 @@ class RateLimiter:
                     self._blocked.get(method_key, 0.0) - now,
                     app.wait(now, reserve),
                     meth.wait(now) if meth else 0.0,
+                    # Prioridad baja repartida a lo largo de la ventana: si llenara la ventana de golpe, sus marcas
+                    # caducarían todas a la vez al final y una búsqueda tuya esperaría hasta 2 min (se midieron 92 s).
+                    self._low_next.get(host, 0.0) - now if paced else 0.0,
                 )
                 if wait <= 0:
+                    if paced:
+                        self._low_next[host] = max(now, self._low_next.get(host, now)) + app.pace(reserve)
                     app.record(now)
                     if meth:
                         meth.record(now)
@@ -179,13 +205,20 @@ class RateLimiter:
         applied = 0.0
         with self._cond:
             now = self._clock()
+            if self._born is None:
+                self._born = now
             app = self._app_bucket(host)
             app_limits = parse_limits(headers.get("X-App-Rate-Limit"))
             if app_limits:
                 app.set_limits(app_limits)
             app_counts = parse_limits(headers.get("X-App-Rate-Limit-Count"))
             if app_counts:
-                app.sync_counts(app_counts, now)
+                foreign = app.sync_counts(app_counts, now)
+                if foreign and now - self._born >= FOREIGN_GRACE_S:
+                    seen = self._foreign[host]
+                    seen.append((now, foreign))
+                    while seen and seen[0][0] < now - FOREIGN_WINDOW_S:  # sin la web abierta nadie lo podaba
+                        seen.popleft()
 
             method_limits = parse_limits(headers.get("X-Method-Rate-Limit"))
             if method_limits:
@@ -223,9 +256,14 @@ class RateLimiter:
                     [self._blocked.get(host, 0.0) - now]
                     + [until - now for key, until in self._blocked.items() if key.startswith(f"{host}|")]
                 )
+                foreign = self._foreign.get(host)
+                while foreign and foreign[0][0] < now - FOREIGN_WINDOW_S:
+                    foreign.popleft()
                 hosts[host] = {
                     "windows": bucket.usage(now),
                     "blocked_for": round(max(0.0, blocked), 1),
                     **self._stats[host],
+                    # Peticiones de otra app con esta misma key en los últimos 2 minutos (os repartís el cupo).
+                    "foreign": sum(n for _, n in foreign) if foreign else 0,
                 }
             return hosts

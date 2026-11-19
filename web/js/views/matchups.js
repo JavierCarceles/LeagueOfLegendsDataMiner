@@ -2,10 +2,7 @@
 import { api, filterParams } from "../api.js";
 import { champPicker } from "../components/picker.js";
 import { dd, ROLE_LABEL, state } from "../state.js";
-import {
-  champ, champImg, collapsible, confidenceEl, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice,
-  patchChanges, roleIcon, roleTabs, runeImg, select, sourceBadges, spellImg, table, verdictEl, wrCell, wrClass,
-} from "../ui.js";
+import { champ, champImg, collapsible, confidenceEl, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, modal, mount, notice, patchChanges, roleIcon, roleTabs, runeImg, select, sourceBadges, spellImg, table, verdictEl, wrCell, wrClass } from "../ui.js";
 import { isPending } from "../api.js";
 
 let root = null;
@@ -70,6 +67,7 @@ function updateHash() {
 
 async function load() {
   if (!root) return;
+  const fresh = latest("matchups");
   if (!params.champ) {
     mount(listEl, loading());
     try {
@@ -92,7 +90,7 @@ async function load() {
   mount(listEl, loading("Cargando enfrentamientos…"));
   try {
     const data = await api.get(`/api/matchups/${params.role}/${params.champ}`, filterParams({ min_games: opts.minGames, sort: opts.sort }));
-    if (!root) return;
+    if (!root || !fresh()) return;
     renderList(data);
   } catch (err) {
     mount(listEl, errorBox(err));
@@ -320,7 +318,6 @@ function opggCard(d, g) {
 
 function guideBlock(d) {
   const box = h("div");
-  const features = state.status?.features || {};
   const showContent = async () => {
     mount(box, loading("Abriendo guía…"));
     try {
@@ -330,23 +327,10 @@ function guideBlock(d) {
       mount(box, errorBox(err));
     }
   };
-  const generate = async () => {
-    mount(box, loading("Generando guía con Gemini usando estas estadísticas…"));
-    try {
-      const g = await api.post("/api/guides/generate", { role: d.role, champ: d.champ, opp: d.opp });
-      mount(box, h("div.row", h("span.pill.pill-gold", "IA"), h("span.tiny.muted", g.path)), h("div.prose", { style: { marginTop: "10px" } }, g.content));
-    } catch (err) {
-      mount(box, errorBox(err), generateBtn());
-    }
-  };
-  const generateBtn = () =>
-    features.gemini
-      ? h("button.btn.btn-primary", { onclick: generate, style: { marginTop: "10px" } }, icon("spark"), "Generar guía con IA")
-      : h("p.small.muted", "Para generar guías con IA añade GEMINI_KEY_1 en .env e instala requirements-coaching.txt.");
   if (d.guide) {
     mount(box, h("div.row", h("span.pill.pill-gold", d.guide.source), h("span.small.muted", d.guide.path), h("span.spacer"), h("button.btn.btn-sm", { onclick: showContent }, icon("eye"), "Leer guía")));
   } else {
-    mount(box, h("p.small.muted", "Todavía no hay guía guardada para este enfrentamiento."), generateBtn());
+    mount(box, h("p.small.muted", "Todavía no hay guía guardada para este enfrentamiento."));
   }
   return box;
 }

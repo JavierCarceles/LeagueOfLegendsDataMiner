@@ -32,7 +32,7 @@ async function request(method, path, { params, body, signal } = {}) {
     });
   } catch (err) {
     if (err?.name === "AbortError") throw err;
-    throw new ApiError(0, "No hay conexión con Tempu Drafter. ¿Sigue abierta la ventana de iniciar.bat?", "offline");
+    throw new ApiError(0, "No hay conexión con Tempu Drafter. ¿Sigue abierta su ventana (run.py)? Si la cerraste, vuelve a abrir run.py.", "offline");
   }
   let data = null;
   try {
@@ -62,5 +62,6 @@ export const api = {
   get: (path, params, opts) => request("GET", path, { params, ...opts }),
   post: (path, body, params, opts) => request("POST", path, { body, params, ...opts }),
   patch: (path, body, params, opts) => request("PATCH", path, { body, params, ...opts }),
+  put: (path, body, params, opts) => request("PUT", path, { body, params, ...opts }),
   del: (path, params, opts) => request("DELETE", path, { params, ...opts }),
 };

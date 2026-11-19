@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 from collections import Counter, defaultdict
 
+from app.coach import learn
 from app.coach.benchmarks import CATEGORIES, METRICS, References, applies
 
 RECENT = 10
@@ -35,7 +36,7 @@ RULES: list[dict] = [
         "weight": 1.35,
         "title": "Te pilla el jungla rival",
         "detail": "{v} muertes por partida antes del 14 en las que participa el jungla rival (referencia {ref}).",
-        "tip": "Antes de empujar, piensa dónde está el jungla rival: fíjate por qué lado empezó y cuenta ~3:15 para su primer gank. Si no lo has visto en 30-40 s, juega como si viniera a tu línea. Pon un ward en el río o el tribush a partir del 2:45.",
+        "tip": "Antes de empujar, piensa dónde está el jungla rival: si limpia toda su jungla suele llegar hacia el 3:15-3:45, y si ganquea tras 3 campamentos, desde el 2:30. Si no lo has visto en 30 s, juega como si viniera a tu línea y pon un ward en el río o en el arbusto lateral hacia el 2:15.",
         "goal": ("<=", 0, "Que no te mate el jungla rival antes del minuto 14"),
     },
     {
@@ -223,7 +224,7 @@ RULES: list[dict] = [
         "weight": 1.0,
         "title": "No sigues al jungla rival",
         "detail": "{v} ganks del jungla rival por partida en la otra mitad del mapa mientras tú estabas lejos (referencia {ref}).",
-        "tip": "Deduce su ruta por dónde empezó: si empieza arriba, a los 3:15 estará abajo. Ve a su mismo lado para contraganquear, o al contrario para invadir o hacer objetivo.",
+        "tip": "Busca dónde aparece en los primeros minutos (wards en su jungla, quién falta en las líneas) y sigue su rastro: ve a su mismo lado para contraganquear, o al contrario para invadir o hacer un objetivo.",
         "goal": ("<=", 0, "Que el jungla rival no ganquee al otro lado sin respuesta"),
     },
     {
@@ -260,6 +261,8 @@ RULES: list[dict] = [
         "goal": ("<=", "ref", "Morir {t} veces o menos"),
     },
 ]
+
+RULE_BY_METRIC = {r["metric"]: r for r in RULES}
 
 FUNDAMENTALS = [
     ("deaths_pre14", 1.2),
@@ -316,6 +319,10 @@ TAG_LABELS = {
     "traded": "Con algo a cambio",
     "game_end": "Empujón final",
     "afk": "Antes de desconectarte",
+    "fight_outnumbered": "Con uno menos en un objetivo",
+    "collapsed": "Cazado en su mitad",
+    "baron_buff": "Con la mejora del barón",
+    "bounty": "Recompensa regalada",
 }
 
 
@@ -325,6 +332,8 @@ def reliable(game: dict) -> bool:
     if game.get("queue") in EXCLUDED_QUEUES:
         return False
     m = game.get("metrics") or {}
+    if (m.get("riot_afk") or 0) > 0:  # Riot detectó a alguien AFK (aunque nuestra detección por posiciones no llegue a 3 min)
+        return False
     return all((m.get(k) or 0) < AFK_EXCLUDE_MIN for k in ("afk_min", "ally_afk_min", "enemy_afk_min"))
 
 
@@ -433,6 +442,9 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
             pairs.append((value, ref, g["role"]))
         if not pairs:
             continue
+        # Muestra de la referencia (si es calibrada en todos los roles de estas partidas): su incertidumbre también cuenta.
+        sizes = [refs.sample_size(r, key) if hasattr(refs, "sample_size") else None for r in {r for _, _, r in pairs}]
+        ref_n = min(sizes) if sizes and all(sizes) else None
         values = [v for v, _, _ in pairs]
         value = _mean(values)
         ref = _mean([r for _, r, _ in pairs])
@@ -452,6 +464,7 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
                 "dev": round(dev, 3),
                 "status": status,
                 "games": len(pairs),
+                "ref_n": ref_n,
                 "sd": _round(math.sqrt(_var(values)), m.decimals + 2) if len(values) >= 2 else None,
                 "trend": trend,
                 "series": [_round(v, m.decimals + 1) for v, _, _ in pairs[:20]],
@@ -460,10 +473,23 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
     return rows
 
 
-def _count_beyond(value: float, ref: float, n: int, better: str) -> bool:
-    """Recuentos por partida (muertes, objetivos…): el intervalo al 80 % tiene que quedar fuera de la referencia."""
-    margin = Z_80 * math.sqrt(max(value, 0.0) / max(n, 1))
+def _count_beyond(value: float, ref: float, n: int, better: str, ref_n: int | None = None) -> bool:
+    """Recuentos por partida (muertes, objetivos…): el intervalo al 80 % tiene que quedar fuera de la referencia.
+
+    Si la referencia sale de una muestra (calibrada), también se suma su incertidumbre (dos tasas de Poisson).
+    """
+    variance = max(value, 0.0) / max(n, 1) + (max(ref, 0.0) / ref_n if ref_n else 0.0)
+    margin = Z_80 * math.sqrt(variance)
     return value - margin > ref if better == "lower" else value + margin < ref
+
+
+def _mean_beyond(row: dict, ref: float, m) -> bool:
+    """Métricas que no son recuentos: el intervalo al 80 % de tu media tiene que quedar fuera de la referencia."""
+    sd, n = row.get("sd"), row["games"]
+    if sd is None or n < 2:
+        return False
+    bound = Z_80 * sd / math.sqrt(n)
+    return row["value"] - bound > ref if m.better == "lower" else row["value"] + bound < ref
 
 
 def _consistent(row: dict, m) -> bool:
@@ -492,8 +518,10 @@ def weaknesses(table: list[dict], death_tags: dict, limit: int = 8) -> list[dict
                 continue
         elif dev < 0.15:
             continue
-        if m.count and not _count_beyond(value, ref, n, m.better):
+        if m.count and not _count_beyond(value, ref, n, m.better, row.get("ref_n")):
             continue
+        if not m.count and "min_abs" not in rule and not _mean_beyond(row, ref, m):
+            continue  # una o dos partidas malas no bastan: la media tiene que quedar fuera con claridad
         if any(s in found for s in rule.get("skip_if", [])):
             continue
         # Escala saturante: conserva el orden aunque te alejes mucho de la referencia.
@@ -516,8 +544,294 @@ def weaknesses(table: list[dict], death_tags: dict, limit: int = 8) -> list[dict
             "games": row["games"],
             "trend": row["trend"],
             "goal": _suggested_goal(rule, row, by_key),
+            "learn": learn.for_metric(rule["metric"]),
         }
     return sorted(found.values(), key=lambda w: w["severity"], reverse=True)[:limit]
+
+
+# ------------------------------------------------------------ errores que repites
+# Errores concretos que el análisis detecta en cada partida (cada uno se puede ver en la repetición), agrupados por
+# tipo. No dependen de ninguna referencia: si se repiten en muchas partidas, son algo a corregir aunque tus medias
+# estén en lo normal de tu elo.
+RECURRING_MIN_GAMES = 3  # partidas distintas con ese error…
+RECURRING_MIN_RATE = 0.2  # …y al menos en el 20 % de tus partidas fiables con timeline
+RECURRING_EXAMPLES = 4
+# No son errores aunque se muestren: peleas ganadas, buenos cambios, AFK, final de partida, build completa (ahorrar
+# es lo correcto) y objetivos que no se podían disputar (inferioridad numérica).
+NOT_A_MISTAKE = {"fight_won", "traded", "fair_trade", "afk", "game_end", "full_build", "outnumbered"}
+SEVERITY_WEIGHT = {"high": 3.0, "medium": 2.0, "low": 1.0}
+MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo más general)
+    {"id": "death_outnumbered_objective", "kind": "death", "need": ("fight_outnumbered",), "metric": None,
+     "title": "Peleas los objetivos con uno menos",
+     "tip": "Antes de entrar al foso cuenta los vivos: si un aliado lleva un rato muerto y ellos están todos, cede el objetivo o cámbialo al otro lado (su jungla, una torre). Solo el ancestral y su alma merecen pelearse con uno menos."},
+    {"id": "death_before_objective", "kind": "death", "need": ("before_objective",), "metric": "deaths_before_objective",
+     "title": "Mueres justo antes de un objetivo rival"},
+    {"id": "death_gank_no_ward", "kind": "death", "need": ("gank", "no_ward"), "metric": "deaths_no_vision_pre14",
+     "title": "Te ganquean sin visión"},
+    {"id": "death_overextended", "kind": "death", "need": ("overextended",), "metric": "deaths_overextended",
+     "title": "Mueres adelantado en la línea"},
+    {"id": "death_enemy_jungle", "kind": "death", "need": ("enemy_jungle",), "metric": "deaths_enemy_jungle",
+     "title": "Mueres en la jungla rival"},
+    {"id": "death_unspent_gold", "kind": "death", "need": ("unspent_gold",), "metric": "deaths_unspent_gold",
+     "title": "Mueres con oro sin gastar"},
+    {"id": "death_collapsed", "kind": "death", "need": ("collapsed",), "metric": None,
+     "title": "Te cazan solo en la mitad rival del mapa",
+     "tip": "Al otro lado del río, en una línea lateral, entra solo con wards y sabiendo dónde están al menos 3 rivales. Si desaparecen del mapa, retírate hacia tu torre antes de que lleguen."},
+    {"id": "death_isolated", "kind": "death", "need": ("isolated",), "metric": "deaths_isolated_late",
+     "title": "Te cogen solo, lejos de tu equipo"},
+    {"id": "death_solo", "kind": "death", "need": ("solo",), "metric": "deaths_solo", "title": "Pierdes duelos 1 contra 1"},
+    {"id": "death_gank", "kind": "death", "need": ("gank",), "metric": "deaths_ganked", "title": "Te ganquean"},
+    {"id": "objective_far", "kind": "objective", "need": ("far",), "metric": "obj_lost_far",
+     "title": "El rival coge objetivos estando tú lejos y sin cambio"},
+    {"id": "objective_late_recall", "kind": "objective", "need": ("late_recall",), "metric": None,
+     "title": "Vuelves a base a destiempo antes de los objetivos",
+     "tip": "Mira el reloj del objetivo: empuja tu oleada o acaba el campamento y vuelve a base 60-90 s antes de que aparezca. Si ya está en el mapa y tu equipo va a por él, no vuelvas: ve con ellos."},
+    {"id": "objective_late", "kind": "objective", "need": ("late",), "metric": None,
+     "title": "Llegas tarde a los objetivos que se pelean",
+     "tip": "Un minuto antes de que aparezca un objetivo, ponte en camino: empuja la oleada y llega al foso con tiempo para poner visión. Llegar cuando ya ha empezado la pelea deja a tu equipo con uno menos."},
+    {"id": "fight_unconverted", "kind": "objective", "need": ("unconverted",), "metric": None,
+     "title": "Ganáis peleas y no las convertís",
+     "tip": "Tras ganar una pelea con ventaja numérica, lo primero es el objetivo más cercano (dragón, barón, una torre) y después la base. La ventaja dura hasta que reaparecen."},
+    {"id": "baron_wasted", "kind": "objective", "need": ("baron_wasted",), "metric": None,
+     "title": "No aprovecháis el barón",
+     "tip": "Con la mejora del barón, agrupaos y asediad una torre (o presionad dos líneas a la vez) en los 3 minutos que dura; no os separéis a farmear."},
+    {"id": "objective_dead", "kind": "objective", "need": ("dead",), "metric": "obj_lost_dead",
+     "title": "El rival coge objetivos mientras estás muerto",
+     "tip": "Antes de cada objetivo, juega para estar vivo: retrocede si no ves a varios rivales y no busques peleas sin visión en el minuto previo."},
+    {"id": "gold_hoard", "kind": "gold", "need": (), "metric": "gold_hoard_min", "title": "Tardas en gastar el oro"},
+    {"id": "r_late", "kind": "build", "need": ("skills",), "metric": "r_late", "title": "Subes la R tarde"},
+    {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "title": "Sin botas mejoradas al minuto 20",
+     "tip": "Las botas de nivel 2 cuestan poco y dan mucha movilidad: cómpralas entre el primer y el segundo objeto salvo que tu campeón no las use."},
+    {"id": "no_antiheal", "kind": "build", "need": ("anti_heal",), "metric": None, "title": "Sin Heridas graves contra curaciones",
+     "tip": "Contra campeones que se curan mucho, compra un componente de Heridas graves (desde 800 de oro) en cuanto empiecen a pelear."},
+    {"id": "no_resist", "kind": "build", "need": ("resist",), "metric": None, "title": "No te defiendes del daño que más recibes",
+     "tip": "Mira en la pantalla de muerte qué tipo de daño te mata: si casi todo es físico o mágico, mete armadura o resistencia mágica en tu siguiente compra."},
+    {"id": "enemy_jungler_far", "kind": "jungle", "need": ("tracking",), "metric": "enemy_ganks_far", "title": "No sigues al jungla rival"},
+    {"id": "pink_unused", "kind": "vision", "need": ("pink",), "metric": None, "title": "Llevas pinks y no las usas en los objetivos",
+     "tip": "Una pink en el inventario no da visión: ponla en el foso o en el arbusto de entrada un minuto antes de cada objetivo."},
+]
+
+
+def _mistake_type(kind: str, tags: set) -> dict | None:
+    if tags & NOT_A_MISTAKE:
+        return None
+    for mt in MISTAKE_TYPES:
+        if mt["kind"] == kind and all(t in tags for t in mt["need"]):
+            return mt
+    return None
+
+
+def recurring_mistakes(games: list[dict]) -> dict:
+    """Tipos de error que se repiten en tus partidas: en cuántas, cuántas veces y ejemplos para verlos."""
+    pool = [g for g in games if reliable(g) and g.get("has_timeline") and g.get("mistakes") is not None]
+    groups: dict[str, dict] = {}
+    for g in pool:
+        for kind, severity, t, tags, title in g["mistakes"]:
+            mt = _mistake_type(kind, set(tags or []))
+            if mt is None:
+                continue
+            grp = groups.setdefault(mt["id"], {"type": mt, "count": 0, "games": set(), "weight": 0.0, "examples": []})
+            grp["count"] += 1
+            grp["games"].add(g["match_id"])
+            grp["weight"] += SEVERITY_WEIGHT.get(severity, 1.0)
+            if len(grp["examples"]) < RECURRING_EXAMPLES and not any(e["match_id"] == g["match_id"] for e in grp["examples"]):
+                grp["examples"].append({"match_id": g["match_id"], "t": t, "title": title, "champ": g["champ"], "win": g["win"]})
+    n = len(pool)
+    out = []
+    for grp in groups.values():
+        games_with = len(grp["games"])
+        rate = games_with / n if n else 0.0
+        if games_with < RECURRING_MIN_GAMES or rate < RECURRING_MIN_RATE:
+            continue
+        mt = grp["type"]
+        rule = RULE_BY_METRIC.get(mt["metric"]) if mt["metric"] else None
+        out.append(
+            {
+                "id": mt["id"],
+                "title": mt["title"],
+                "tip": mt.get("tip") or (rule or {}).get("tip") or "",
+                "metric": mt["metric"],
+                "games": games_with,
+                "count": grp["count"],
+                "of": n,
+                "rate": round(rate * 100),
+                "severity": round(grp["weight"] / grp["count"], 2),
+                "score": round(rate * grp["weight"] / grp["count"], 3),
+                "examples": grp["examples"],
+                "learn": learn.for_mistake(mt["id"]),
+            }
+        )
+    out.sort(key=lambda x: x["score"], reverse=True)
+    return {"items": out, "sample": n}
+
+
+# ------------------------------------------------------------------ hábitos
+SESSION_GAP_MS = 60 * 60_000  # más de una hora entre partidas: otra sesión
+TILT_STREAK = 2  # derrotas seguidas
+TILT_MIN_GAMES = 5
+TILT_MIN_DROP = 10  # puntos de porcentaje
+LONG_SESSION = 5  # los coaches recomiendan sesiones de 3-5 partidas concentradas
+POOL_MAX = 3
+POOL_WINDOW = 20  # últimas partidas del rol
+POOL_MIN_GAMES = 10
+LEAD_WASTED = 2000  # oro de equipo a favor
+
+
+def _wr(results: list[bool]) -> int | None:
+    return round(sum(results) / len(results) * 100) if results else None
+
+
+def sessions_of(games: list[dict]) -> list[list[dict]]:
+    """Partidas agrupadas en sesiones (de la más antigua a la más reciente; > 1 h entre partidas = otra sesión)."""
+    ordered = sorted((g for g in games if g.get("game_start")), key=lambda g: g["game_start"])
+    out: list[list[dict]] = []
+    prev_end = None
+    for g in ordered:
+        start = g["game_start"]
+        if prev_end is None or start - prev_end > SESSION_GAP_MS:
+            out.append([])
+        out[-1].append(g)
+        prev_end = start + (g.get("duration") or 0) * 1000
+    return out
+
+
+def tilt_report(games: list[dict]) -> dict | None:
+    """Tu porcentaje de victorias tras 2 derrotas seguidas (en la misma sesión) y por número de partida en la sesión.
+
+    Solo avisa si la caída es clara: al menos 10 puntos y más que el error típico de esa muestra.
+    """
+    sessions = sessions_of(games)
+    if not sessions:
+        return None
+    after: list[bool] = []
+    by_index: dict[int, list[bool]] = defaultdict(list)
+    for s in sessions:
+        streak = 0
+        for i, g in enumerate(s):
+            by_index[min(i + 1, 4)].append(bool(g["win"]))
+            if streak >= TILT_STREAK:
+                after.append(bool(g["win"]))
+            streak = 0 if g["win"] else streak + 1
+    results = [bool(g["win"]) for s in sessions for g in s]
+    overall = sum(results) / len(results)
+    wr_after = sum(after) / len(after) if after else None
+    se = math.sqrt(max(overall * (1 - overall), 0.05) / len(after)) if after else None
+    drop = (overall - wr_after) * 100 if wr_after is not None else None
+    tilted = bool(after) and len(after) >= TILT_MIN_GAMES and drop >= max(TILT_MIN_DROP, Z_80 * se * 100)
+    long_sessions = [s for s in sessions if len(s) >= LONG_SESSION]
+    if tilted:
+        message = (
+            f"Tras {TILT_STREAK} derrotas seguidas ganas el {round(wr_after * 100)} % ({len(after)} partidas), frente al {round(overall * 100)} % "
+            "general: después de 2 derrotas, para al menos 15 minutos antes de la siguiente."
+        )
+    elif len(after) >= TILT_MIN_GAMES:
+        message = f"Tras {TILT_STREAK} derrotas seguidas: {round(wr_after * 100)} % de victorias en {len(after)} partidas (general {round(overall * 100)} %). No hay una caída clara."
+    else:
+        message = f"Aún hay pocas partidas jugadas tras {TILT_STREAK} derrotas seguidas ({len(after)}) para saber si te afecta."
+    return {
+        "games": len(results),
+        "sessions": len(sessions),
+        "wr": round(overall * 100),
+        "after_losses": {"games": len(after), "wr": _wr(after)},
+        "tilted": tilted,
+        "by_game": [{"n": n, "label": f"{n}.ª" if n < 4 else "4.ª o más", "games": len(v), "wr": _wr(v)} for n, v in sorted(by_index.items())],
+        "long_sessions": len(long_sessions),
+        "message": message,
+        "learn": learn.topic("tilt") if tilted else None,
+    }
+
+
+def pool_report(games: list[dict]) -> list[dict]:
+    """Por rol: cuántos campeones distintos juegas en tus últimas partidas y un núcleo propuesto de 2-3."""
+    by_role: dict[str, list[dict]] = defaultdict(list)
+    for g in sorted(games, key=lambda g: g.get("game_start") or 0, reverse=True):
+        if g.get("role") and len(by_role[g["role"]]) < POOL_WINDOW:
+            by_role[g["role"]].append(g)
+    out = []
+    for role, items in by_role.items():
+        if len(items) < POOL_MIN_GAMES:
+            continue
+        champs: dict[int, list[bool]] = defaultdict(list)
+        for g in items:
+            champs[g["champ"]].append(bool(g["win"]))
+        ranked = sorted(champs.items(), key=lambda kv: (len(kv[1]), sum(kv[1])), reverse=True)
+        core = [{"champ": c, "games": len(r), "wr": _wr(r)} for c, r in ranked[:POOL_MAX] if len(r) >= 2]
+        wide = len(champs) > POOL_MAX
+        out.append(
+            {
+                "role": role,
+                "games": len(items),
+                "champions": len(champs),
+                "wide": wide,
+                "core": core,
+                "message": (
+                    f"Has jugado {len(champs)} campeones distintos en tus últimas {len(items)} partidas de este rol: los coaches recomiendan un núcleo "
+                    "de 2-3 para dominar sus matchups y picos de poder."
+                    if wide else f"Juegas {len(champs)} {'campeón' if len(champs) == 1 else 'campeones'} en tus últimas {len(items)} partidas de este rol."
+                ),
+            }
+        )
+    out.sort(key=lambda r: r["games"], reverse=True)
+    return out
+
+
+def leads_report(games: list[dict]) -> dict | None:
+    """Derrotas con 2.000 de oro de equipo a favor en algún momento (ventajas que se escapan) y remontadas."""
+    pool = [g for g in games if reliable(g) and g.get("has_timeline") and (g.get("metrics") or {}).get("max_lead") is not None]
+    if not pool:
+        return None
+    losses = [g for g in pool if not g["win"]]
+    wasted = [g for g in losses if g["metrics"]["max_lead"] >= LEAD_WASTED]
+    comebacks = [g for g in pool if g["win"] and (g["metrics"].get("max_deficit") or 0) <= -LEAD_WASTED]
+    return {
+        "games": len(pool),
+        "losses": len(losses),
+        "wasted": len(wasted),
+        "comebacks": len(comebacks),
+        "examples": [
+            {"match_id": g["match_id"], "champ": g["champ"], "lead": g["metrics"]["max_lead"], "t": round((g["metrics"].get("max_lead_min") or 0) * 60)}
+            for g in sorted(wasted, key=lambda g: g["metrics"]["max_lead"], reverse=True)[:RECURRING_EXAMPLES]
+        ],
+        "learn": learn.topic("macro") if wasted and len(wasted) >= 2 else None,
+    }
+
+
+# ------------------------------------------------------------ revisión guiada
+# Método de revisión de Mauro Garih: 3 momentos por partida y 3 preguntas en cada uno (docs/coaches.md).
+REVIEW_QUESTIONS = [
+    {"id": "knew", "label": "¿Qué sabías en ese momento?", "hint": "Dónde estaban los rivales y su jungla, tu oro, la oleada, qué objetivo venía…"},
+    {"id": "decided", "label": "¿Qué decidiste y por qué?", "hint": "La jugada que hiciste y lo que pensabas que iba a pasar."},
+    {"id": "better", "label": "¿Qué habría sido mejor?", "hint": "Lo que harías la próxima vez en la misma situación."},
+]
+REVIEW_MOMENTS = 3
+
+
+def review_moments(moments: list[dict], n: int = REVIEW_MOMENTS) -> list[dict]:
+    """Los 3 momentos que más merece la pena revisar: los más graves, a ser posible de tipos distintos."""
+    cands = [
+        m for m in moments
+        if m.get("severity") in SEVERITY_WEIGHT and m.get("kind") not in ("afk", "trade") and not set(m.get("tags") or []) & NOT_A_MISTAKE
+    ]
+    cands.sort(key=lambda m: (-SEVERITY_WEIGHT[m["severity"]], m["t"]))
+    picked: list[dict] = []
+    kinds: set[str] = set()
+    for m in cands:  # primero uno de cada tipo (muerte, objetivo, oro…), solo entre los graves o a mejorar
+        if len(picked) == n or SEVERITY_WEIGHT[m["severity"]] < 2:
+            break
+        if m["kind"] not in kinds:
+            picked.append(m)
+            kinds.add(m["kind"])
+    for m in cands:
+        if len(picked) >= n:
+            break
+        if m not in picked:
+            picked.append(m)
+    return sorted(picked, key=lambda m: m["t"])
+
+
+def habits(games: list[dict]) -> dict:
+    """Hábitos entre partidas (tilt, sesiones, pool de campeones) y ventajas que se escapan."""
+    return {"tilt": tilt_report(games), "pool": pool_report(games), "leads": leads_report(games)}
 
 
 def _death_context(metric: str, tags: dict) -> str:
@@ -661,7 +975,11 @@ def readiness(games: list[dict], refs: References, goals: list[dict]) -> dict:
     elif missing:
         message = f"Te faltan {missing} partidas analizadas para valorarlo con fiabilidad."
     elif ready:
-        message = "Cumples tus propósitos y tus fundamentos están al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
+        message = (
+            "Cumples tus propósitos y tus fundamentos están al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
+            if goals_rate is not None
+            else "Tus fundamentos están al nivel de tu elo objetivo: es buen momento para jugar clasificatorias. Ponte un propósito para seguir mejorando."
+        )
     elif goals_rate is not None and goals_rate < READY_SCORE:
         message = f"Cumples tus propósitos en el {goals_rate} % de tus últimas partidas. Llega al 70 % antes de saltar a clasificatorias."
     else:
@@ -795,6 +1113,16 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         g["score"] = fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"]) if reliable(g) else None
     # Muestra que de verdad sirve para señalar puntos débiles (partidas fiables del rol de cada métrica).
     sample = max((row.get("games") or 0 for row in table), default=0)
+    weak = weaknesses(table, deaths)
+    recurring = recurring_mistakes(games)
+    # Si un error repetido ya tiene su punto débil (misma métrica), se cuenta en él y no se repite en la lista.
+    by_metric = {w["metric"]: w for w in weak}
+    rest = []
+    for item in recurring["items"]:
+        if item["metric"] in by_metric:
+            by_metric[item["metric"]]["recurring"] = item
+        else:
+            rest.append(item)
     return {
         "games": len(games),
         "reliable_games": sum(1 for g in games if reliable(g)),
@@ -804,7 +1132,9 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         "wr": round(wins / len(games) * 100, 1) if games else None,
         "roles": [{"role": r, "games": n} for r, n in roles.most_common()],
         "metrics": table,
-        "weaknesses": weaknesses(table, deaths),
+        "weaknesses": weak,
+        "recurring": rest,
+        "recurring_sample": recurring["sample"],
         "deaths": deaths,
         "jungle": jungle_summary(games),
         "goals": evaluated,

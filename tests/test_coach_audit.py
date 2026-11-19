@@ -263,8 +263,12 @@ def test_plates_elsewhere_do_not_pay_for_a_death():
     plates = [plate(1_510_000 + i * 8_000, 4, 200, "BOT_LANE", (13866, 4505), assists=[5]) for i in range(5)]
     a = run([my_death, *plates])
     assert "traded" not in death(a, 1500.0)["tags"]
-    # Si además cae la torre, sí hay algo a cambio (y sus placas no se cuentan dos veces).
+    # Un 1 contra 1 perdido nunca se «cambia» por lo que haga tu equipo en otra línea (ni con una torre).
     a = run([my_death, *plates, tower(1_555_000, 4, 200, "BOT_LANE", (13866, 4505), assists=[5])])
+    assert "traded" not in death(a, 1500.0)["tags"]
+    # Si atrajiste a dos rivales y cae la torre, sí hay algo a cambio (y sus placas no se cuentan dos veces).
+    drawn = kill(1_500_000, 8, 1, (7400, 7400), assists=[9])
+    a = run([drawn, *plates, tower(1_555_000, 4, 200, "BOT_LANE", (13866, 4505), assists=[5])])
     assert "traded" in death(a, 1500.0)["tags"]
 
 
@@ -363,7 +367,7 @@ def test_death_right_before_a_disconnect_is_not_judged():
     drop = [is_kill(310_000), is_kill(480_000), lambda e: e.get("type") == "WARD_PLACED" and e.get("creatorId") == 1 and 360_000 <= e["timestamp"] <= 660_000]
     a = run([kill(400_000, 6, 1, (1300, 11000))], _disconnected(7, 10), drop=drop)
     d = death(a, 400.0)
-    assert "afk" in d["tags"] and d["severity"] == "low"
+    assert "afk" in d["tags"] and d["severity"] == "info"  # no es un error: informativo
     assert death_moment(a, 400.0)["title"] == "Muerte antes de quedarte AFK o desconectado"
     assert a["metrics"]["deaths_solo"] == 2  # las de las 11:30 y las 25:45; la de antes de desconectarse no cuenta
 
@@ -536,13 +540,16 @@ def test_digest_counts_every_severity():
     a = _dragon_at_20(kill(1_200_000, 4, 9, (12500, 2200), assists=[5]), kill(1_205_000, 4, 10, (12600, 2300), assists=[5]),
                       tower(1_220_000, 1, 200, "TOP_LANE", (4318, 13875)))
     issues = digest(a)["issues"]
-    assert set(issues) == {"high", "medium", "low", "good"} and issues["good"] == 1
+    assert set(issues) == {"high", "medium", "low", "good", "info"} and issues["good"] == 1
     assert sum(issues.values()) == len(a["moments"])
     assert ANALYSIS_VERSION >= 3
 
 
 class _FakeRiot:
     """Riot falso mínimo para ``GameTracker.sync``: una partida y su timeline."""
+
+    def league_entries_by_puuid(self, platform, puuid, **kw):
+        return []
 
     def __init__(self, match: dict, timeline: dict) -> None:
         self.match_id = match["metadata"]["matchId"]
@@ -624,3 +631,74 @@ def test_summary_reports_sample_so_the_ui_never_claims_no_weaknesses_with_few_ga
     enough = insights.summarize(_rows(8), References(None, "PLATINUM"), [])
     assert enough["weakness_sample"] >= enough["min_games_weakness"] and enough["weaknesses"]
     assert enough["reliable_games"] == 8
+
+
+# ------------------------------------------------------------ errores que repites
+def _game(i, mistakes, *, reliable=True, timeline=True, champ=64):
+    return {
+        "match_id": f"EUW1_{i}",
+        "queue": 420 if reliable else 480,
+        "has_timeline": timeline,
+        "champ": champ,
+        "role": "JUNGLE",
+        "win": i % 2 == 0,
+        "metrics": {},
+        "mistakes": mistakes,
+    }
+
+
+def test_recurring_mistakes_groups_real_errors_and_ignores_good_plays():
+    from app.coach.insights import recurring_mistakes
+
+    games = []
+    for i in range(10):
+        mk = []
+        if i < 4:  # 4 de 10 partidas: muerte antes de un objetivo
+            mk.append(["death", "medium", 600 + i, ["before_objective"], "Muerte en pelea"])
+        if i < 6:  # 6 de 10: muertes que se cambiaron bien o en peleas ganadas → no son errores
+            mk.append(["death", "low", 700, ["isolated", "traded"], "Muerte aislado"])
+            mk.append(["death", "low", 800, ["fight_won"], "Caíste, pero ganasteis"])
+        if i < 2:  # solo 2 partidas: por debajo del mínimo
+            mk.append(["build", "low", 1200, ["build", "skills"], "Subiste la R tarde"])
+        games.append(_game(i, mk))
+    games.append(_game(99, [["death", "high", 900, ["before_objective"], "x"]] * 5, reliable=False))  # Swiftplay: fuera
+    res = recurring_mistakes(games)
+    assert res["sample"] == 10
+    assert [r["id"] for r in res["items"]] == ["death_before_objective"]
+    item = res["items"][0]
+    assert (item["games"], item["count"], item["of"], item["rate"]) == (4, 4, 10, 40)
+    assert len(item["examples"]) == 4 and item["examples"][0]["t"] == 600 and item["tip"]
+
+
+def test_recurring_mistakes_without_timeline_or_old_digest_are_not_counted():
+    from app.coach.insights import recurring_mistakes
+
+    games = [_game(i, [["objective", "high", 1500, ["objective", "far"], "El rival cogió el barón"]], timeline=i % 2 == 0) for i in range(6)]
+    games += [_game(10 + i, None) for i in range(6)]  # resumen antiguo (sin errores guardados): no cuenta como «sin errores»
+    res = recurring_mistakes(games)
+    assert res["sample"] == 3
+    assert res["items"][0]["id"] == "objective_far" and res["items"][0]["games"] == 3
+
+
+def test_recurring_error_joins_its_weakness_instead_of_repeating():
+    from app.coach.benchmarks import References
+    from app.coach.insights import summarize
+
+    games = []
+    for i in range(12):
+        g = _game(i, [["death", "medium", 600, ["before_objective"], "Muerte"]] if i < 8 else [])
+        g["metrics"] = {"deaths_before_objective": 1.0 if i < 8 else 0.0}
+        games.append(g)
+    data = summarize(games, References(None, "PLATINUM"), [])
+    weak = next(w for w in data["weaknesses"] if w["metric"] == "deaths_before_objective")
+    assert weak["recurring"]["games"] == 8
+    assert all(r["metric"] != "deaths_before_objective" for r in data["recurring"])
+
+
+def test_next_target_suggests_the_tier_above_your_league():
+    from app.coach.benchmarks import next_target
+
+    assert next_target("PLATINUM", "PLATINUM") == "EMERALD"
+    assert next_target("PLATINUM", "GOLD") == "EMERALD"
+    assert next_target("PLATINUM", "DIAMOND") is None  # ya te exiges más que tu liga
+    assert next_target("CHALLENGER", "MASTER") is None and next_target(None, "GOLD") is None

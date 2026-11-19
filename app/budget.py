@@ -21,8 +21,8 @@ DEFAULT_SECONDS = 3.0
 _current: contextvars.ContextVar["Budget | None"] = contextvars.ContextVar("tempu_budget", default=None)
 
 # Rutas que no tienen sentido con presupuesto (flujo de logs) o que el usuario
-# lanza a propósito y esperan su resultado (guías con IA, backtest…).
-EXEMPT_PREFIXES = ("/api/system/logs", "/api/guides/generate", "/api/guides/youtube", "/api/draft/backtest")
+# lanza a propósito y esperan su resultado (el backtest del modelo…).
+EXEMPT_PREFIXES = ("/api/system/logs", "/api/draft/backtest")
 
 
 class Budget:

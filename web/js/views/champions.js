@@ -1,10 +1,7 @@
 // Tier list por rol y ficha completa de campeón.
 import { api, filterParams } from "../api.js";
 import { dd, ROLE_LABEL, ROLES, state } from "../state.js";
-import {
-  champ, champImg, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, patchChanges, roleIcon, roleTabs,
-  sourceBadges, table, tierBadge, wrCell, wrClass,
-} from "../ui.js";
+import { champ, champImg, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, patchChanges, roleIcon, roleTabs, sourceBadges, table, tierBadge, wrCell, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
 let root = null;
@@ -36,6 +33,7 @@ export function onFilters() {
 async function load() {
   if (!root) return;
   if (mode === "detail" && champId) return loadDetail();
+  const fresh = latest("champions");
   const body = h("div");
   mount(
     root,
@@ -46,7 +44,7 @@ async function load() {
   mount(body, loading("Cargando campeones…"));
   try {
     const data = await api.get("/api/champions", filterParams({ role }));
-    if (!root) return;
+    if (!root || !fresh()) return;
     const rows = data.champions;
     if (!rows.length) return mount(body, h("section.card", empty("Sin datos para estos filtros", "Prueba otro elo, región o parche.")));
     const cols = [
@@ -73,10 +71,11 @@ async function load() {
 }
 
 async function loadDetail() {
+  const fresh = latest("champions");
   mount(root, loading("Cargando campeón…"));
   try {
     const d = await api.get(`/api/champions/${champId}`, filterParams(role ? { role } : {}));
-    if (!root) return;
+    if (!root || !fresh()) return;
     role = d.role;
     mount(root, detailView(d));
   } catch (err) {

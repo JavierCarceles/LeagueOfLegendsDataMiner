@@ -100,6 +100,7 @@ class Lolalytics(CachedSource):
         self._throttle.wait()
         response = self._http().get(API, params={**params, "v": 1, "queue": 420}, timeout=20)
         if response.status_code != 200:
+            self.trip(response.status_code, response.headers.get("Retry-After"))
             raise LolalyticsError(f"HTTP {response.status_code}")
         try:
             data = response.json()

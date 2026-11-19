@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, platformLabel, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, errorBox, fmt, h, icon, kpi, loading, mount, multiSelect, notice, select, toast } from "../ui.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, mount, multiSelect, notice, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
@@ -12,16 +12,32 @@ let sections = {};
 let crawlerForm = null; // configuración que estás editando (sobrevive a los refrescos)
 let crawlerFormFor = null; // "running" | "stopped": el formulario solo se reconstruye al cambiar de estado
 let runningSig = null;
+let limitsNow = {}; // uso de la API por host (para avisar si otra app usa tu misma key)
 
 const ALL_TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
 const APEX = ["MASTER", "GRANDMASTER", "CHALLENGER"];
 const STATUS_LABEL = {
   starting: "Arrancando",
   running: "Recolectando",
+  searching: "Buscando OTPs",
   idle: "En espera",
   waiting_key: "Esperando API key",
   paused_game: "En pausa: estás en partida",
   stopped: "Detenido",
+};
+const SEARCH_LABEL = {
+  starting: "arrancando",
+  running: "en marcha",
+  idle: "al día (todo el ranking revisado)",
+  waiting_key: "esperando API key",
+  paused_game: "en pausa mientras juegas",
+  stopped: "detenida",
+};
+const HISTORY_LABEL = {
+  queued: "historial en cola",
+  loading: "bajando historial",
+  done: "historial completo",
+  share: "historial completo (más atrás no lo jugaba)",
 };
 const REGION_GROUPS = [
   { id: "europe", label: "Europa" },
@@ -39,6 +55,10 @@ export async function render(container) {
   root = container;
   crawlerForm = null;
   crawlerFormFor = null;
+  keyRendered = null;
+  sourcesSig = null;
+  otpsSig = null;
+  otpsAt = 0;
   sections = {
     key: h("div"),
     warmer: h("div"),
@@ -77,18 +97,26 @@ export async function render(container) {
   Object.values(sections).forEach((s) => mount(s, loading()));
   await refresh();
   clearInterval(timer);
-  timer = setInterval(() => root && refresh(), 2500);
+  timer = setInterval(() => root && !interacting() && refresh(), 2500);
+}
+
+/** Eligiendo en un desplegable o escribiendo en la vista: el refresco espera (repintar cerraría el desplegable). */
+function interacting() {
+  const a = document.activeElement;
+  return !!a && a !== document.body && root?.contains(a) && /^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName);
 }
 
 async function refresh() {
+  const fresh = latest("datos.refresh"); // un refresco lento no pisa a uno más nuevo
   try {
     const [status, sources] = await Promise.all([api.get("/api/system/status"), api.get("/api/sources/status").catch(() => null)]);
-    if (!root) return;
+    if (!root || !fresh()) return;
     state.status = status;
     // No se repinta una sección mientras el usuario está escribiendo o eligiendo en ella.
     const busy = (el) => el.contains(document.activeElement) && document.activeElement !== document.body;
     if (!busy(sections.key)) renderKey(status.key);
     renderWarmer(status.warmer);
+    limitsNow = status.ratelimit || {};
     renderCrawler(status.crawler, status.key);
     if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
@@ -332,14 +360,23 @@ function crawlerFormView(key) {
         num("Primera vez: últimos", "days", 1, 60, "días"),
         num("Partidas por jugador", "matches_per_player", 5, 100),
         num("Revisitar cada", "recrawl_hours", 1, 168, "h"),
+        h("p.tiny.muted", { style: { margin: 0, flexBasis: "100%" } }, "«Primera vez» y «Partidas por jugador» son del modo normal. Buscando OTPs no hay tope: se usa «Historial de cada OTP»."),
       ),
-      { summary: `${cfg.matches_per_player} partidas/jugador · ${cfg.days} días` , cls: "flat" },
+      { summary: `${cfg.matches_per_player} partidas/jugador · ${cfg.days} días · revisita ${cfg.recrawl_hours} h`, cls: "flat" },
     ),
     h("div.row-wrap", startBtn, h("span.tiny.muted", "Al iniciarlo, se reanuda solo cada vez que abras la app hasta que lo detengas.")),
   );
 }
 
 const MASTERY_STEPS = [100_000, 300_000, 500_000, 1_000_000, 2_000_000];
+const OTP_DEPTHS = [
+  { value: "season", label: "Temporada actual" },
+  { value: "90", label: "Últimos 90 días" },
+  { value: "180", label: "Últimos 180 días" },
+  { value: "365", label: "Último año" },
+  { value: "all", label: "Todo lo que guarde Riot" },
+];
+const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[0]).label;
 
 /** Búsqueda por campeones: OTPs o jugadores con mucha maestría de los campeones elegidos. */
 function championSection(cfg) {
@@ -398,9 +435,16 @@ function championSection(cfg) {
         "Mínimo",
         select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
       ),
+      h(
+        "label.row.small",
+        { title: "Hasta dónde se baja el historial de cada OTP. La temporada actual es lo comparable: el año anterior tenía otro mapa y otros objetos." },
+        "Historial de cada OTP",
+        select(OTP_DEPTHS, String(cfg.otp_depth || "season"), (v) => (cfg.otp_depth = v), "select select-sm"),
+      ),
       h("label.check", h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }), "Solo sus partidas con esos campeones"),
     ),
-    h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días). OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
+    h("p.tiny.muted", { style: { margin: 0 } }, "Sin tope de partidas por jugador: de cada OTP se baja su historial entero hasta la fecha elegida, 100 partidas por petición. Primero lo reciente de todos los OTPs y luego lo más antiguo; sus partidas nuevas van siempre antes. Si más atrás ya casi no jugaba esos campeones, se deja de bajar para no gastar llamadas."),
+    h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) en paralelo a la descarga, porque Riot cuenta aparte el servidor y la región. OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
   );
 }
 
@@ -420,7 +464,12 @@ function runningSummary(c) {
           h("span.tiny.muted", `≥ ${fmt.compact(cfg.min_mastery)} puntos${cfg.only_target_games ? " · solo partidas con ellos" : ""}`),
         )
       : null,
-    h("div.tiny.muted", `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.matches_per_player} partidas por jugador · revisita cada ${cfg.recrawl_hours} h`),
+    h(
+      "div.tiny.muted",
+      cfg.champions?.length
+        ? `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · historial de cada OTP: ${depthLabel(cfg.otp_depth).toLowerCase()}, sin tope de partidas · partidas nuevas cada ${cfg.recrawl_hours} h`
+        : `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.matches_per_player} partidas por jugador · revisita cada ${cfg.recrawl_hours} h`,
+    ),
     h(
       "div.row-wrap",
       { style: { marginTop: "6px" } },
@@ -443,9 +492,13 @@ function renderCrawlerStatus(c, key) {
               "div.worker",
               h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${w.status === "running" ? "pill-good" : w.status === "waiting_key" || w.status === "paused_game" ? "pill-warn" : ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "")),
               h("div.tiny.muted", { style: { marginTop: "4px" } }, `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} semillas`),
-              w.mastery_checked
-                ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} encontrados · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+              w.search
+                ? h("div.tiny.muted", `OTPs: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con el historial completo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
                 : null,
+              w.mastery_checked || w.search
+                ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+                : null,
+              sharedKeyLine(w),
               w.last_error ? h("div.tiny.warn", w.last_error) : null,
             ),
           )
@@ -496,19 +549,23 @@ async function loadOtps(c) {
   } catch (err) {
     return mount(box, errorBox(err));
   }
-  const sig = JSON.stringify(data.players.map((p) => [p.platform, p.champ, p.points, p.games.length]));
+  const sig = JSON.stringify([data.found, data.complete, data.games, data.players.map((p) => [p.platform, p.champ, p.points, p.total, p.history, p.history_checked, p.games.length])]);
   if (sig === otpsSig) return;
   otpsSig = sig;
   if (!data.players.length) {
     return mount(box, h("div.small.muted", "Todavía ninguno: se está revisando la maestría de los jugadores del ranking (1 llamada por jugador, al ritmo de tu API key)."));
   }
+  const shown = data.players.length < data.found ? ` (se muestran los ${data.players.length} con más partidas)` : "";
   mount(
     box,
     h(
       "div.col",
       { style: { gap: "8px" } },
+      h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}${shown}`),
       data.players.map((p) => {
         const name = p.game_name ? `${p.game_name}#${p.tag_line}` : "Nombre aún desconocido";
+        const wr = p.total ? (100 * p.wins) / p.total : null;
+        const historyText = p.history === "loading" && p.history_checked ? `${HISTORY_LABEL.loading} (${fmt.int(p.history_checked)} revisadas)` : HISTORY_LABEL[p.history] || "";
         return h(
           "div.otp-row",
           h(
@@ -522,6 +579,13 @@ async function loadOtps(c) {
                 ? h("a.ellipsis", { href: `#/jugador/${p.platform}/${encodeURIComponent(p.game_name)}/${encodeURIComponent(p.tag_line)}`, style: { fontWeight: 650, display: "block" } }, name)
                 : h("div.muted", name),
               h("div.tiny.muted", `${platformLabel(p.platform)} · ${TIER_LABEL[p.tier] || p.tier || "—"}${p.lp != null ? ` ${p.lp} LP` : ""} · ${fmt.compact(p.points)} puntos con ${dd.name(p.champ)}`),
+              h(
+                "div.tiny",
+                h("b", `${fmt.int(p.total)} ${p.total === 1 ? "partida" : "partidas"} con ${dd.name(p.champ)}`),
+                wr !== null ? h("span.muted", ` · ${fmt.pct(wr)} WR`) : null,
+                p.share !== null && p.share !== undefined ? h("span.muted", { title: "De sus partidas revisadas, cuántas jugó con los campeones elegidos" }, ` · ${fmt.pct(100 * p.share, 0)} de sus partidas`) : null,
+                historyText ? h(`span.${p.history === "loading" || p.history === "queued" ? "muted" : "good"}`, ` · ${historyText}`) : null,
+              ),
             ),
           ),
           h(
@@ -553,7 +617,7 @@ const SOURCE_INFO = {
 };
 
 function renderSources(src) {
-  const sig = JSON.stringify(Object.values(src).map((s) => [s.enabled, s.stats?.requests, s.stats?.errors, Object.values(s.cache || {}).map((c) => c.entries)]));
+  const sig = JSON.stringify(Object.values(src).map((s) => [s.enabled, s.stats?.requests, s.stats?.errors, s.stats?.circuit_open_for > 0, Object.values(s.cache || {}).map((c) => c.entries)]));
   if (sig === sourcesSig) return;
   sourcesSig = sig;
   const rows = Object.entries(src).map(([name, s]) => {
@@ -564,7 +628,15 @@ function renderSources(src) {
       "div.source-row",
       h("div", h("div.row", h("b", info.label), s.enabled ? h("span.pill.pill-good.pill-dot", "Activa") : h("span.pill.pill-warn.pill-dot", "Desactivada")), h("div.tiny.muted", info.what)),
       h("div.small", `${fmt.int(entries)} en caché`, latest ? h("div.tiny.muted", `actualizado ${fmt.ago(latest)}`) : null),
-      h("div.small", `${fmt.int(s.stats?.requests || 0)} descargas`, s.stats?.errors ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `${s.stats.errors} errores`) : h("div.tiny.muted", "sin errores")),
+      h(
+        "div.small",
+        `${fmt.int(s.stats?.requests || 0)} descargas`,
+        s.stats?.circuit_open_for > 0
+          ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `En pausa ${fmt.duration(s.stats.circuit_open_for)}: la web pidió esperar (se usa lo guardado)`)
+          : s.stats?.errors
+            ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `${s.stats.errors} errores`)
+            : h("div.tiny.muted", "sin errores"),
+      ),
     );
   });
   const opgg = state.opgg;
@@ -610,17 +682,34 @@ async function startOpggSync() {
 }
 
 // ------------------------------------------------------------------ límites
+const FOREIGN_MIN = 10; // peticiones ajenas en 2 min para avisar (por debajo puede ser ruido)
+
+/** Otra app (p. ej. otra copia de Tempu Drafter) está usando la misma key en los hosts de este hilo del recolector. */
+function sharedKeyLine(w) {
+  const hosts = [w.region, ...(w.platforms || [])];
+  const [host, info] = hosts.map((x) => [x, limitsNow[x]]).filter(([, i]) => i && i.foreign >= FOREIGN_MIN).sort((a, b) => b[1].foreign - a[1].foreign)[0] || [];
+  if (!info) return null;
+  return h("div.tiny.warn", `Otra app está usando tu misma API key (~${fmt.int(info.foreign)} peticiones en 2 min en ${host}): os repartís el cupo de Riot y el recolector va más lento.`);
+}
+
 function renderLimits(limits) {
   const hosts = Object.entries(limits || {});
   if (!hosts.length) return mount(sections.limits, h("div.small.muted", "Sin peticiones a Riot todavía en esta sesión."));
+  const shared = hosts.filter(([, i]) => (i.foreign || 0) >= FOREIGN_MIN);
   mount(
     sections.limits,
+    shared.length
+      ? notice(
+          `Otra app está usando tu misma API key ahora mismo (${shared.map(([host, i]) => `${host}: ~${fmt.int(i.foreign)}`).join(" · ")} peticiones en 2 min). Riot da un solo cupo por key: si tienes Tempu Drafter abierto en otro ordenador, ciérralo o usa una key distinta en cada uno.`,
+          "warn",
+        )
+      : null,
     h(
       "div.grid.grid-auto",
       hosts.map(([host, info]) =>
         h(
           "div",
-          h("div.row", h("b.small", host), h("span.spacer"), h("span.tiny.muted", `${fmt.int(info.requests)} peticiones${info.rate_limited ? ` · ${info.rate_limited} × 429` : ""}`), info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null),
+          h("div.row", h("b.small", host), h("span.spacer"), h("span.tiny.muted", `${fmt.int(info.requests)} ${info.requests === 1 ? "petición" : "peticiones"}${info.foreign ? ` · ${fmt.int(info.foreign)} de otra app` : ""}${info.rate_limited ? ` · ${info.rate_limited} × 429` : ""}`), info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null),
           info.windows.map((w) => h("div.usage", h("span.tiny.muted", `${w.limit} / ${w.seconds}s`), h("div.track", h("span", { style: { width: `${Math.min(100, (w.used / w.limit) * 100)}%` } })), h("span.tiny.right", `${w.used}`))),
         ),
       ),
@@ -648,10 +737,14 @@ function renderDb(s) {
 }
 
 // ------------------------------------------------------------------ modelo
+let backtestRunning = false; // el refresco repinta la sección: sin esto el botón volvía a activarse a medio cálculo
+
 function renderModel(model) {
   const report = model.backtest;
   const priors = model.priors;
   const run = async (btn) => {
+    if (backtestRunning) return;
+    backtestRunning = true;
     btn.disabled = true;
     btn.textContent = "Calculando…";
     try {
@@ -662,10 +755,13 @@ function renderModel(model) {
     } catch (err) {
       toast(err.message, "error");
     } finally {
+      backtestRunning = false;
       btn.disabled = false;
     }
   };
-  const btn = h("button.btn.btn-sm", { onclick: (e) => run(e.currentTarget) }, icon("chart"), "Backtest y calibrar");
+  const btn = backtestRunning
+    ? h("button.btn.btn-sm", { disabled: true }, icon("chart"), "Calculando…")
+    : h("button.btn.btn-sm", { onclick: (e) => run(e.currentTarget) }, icon("chart"), "Backtest y calibrar");
   mount(
     sections.model,
     h(

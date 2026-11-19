@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.analytics.stats import log5, pct, round_or_none, safe_div, sample_confidence, shrink, wilson
+from app.analytics.stats import pct, round_or_none, safe_div, sample_confidence, shrink, wilson
 
 DURATION_LABELS = ["< 25 min", "25-30 min", "30-35 min", "≥ 35 min"]
 
@@ -149,36 +149,3 @@ def lane_analysis(row: dict) -> dict | None:
     }
 
 
-def pair_analysis(row: dict | None, base_a: float, base_b: float, k_matchup: float) -> dict:
-    """Análisis completo de A contra B (perspectiva de A)."""
-    row = row or {}
-    games = row.get("games") or 0
-    wins = row.get("wins") or 0
-    expected = log5(base_a, base_b)
-    adjusted = shrink(wins, games, expected, k_matchup)
-    lo, hi = wilson(wins, games)
-    delta = adjusted - expected
-    counter = None
-    if games >= 30 and delta >= 0.02:
-        counter = "counter"
-    elif games >= 30 and delta <= -0.02:
-        counter = "countered"
-    return {
-        "games": games,
-        "wins": wins,
-        "wr": pct(safe_div(wins, games)),
-        "wr_adj": pct(adjusted),
-        "expected": pct(expected),
-        "delta": round((adjusted - expected) * 100, 2),
-        "ci": [pct(lo), pct(hi)] if games else None,
-        "verdict": game_verdict(adjusted, games),
-        "counter": counter,
-        "confidence": sample_confidence(games),
-        "lane": lane_analysis(row),
-        "_adjusted": adjusted,
-        "_expected": expected,
-    }
-
-
-def strip_private(item: dict) -> dict:
-    return {k: v for k, v in item.items() if not k.startswith("_")}

@@ -49,6 +49,8 @@ def sources_status(svc=Depends(svc_from)):
             cache = source.cache_summary(kinds)
         except Exception:
             cache = {}
+        if hasattr(source, "circuit_open"):
+            source.circuit_open()  # refresca «en pausa durante N s» (solo se recalcula al consultarlo)
         out[name] = {"enabled": bool(source.enabled), "cache": cache, "stats": dict(getattr(source, "stats", {}) or {})}
     return out
 

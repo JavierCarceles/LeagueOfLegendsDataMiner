@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import math
 
-MAP_MIN = (-120, -120)
-MAP_MAX = (14870, 14980)
 MX, MY = 14800, 14900  # centro de simetría ×2
 RIVER_SUM = 14900
 RIVER_HALF = 1250  # |x + y - RIVER_SUM| ≤ RIVER_HALF  (≈ 880 unidades perpendiculares)
@@ -60,14 +58,6 @@ for _name, _pos in _BLUE_CAMPS.items():
 SCUTTLE = {"top": (4400, 9600), "bot": mirror((4400, 9600))}
 PITS = {"baron": (5007, 10471), "dragon": (9866, 4414)}
 
-CAMP_LABELS = {
-    "blue": "azul",
-    "gromp": "Gromp",
-    "wolves": "lobos",
-    "raptors": "aves",
-    "red": "rojo",
-    "krugs": "Krugs",
-}
 ZONE_LABELS = {
     "top": "top",
     "mid": "mid",

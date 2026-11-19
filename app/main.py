@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import mimetypes
 import threading
 from contextlib import asynccontextmanager
 
@@ -80,6 +81,10 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
     # Ninguna vista espera a una descarga más de unos segundos (ver app/budget.py).
     app.add_middleware(BudgetMiddleware)
 
+    # En algunos Windows el registro dice que .js es «text/plain» y el navegador se niega a ejecutar la web (página en
+    # blanco sin ningún error en la consola del servidor): se fijan los tipos correctos.
+    for ext, mime in ((".js", "text/javascript"), (".mjs", "text/javascript"), (".css", "text/css"), (".svg", "image/svg+xml"), (".json", "application/json")):
+        mimetypes.add_type(mime, ext)
     app.mount("/static", StaticNoCache(directory=WEB_DIR), name="static")
 
     @app.get("/", include_in_schema=False)

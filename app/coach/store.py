@@ -128,6 +128,8 @@ def delete_profile(db: Database, purge: bool = False) -> None:
         if purge:
             conn.execute("DELETE FROM my_games")
             conn.execute("DELETE FROM my_goals")
+            conn.execute("DELETE FROM my_reviews")
+            conn.execute("DELETE FROM peer_samples")
 
 
 # ---------------------------------------------------------------- partidas
@@ -232,6 +234,7 @@ def list_games(db: Database, puuids: list[str], *, queue: str | None = None, rol
                 "enemy_jungler_champ": digest.get("enemy_jungler_champ"),
                 "has_timeline": digest.get("has_timeline", False),
                 "issues": digest.get("issues") or [],
+                "mistakes": digest.get("mk"),
             }
         )
     return out
@@ -370,3 +373,84 @@ def update_goal(db: Database, goal_id: int, **fields) -> dict | None:
 def delete_goal(db: Database, goal_id: int) -> bool:
     with db.write() as conn:
         return conn.execute("DELETE FROM my_goals WHERE id = ?", (goal_id,)).rowcount > 0
+
+
+# ------------------------------------------------------------ revisión guiada
+def review_answers(db: Database, match_id: str) -> dict[str, str]:
+    """Respuestas guardadas de una partida: {"<segundo>|<pregunta>": texto}."""
+    rows = db.query("SELECT t, question, answer FROM my_reviews WHERE match_id = ?", (match_id,))
+    return {f"{float(r['t']):.1f}|{r['question']}": r["answer"] for r in rows}
+
+
+def save_review_answer(db: Database, match_id: str, t: float, question: str, answer: str) -> None:
+    answer = (answer or "").strip()
+    with db.write() as conn:
+        if not answer:
+            conn.execute("DELETE FROM my_reviews WHERE match_id = ? AND t = ? AND question = ?", (match_id, round(float(t), 1), question))
+            return
+        conn.execute(
+            "INSERT INTO my_reviews (match_id, t, question, answer, updated_at) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(match_id, t, question) DO UPDATE SET answer = excluded.answer, updated_at = excluded.updated_at",
+            (match_id, round(float(t), 1), question, answer[:2000], now_s()),
+        )
+
+
+def review_stats(db: Database, since: int) -> dict:
+    """Partidas revisadas (con alguna respuesta): en total y desde ``since`` (s)."""
+    total = db.scalar("SELECT COUNT(DISTINCT match_id) FROM my_reviews", default=0) or 0
+    recent = db.scalar("SELECT COUNT(DISTINCT match_id) FROM my_reviews WHERE updated_at >= ?", (int(since),), default=0) or 0
+    return {"games": int(total), "week": int(recent)}
+
+
+# ------------------------------------------------- jugadores de tus partidas
+def peers_missing(db: Database, version: int, limit: int) -> list[str]:
+    """Partidas propias con timeline cuyos otros 9 jugadores aún no se han analizado con esta versión."""
+    rows = db.query(
+        "SELECT match_id FROM my_games g WHERE status = 'ready' AND timeline_raw IS NOT NULL "
+        "AND NOT EXISTS (SELECT 1 FROM peer_samples p WHERE p.match_id = g.match_id AND p.version = ?) "
+        "ORDER BY game_start DESC LIMIT ?",
+        (version, int(limit)),
+    )
+    return [r[0] for r in rows]
+
+
+def save_peer_samples(db: Database, match_id: str, game_start: int | None, version: int, rows: list[dict], source: str = "own") -> None:
+    """Sustituye las muestras de una partida (``rows``: pid, role, reliable, metrics). Sin filas, deja la marca pid 0."""
+    rows = rows or [{"pid": 0, "role": None, "reliable": False, "metrics": {}}]
+    with db.write() as conn:
+        conn.execute("DELETE FROM peer_samples WHERE match_id = ?", (match_id,))
+        conn.executemany(
+            "INSERT INTO peer_samples (match_id, pid, source, role, game_start, version, reliable, metrics) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (match_id, int(r["pid"]), source, r.get("role"), game_start, version, int(bool(r.get("reliable"))),
+                 json.dumps(r.get("metrics") or {}, separators=(",", ":")))
+                for r in rows
+            ],
+        )
+
+
+def has_peer_match(db: Database, match_id: str) -> bool:
+    return bool(db.scalar("SELECT 1 FROM peer_samples WHERE match_id = ? LIMIT 1", (match_id,)))
+
+
+def peer_games(db: Database, source: str, version: int) -> int:
+    """Partidas con muestras de esa fuente y versión del análisis."""
+    return int(db.scalar("SELECT COUNT(DISTINCT match_id) FROM peer_samples WHERE source = ? AND version = ? AND pid > 0", (source, version), default=0) or 0)
+
+
+def peer_values(db: Database, role: str, version: int, limit: int, source: str = "own") -> dict[str, list[float]]:
+    """Valores de cada métrica en las muestras fiables más recientes de ese rol y esa fuente."""
+    rows = db.query(
+        "SELECT metrics FROM peer_samples WHERE source = ? AND role = ? AND version = ? AND reliable = 1 ORDER BY game_start DESC LIMIT ?",
+        (source, role, version, int(limit)),
+    )
+    out: dict[str, list[float]] = {}
+    for r in rows:
+        try:
+            metrics = json.loads(r["metrics"])
+        except (TypeError, ValueError):
+            continue
+        for key, value in metrics.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                out.setdefault(key, []).append(float(value))
+    return out

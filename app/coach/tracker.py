@@ -26,6 +26,7 @@ import time
 from app import lcu
 from app.coach import store
 from app.coach.analyzer import ANALYSIS_VERSION, NotInMatch, analyze_game, duration_seconds, find_me, player_role
+from app.coach.insights import reliable
 from app.data.db import now_s
 from app.logbus import get_logger
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
@@ -37,8 +38,10 @@ log = get_logger("progreso")
 # Colas de la Grieta con jugadores reales.
 TRACKED_QUEUES = {400, 420, 430, 440, 480, 490, 700}
 MAX_TIMELINE_TRIES = 6
+PEER_BATCH = 40  # partidas por pasada al analizar a los otros 9 jugadores (~5 ms por jugador)
 IN_GAME = {"InProgress", "Reconnect"}
 CLIENT_POLL_S = 20
+RANK_TTL_S = 3600
 ROLE_LABEL = {"TOP": "Top", "JUNGLE": "Jungla", "MID": "Mid", "ADC": "ADC", "SUPPORT": "Support"}
 
 
@@ -61,11 +64,18 @@ def digest(analysis: dict) -> dict:
         "build": build_digest(build),
         "opponent_champ": (by_pid.get(analysis.get("opponent")) or {}).get("champ"),
         "enemy_jungler_champ": (by_pid.get(analysis.get("enemy_jungler")) or {}).get("champ"),
+        # Errores concretos (para «Errores que repites»): [tipo, gravedad, segundo, etiquetas, título].
+        "mk": [
+            [m.get("kind"), m.get("severity"), m.get("t"), list(m.get("tags") or []), (m.get("title") or "")[:90]]
+            for m in moments
+            if m.get("severity") in ("high", "medium", "low") and m.get("kind") not in ("trade", "afk")
+        ],
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
             "medium": sum(1 for m in moments if m.get("severity") == "medium"),
             "low": sum(1 for m in moments if m.get("severity") == "low"),
             "good": sum(1 for m in moments if m.get("severity") == "good"),
+            "info": sum(1 for m in moments if m.get("severity") == "info"),
         },
     }
 
@@ -157,6 +167,10 @@ class GameTracker:
         self.stop_event = threading.Event()
         self._thread = threading.Thread(target=self._run, name="game-tracker", daemon=True)
         self._thread.start()
+        # El cliente de LoL se vigila en su propio hilo: una sincronización larga (minutos con el límite de la API) no
+        # puede retrasar la pausa de las descargas de fondo cuando empiezas una partida.
+        self._client_thread = threading.Thread(target=self._watch_loop, name="lol-client-watch", daemon=True)
+        self._client_thread.start()
 
     def shutdown(self) -> None:
         self.stop_event.set()
@@ -200,12 +214,12 @@ class GameTracker:
             self.reanalyze_outdated()
         except Exception:
             log.exception("No se pudieron re-analizar las partidas antiguas")
+        self._sample_peers_safe()
         next_poll = 0.0
         while not self.stop_event.is_set():
             try:
-                # El cliente se vigila siempre, haya perfil o no: el precargador y el recolector se
-                # pausan con ``state["in_game"]``.
-                self._watch_client_safe()
+                # El cliente se vigila en su propio hilo (``_watch_loop``), haya perfil o no: el precargador, el
+                # recolector y la calibración se pausan con ``state["in_game"]``.
                 profile = store.get_profile(self.svc.db)
                 if not profile:
                     self._set(status="no_profile", next_check=None)
@@ -223,6 +237,7 @@ class GameTracker:
                 if now >= next_poll or any(t <= now for t in self._scheduled):
                     self._scheduled = [t for t in self._scheduled if t > now]
                     self.sync(profile)
+                    self._sample_peers_safe()
                     next_poll = time.time() + max(1, int(profile["settings"].get("poll_minutes") or 3)) * 60
                 upcoming = min([next_poll, *self._scheduled])
                 self._set(status="idle", next_check=upcoming, waiting_after_game=bool(self._scheduled))
@@ -249,6 +264,11 @@ class GameTracker:
                 next_poll = time.time() + 180
                 self._sleep(10)
         self._set(status="stopped")
+
+    def _watch_loop(self) -> None:
+        while not self.stop_event.is_set():
+            self._watch_client_safe()
+            self.stop_event.wait(CLIENT_POLL_S)
 
     def _watch_client_safe(self) -> None:
         """``_watch_client`` sin excepciones: el cliente de LoL es opcional y nunca debe tumbar el bucle."""
@@ -316,10 +336,34 @@ class GameTracker:
                     self._set(new_total=self.state["new_total"] + 1, last_new_at=time.time())
             if deep:
                 store.update_profile(db, settings={"scanned": target})
+            self._refresh_rank(store.get_profile(db) or profile, kw)
             self._set(queue=0, last_check=time.time(), last_error=None)
             if todo:
                 log.info("Seguimiento: %d partidas revisadas, %d nuevas analizadas.", len(todo), new)
             return {"checked": len(ids), "processed": len(todo), "new": new}
+
+    def _refresh_rank(self, profile: dict, kw: dict) -> None:
+        """Tu liga actual en SoloQ (1 petición a la hora como mucho): para compararte con la que quieres alcanzar."""
+        rank = (profile.get("settings") or {}).get("rank") or {}
+        if not profile.get("puuid") or time.time() - (rank.get("checked_at") or 0) < RANK_TTL_S:
+            return
+        try:
+            entries = self.svc.riot.league_entries_by_puuid(profile["platform"], profile["puuid"], **kw)
+        except RiotKeyError:
+            raise
+        except RiotAPIError:
+            return  # no es imprescindible: se reintenta en la siguiente vuelta
+        solo = next((e for e in entries or [] if e.get("queueType") == "RANKED_SOLO_5x5"), None)
+        value = {"tier": None, "checked_at": now_s()}
+        if solo:
+            value.update(
+                tier=solo.get("tier"),
+                division=solo.get("rank"),
+                lp=solo.get("leaguePoints"),
+                wins=solo.get("wins"),
+                losses=solo.get("losses"),
+            )
+        store.update_profile(self.svc.db, settings={"rank": value})
 
     def _resolve(self, profile: dict, kw: dict) -> dict:
         info = resolve_account(self.svc, profile["game_name"], profile["tag_line"], profile["platform"], **kw)
@@ -471,6 +515,43 @@ class GameTracker:
             log.debug("No se pudo guardar %s en la BD general", match.get("metadata", {}).get("matchId"), exc_info=True)
 
     # ------------------------------------------------------------ re-análisis
+    def _sample_peers_safe(self) -> None:
+        try:
+            self.sample_peers()
+        except Exception:
+            log.exception("No se pudieron analizar los jugadores de tus partidas (referencias calibradas)")
+
+    def sample_peers(self, limit: int = PEER_BATCH) -> int:
+        """Analiza a los otros 9 jugadores de tus partidas (sin peticiones: el match y el timeline ya están guardados).
+
+        Con sus métricas se calibran las referencias de tu elo real (``benchmarks.References``).
+        """
+        db = self.svc.db
+        done = 0
+        for match_id in store.peers_missing(db, ANALYSIS_VERSION, limit):
+            if self.stop_event.is_set():
+                break
+            match, timeline, my_pid = store.raw_game(db, match_id)
+            rows: list[dict] = []
+            if match and timeline:
+                items = self.items_for(match) or self.items()
+                info = match.get("info") or {}
+                for p in info.get("participants") or []:
+                    pid = int(p.get("participantId") or 0)
+                    if not pid or pid == my_pid:
+                        continue
+                    try:
+                        a = analyze_game(match, timeline, pid=pid, items=items)
+                    except NotInMatch:
+                        continue
+                    rows.append({"pid": pid, "role": a.get("role"), "reliable": reliable(a) and bool(a.get("role")), "metrics": a.get("metrics") or {}})
+            start = int((match or {}).get("info", {}).get("gameStartTimestamp") or 0) or None
+            store.save_peer_samples(db, match_id, start, ANALYSIS_VERSION, rows)
+            done += 1
+        if done:
+            log.info("Analizados los jugadores de %d partidas tuyas (referencias calibradas con tu elo).", done)
+        return done
+
     def reanalyze_outdated(self, force: bool = False) -> int:
         db = self.svc.db
         items = self.items()
