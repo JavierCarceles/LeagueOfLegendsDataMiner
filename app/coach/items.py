@@ -13,6 +13,7 @@ huecos libres tenías y qué podías comprar con tu oro para avanzar en tu build
 
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter
 
@@ -43,15 +44,30 @@ def _ids(values) -> list[int]:
     return out
 
 
+def _stack_size(value) -> int:
+    try:
+        return max(1, int(value or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def season(version) -> str | None:
+    """Temporada de una versión del juego o de Data Dragon («16.22.1» -> «16»)."""
+    head = str(version or "").split(".")[0]
+    return head if head.isdigit() else None
+
+
 class ItemCatalog:
     """Datos de cada objeto: coste, receta, etiquetas y si es un objeto completo."""
 
-    def __init__(self, items: dict[int, dict]) -> None:
+    def __init__(self, items: dict[int, dict], version: str | None = None) -> None:
         self.items = items
+        self.version = version
 
     @classmethod
     def from_ddragon(cls, item_json: dict | None) -> ItemCatalog:
         """Desde ``item.json`` de Data Dragon (``{"data": {"3071": {...}}}``)."""
+        version = (item_json or {}).get("version")
         raw = (item_json or {}).get("data") or {}
         items: dict[int, dict] = {}
         for key, v in raw.items():
@@ -70,6 +86,7 @@ class ItemCatalog:
                 "tags": list(v.get("tags") or []),
                 "depth": int(v.get("depth") or 1),
                 "consumed": bool(v.get("consumed")),
+                "stacks": _stack_size(v.get("stacks")),  # pociones (5), pinks (2)… comparten un hueco
                 "buyable": bool(gold.get("purchasable", True)) and v.get("inStore", True) is not False and not v.get("requiredAlly"),
                 "champion": v.get("requiredChampion") or "",
                 "gw": bool(_GW.search(v.get("description") or "")),
@@ -77,7 +94,7 @@ class ItemCatalog:
         for item in items.values():  # solo recetas que existen en la Grieta
             item["from"] = [c for c in item["from"] if c in items]
             item["into"] = [c for c in item["into"] if c in items and items[c]["buyable"] and not items[c]["champion"]]
-        return cls(items)
+        return cls(items, str(version) if version else None)
 
     def __bool__(self) -> bool:
         return bool(self.items)
@@ -129,8 +146,16 @@ class ItemCatalog:
         """Elixires: se beben al comprarlos (no ocupan hueco)."""
         return self.get(item).get("consumed", False) and self.cost(item) >= 300
 
+    def stacks(self, item: int) -> int:
+        """Cuántas unidades caben en un mismo hueco (pociones, pinks, galletas)."""
+        return self.get(item).get("stacks", 1) or 1
+
     def uses_slot(self, item: int) -> bool:
-        return item in self.items and not self.is_trinket(item) and not self.is_elixir(item)
+        # Un objeto que el catálogo no conoce (parche más nuevo o retirado) también ocupa hueco:
+        # suponer lo contrario inventaría huecos libres que no existían.
+        if item not in self.items:
+            return bool(item)
+        return not self.is_trinket(item) and not self.is_elixir(item)
 
     def anti_heal(self, item: int) -> bool:
         return self.get(item).get("gw", False) or item in ANTI_HEAL_FALLBACK
@@ -191,7 +216,8 @@ class ItemCatalog:
 
 
 def used_slots(catalog: ItemCatalog, inv: Counter) -> int:
-    return sum(n for item, n in inv.items() if n > 0 and catalog.uses_slot(item))
+    """Huecos ocupados: los objetos apilables (pociones, pinks…) comparten hueco."""
+    return sum(math.ceil(n / catalog.stacks(item)) for item, n in inv.items() if n > 0 and catalog.uses_slot(item))
 
 
 class Inventory:
@@ -206,6 +232,7 @@ class Inventory:
         self.snaps: list[Counter] = []
         self.purchases: list[dict] = []  # {"t", "item", "cost", "undone", "consumed"}
         self.sold: list[dict] = []
+        self.unknown: set[int] = set()  # objetos comprados que el catálogo no conoce
         inv: Counter = Counter()
         # Objetos gastados en este instante: si a continuación hay una compra, eran su receta;
         # si no, se gastaron (poción, pink) o se transformaron (Manamune -> Muramana).
@@ -237,6 +264,8 @@ class Inventory:
                 consumed = [i for _ts, i in pending]
                 pending.clear()
                 inv[item] += 1
+                if item and item not in catalog:
+                    self.unknown.add(item)
                 self.purchases.append({"t": t, "item": item, "cost": catalog.cost(item), "undone": False, "consumed": consumed})
             elif kind == "ITEM_SOLD":
                 if inv[item] > 0:

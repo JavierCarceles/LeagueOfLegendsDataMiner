@@ -64,6 +64,8 @@ def digest(analysis: dict) -> dict:
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
             "medium": sum(1 for m in moments if m.get("severity") == "medium"),
+            "low": sum(1 for m in moments if m.get("severity") == "low"),
+            "good": sum(1 for m in moments if m.get("severity") == "good"),
         },
     }
 
@@ -201,16 +203,18 @@ class GameTracker:
         next_poll = 0.0
         while not self.stop_event.is_set():
             try:
+                # El cliente se vigila siempre, haya perfil o no: el precargador y el recolector se
+                # pausan con ``state["in_game"]``.
+                self._watch_client_safe()
                 profile = store.get_profile(self.svc.db)
                 if not profile:
                     self._set(status="no_profile", next_check=None)
-                    self._sleep(30)
+                    self._sleep(CLIENT_POLL_S)
                     continue
                 if not profile["settings"].get("enabled", True):
                     self._set(status="paused", next_check=None)
-                    self._sleep(30)
+                    self._sleep(CLIENT_POLL_S)
                     continue
-                self._watch_client()
                 if not self.svc.keys.get() or self.svc.keys.status == "invalid":
                     self._set(status="waiting_key", next_check=None)
                     self._sleep(10)
@@ -246,6 +250,13 @@ class GameTracker:
                 self._sleep(10)
         self._set(status="stopped")
 
+    def _watch_client_safe(self) -> None:
+        """``_watch_client`` sin excepciones: el cliente de LoL es opcional y nunca debe tumbar el bucle."""
+        try:
+            self._watch_client()
+        except Exception:
+            log.debug("No se pudo consultar el cliente de LoL", exc_info=True)
+
     def _watch_client(self) -> None:
         """Si el cliente está abierto, descarga cada partida en cuanto termina."""
         now = time.time()
@@ -267,7 +278,8 @@ class GameTracker:
             profile = profile or store.get_profile(db)
             if not profile:
                 return {"status": "no_profile"}
-            kw = {"priority": Priority.LOW, "stop": self.stop_event}
+            # Tus partidas van por delante del recolector (LOW): con él a tope se siguen analizando.
+            kw = {"priority": Priority.NORMAL, "stop": self.stop_event}
             if not profile.get("puuid"):
                 profile = self._resolve(profile, kw)
             settings = profile["settings"]
@@ -377,7 +389,9 @@ class GameTracker:
         self._store_general(match)
         if timeline is None:
             timeline = self.svc.riot.timeline(match_id, **kw)
-        analysis = analyze_game(match, timeline, pid=base["pid"], items=self.items())
+        analysis = analyze_game(match, timeline, pid=base["pid"], items=self.items_for(match))
+        # El rol del análisis (None si teamPosition venía vacío o repetido): con él se eligen las referencias.
+        base["role"] = analysis.get("role")
         if timeline:
             status, tries_out = "ready", tries
         else:
@@ -412,6 +426,18 @@ class GameTracker:
                 high,
             )
         return "new" if not state or state.get("status") != "ready" else "updated"
+
+    def items_for(self, match: dict):
+        """Catálogo del parche de esa partida (o el actual si no se puede conseguir)."""
+        version = (match.get("info") or {}).get("gameVersion")
+        catalog = None
+        finder = getattr(self.svc.dd, "catalog_for", None)
+        if finder is not None:
+            try:
+                catalog = finder(version)
+            except Exception:
+                catalog = None
+        return catalog or self.items()
 
     def items(self):
         """Catálogo de objetos de Data Dragon (vacío si aún no ha cargado)."""
@@ -458,7 +484,7 @@ class GameTracker:
             if not match:
                 continue
             try:
-                analysis = analyze_game(match, timeline, pid=pid, items=items)
+                analysis = analyze_game(match, timeline, pid=pid, items=self.items_for(match) or items)
             except NotInMatch:
                 continue
             store.update_analysis(db, match_id, analysis, digest(analysis), analysis_version(analysis))

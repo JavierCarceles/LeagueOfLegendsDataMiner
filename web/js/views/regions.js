@@ -1,7 +1,7 @@
 // Estadísticas por región: meta (OP.GG + tu BD) y datos de partida (tu BD).
 import { api, filterParams } from "../api.js";
 import { dd, platformLabel, ROLE_LABEL, ROLES, state, TIER_LABEL } from "../state.js";
-import { champImg, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, rankImg, roleIcon, table, tierBadge, wrClass } from "../ui.js";
+import { collapsible, champImg, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, rankImg, roleIcon, table, tierBadge, wrClass } from "../ui.js";
 
 let root = null;
 let target = "all";
@@ -79,7 +79,7 @@ function view(d, overview) {
     h("h3.card-title", { style: { marginTop: "6px" } }, icon("crown"), "Meta por rol", h("span.spacer"), h("span.tiny.muted", "WR ajustado · OP.GG + tu BD")),
     h(
       "div.grid",
-      { style: { gridTemplateColumns: "repeat(5, minmax(0, 1fr))" } },
+      { class: "roles-5" },
       ROLES.map((role) =>
         h(
           "section.card",
@@ -144,9 +144,11 @@ function view(d, overview) {
 
   if (overview.platforms.length) {
     parts.push(
-      h(
-        "section.card",
-        h("h3.card-title", icon("database"), "Comparativa de regiones (tu BD)"),
+      collapsible(
+        "regiones.comparativa",
+        [icon("database"), "Comparativa de regiones (tu BD)"],
+        h(
+          "div",
         table(
           [
             { key: "label", label: "Región", render: (p) => h("span", h("b", p.label), h("span.tiny.muted", ` ${p.name}`)) },
@@ -161,6 +163,8 @@ function view(d, overview) {
           { sortKey: "matches", onRow: (p) => go(p.platform) },
         ),
         overview.legacy_matches ? h("p.tiny.muted", { style: { marginTop: "8px" } }, `Además tienes ~${fmt.int(overview.legacy_matches)} partidas del histórico antiguo sin desglose por región.`) : null,
+        ),
+        { summary: `${overview.platforms.length} regiones con partidas` },
       ),
     );
   } else if (!hasOwn) {

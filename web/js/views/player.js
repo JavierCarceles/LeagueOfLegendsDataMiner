@@ -1,7 +1,7 @@
 // Perfil de jugador: rango, resumen, campeones, comparativa con la media y partidas.
 import { api } from "../api.js";
 import { dd, loadJSON, platformLabel, ROLE_LABEL, save, state, TIER_LABEL as TIER } from "../state.js";
-import {
+import { collapsible,
   champ, champImg, debounce, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, mount, rankImg,
   roleIcon, runeImg, select, spellImg, table, wrClass,
 } from "../ui.js";
@@ -196,9 +196,9 @@ function profileView(p) {
   );
 
   const bench = p.benchmarks.length
-    ? h(
-        "section.card",
-        h("h3.card-title", icon("chart"), "Comparado con la media (mismo campeón y rol)"),
+    ? collapsible(
+        "jugador.comparativa",
+        [icon("chart"), "Comparado con la media (mismo campeón y rol)"],
         h(
           "div.grid.grid-3",
           p.benchmarks.map((b) =>
@@ -217,11 +217,12 @@ function profileView(p) {
             ),
           ),
         ),
+        { summary: `${p.benchmarks.length} ${p.benchmarks.length === 1 ? "campeón" : "campeones"}` },
       )
     : null;
 
   const matches = h("section.card", h("h3.card-title", icon("match"), "Partidas"), h("div.col", { style: { gap: "6px" } }, p.matches.map(matchRow)));
-  return h("div.stack", head, summary, h("div.grid", { style: { gridTemplateColumns: "minmax(0, 1fr) minmax(0, 2fr)" } }, roles, pool), bench, matches);
+  return h("div.stack", head, summary, h("div.grid.player-split", roles, pool), bench, matches);
 }
 
 function matchRow(m) {

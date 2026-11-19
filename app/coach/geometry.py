@@ -158,8 +158,13 @@ def zone_label(z: str, team: int) -> str:
     return z
 
 
-def overextended(team: int, lane: str, p) -> bool:
-    """Más cerca de la torre exterior rival que de la propia (en esa línea)."""
+OVEREXTEND_MARGIN = 0.85  # justo en el centro de la línea no es estar adelantado
+
+
+def overextended(team: int, lane: str, p, margin: float = OVEREXTEND_MARGIN) -> bool:
+    """Claramente más cerca de la torre exterior rival que de la propia (en esa línea)."""
+    if team not in OUTER_TURRETS or (300 - team) not in OUTER_TURRETS or lane not in OUTER_TURRETS[team]:
+        return False
     own = OUTER_TURRETS[team][lane]
     enemy = OUTER_TURRETS[300 - team][lane]
-    return dist(p, enemy) < dist(p, own)
+    return dist(p, enemy) < margin * dist(p, own)

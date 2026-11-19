@@ -4,10 +4,15 @@
   pegas una key nueva en el fichero (o desde la web) no hace falta reiniciar.
 * Se marca como inválida ante un 401/403 confirmado y los procesos en segundo
   plano se pausan hasta que cambie la key.
+* La edad de la key se cuenta desde que se vio por primera vez (``state_path``
+  guarda una huella, nunca la key), no desde que arrancó la app: si reinicias
+  con una development key de 20 h, la cuenta atrás sigue en ~4 h.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import threading
@@ -20,9 +25,14 @@ KEY_PATTERN = re.compile(r"^RGAPI-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[
 DEV_KEY_LIFETIME_H = 24
 
 
+def _fingerprint(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
 class KeyStore:
-    def __init__(self, env_path: Path) -> None:
+    def __init__(self, env_path: Path, state_path: Path | None = None) -> None:
         self.env_path = env_path
+        self.state_path = state_path
         self._lock = threading.Lock()
         self._changed = threading.Condition(self._lock)
         self._key = ""
@@ -57,18 +67,56 @@ class KeyStore:
         if not force and mtime == self._mtime:
             return
         self._mtime = mtime
-        key = self._read_file_key() or os.environ.get("RIOT_API_KEY", "").strip()
+        file_key = self._read_file_key()
+        key = file_key or os.environ.get("RIOT_API_KEY", "").strip()
         if key != self._key:
-            self._apply(key)
+            self._apply(key, file_mtime=mtime if file_key else None)
 
-    def _apply(self, key: str) -> None:
+    def _apply(self, key: str, file_mtime: float | None = None) -> None:
         self._key = key
         self.version += 1
         self.status = "unknown" if key else "missing"
         self.detail = ""
-        self.loaded_at = time.time() if key else None
+        self.loaded_at = self._first_seen(key, file_mtime) if key else None
         self.checked_at = None
         self._changed.notify_all()
+
+    def _first_seen(self, key: str, file_mtime: float | None) -> float:
+        """Cuándo apareció esta key (no cuándo arrancó la app).
+
+        Si ya se había visto, se usa ese momento. Si es nueva y viene del
+        ``.env``, el fichero se escribió como tarde cuando se pegó: se toma su
+        fecha de modificación. Si se pega desde la web, es ahora.
+        """
+        now = time.time()
+        fingerprint = _fingerprint(key)
+        state = self._read_state()
+        first_seen = state.get("first_seen")
+        if state.get("fingerprint") == fingerprint and isinstance(first_seen, (int, float)) and 0 < first_seen <= now:
+            return float(first_seen)
+        seen = min(now, file_mtime) if file_mtime else now
+        self._write_state({"fingerprint": fingerprint, "first_seen": seen})
+        return seen
+
+    def _read_state(self) -> dict:
+        if self.state_path is None:
+            return {}
+        try:
+            data = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _write_state(self, data: dict) -> None:
+        if self.state_path is None:
+            return
+        try:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.state_path.with_name(self.state_path.name + ".tmp")
+            tmp.write_text(json.dumps(data), encoding="utf-8")
+            os.replace(tmp, self.state_path)
+        except OSError:
+            pass  # sin poder guardarlo, la edad se cuenta desde ahora (como antes)
 
     def get(self) -> str:
         with self._lock:

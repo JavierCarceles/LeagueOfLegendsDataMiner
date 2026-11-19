@@ -17,18 +17,19 @@ clientes automáticos con un checkpoint anti-bot, así que no se usan.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import re
 import threading
 import time
-from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, wait
 
 import requests
 
-from app import __version__
-from app.data.db import Database, now_s
+from app import __version__, budget
+from app.data.db import Database
 from app.ddragon import DDragon
+from app.external.base import CachedSource, Throttle
 from app.logbus import get_logger
 
 log = get_logger("opgg")
@@ -178,37 +179,29 @@ def parse_mcp_text(text: str):
 
 
 # ------------------------------------------------------------------ cliente
-class _Throttle:
-    def __init__(self, per_second: float) -> None:
-        self.interval = 1.0 / per_second
-        self._lock = threading.Lock()
-        self._next = 0.0
-
-    def wait(self) -> None:
-        with self._lock:
-            now = time.monotonic()
-            delay = self._next - now
-            self._next = max(now, self._next) + self.interval
-        if delay > 0:
-            time.sleep(delay)
+_Throttle = Throttle  # compatibilidad
 
 
-class Opgg:
-    def __init__(self, db: Database, dd: DDragon, enabled: bool = True) -> None:
-        self.db = db
+WEB_KINDS = {"versions", "tier", "counters"}
+
+
+class Opgg(CachedSource):
+    name = "opgg"
+
+    def __init__(self, db: Database, dd: DDragon, enabled: bool = True, warmer=None) -> None:
+        super().__init__(db, enabled=enabled, warmer=warmer)
         self.dd = dd
-        self.enabled = enabled
         self._local = threading.local()
-        self._web_throttle = _Throttle(3.0)
-        self._mcp_throttle = _Throttle(4.0)
+        self._web_throttle = Throttle(3.0)
+        self._mcp_throttle = Throttle(4.0)
         self._mcp_lock = threading.Lock()
         self._mcp_session: str | None = None
         self._ids = 0
-        self.stats = {"web_requests": 0, "mcp_requests": 0, "cache_hits": 0, "errors": 0, "last_error": None}
+        self.stats.update({"web_requests": 0, "mcp_requests": 0})
         self.sync_state: dict = {"status": "idle"}
-        self._mem: OrderedDict = OrderedDict()  # caché en memoria (ya decodificada)
-        self._mem_lock = threading.Lock()
-        self._failed: dict[tuple[str, str], float] = {}  # evita reintentar errores en bucle
+
+    def lane_for(self, kind: str) -> str:
+        return "opgg-web" if kind in WEB_KINDS else "opgg-mcp"
 
     def _http(self) -> requests.Session:
         session = getattr(self._local, "session", None)
@@ -217,59 +210,6 @@ class Opgg:
             session.headers["User-Agent"] = USER_AGENT
             self._local.session = session
         return session
-
-    # ------------------------------------------------------------- caché
-    def _remember(self, source: str, key: str, fetched_at: int, value) -> None:
-        with self._mem_lock:
-            self._mem[(source, key)] = (fetched_at, value)
-            self._mem.move_to_end((source, key))
-            while len(self._mem) > 3000:
-                self._mem.popitem(last=False)
-
-    def _cache_get(self, source: str, key: str, ttl: float | None):
-        with self._mem_lock:
-            item = self._mem.get((source, key))
-        if item is None:
-            row = self.db.one("SELECT fetched_at, payload FROM ext_cache WHERE source = ? AND key = ?", (source, key))
-            if not row:
-                return None
-            item = (row["fetched_at"], json.loads(row["payload"]))
-            self._remember(source, key, *item)
-        fetched_at, value = item
-        if ttl is not None and now_s() - fetched_at > ttl:
-            return None
-        self.stats["cache_hits"] += 1
-        return value
-
-    def _cache_put(self, source: str, key: str, payload) -> None:
-        ts = now_s()
-        with self.db.write() as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO ext_cache(source, key, fetched_at, payload) VALUES (?, ?, ?, ?)",
-                (source, key, ts, json.dumps(payload, separators=(",", ":"), ensure_ascii=False)),
-            )
-        self._remember(source, key, ts, payload)
-
-    def _cached(self, source: str, key: str, ttl: float, fetch, allow_fetch: bool):
-        hit = self._cache_get(source, key, ttl)
-        if hit is not None:
-            return hit
-        failed_at = self._failed.get((source, key))
-        if not allow_fetch or not self.enabled or (failed_at and time.monotonic() - failed_at < 600):
-            return self._cache_get(source, key, None)  # mejor algo viejo que nada
-        try:
-            value = fetch()
-        except Exception as exc:
-            self._failed[(source, key)] = time.monotonic()
-            self.stats["errors"] += 1
-            self.stats["last_error"] = str(exc)[:200]
-            log.warning("OP.GG (%s %s): %s", source, key, exc)
-            return self._cache_get(source, key, None)
-        if value is not None:
-            self._cache_put(source, key, value)
-        else:
-            self._failed[(source, key)] = time.monotonic()
-        return value
 
     # --------------------------------------------------------------- web
     def _page(self, path: str, params: dict) -> str:
@@ -602,13 +542,27 @@ class Opgg:
 
     # ------------------------------------------------------- precarga/sync
     def prefetch(self, jobs: list, timeout: float = 15.0, workers: int = 6) -> int:
-        """Ejecuta en paralelo funciones de descarga (lambdas). Devuelve las completadas."""
+        """Ejecuta en paralelo funciones de descarga (lambdas). Devuelve las completadas.
+
+        Atendiendo una petición de la web nunca espera más que su presupuesto: lo
+        que no termine a tiempo sigue en segundo plano (o se encarga al
+        precargador si ni siquiera empezó) y la respuesta se marca como pendiente.
+        """
         if not jobs:
             return 0
+        left = budget.remaining()
+        if left is not None:
+            timeout = min(timeout, left)
         pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="opgg")
-        futures = [pool.submit(job) for job in jobs]
-        done, _ = wait(futures, timeout=timeout)
+        futures = [pool.submit(contextvars.copy_context().run, job) for job in jobs]
+        done, not_done = wait(futures, timeout=max(0.0, timeout))
         pool.shutdown(wait=False, cancel_futures=True)
+        if not_done:
+            budget.mark_pending("opgg")
+            if self.warmer is not None:
+                for future, job in zip(futures, jobs):
+                    if future.cancelled():
+                        self.warmer.defer(job)
         return len(done)
 
     def sync(self, tier: str, region: str, patches: list[str], min_role_rate: float = 0.08, stop: threading.Event | None = None) -> dict:
@@ -639,15 +593,3 @@ class Opgg:
         state["finished_at"] = time.time()
         log.info("Sincronización de OP.GG: %d/%d páginas.", state.get("done", 0), state.get("total", 0))
         return state
-
-    def cached_entries(self, source: str):
-        """(clave, datos) de todo lo cacheado de un tipo (para estimar priors)."""
-        for row in self.db.query("SELECT key, payload FROM ext_cache WHERE source = ?", (source,)):
-            try:
-                yield row["key"], json.loads(row["payload"])
-            except ValueError:
-                continue
-
-    def cache_summary(self) -> dict:
-        rows = self.db.query("SELECT source, COUNT(*) AS n, MAX(fetched_at) AS latest FROM ext_cache GROUP BY source")
-        return {r["source"]: {"entries": r["n"], "latest": r["latest"]} for r in rows}

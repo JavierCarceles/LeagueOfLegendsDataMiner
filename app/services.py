@@ -11,12 +11,15 @@ from app.coaching.guides import GuideIndex
 from app.config import ENV_PATH, Settings
 from app.data.db import Database
 from app.ddragon import DDragon
+from app.external.lolalytics import Lolalytics
 from app.external.opgg import Opgg
+from app.external.patchnotes import PatchNotes
 from app.ingest.legacy import import_legacy, legacy_status
 from app.logbus import get_logger
 from app.riot.client import RiotClient
 from app.riot.keys import KeyStore
 from app.riot.ratelimit import RateLimiter
+from app.warmer import Warmer
 
 log = get_logger("app")
 LEGACY_FILE = "matchups_stats.json"
@@ -27,12 +30,15 @@ class Services:
         self.settings = settings
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.db = Database(settings.db_path)
-        self.keys = KeyStore(ENV_PATH)
+        self.keys = KeyStore(ENV_PATH, state_path=settings.data_dir / "riot_key_state.json")
         self.limiter = RateLimiter()
         self.riot = RiotClient(self.keys, self.limiter)
         self.dd = DDragon(settings.ddragon_dir, settings.ddragon_lang)
         self.agg = Aggregates(self.db)
-        self.opgg = Opgg(self.db, self.dd, enabled=settings.opgg_enabled)
+        self.warmer = Warmer(self, enabled=settings.warmer_enabled)
+        self.opgg = Opgg(self.db, self.dd, enabled=settings.opgg_enabled, warmer=self.warmer)
+        self.lolalytics = Lolalytics(self.db, self.dd, enabled=settings.lolalytics_enabled, warmer=self.warmer, latest_patch=self._latest_patch)
+        self.patchnotes = PatchNotes(self.db, self.dd, enabled=settings.patchnotes_enabled, warmer=self.warmer, lang=settings.ddragon_lang)
         self.priors = Priors(self.agg, self.opgg)
         self.guides = GuideIndex(settings.coachings_dir, self.dd)
         self.opgg_sync_thread: threading.Thread | None = None
@@ -42,6 +48,9 @@ class Services:
         from app.coaching.youtube import YouTubeJobs
         from app.ingest.crawler import Crawler
 
+        from app.coach.replay_client import ClientReplays
+
+        self.client_replays = ClientReplays()
         self.crawler = Crawler(self)
         self.youtube = YouTubeJobs(self)
         self.tracker = GameTracker(self)
@@ -50,6 +59,13 @@ class Services:
 
     def legacy_path(self):
         return self.settings.legacy_dir / LEGACY_FILE
+
+    def _latest_patch(self) -> str | None:
+        versions = self.opgg.versions(allow_fetch=False) if self.opgg.enabled else []
+        if versions:
+            return versions[0]
+        parts = str(self.dd.version or "").split(".")
+        return f"{parts[0]}.{parts[1]}" if len(parts) >= 2 else None
 
     def startup(self) -> None:
         """Tareas de arranque en segundo plano (no bloquean el servidor)."""
@@ -64,20 +80,30 @@ class Services:
             self.startup_done.set()
         # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
         self.tracker.start()
-        # Precarga ligera de OP.GG (tier lists del parche actual y anterior).
-        if self.opgg.enabled and self.dd.champions:
-            try:
-                versions = self.opgg.versions()
-                jobs = [
-                    (lambda r=role, p=patch: self.opgg.tier_list(r, "emerald_plus", "global", p))
-                    for patch in versions[:2]
-                    for role in ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")
-                ]
-                self.opgg.prefetch(jobs, timeout=60, workers=3)
-                self.priors.invalidate()
-                log.info("OP.GG listo (parches %s).", ", ".join(versions[:2]) or "?")
-            except Exception as exc:
-                log.warning("OP.GG no disponible ahora mismo: %s", exc)
+        # Precarga de OP.GG, Lolalytics y notas de parche en segundo plano.
+        self.warmer.start()
+        # El recolector vuelve a arrancar solo si lo dejaste en marcha.
+        try:
+            self.crawler.autostart()
+        except Exception:
+            log.exception("No se pudo reanudar el recolector")
+        self.check_key_on_startup()
+
+    def check_key_on_startup(self) -> None:
+        """Comprueba sola la key del ``.env`` (1 petición) para no quedarse en «Key sin validar»."""
+        if not self.keys.get() or self.keys.status != "unknown":
+            return
+        try:
+            result = self.riot.check_key()
+        except Exception:
+            log.exception("No se pudo comprobar la API key al arrancar")
+            return
+        if result["valid"] is False:
+            age_h = self.keys.public()["age_hours"]
+            if age_h is not None and age_h < 0.25:
+                self.schedule_key_recheck()  # recién generada: Riot puede tardar unos minutos en activarla
+            else:
+                log.warning("Riot rechaza la API key guardada (%s). Pega una nueva en «Datos y API».", result["reason"])
 
     def schedule_key_recheck(self) -> None:
         """Vuelve a comprobar una key rechazada durante ~9 min.
@@ -139,5 +165,6 @@ class Services:
     def shutdown(self) -> None:
         self.shutdown_event.set()
         self.opgg_stop.set()
+        self.warmer.shutdown()
         self.crawler.shutdown()
         self.tracker.shutdown()

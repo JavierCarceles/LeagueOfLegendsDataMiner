@@ -156,11 +156,15 @@ def save_game(db: Database, row: dict) -> None:
 
 
 def update_analysis(db: Database, match_id: str, analysis: dict, digest: dict, version: int) -> None:
-    """Sustituye el análisis de una partida ya guardada (sin tocar su estado)."""
+    """Sustituye el análisis de una partida ya guardada (sin tocar su estado).
+
+    El rol también se actualiza con el del análisis: si ``teamPosition`` venía vacío o repetido, el análisis
+    lo descarta (None) y las referencias por rol no deben usar uno adivinado.
+    """
     with db.write() as conn:
         conn.execute(
-            "UPDATE my_games SET analysis = ?, digest = ?, version = ?, analyzed_at = ? WHERE match_id = ?",
-            (pack(analysis), json.dumps(digest, separators=(",", ":"), ensure_ascii=False), version, now_s(), match_id),
+            "UPDATE my_games SET analysis = ?, digest = ?, version = ?, analyzed_at = ?, role = ? WHERE match_id = ?",
+            (pack(analysis), json.dumps(digest, separators=(",", ":"), ensure_ascii=False), version, now_s(), analysis.get("role"), match_id),
         )
 
 

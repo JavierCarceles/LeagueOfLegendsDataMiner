@@ -3,9 +3,10 @@ import { api, filterParams } from "../api.js";
 import { champPicker } from "../components/picker.js";
 import { dd, ROLE_LABEL, state } from "../state.js";
 import {
-  champ, champImg, confidenceEl, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice,
-  roleIcon, roleTabs, runeImg, select, sourceBadges, spellImg, table, verdictEl, wrCell, wrClass,
+  champ, champImg, collapsible, confidenceEl, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice,
+  patchChanges, roleIcon, roleTabs, runeImg, select, sourceBadges, spellImg, table, verdictEl, wrCell, wrClass,
 } from "../ui.js";
+import { isPending } from "../api.js";
 
 let root = null;
 let params = { role: "TOP", champ: null };
@@ -165,8 +166,14 @@ export async function openMatchup(role, a, b) {
   const title = h("div.row", champImg(a, "sm"), h("h3", `${dd.name(a)} vs ${dd.name(b)}`), champImg(b, "sm"), h("span.pill", roleIcon(role), ROLE_LABEL[role]));
   const m = modal(title, loading("Analizando el enfrentamiento…"), { wide: true });
   try {
-    const data = await api.get(`/api/matchups/${role}/${a}/${b}`, filterParams());
-    mount(m.body, detailView(data, m));
+    const load = async (tries = 0) => {
+      const data = await api.get(`/api/matchups/${role}/${a}/${b}`, filterParams());
+      if (!m.body.isConnected) return;
+      mount(m.body, detailView(data, m));
+      // Algún dato (guía, counters) aún se descargaba: se completa solo.
+      if (isPending(data) && tries < 6) setTimeout(() => m.body.isConnected && load(tries + 1).catch(() => {}), 3500);
+    };
+    await load();
   } catch (err) {
     mount(m.body, errorBox(err));
   }
@@ -175,6 +182,9 @@ export async function openMatchup(role, a, b) {
 function detailView(d, m) {
   const p = d.pair;
   const opgg = d.opgg_guide;
+  const web = d.web_sources || {};
+  // Si las dos webs dicen cosas distintas con muestra suficiente, se avisa: mejor prudencia que un falso «favorable».
+  const disagree = web.opgg && web.lolalytics && web.opgg.games >= 300 && web.lolalytics.games >= 300 && Math.abs(web.opgg.wr - web.lolalytics.wr) >= 3;
   const sourceRow = (label, src) =>
     src ? h("tr", h("td", label), h("td.num", fmt.int(src.games)), h("td.num", h(`b.${wrClass(src.wr)}`, fmt.pct(src.wr))), h("td.num.muted", src.ci ? `${fmt.pct(src.ci[0])} – ${fmt.pct(src.ci[1])}` : "—")) : null;
 
@@ -199,7 +209,14 @@ function detailView(d, m) {
         "table.table",
         { style: { marginTop: "12px" } },
         h("thead", h("tr", h("th", "Fuente"), h("th", "Partidas"), h("th", "WR"), h("th", "IC 95 %"))),
-        h("tbody", sourceRow("OP.GG", p.sources.opgg), sourceRow("Tu base de datos", p.sources.own), (d.breakdown.opgg_patch || []).map((r) => h("tr", h("td.muted", `   · parche ${r.patch}`), h("td.num.muted", fmt.int(r.games)), h("td.num.muted", fmt.pct(r.wr)), h("td")))),
+        h(
+          "tbody",
+          web.opgg && web.lolalytics ? sourceRow("Webs (combinadas)", p.sources.opgg) : null,
+          sourceRow(web.opgg && web.lolalytics ? "· OP.GG" : "OP.GG", web.opgg || (!web.lolalytics ? p.sources.opgg : null)),
+          sourceRow(web.opgg && web.lolalytics ? "· Lolalytics" : "Lolalytics", web.lolalytics),
+          sourceRow("Tu base de datos", p.sources.own),
+          (d.breakdown.opgg_patch || []).map((r) => h("tr", h("td.muted", `   · ${r.source === "lolalytics" ? "Lolalytics" : "OP.GG"} parche ${r.patch}`), h("td.num.muted", fmt.int(r.games)), h("td.num.muted", fmt.pct(r.wr)), h("td"))),
+        ),
       ),
       h("div.row", { style: { marginTop: "10px" } }, h("span.small.muted", `WR general en el rol: ${dd.name(d.champ)} ${fmt.pct(d.a.wr_adj)} · ${dd.name(d.opp)} ${fmt.pct(d.b.wr_adj)}`), h("span.spacer"), h("button.btn.btn-sm", { onclick: () => { m.close(); openMatchup(d.role, d.opp, d.champ); } }, icon("swap"), "Ver desde el rival")),
     ),
@@ -247,7 +264,23 @@ function detailView(d, m) {
     : null;
 
   const guideBox = h("section.card", h("h3.card-title", icon("book"), "Guía del matchup"), guideBlock(d));
-  return h("div.stack", summary, laneCard, ownBreak, guideBox);
+  const changes = d.patch_changes || {};
+  const changeBlocks = [d.champ, d.opp]
+    .map((c) => (changes[String(c)]?.length ? h("div", h("div.row", champImg(c, "xs"), h("b.small", dd.name(c))), patchChanges(changes[String(c)])) : null))
+    .filter(Boolean);
+  const patchCard = changeBlocks.length ? h("section.card", h("h3.card-title", icon("spark"), "Cambios recientes (notas de parche de Riot)"), h("div.grid.grid-2", changeBlocks)) : null;
+  const disagreeNotice = disagree
+    ? notice(`OP.GG (${fmt.pct(web.opgg.wr)}) y Lolalytics (${fmt.pct(web.lolalytics.wr)}) no coinciden en este enfrentamiento: el resultado combinado es más incierto de lo normal.`, "warn")
+    : null;
+  return h(
+    "div.stack",
+    disagreeNotice,
+    summary,
+    patchCard,
+    laneCard,
+    ownBreak ? collapsible("matchup.desglose", [icon("database"), "Desglose de tu base de datos"], ownBreak, { summary: "por elo, parche y región" }) : null,
+    guideBox,
+  );
 }
 
 function opggCard(d, g) {

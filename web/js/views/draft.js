@@ -3,7 +3,7 @@ import { api, filterParams } from "../api.js";
 import { curveChart, gauge } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, loadJSON, ROLE_LABEL, ROLES, save, state } from "../state.js";
-import { champImg, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
+import { patchBadge, champImg, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
 const STORE = "tempu.draft.v2";
@@ -53,7 +53,7 @@ export async function render(container) {
     container,
     h(
       "div.section-head",
-      h("div", h("h2", "Analizador de draft"), h("p", "Probabilidad de victoria estimada con los enfrentamientos de línea (OP.GG + tu base de datos + fuerza de cada campeón) y las sinergias entre aliados. Funciona también con el draft a medias.")),
+      h("div", h("h2", "Analizador de draft"), h("p", "Probabilidad de victoria estimada con los enfrentamientos de línea (OP.GG + Lolalytics + tu base de datos + fuerza de cada campeón) y las sinergias entre aliados. Funciona también con el draft a medias. ↑/↓: mejorado o debilitado en el último parche.")),
       h("div.spacer"),
       h("button.btn", { onclick: swapTeams, title: "Intercambiar equipos" }, icon("swap"), "Intercambiar"),
       h("button.btn.btn-ghost", { onclick: clearDraft }, icon("trash"), "Limpiar"),
@@ -69,7 +69,32 @@ export function onFilters() {
   analyze();
 }
 
+// Cambios del último parche (notas oficiales de Riot): ↑ mejorado / ↓ debilitado junto a cada campeón.
+let patchInfo = null;
+const badgeEls = { ally: {}, enemy: {} };
+function loadPatchInfo() {
+  if (patchInfo) return;
+  patchInfo = { patch: null, champions: {} };
+  api
+    .get("/api/patches")
+    .then((res) => {
+      patchInfo = res.latest || patchInfo;
+      for (const side of ["ally", "enemy"]) for (const role of ROLES) updateBadge(side, role);
+    })
+    .catch(() => {});
+}
+function updateBadge(side, role) {
+  const el = badgeEls[side][role];
+  if (!el) return;
+  const champ = draft[side][role];
+  const verdict = champ ? patchInfo?.champions?.[String(champ)] : null;
+  mount(el, verdict && verdict !== "adjust" ? patchBadge(verdict, patchInfo.patch) : null);
+}
+
 function slot(side, role) {
+  loadPatchInfo();
+  const badge = h("span.slot-patch");
+  badgeEls[side][role] = badge;
   const picker = champPicker({
     value: draft[side][role] || null,
     placeholder: `${ROLE_LABEL[role]} ${side === "ally" ? "aliado" : "rival"}`,
@@ -79,11 +104,13 @@ function slot(side, role) {
       if (id) draft[side][role] = id;
       else delete draft[side][role];
       persist();
+      updateBadge(side, role);
       analyzeSoon();
     },
   });
   pickers[side][role] = picker;
-  return h(`div.slot.${side === "ally" ? "blue" : "red"}`, h("div.slot-role", { title: ROLE_LABEL[role] }, roleIcon(role)), picker);
+  queueMicrotask(() => updateBadge(side, role));
+  return h(`div.slot.${side === "ally" ? "blue" : "red"}`, h("div.slot-role", { title: ROLE_LABEL[role] }, roleIcon(role)), picker, badge);
 }
 
 // ------------------------------------------------------------ recomendaciones
@@ -199,6 +226,8 @@ function swapTeams() {
   for (const role of ROLES) {
     pickers.ally[role].setValue(draft.ally[role] || null);
     pickers.enemy[role].setValue(draft.enemy[role] || null);
+    updateBadge("ally", role);
+    updateBadge("enemy", role);
   }
   analyze();
 }
@@ -209,6 +238,8 @@ function clearDraft() {
   for (const role of ROLES) {
     pickers.ally[role].setValue(null);
     pickers.enemy[role].setValue(null);
+    updateBadge("ally", role);
+    updateBadge("enemy", role);
   }
   analyze();
 }

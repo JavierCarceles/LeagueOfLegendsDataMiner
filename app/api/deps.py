@@ -18,10 +18,17 @@ def filters_dep(
     tier: str = Query("all", description="all | emerald_plus | diamond_plus | master_plus | GOLD,PLATINUM…"),
     platform: str = Query("all", description="all | europe | euw1,kr…"),
 ) -> Filters:
-    return Filters.parse(svc_from(request).db, patch=patch, tier=tier, platform=platform)
+    svc = svc_from(request)
+    f = Filters.parse(svc.db, patch=patch, tier=tier, platform=platform)
+    warmer = getattr(svc, "warmer", None)
+    if warmer is not None:
+        warmer.note_scope(tier, platform, patch)  # se mantendrá precargado
+    return f
 
 
-def sources_dep(sources: str = Query("all", pattern="^(all|opgg|own)$", description="all = OP.GG + tu BD")) -> str:
+def sources_dep(
+    sources: str = Query("all", pattern="^(all|web|opgg|lolalytics|own)$", description="all = webs (OP.GG + Lolalytics) + tu BD"),
+) -> str:
     return sources
 
 

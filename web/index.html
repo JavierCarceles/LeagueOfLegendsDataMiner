@@ -2,7 +2,8 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#090d13" />
     <title>Tempu Drafter</title>
     <meta name="description" content="Analizador de drafts, matchups y estadísticas de League of Legends con datos de OP.GG y de tu propia base de datos." />
     <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
@@ -16,10 +17,13 @@
       <aside class="sidebar" id="sidebar"></aside>
       <header class="topbar">
         <h1 id="view-title">Draft</h1>
+        <button class="btn btn-ghost btn-sm filters-toggle" id="filters-toggle" type="button" title="Mostrar u ocultar los filtros"></button>
         <div class="filters" id="filters"></div>
         <div class="spacer"></div>
+        <span class="pending-chip hidden" id="pending-chip" title="Algún dato se está descargando: la vista se completa sola en unos segundos"><span class="spinner sm"></span>Completando datos…</span>
+        <button class="status-pill data-pill hidden" id="data-pill" type="button" title="Precarga de datos en segundo plano"></button>
         <a class="profile-pill hidden" id="profile-pill" href="#/progreso"></a>
-        <button class="status-pill" id="key-pill" title="Estado de la API key de Riot"><span class="dot"></span><span>API key</span></button>
+        <button class="status-pill" id="key-pill" type="button" title="Estado de la API key de Riot"><span class="dot"></span><span>API key</span></button>
         <button class="btn btn-ghost btn-icon" id="log-toggle" title="Actividad en tiempo real"></button>
       </header>
       <main class="main" id="main"><div class="loading"><div class="spinner"></div>Cargando…</div></main>

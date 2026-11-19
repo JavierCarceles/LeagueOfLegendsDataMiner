@@ -168,6 +168,23 @@ def test_low_priority_keeps_a_reserve_of_the_long_window():
     assert not limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=10)
 
 
+def test_my_games_go_ahead_of_the_crawler():
+    """Con el recolector (LOW) a tope, el seguimiento de tus partidas (NORMAL) sigue teniendo cupo."""
+    limiter, clock = make_limiter()  # 100/120 s: LOW hasta 85, NORMAL hasta 95, HIGH hasta 100
+    for _ in range(85):
+        assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
+        clock.advance(0.2)
+    assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)
+    for _ in range(10):
+        assert limiter.acquire(HOST, METHOD, priority=Priority.NORMAL, timeout=0)
+        clock.advance(0.2)
+    assert not limiter.acquire(HOST, METHOD, priority=Priority.NORMAL, timeout=10)
+    for _ in range(5):  # lo interactivo conserva su parte
+        assert limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=0)
+        clock.advance(0.2)
+    assert not limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=10)
+
+
 def test_acquire_returns_false_when_stopped_while_waiting():
     limiter, clock = make_limiter()
     for _ in range(19):

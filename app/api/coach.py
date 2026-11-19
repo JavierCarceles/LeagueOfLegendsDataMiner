@@ -175,7 +175,7 @@ def _row(g: dict, refs: References) -> dict:
     keys = (
         "kills", "deaths", "assists", "kda", "cs_min", "cs10", "vision_min", "kp", "deaths_pre14", "deaths_to_jungler_pre14",
         "deaths_ganked", "gold_hoard_min", "idle_pct", "obj_lost_dead", "deaths_before_objective", "time_dead_pct", "ganks_pre10",
-        "obj_lost_far", "obj_trades", "first_item_min", "afk_min", "r_late",
+        "obj_lost_far", "obj_trades", "obj_fair_trades", "first_item_min", "afk_min", "r_late",
     )
     return {
         "match_id": g["match_id"],
@@ -191,7 +191,9 @@ def _row(g: dict, refs: References) -> dict:
         "opponent_champ": g.get("opponent_champ"),
         "enemy_jungler_champ": g.get("enemy_jungler_champ"),
         "issues": g.get("issues") or {},
-        "score": insights.fundamentals_score(m, refs.for_role(g["role"]), g["role"]),
+        # Swiftplay o con alguien AFK ≥ 3 min: no se puntúa (igual que en el resumen).
+        "score": insights.fundamentals_score(m, refs.for_role(g["role"]), g["role"]) if insights.reliable(g) else None,
+        "reliable": insights.reliable(g),
         **{k: m.get(k) for k in keys},
     }
 
@@ -284,7 +286,8 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     analysis["refs"] = role_refs
     analysis["refs_source"] = refs.source(analysis["role"]) if analysis.get("role") else None
     analysis["target_tier"] = profile["target_tier"]
-    analysis["score"] = insights.fundamentals_score(analysis.get("metrics") or {}, role_refs, analysis.get("role"))
+    analysis["reliable"] = insights.reliable(analysis)
+    analysis["score"] = insights.fundamentals_score(analysis.get("metrics") or {}, role_refs, analysis.get("role")) if analysis["reliable"] else None
     analysis["metric_info"] = public_metrics()
     ref = None
     if analysis.get("build") and analysis.get("role"):

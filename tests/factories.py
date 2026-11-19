@@ -409,6 +409,10 @@ def make_settings(base: Path):
         gemini_keys=[],
         gemini_models=[],
         opgg_enabled=False,
+        lolalytics_enabled=False,
+        patchnotes_enabled=False,
+        warmer_enabled=False,
+        low_priority=False,
     )
 
 

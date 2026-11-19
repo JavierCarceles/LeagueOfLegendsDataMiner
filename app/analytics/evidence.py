@@ -2,8 +2,10 @@
 
 Para cada matchup A vs B (mismo rol) se juntan:
 
-1. **OP.GG**: partidas y victorias de A contra B (página de counters, con el
-   elo/región/parche elegidos). Muestras grandes: decenas de miles.
+1. **Webs**: OP.GG (página de counters) y Lolalytics (su API pública), con el
+   elo/región/parche elegidos. Muestras grandes: decenas de miles. Como las dos
+   miden la misma población de partidas (y se solapan), no se suman: se toma
+   el WR ponderado y como tamaño de muestra el mayor de los dos.
 2. **Tu base de datos**: lo que haya recogido el recolector + el histórico.
 3. **Estadísticas de campeón**: WR general de A y de B en ese rol. Con log5
    dan el resultado *esperado* si no hubiera ventaja específica.
@@ -22,9 +24,10 @@ from app.analytics.stats import log5, logit, posterior_logit_var, shrink, sigmoi
 from app.external.opgg import PLATFORM_TO_REGION, TIERS as OPGG_TIERS
 from app.riot.routing import ROLES
 
-SOURCES = ("all", "opgg", "own")
+SOURCES = ("all", "web", "opgg", "lolalytics", "own")
 TIERLIST_PSEUDO_GAMES = 2000  # peso de un WR de tier list sin nº de partidas conocido
 LIGHT_PRIOR = 50.0  # encogimiento mínimo para el "esperado" de las sinergias
+LOLA_MIN_ROLE_RATE = 0.08  # sin OP.GG: campeones con ≥ 8 % de sus partidas en ese rol
 
 
 @dataclass(frozen=True)
@@ -47,10 +50,29 @@ def opgg_tier(label: str) -> str:
     return "all"
 
 
+def _known_patches(svc) -> list[str]:
+    """Parches con datos externos: los de OP.GG o, sin OP.GG, los de Data Dragon."""
+    opgg = getattr(svc, "opgg", None)
+    if opgg is not None and opgg.enabled:
+        versions = opgg.versions()
+        if versions:
+            return versions
+    version = getattr(getattr(svc, "dd", None), "version", None) or ""
+    parts = str(version).split(".")
+    if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+        major, minor = int(parts[0]), int(parts[1])
+        return [f"{major}.{minor}"] + ([f"{major}.{minor - 1}"] if minor > 1 else [])
+    return []
+
+
+def web_enabled(svc) -> bool:
+    return any(getattr(getattr(svc, name, None), "enabled", False) for name in ("opgg", "lolalytics"))
+
+
 def ext_scope(svc, f: Filters) -> ExtScope | None:
-    if not getattr(svc, "opgg", None) or not svc.opgg.enabled:
+    if not web_enabled(svc):
         return None
-    versions = svc.opgg.versions()
+    versions = _known_patches(svc)
     if not versions:
         return None
     label = (f.label_patch or "all").lower()
@@ -70,13 +92,38 @@ def ext_scope(svc, f: Filters) -> ExtScope | None:
     return ExtScope(opgg_tier(f.label_tier), region, patches)
 
 
+def combine_web(*maps: dict | None) -> dict | None:
+    """Une los counters de varias webs: WR ponderado y como muestra la mayor (se solapan)."""
+    present = [m for m in maps if m is not None]
+    if not present:
+        return None
+    filled = [m for m in present if m]
+    if len(filled) <= 1:
+        return dict(filled[0]) if filled else {}
+    out = {}
+    for opp in set().union(*filled):
+        rows = [m[opp] for m in filled if opp in m]
+        if len(rows) == 1:
+            out[opp] = rows[0]
+            continue
+        games_sum = sum(r[0] for r in rows)
+        wins_sum = sum(r[1] for r in rows)
+        games = max(r[0] for r in rows)
+        out[opp] = (games, int(round(wins_sum / games_sum * games)) if games_sum else 0)
+    return out
+
+
 class Evidence:
     def __init__(self, svc, f: Filters, sources: str = "all", fetch: bool = True) -> None:
         self.svc = svc
         self.f = f
         self.sources = sources if sources in SOURCES else "all"
         self.use_own = self.sources in ("all", "own")
-        self.scope = ext_scope(svc, f) if self.sources in ("all", "opgg") else None
+        opgg = getattr(svc, "opgg", None)
+        lola = getattr(svc, "lolalytics", None)
+        self.use_opgg = self.sources in ("all", "web", "opgg") and bool(opgg is not None and opgg.enabled)
+        self.use_lola = self.sources in ("all", "web", "lolalytics") and bool(lola is not None and lola.enabled)
+        self.scope = ext_scope(svc, f) if (self.use_opgg or self.use_lola) else None
         self.fetch = fetch
         self.priors = svc.priors.get()
         self.kc = self.priors["champ"]
@@ -85,6 +132,7 @@ class Evidence:
         self._own: dict[str, dict] = {}
         self._tier: dict[str, dict | None] = {}
         self._counters: dict[tuple[str, int], dict | None] = {}
+        self._counter_sources: dict[tuple[str, int], dict] = {}
         self._ref_patch: dict[str, str | None] = {}
 
     # ------------------------------------------------------------ fuentes
@@ -96,7 +144,7 @@ class Evidence:
         return self._own[role]
 
     def counters(self, role: str, champ: int, fetch: bool | None = None) -> dict | None:
-        """Counters de OP.GG sumados en los parches del alcance."""
+        """Counters de las webs (OP.GG + Lolalytics) sumados en los parches del alcance."""
         if not self.scope:
             return None
         key = (role, champ)
@@ -104,10 +152,18 @@ class Evidence:
         cached = self._counters.get(key)
         if cached is not None or (key in self._counters and not allow):
             return cached
+        opgg = self._merge_patches(self.svc.opgg.counters, role, champ, allow) if self.use_opgg else None
+        lola = self._merge_patches(self.svc.lolalytics.counters, role, champ, allow) if self.use_lola else None
+        self._counter_sources[key] = {"opgg": opgg, "lolalytics": lola}
+        result = combine_web(opgg, lola)
+        self._counters[key] = result
+        return result
+
+    def _merge_patches(self, getter, role: str, champ: int, allow: bool) -> dict | None:
         merged: dict[int, list[int]] = {}
         found = False
         for patch in self.scope.patches:
-            data = self.svc.opgg.counters(champ, role, self.scope.tier, self.scope.region, patch, allow_fetch=allow)
+            data = getter(champ, role, self.scope.tier, self.scope.region, patch, allow_fetch=allow)
             if data is None:
                 continue
             found = True
@@ -115,19 +171,42 @@ class Evidence:
                 row = merged.setdefault(opp, [0, 0])
                 row[0] += games
                 row[1] += wins
-        result = {opp: (g, w) for opp, (g, w) in merged.items()} if found else None
-        self._counters[key] = result
-        return result
+        return {opp: (g, w) for opp, (g, w) in merged.items()} if found else None
+
+    def pair_sources(self, role: str, a: int, b: int) -> dict:
+        """Partidas/victorias de A contra B en cada web por separado (para mostrarlas)."""
+        out = {"opgg": None, "lolalytics": None}
+        self.counters(role, a, fetch=False)
+        mine = self._counter_sources.get((role, a)) or {}
+        for name in out:
+            data = mine.get(name)
+            if data and b in data:
+                out[name] = data[b]
+        if any(v is None for v in out.values()):
+            self.counters(role, b, fetch=False)
+            theirs = self._counter_sources.get((role, b)) or {}
+            for name in out:
+                data = theirs.get(name)
+                if out[name] is None and data and a in data:
+                    games, wins_b = data[a]
+                    out[name] = (games, games - wins_b)
+        return out
 
     def counters_by_patch(self, role: str, champ: int, opp: int) -> list[dict]:
         out = []
         if not self.scope:
             return out
-        for patch in self.scope.patches:
-            data = self.svc.opgg.counters(champ, role, self.scope.tier, self.scope.region, patch, allow_fetch=False) or {}
-            if opp in data:
-                games, wins = data[opp]
-                out.append({"patch": patch, "games": games, "wins": wins})
+        sources = []
+        if self.use_opgg:
+            sources.append(("opgg", self.svc.opgg.counters))
+        if self.use_lola:
+            sources.append(("lolalytics", self.svc.lolalytics.counters))
+        for name, getter in sources:
+            for patch in self.scope.patches:
+                data = getter(champ, role, self.scope.tier, self.scope.region, patch, allow_fetch=False) or {}
+                if opp in data:
+                    games, wins = data[opp]
+                    out.append({"patch": patch, "games": games, "wins": wins, "source": name})
         return out
 
     def ref_patch(self, role: str) -> str | None:
@@ -138,7 +217,7 @@ class Evidence:
             return self._ref_patch[role]
         patches = self.scope.patches
         choice = patches[0]
-        if len(patches) > 1:
+        if len(patches) > 1 and self.use_opgg:
             latest = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, patches[0], allow_fetch=self.fetch) or {}
             if latest:
                 popular = max(latest, key=lambda c: latest[c].get("pick") or 0)
@@ -158,13 +237,30 @@ class Evidence:
             return {}
         if role not in self._tier:
             patch = self.ref_patch(role)
-            data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) if patch else None
-            if not data:  # si falta el de referencia, cualquiera del alcance
-                for other in self.scope.patches:
-                    data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, other, allow_fetch=False)
-                    if data:
-                        break
-            self._tier[role] = data or {}
+            data = None
+            if self.use_opgg:
+                data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) if patch else None
+                if not data:  # si falta el de referencia, cualquiera del alcance
+                    for other in self.scope.patches:
+                        data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, other, allow_fetch=False)
+                        if data:
+                            break
+            data = dict(data or {})
+            if self.use_lola and patch:
+                lola = self.svc.lolalytics.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) or {}
+                # Con OP.GG, Lolalytics solo complementa sus filas (OP.GG decide qué campeones son de ese rol).
+                # Sin OP.GG, se usan las de Lolalytics de campeones que de verdad juegan ese rol.
+                base_from_opgg = bool(data)
+                for champ, row in lola.items():
+                    if champ in data:
+                        data[champ] = {**data[champ], "lola_wr": row.get("wr"), "lola_games": row.get("games")}
+                    elif not base_from_opgg and (row.get("role_rate") or 0) >= LOLA_MIN_ROLE_RATE:
+                        data[champ] = {
+                            "wr": row.get("wr"), "pick": row.get("pick"), "ban": row.get("ban"), "role_rate": row.get("role_rate"),
+                            "tier": None, "rank": row.get("rank"), "counters": [], "lola_wr": row.get("wr"), "lola_games": row.get("games"),
+                            "source": "lolalytics",
+                        }
+            self._tier[role] = data
         return self._tier[role]
 
     def ext_role_matches(self, role: str) -> float | None:
@@ -302,6 +398,7 @@ class Evidence:
         return {
             "sources": self.sources,
             "opgg": self.scope.public() if self.scope else None,
+            "web": {"opgg": self.use_opgg, "lolalytics": self.use_lola},
             "own": self.use_own,
             "ref_patches": {role: self._ref_patch.get(role) for role in ROLES if role in self._ref_patch},
         }

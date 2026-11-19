@@ -43,7 +43,9 @@ def tier_list(svc, f: Filters, role: str, min_games: int | None = None, sources:
                 "games": int(known_games) or None,
                 "source": "both" if ext and own else "opgg" if ext else "own",
                 "opgg": {
-                    "wr": round(ext["wr"], 2) if ext.get("wr") is not None else None,
+                    "wr": round(ext["wr"], 2) if ext.get("wr") is not None and ext.get("source") != "lolalytics" else None,
+                    "lola_wr": round(ext["lola_wr"], 2) if ext.get("lola_wr") is not None else None,
+                    "lola_games": ext.get("lola_games"),
                     "pick": round(ext["pick"], 2) if ext.get("pick") is not None else None,
                     "ban": round(ext["ban"], 2) if ext.get("ban") is not None else None,
                     "role_rate": round((ext.get("role_rate") or 0) * 100, 1),

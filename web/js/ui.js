@@ -9,8 +9,8 @@ export function h(tag, attrs, ...children) {
     if (part[0] === ".") el.classList.add(part.slice(1));
     else el.id = part.slice(1);
   }
-  if (attrs && (attrs.constructor !== Object || attrs instanceof Node)) {
-    children.unshift(attrs);
+  if (attrs !== null && attrs !== undefined && attrs !== false && (typeof attrs !== "object" || attrs.constructor !== Object || attrs instanceof Node)) {
+    children.unshift(attrs); // texto, número (incluido 0), nodo o lista como primer hijo
     attrs = null;
   }
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -77,6 +77,16 @@ const ICONS = {
   map: '<path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
   trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3M12 13v4M8 20h8M9 17h6"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  filter: '<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
+  film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  skipNext: '<path d="M6 5v14l9-7z"/><path d="M18 5v14"/>',
+  skipPrev: '<path d="M18 5v14l-9-7z"/><path d="M6 5v14"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
 };
 
 /** Sustituye «{champ:ID}» (textos del análisis) por el nombre del campeón. */
@@ -357,4 +367,146 @@ export function debounce(fn, ms = 300) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
+}
+
+// ---------------------------------------------------------------- desplegables
+const OPEN_KEY = "tempu.open.v1";
+let openState = null;
+function readOpen() {
+  if (openState) return openState;
+  try {
+    openState = JSON.parse(localStorage.getItem(OPEN_KEY) || "{}") || {};
+  } catch {
+    openState = {};
+  }
+  return openState;
+}
+function writeOpen(id, value) {
+  const state = readOpen();
+  state[id] = value;
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify(state));
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+
+/**
+ * Sección desplegable con aspecto de tarjeta. Recuerda si la dejaste abierta.
+ * collapsible("progreso.metricas", [icon("chart"), "Título"], body, {open: false, summary: "12 métricas"})
+ * ``body`` puede ser un nodo o una función que lo construye la primera vez que se abre (carga perezosa).
+ */
+export function collapsible(id, title, body, { open = false, summary = null, cls = "" } = {}) {
+  const saved = readOpen()[id];
+  const isOpen = saved === undefined ? open : !!saved;
+  const content = h("div.collapse-body");
+  let built = false;
+  const build = () => {
+    if (built) return;
+    built = true;
+    const node = typeof body === "function" ? body() : body;
+    append(content, [node]);
+  };
+  const el = h(
+    `details.card.collapse${cls ? "." + cls : ""}`,
+    { open: isOpen || null, dataset: { id } },
+    h("summary.collapse-head", h("span.collapse-title", title), summary ? h("span.collapse-summary", summary) : null, h("span.collapse-chevron", icon("chevron"))),
+    content,
+  );
+  if (isOpen) build();
+  el.addEventListener("toggle", () => {
+    if (el.open) build();
+    writeOpen(id, el.open);
+  });
+  return el;
+}
+
+// ---------------------------------------------------------------- selección múltiple
+/**
+ * Chips de selección múltiple con «Todas», «Ninguna» y grupos opcionales.
+ * items: [{value, label, title?, group?}], groups: [{id, label}]
+ * Devuelve { el, get(), set(values) }.
+ */
+export function multiSelect({ items, selected = [], groups = null, onChange = null, presets = [], noun = "seleccionadas" }) {
+  let value = new Set(selected);
+  const el = h("div.multi");
+  const emit = () => onChange?.([...value]);
+  const draw = () => {
+    const all = items.map((i) => i.value);
+    const count = all.filter((v) => value.has(v)).length;
+    const toggle = (v) => {
+      value.has(v) ? value.delete(v) : value.add(v);
+      draw();
+      emit();
+    };
+    const setAll = (list) => {
+      value = new Set(list);
+      draw();
+      emit();
+    };
+    const chip = (item) =>
+      h(`button.chip${value.has(item.value) ? ".on" : ""}`, { type: "button", title: item.title || null, "aria-pressed": value.has(item.value) ? "true" : "false", onclick: () => toggle(item.value) }, item.label);
+    const head = h(
+      "div.multi-head",
+      h("span.small.muted", `${count} de ${all.length} ${noun}`),
+      h("span.spacer"),
+      presets.map((p) => h("button.btn.btn-ghost.btn-sm", { type: "button", onclick: () => setAll(p.values) }, p.label)),
+      h("button.btn.btn-ghost.btn-sm", { type: "button", disabled: count === all.length || null, onclick: () => setAll(all) }, "Todas"),
+      h("button.btn.btn-ghost.btn-sm", { type: "button", disabled: count === 0 || null, onclick: () => setAll([]) }, icon("close"), "Ninguna"),
+    );
+    let body;
+    if (groups) {
+      body = groups.map((g) => {
+        const members = items.filter((i) => i.group === g.id);
+        if (!members.length) return null;
+        const on = members.filter((i) => value.has(i.value)).length;
+        const groupToggle = () => {
+          if (on === members.length) members.forEach((i) => value.delete(i.value));
+          else members.forEach((i) => value.add(i.value));
+          draw();
+          emit();
+        };
+        return h(
+          "div.multi-group",
+          h("button.multi-group-label", { type: "button", onclick: groupToggle, title: on === members.length ? "Quitar todo el grupo" : "Marcar todo el grupo" }, h(`span.check-box${on === members.length ? ".on" : on ? ".some" : ""}`), g.label, h("span.tiny.muted", ` ${on}/${members.length}`)),
+          h("div.chips", members.map(chip)),
+        );
+      });
+    } else {
+      body = h("div.chips", items.map(chip));
+    }
+    mount(el, head, body);
+  };
+  draw();
+  return {
+    el,
+    get: () => [...value],
+    set: (values) => {
+      value = new Set(values);
+      draw();
+    },
+  };
+}
+
+// ---------------------------------------------------------------- notas de parche
+const VERDICT = { buff: ["↑", "Mejorado", "good"], nerf: ["↓", "Debilitado", "bad"], adjust: ["≈", "Ajustado", "muted"] };
+export function patchBadge(verdict, patch, { long = false } = {}) {
+  const v = VERDICT[verdict];
+  if (!v) return null;
+  return h(`span.patch-badge.${v[2]}`, { title: `${v[1]} en el parche ${patch || ""} (estimado a partir de los números de las notas oficiales)` }, long ? `${v[0]} ${v[1]} ${patch || ""}` : `${v[0]} ${patch || ""}`);
+}
+
+export function patchChanges(changes, { max = 2 } = {}) {
+  if (!changes?.length) return null;
+  return h(
+    "div.patch-changes",
+    changes.slice(0, max).map((c) =>
+      h(
+        "details.patch-change",
+        h("summary", patchBadge(c.verdict, c.patch, { long: true }), h("span.small.muted", ` ${c.groups?.length || 0} cambios`), c.url ? h("a.tiny", { href: c.url, target: "_blank", rel: "noopener", onclick: (e) => e.stopPropagation() }, " notas oficiales ↗") : null),
+        c.context ? h("p.small.muted", c.context) : null,
+        (c.groups || []).map((g) => h("div.patch-group", g.title ? h("div.small", h("b", g.title)) : null, h("ul.small", g.lines.map((l) => h("li", l))))),
+      ),
+    ),
+  );
 }

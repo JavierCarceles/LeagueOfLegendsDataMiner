@@ -31,6 +31,7 @@ class Metric:
     roles: tuple[str, ...] | None = None  # None = todos
     scale: bool = True  # se ajusta al elo objetivo
     floor: float = 0.5  # para normalizar métricas que valen ~0
+    count: bool = False  # recuento por partida (muertes, objetivos…): se valora con su incertidumbre (Poisson)
 
 
 CATEGORIES = {
@@ -48,16 +49,16 @@ CATEGORIES = {
 METRICS: dict[str, Metric] = {
     m.key: m
     for m in [
-        Metric("deaths_to_jungler_pre14", "Muertes por el jungla rival (antes del 14)", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT")),
-        Metric("deaths_ganked", "Muertes por gank (antes del 14)", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT")),
-        Metric("deaths_no_vision_pre14", "Muertes sin ward previo (antes del 14)", "lower", "jungla_rival", decimals=2),
-        Metric("deaths_overextended", "Muertes adelantado en la línea", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT")),
-        Metric("deaths_pre14", "Muertes antes del minuto 14", "lower", "muertes", decimals=2),
-        Metric("deaths", "Muertes por partida", "lower", "muertes"),
-        Metric("deaths_solo", "Muertes en 1 contra 1", "lower", "muertes", decimals=2),
-        Metric("deaths_enemy_jungle", "Muertes en la jungla rival", "lower", "muertes", decimals=2),
-        Metric("deaths_isolated_late", "Muertes aislado (después del 14)", "lower", "muertes", decimals=2),
-        Metric("deaths_unspent_gold", "Muertes con oro para tu build sin gastar", "lower", "tiempo", decimals=2),
+        Metric("deaths_to_jungler_pre14", "Muertes por el jungla rival (antes del 14)", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT"), count=True),
+        Metric("deaths_ganked", "Muertes por gank (antes del 14)", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT"), count=True),
+        Metric("deaths_no_vision_pre14", "Muertes sin ward previo (antes del 14)", "lower", "jungla_rival", decimals=2, count=True),
+        Metric("deaths_overextended", "Muertes adelantado en la línea", "lower", "jungla_rival", decimals=2, roles=("TOP", "MID", "ADC", "SUPPORT"), count=True),
+        Metric("deaths_pre14", "Muertes antes del minuto 14", "lower", "muertes", decimals=2, count=True),
+        Metric("deaths", "Muertes por partida", "lower", "muertes", count=True),
+        Metric("deaths_solo", "Muertes en 1 contra 1", "lower", "muertes", decimals=2, count=True),
+        Metric("deaths_enemy_jungle", "Muertes en la jungla rival", "lower", "muertes", decimals=2, count=True),
+        Metric("deaths_isolated_late", "Muertes aislado (después del 14)", "lower", "muertes", decimals=2, count=True),
+        Metric("deaths_unspent_gold", "Muertes con oro para tu build sin gastar", "lower", "tiempo", decimals=2, count=True),
         Metric("time_dead_pct", "Tiempo muerto", "lower", "tiempo", unit="%"),
         Metric("gold_hoard_min", "Minutos de más con oro útil sin gastar", "lower", "tiempo", decimals=1),
         Metric("idle_pct", "Minutos vacíos desde el 15", "lower", "tiempo", unit="%"),
@@ -67,20 +68,20 @@ METRICS: dict[str, Metric] = {
         Metric("gold_diff15", "Δ oro a los 15 vs tu rival", "higher", "farm", decimals=0, scale=False, floor=1500),
         Metric("gold_min", "Oro por minuto", "higher", "farm", decimals=0),
         Metric("vision_min", "Visión por minuto", "higher", "vision", decimals=2),
-        Metric("wards_pre14", "Wards antes del 14", "higher", "vision", decimals=1),
-        Metric("control_wards", "Pinks compradas", "higher", "vision", decimals=1),
+        Metric("wards_pre14", "Wards antes del 14", "higher", "vision", decimals=1, count=True),
+        Metric("control_wards", "Pinks compradas", "higher", "vision", decimals=1, count=True),
         Metric("obj_participation", "Participación en objetivos", "higher", "objetivos", unit="%"),
-        Metric("obj_lost_dead", "Objetivos rivales estando tú muerto", "lower", "objetivos", decimals=2),
-        Metric("obj_lost_far", "Objetivos regalados (lejos y sin cambio)", "lower", "objetivos", decimals=2),
-        Metric("deaths_before_objective", "Muertes justo antes de un objetivo rival", "lower", "objetivos", decimals=2),
+        Metric("obj_lost_dead", "Objetivos rivales estando tú muerto", "lower", "objetivos", decimals=2, count=True),
+        Metric("obj_lost_far", "Objetivos regalados (lejos y sin cambio)", "lower", "objetivos", decimals=2, count=True),
+        Metric("deaths_before_objective", "Muertes justo antes de un objetivo rival", "lower", "objetivos", decimals=2, count=True),
         Metric("kp", "Participación en kills", "higher", "peleas", unit="%"),
         Metric("dmg_share", "Daño del equipo", "higher", "peleas", unit="%", roles=("TOP", "MID", "ADC")),
-        Metric("ganks_pre10", "Ganks con kill antes del 10", "higher", "pathing", decimals=2, roles=("JUNGLE",)),
-        Metric("impact_pre10", "Jugadas con impacto antes del 10", "higher", "pathing", decimals=1, roles=("JUNGLE",), floor=1),
+        Metric("ganks_pre10", "Ganks con kill antes del 10", "higher", "pathing", decimals=2, roles=("JUNGLE",), count=True),
+        Metric("impact_pre10", "Jugadas con impacto antes del 10", "higher", "pathing", decimals=1, roles=("JUNGLE",), floor=1, count=True),
         Metric("jungle_cs10", "CS de jungla a los 10", "higher", "pathing", decimals=0, roles=("JUNGLE",)),
-        Metric("enemy_ganks_far", "Ganks rivales en la otra mitad del mapa", "lower", "pathing", decimals=2, roles=("JUNGLE",)),
+        Metric("enemy_ganks_far", "Ganks rivales en la otra mitad del mapa", "lower", "pathing", decimals=2, roles=("JUNGLE",), count=True),
         Metric("first_item_min", "Minuto de tu primer objeto", "lower", "build", decimals=1, floor=5),
-        Metric("r_late", "Subidas de la R tardías", "lower", "build", decimals=2),
+        Metric("r_late", "Subidas de la R tardías", "lower", "build", decimals=2, count=True),
     ]
 }
 

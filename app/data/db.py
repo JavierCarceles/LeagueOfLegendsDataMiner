@@ -208,6 +208,15 @@ CREATE TABLE IF NOT EXISTS agg_totals (
 ) WITHOUT ROWID;
 
 -- Tu perfil (una sola fila) y el seguimiento automático de tus partidas.
+-- Maestría de los jugadores del ranking (recolector por campeones / OTPs).
+CREATE TABLE IF NOT EXISTS mastery_checks (
+    puuid      TEXT PRIMARY KEY,
+    platform   TEXT NOT NULL,
+    checked_at INTEGER NOT NULL,
+    top        TEXT NOT NULL            -- JSON [[campeón, puntos], …] (los 3 primeros)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_mastery_platform ON mastery_checks(platform, checked_at);
+
 CREATE TABLE IF NOT EXISTS my_profile (
     id             INTEGER PRIMARY KEY CHECK (id = 1),
     puuid          TEXT,

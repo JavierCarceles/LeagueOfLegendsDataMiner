@@ -93,8 +93,10 @@ def test_deaths_are_classified(scenario):
     gank = deaths[310.0]
     assert {"jungler", "gank", "overextended", "no_ward", "before_objective"} <= set(gank["tags"])
     assert gank["severity"] == "high" and gank["early"] and gank["zone"] == "top"
-    assert {"solo", "no_ward"} <= set(deaths[690.0]["tags"]) and "gank" not in deaths[690.0]["tags"]
-    assert {"enemy_jungle", "unspent_gold", "isolated"} <= set(deaths[1440.0]["tags"])
+    # 1 contra 1 frente a su rival de línea, a la vista: no es un problema de wards.
+    assert "solo" in deaths[690.0]["tags"] and "gank" not in deaths[690.0]["tags"] and "no_ward" not in deaths[690.0]["tags"]
+    # Sin catálogo de objetos no se juzga el oro (no se sabe si tenía hueco para comprar).
+    assert {"enemy_jungle", "isolated"} <= set(deaths[1440.0]["tags"]) and "unspent_gold" not in deaths[1440.0]["tags"]
     assert "before_objective" in deaths[1545.0]["tags"]
     moment = next(m for m in a["moments"] if m["t"] == 310.0)
     assert moment["title"] == f"Gank de {{champ:{VIEGO}}} (jungla rival)"
@@ -105,19 +107,20 @@ def test_laner_metrics(scenario):
     _, _, a = scenario
     m = a["metrics"]
     expected = {
+        # Sin visión solo la del gank de las 5:10 (el 1 contra 1 de las 11:30 no depende de wards).
         "deaths": 4, "deaths_pre14": 2, "deaths_to_jungler_pre14": 1, "deaths_ganked": 1, "deaths_overextended": 1,
-        "deaths_no_vision_pre14": 2, "deaths_solo": 2, "deaths_enemy_jungle": 1, "deaths_unspent_gold": 1,
+        "deaths_no_vision_pre14": 1, "deaths_solo": 2, "deaths_enemy_jungle": 1, "deaths_unspent_gold": None,
         "deaths_before_objective": 2, "deaths_isolated_late": 1, "obj_lost_dead": 1, "obj_lost_far": 0, "objectives_team": 1,
         "obj_participation": 0.0, "idle_min": 2, "cs10": 60, "cs_diff10": -15,
         "gold_diff15": -1200, "wards_pre14": 3, "control_wards_placed": 1, "recalls": 2, "first_recall_min": 18.5,
         "control_wards_bought": 1, "afk_min": 0.0,
     }
     assert {k: m[k] for k in expected} == expected
-    # 15:30-18:30 con oro (menos 45 s de margen) + 20 s de más en el minuto 23 (sin contar la pelea de las 24:00).
-    assert m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
+    # Sin catálogo de objetos el oro no se juzga (ni para bien ni para mal): ver test_gold_with_the_item_catalog.
+    assert m["gold_hoard_min"] is None
     assert m["time_dead_pct"] == pytest.approx(140 / 1800 * 100, abs=0.1)
     kinds = {mo["kind"] for mo in a["moments"]}
-    assert {"death", "gold", "idle", "lane"} <= kinds
+    assert {"death", "idle", "lane"} <= kinds and "gold" not in kinds
     # El barón perdido estando muerto ya lo cuenta la muerte de justo antes: no se repite.
     assert not any(mo["kind"] == "objective" for mo in a["moments"])
     assert "barón" in next(mo for mo in a["moments"] if mo["t"] == 1545.0)["detail"]
@@ -240,7 +243,9 @@ def test_gold_with_the_item_catalog():
     gold = next(mo for mo in a["moments"] if mo["kind"] == "gold")
     assert "Bacteriófago (1.100)" in gold["detail"] and "hueco" in gold["detail"]  # pieza de su siguiente objeto
     assert "Botas blindadas (1.200)" in next(mo for mo in a["moments"] if mo["t"] == 1440.0)["detail"]
-    assert m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05) and "unspent_gold" in deaths[1440.0]["tags"]
+    # Desde que le llegaba el oro (interpolado entre frames: 15:34 y 22:37) hasta que compra o muere, menos 45 s de margen
+    # y la pelea de las 24:00: 131 s + 13 s.
+    assert m["gold_hoard_min"] == pytest.approx(2.4, abs=0.05) and "unspent_gold" in deaths[1440.0]["tags"]
     assert a["series"]["hoard"][16:19] == [1, 1, 1] and a["series"]["useful_gold"][16] == 1100
 
 
@@ -260,16 +265,28 @@ def test_saving_with_a_full_inventory_is_not_hoarding():
     assert "Daga" in moment["detail"] and "Cuchilla negra" in moment["detail"]
 
 
+def test_basic_boots_never_clog_the_inventory():
+    """Partida real: «Botas ocupaban hueco sin ser parte de ese objeto». Las botas no se venden para avanzar otro objeto."""
+    boots = [_buy(910_000 + i, 1, item) for i, item in enumerate((3161, 3053, 6694, 1001, 1042))]
+    a = _analyze(boots)
+    assert not any("Botas" in mo["detail"] for mo in a["moments"] if "clogged" in mo["tags"])
+    # Con una daga suelta además de las botas, el aviso sigue (y no nombra las botas).
+    stray = [_buy(910_000 + i, 1, item) for i, item in enumerate((3161, 3053, 1042, 1001, 1042))]
+    a = _analyze(stray)
+    moment = next(mo for mo in a["moments"] if "clogged" in mo["tags"])
+    assert "Daga" in moment["detail"] and "Botas" not in moment["detail"]
+
+
 def test_final_push_and_afk_are_not_errors():
     # Oro en el empujón final (gana el azul): no cuenta.
     a = _analyze(frames={(1, 29): {"currentGold": 2600}, (1, 30): {"currentGold": 2900}})
-    assert a["metrics"]["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
+    assert a["metrics"]["gold_hoard_min"] == pytest.approx(2.4, abs=0.05)
     # Desconectado en la fuente desde el 27: ni minutos vacíos, ni oro parado, pero se avisa.
     still = {(1, minute): {"position": (400, 420), "xp": 17_000, "currentGold": 3000} for minute in range(27, 31)}
     a = _analyze(frames=still)
     m = a["metrics"]
     assert m["afk_min"] == pytest.approx(3.0, abs=0.05) and a["afk"] == [{"start": 1620.0, "end": 1800.0}]
-    assert m["idle_min"] == 2 and m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
+    assert m["idle_min"] == 2 and m["gold_hoard_min"] == pytest.approx(2.4, abs=0.05)
     assert any(mo["kind"] == "afk" for mo in a["moments"])
 
 
@@ -347,7 +364,7 @@ def _rows(n: int) -> list[dict]:
     rows = []
     for i in range(n):
         match = my_match(f"EUW1_92000000{i:02d}", start_offset_h=-i)
-        a = analyze_game(match, make_timeline(match), pid=1)
+        a = analyze_game(match, make_timeline(match), pid=1, items=ITEMS)
         d = digest(a)
         rows.append(
             {
@@ -360,7 +377,7 @@ def _rows(n: int) -> list[dict]:
 
 
 def test_summary_finds_weaknesses_with_tips_and_goals():
-    games = _rows(4)
+    games = _rows(8)  # con menos de 5 partidas no se declara ningún punto débil (ver test_coach_audit)
     refs = References(None, "PLATINUM")
     goal = {"id": 1, "metric": "deaths_pre14", "op": "<=", "target": 1, "label": "x", "role": None, "active": True}
     out = insights.summarize(games, refs, [goal])
@@ -371,10 +388,10 @@ def test_summary_finds_weaknesses_with_tips_and_goals():
     assert gank["tip"] and gank["goal"]["metric"] == "deaths_to_jungler_pre14" and gank["goal"]["target"] == 0
     assert "sin ward" in gank["detail"]  # contexto de las muertes tempranas
     g = out["goals"][0]
-    assert g["games"] == 4 and g["rate"] == 0 and len(g["history"]) == 4  # 2 muertes antes del 14 en cada partida
-    assert out["readiness"]["ready"] is False and out["readiness"]["missing_games"] == 6
-    assert out["deaths"]["total"] == 16 and out["deaths"]["tags"]["gank"]["count"] == 4
-    assert out["champions"][0]["champ"] == AATROX and out["champions"][0]["games"] == 4
+    assert g["games"] == 8 and g["rate"] == 0 and len(g["history"]) == 8  # 2 muertes antes del 14 en cada partida
+    assert out["readiness"]["ready"] is False and out["readiness"]["missing_games"] == 2
+    assert out["deaths"]["total"] == 32 and out["deaths"]["tags"]["gank"]["count"] == 8
+    assert out["champions"][0]["champ"] == AATROX and out["champions"][0]["games"] == 8
 
 
 def test_references_scale_with_target_tier():

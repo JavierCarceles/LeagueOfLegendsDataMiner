@@ -191,6 +191,13 @@ class RiotClient:
         path = f"/lol/league/v4/{endpoint}/by-queue/{LEAGUE_QUEUE[queue]}"
         return self.request(platform, path, method=f"league-v4.{endpoint}", **kw)
 
+    # ------------------------------------------------------------ maestría
+    def top_masteries(self, platform: str, puuid: str, count: int = 3, **kw) -> list[dict]:
+        """Campeones con más puntos de maestría de un jugador (champion-mastery-v4)."""
+        path = f"/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top"
+        data = self.request(platform, path, method="champion-mastery-v4.top", params={"count": max(1, min(count, 10))}, **kw)
+        return data if isinstance(data, list) else []
+
     # ---------------------------------------------------------------- match-v5
     def match_ids(
         self,

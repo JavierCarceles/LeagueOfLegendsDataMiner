@@ -17,6 +17,16 @@ from app.coach.benchmarks import CATEGORIES, METRICS, References, applies
 RECENT = 10
 READY_SCORE = 70
 MIN_GAMES_READY = 10
+MIN_GAMES_WEAKNESS = 5  # con menos partidas cualquier punto débil es ruido
+SHRINK_GAMES = 5  # la desviación se encoge con pocas partidas: dev · n / (n + 5)
+MIN_GOAL_GAMES = 5  # partidas mínimas de un propósito para contar en la nota
+TREND_MIN = 8  # partidas (del rol más jugado) para hablar de «Mejorando» o «Empeorando»
+TREND_MIN_DEV = 0.1  # y que el cambio sea de al menos un 10 % de la referencia
+Z_80 = 1.28  # intervalo al 80 %
+# Partidas que no sirven para las conclusiones (se siguen viendo una a una): Swiftplay empieza a nivel 3
+# con 1.400 de oro y objetivos antes, y con alguien AFK la partida no es comparable.
+EXCLUDED_QUEUES = {480}
+AFK_EXCLUDE_MIN = 3.0
 
 # Métrica, peso, plantilla de título, detalle, consejo y propósito sugerido.
 RULES: list[dict] = [
@@ -41,7 +51,7 @@ RULES: list[dict] = [
         "metric": "deaths_no_vision_pre14",
         "weight": 1.0,
         "title": "Mueres sin visión",
-        "detail": "{v} muertes por partida antes del 14 sin haber puesto un ward en los 2 minutos previos (referencia {ref}).",
+        "detail": "{v} muertes por partida antes del 14 en jugadas donde la visión importaba (ganks, río o jungla) sin ward tuyo ni de un aliado cerca en los 2 minutos previos (referencia {ref}).",
         "tip": "Usa el trinket en cuanto salga de recarga (no lo guardes) y compra una pink en cada vuelta a base. Un ward en el río te avisa del gank 5-6 s antes.",
         "goal": (">=", "wards_pre14", "Poner al menos {t} wards antes del minuto 14"),
     },
@@ -305,13 +315,30 @@ TAG_LABELS = {
     "fight_even": "Pelea igualada",
     "traded": "Con algo a cambio",
     "game_end": "Empujón final",
+    "afk": "Antes de desconectarte",
 }
 
 
 # ------------------------------------------------------------------ utilidades
+def reliable(game: dict) -> bool:
+    """¿Sirve esta partida para las conclusiones? No si es Swiftplay ni si alguien estuvo AFK 3 minutos o más."""
+    if game.get("queue") in EXCLUDED_QUEUES:
+        return False
+    m = game.get("metrics") or {}
+    return all((m.get(k) or 0) < AFK_EXCLUDE_MIN for k in ("afk_min", "ally_afk_min", "enemy_afk_min"))
+
+
 def _mean(values: list[float]) -> float | None:
     values = [v for v in values if v is not None]
     return sum(values) / len(values) if values else None
+
+
+def _var(values: list[float]) -> float:
+    """Varianza muestral (0 con menos de 2 valores)."""
+    if len(values) < 2:
+        return 0.0
+    mean = sum(values) / len(values)
+    return sum((v - mean) ** 2 for v in values) / (len(values) - 1)
 
 
 def _round(value: float | None, decimals: int) -> float | None:
@@ -369,7 +396,30 @@ def goal_label(template: str, target: float, metric_key: str) -> str:
 
 
 # ---------------------------------------------------------------- resumen
+def _trend(m, pairs: list[tuple[float, float, str | None]]) -> dict | None:
+    """Últimas partidas frente a las anteriores, solo si el cambio es claro.
+
+    Dentro del rol más jugado (cada rol tiene su referencia: mezclar roles inventa tendencias), con al menos
+    ``TREND_MIN`` partidas, un cambio de al menos ``TREND_MIN_DEV`` de la referencia y mayor que su error típico.
+    """
+    if len(pairs) < TREND_MIN:
+        return None
+    role = Counter(r for _v, _ref, r in pairs).most_common(1)[0][0]
+    same = [(v, ref) for v, ref, r in pairs if r == role]
+    if len(same) < TREND_MIN:
+        return None
+    half = len(same) // 2
+    recent_v, older_v = [v for v, _ in same[:half]], [v for v, _ in same[half:]]
+    recent, older = _mean(recent_v), _mean(older_v)
+    ref = _mean([r for _, r in same])
+    delta = deviation(m.key, older, ref) - deviation(m.key, recent, ref)  # > 0: mejora
+    se = math.sqrt(_var(recent_v) / len(recent_v) + _var(older_v) / len(older_v))
+    clear = abs(delta) >= TREND_MIN_DEV and abs(recent - older) > se
+    return {"recent": _round(recent, m.decimals), "older": _round(older, m.decimals), "improving": (delta > 0) if clear else None, "games": len(same)}
+
+
 def metric_table(games: list[dict], refs: References) -> list[dict]:
+    games = [g for g in games if reliable(g)]
     rows = []
     for key, m in METRICS.items():
         pairs = []
@@ -380,19 +430,15 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
             ref = refs.for_role(g["role"]).get(key)
             if value is None or ref is None:
                 continue
-            pairs.append((value, ref))
+            pairs.append((value, ref, g["role"]))
         if not pairs:
             continue
-        value = _mean([v for v, _ in pairs])
-        ref = _mean([r for _, r in pairs])
+        values = [v for v, _, _ in pairs]
+        value = _mean(values)
+        ref = _mean([r for _, r, _ in pairs])
         dev = deviation(key, value, ref)
         status = "good" if dev <= -0.05 else "bad" if dev >= 0.15 else "ok"
-        trend = None
-        if len(pairs) >= 6:
-            half = len(pairs) // 2
-            recent, older = _mean([v for v, _ in pairs[:half]]), _mean([v for v, _ in pairs[half:]])
-            better = (recent < older) if m.better == "lower" else (recent > older)
-            trend = {"recent": _round(recent, m.decimals), "older": _round(older, m.decimals), "improving": better if abs(recent - older) > 1e-9 else None}
+        trend = _trend(m, pairs)
         rows.append(
             {
                 "key": key,
@@ -406,11 +452,27 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
                 "dev": round(dev, 3),
                 "status": status,
                 "games": len(pairs),
+                "sd": _round(math.sqrt(_var(values)), m.decimals + 2) if len(values) >= 2 else None,
                 "trend": trend,
-                "series": [_round(v, m.decimals + 1) for v, _ in pairs[:20]],
+                "series": [_round(v, m.decimals + 1) for v, _, _ in pairs[:20]],
             }
         )
     return rows
+
+
+def _count_beyond(value: float, ref: float, n: int, better: str) -> bool:
+    """Recuentos por partida (muertes, objetivos…): el intervalo al 80 % tiene que quedar fuera de la referencia."""
+    margin = Z_80 * math.sqrt(max(value, 0.0) / max(n, 1))
+    return value - margin > ref if better == "lower" else value + margin < ref
+
+
+def _consistent(row: dict, m) -> bool:
+    """Diferencias frente al rival: que vayas por detrás de forma consistente, no por una sola partida."""
+    sd, n = row.get("sd"), row["games"]
+    if sd is None:
+        return False
+    bound = Z_80 * sd / math.sqrt(n)
+    return row["value"] + bound < 0 if m.better == "higher" else row["value"] - bound > 0
 
 
 def weaknesses(table: list[dict], death_tags: dict, limit: int = 8) -> list[dict]:
@@ -418,15 +480,19 @@ def weaknesses(table: list[dict], death_tags: dict, limit: int = 8) -> list[dict
     found: dict[str, dict] = {}
     for rule in RULES:
         row = by_key.get(rule["metric"])
-        if not row or row["games"] < 3:
+        if not row or row["games"] < MIN_GAMES_WEAKNESS:
             continue
         m = METRICS[rule["metric"]]
-        value, ref = row["value"], row["ref"]
-        dev = row["dev"]
+        value, ref, n = row["value"], row["ref"], row["games"]
+        dev = row["dev"] * n / (n + SHRINK_GAMES)  # con pocas partidas la desviación pesa menos
         if "min_abs" in rule:
             if (m.better == "higher" and value > -rule["min_abs"]) or (m.better == "lower" and value < rule["min_abs"]):
                 continue
+            if not _consistent(row, m):
+                continue
         elif dev < 0.15:
+            continue
+        if m.count and not _count_beyond(value, ref, n, m.better):
             continue
         if any(s in found for s in rule.get("skip_if", [])):
             continue
@@ -459,7 +525,7 @@ def _death_context(metric: str, tags: dict) -> str:
     if metric not in ("deaths_to_jungler_pre14", "deaths_ganked", "deaths_pre14") or early < 3:
         return ""
     parts = []
-    for tag, text in (("no_ward", "sin ward en los 2 minutos previos"), ("overextended", "adelantado en la línea")):
+    for tag, text in (("no_ward", "sin ward (tuyo o de un aliado cerca) en los 2 minutos previos"), ("overextended", "adelantado en la línea")):
         n = tags.get("early", {}).get(tag, 0)
         if n:
             parts.append(f"en el {round(n / early * 100)} % {text}")
@@ -490,7 +556,7 @@ def death_summary(games: list[dict], limit_games: int = 30) -> dict:
     early_counts: Counter = Counter()
     points = []
     early_total = total = 0
-    for g in games[:limit_games]:
+    for g in [x for x in games if reliable(x)][:limit_games]:
         for d in (g.get("deaths") or []):
             total += 1
             counts.update(d.get("tags") or [])
@@ -536,11 +602,18 @@ def jungle_summary(games: list[dict]) -> dict | None:
 
 def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
     out = []
+    pool = [g for g in games if reliable(g)]
     for goal in goals:
+        m = METRICS.get(goal["metric"])
+        # Solo partidas en las que la métrica aplica a tu rol (el CS no se le pide a un support, ni al
+        # jungla que no le mate el jungla rival).
         applicable = [
             g
-            for g in games
-            if (not goal.get("role") or g["role"] == goal["role"]) and (g["metrics"] or {}).get(goal["metric"]) is not None
+            for g in pool
+            if m is not None
+            and applies(m, g["role"])
+            and (not goal.get("role") or g["role"] == goal["role"])
+            and (g["metrics"] or {}).get(goal["metric"]) is not None
         ]
         recent = applicable[:RECENT]
         history = []
@@ -566,11 +639,12 @@ def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
 
 
 def readiness(games: list[dict], refs: References, goals: list[dict]) -> dict:
+    games = [g for g in games if reliable(g)]
     recent = games[:RECENT]
     scores = [fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"]) for g in recent]
     scores = [s for s in scores if s is not None]
     fundamentals = round(sum(scores) / len(scores), 1) if scores else None
-    rated = [g["rate"] for g in goals if g.get("active", True) and g.get("rate") is not None and g.get("games", 0) >= 3]
+    rated = [g["rate"] for g in goals if g.get("active", True) and g.get("rate") is not None and g.get("games", 0) >= MIN_GOAL_GAMES]
     goals_rate = round(sum(rated) / len(rated)) if rated else None
     if fundamentals is None and goals_rate is None:
         score = None
@@ -610,7 +684,7 @@ def champion_stats(games: list[dict], refs: References) -> list[dict]:
         by[(g["champ"], g["role"])].append(g)
     out = []
     for (champ, role), items in by.items():
-        scores = [fundamentals_score(g["metrics"] or {}, refs.for_role(role), role) for g in items]
+        scores = [fundamentals_score(g["metrics"] or {}, refs.for_role(role), role) for g in items if reliable(g)]
         scores = [s for s in scores if s is not None]
         wins = sum(1 for g in items if g["win"])
         out.append(
@@ -717,10 +791,15 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
     evaluated = evaluate_goals(goals, games)
     wins = sum(1 for g in games if g["win"])
     roles = Counter(g["role"] or "?" for g in games)
-    for g in games:
-        g["score"] = fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"])
+    for g in games:  # Swiftplay o con alguien AFK: sin nota (no es comparable con tu referencia)
+        g["score"] = fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"]) if reliable(g) else None
+    # Muestra que de verdad sirve para señalar puntos débiles (partidas fiables del rol de cada métrica).
+    sample = max((row.get("games") or 0 for row in table), default=0)
     return {
         "games": len(games),
+        "reliable_games": sum(1 for g in games if reliable(g)),
+        "weakness_sample": sample,
+        "min_games_weakness": MIN_GAMES_WEAKNESS,
         "wins": wins,
         "wr": round(wins / len(games) * 100, 1) if games else None,
         "roles": [{"role": r, "games": n} for r, n in roles.most_common()],

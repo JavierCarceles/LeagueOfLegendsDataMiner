@@ -63,12 +63,14 @@ def base_view(ev: Evidence, role: str, champ: int) -> dict:
         "wr_adj": pct(p),
         "games": int(games),
         "opgg": {
-            "wr": round(tl["wr"], 2) if tl and tl.get("wr") is not None else None,
+            "wr": round(tl["wr"], 2) if tl and tl.get("wr") is not None and tl.get("source") != "lolalytics" else None,
             "pick": round(tl["pick"], 2) if tl and tl.get("pick") is not None else None,
             "ban": round(tl["ban"], 2) if tl and tl.get("ban") is not None else None,
             "tier": tl.get("tier") if tl else None,
             "rank": tl.get("rank") if tl else None,
             "games": int(counts["ext"][0]) if counts["ext_kind"] == "counters" else None,
+            "lola_wr": round(tl["lola_wr"], 2) if tl and tl.get("lola_wr") is not None else None,
+            "lola_games": tl.get("lola_games") if tl else None,
         }
         if tl or counts["ext_kind"]
         else None,
@@ -122,6 +124,16 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
         out.sort(key=lambda x: x["games"], reverse=True)
         breakdown[dim] = out
     breakdown["opgg_patch"] = [{**row, "wr": pct(safe_div(row["wins"], row["games"]))} for row in ev.counters_by_patch(role, champ, opp)]
+    web_sources = {name: (_source(*value) if value else None) for name, value in ev.pair_sources(role, champ, opp).items()} if ev.scope else {}
+
+    patch_changes = {}
+    notes = getattr(svc, "patchnotes", None)
+    if notes is not None and notes.enabled:
+        for c in (champ, opp):
+            try:
+                patch_changes[str(c)] = notes.champion_changes(c, 2, allow_fetch=False)
+            except Exception:
+                patch_changes[str(c)] = []
 
     opgg_guide = None
     if with_guide and ev.scope:
@@ -140,6 +152,8 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
         "b": base_view(ev, role, opp),
         "pair": pair,
         "breakdown": breakdown,
+        "web_sources": web_sources,
+        "patch_changes": patch_changes,
         "opgg_guide": opgg_guide,
         "guide": svc.guides.find(role, champ, opp, include_content=False),
         "priors": ev.priors,

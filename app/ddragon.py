@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 from pathlib import Path
 
 import requests
@@ -54,6 +55,8 @@ class DDragon:
         self.champions: dict[int, dict] = {}
         self.items: dict[int, str] = {}
         self.item_catalog = ItemCatalog({})
+        self._catalogs: dict[str, tuple[float, ItemCatalog | None]] = {}  # parche -> (cuándo, catálogo)
+        self._catalog_lock = threading.Lock()
         self.spells: dict[int, dict] = {}
         self.runes: dict[int, dict] = {}
         self._by_norm: dict[str, int] = {}
@@ -95,6 +98,35 @@ class DDragon:
         if not versions:
             return None
         return max(versions, key=lambda v: [int(x) if x.isdigit() else 0 for x in v.split(".")])
+
+    def catalog_for(self, game_version: str | None, allow_network: bool = True) -> ItemCatalog | None:
+        """Catálogo de objetos del parche de una partida («16.22.123.4567» -> item.json de 16.22.1).
+
+        Así las partidas de otros parches o temporadas se analizan con sus objetos de entonces
+        (recetas, costes, objetos que ya no existen). ``None`` si no se puede conseguir.
+        """
+        parts = str(game_version or "").split(".")
+        if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+            return None
+        patch = f"{int(parts[0])}.{int(parts[1])}"
+        if self.version and self.version.startswith(patch + ".") and self.item_catalog.items:
+            return self.item_catalog
+        with self._catalog_lock:
+            cached = self._catalogs.get(patch)
+            if cached and (cached[1] is not None or time.monotonic() - cached[0] < 3600):
+                return cached[1]
+        catalog = None
+        try:
+            items = self._fetch(f"{patch}.1", f"data/{self.lang}/item.json", allow_network, required=False)
+            if items:
+                catalog = ItemCatalog.from_ddragon(items)
+        except Exception:  # sin red o versión inexistente: se reintenta pasada una hora
+            log.debug("Sin catálogo de objetos para el parche %s", patch, exc_info=True)
+        with self._catalog_lock:
+            self._catalogs[patch] = (time.monotonic(), catalog)
+            while len(self._catalogs) > 12:
+                self._catalogs.pop(next(iter(self._catalogs)))
+        return catalog
 
     def _fetch(self, version: str, path: str, allow_network: bool, required: bool = True):
         local = self.cache_dir / version / Path(path).name

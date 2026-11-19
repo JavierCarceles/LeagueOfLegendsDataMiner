@@ -21,7 +21,7 @@ export async function render(container) {
   mount(
     container,
     h("div.section-head", h("div", h("h2", "Guías de matchups"), h("p", "Guías guardadas en tu carpeta de coachings (de vídeos o generadas con IA a partir de tus estadísticas y de OP.GG)."))),
-    h("div.grid", { style: { gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)" } }, h("div.stack", library, top), tools),
+    h("div.grid.guides-split", h("div.stack", library, top), tools),
   );
   mount(library, loading());
   renderTools(tools);

@@ -2,7 +2,7 @@
 import { api, filterParams } from "../api.js";
 import { dd, ROLE_LABEL, ROLES, state } from "../state.js";
 import {
-  champ, champImg, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, roleIcon, roleTabs,
+  champ, champImg, empty, errorBox, fmt, h, icon, kpi, loading, mount, notice, patchChanges, roleIcon, roleTabs,
   sourceBadges, table, tierBadge, wrCell, wrClass,
 } from "../ui.js";
 import { openMatchup } from "./matchups.js";
@@ -39,7 +39,7 @@ async function load() {
   const body = h("div");
   mount(
     root,
-    h("div.section-head", h("div", h("h2", "Tier list"), h("p", "Fuerza de cada campeón por rol combinando OP.GG y tu base de datos. El tier (S+…D) sale del WR ajustado por tamaño de muestra; también se muestra el tier oficial de OP.GG."))),
+    h("div.section-head", h("div", h("h2", "Tier list"), h("p", "Fuerza de cada campeón por rol combinando OP.GG, Lolalytics y tu base de datos. El tier (S+…D) sale del WR ajustado por tamaño de muestra; también se muestra el tier oficial de OP.GG."))),
     h("div.row", { style: { marginBottom: "14px" } }, roleTabs(role, (r) => { role = r; history.replaceState(null, "", `#/campeones/${r}`); load(); })),
     body,
   );
@@ -55,6 +55,7 @@ async function load() {
       { key: "tier", label: "Tier", sort: (c) => c.wr_adj, render: (c) => h("div.row", tierBadge(c.tier), c.opgg?.tier ? h("span.opgg-tier", { title: "Tier de OP.GG (1 = mejor)" }, `T${c.opgg.tier}`) : null) },
       { key: "wr_adj", label: "WR ajustado", render: (c) => wrCell(c.wr_adj) },
       { key: "opgg_wr", label: "WR OP.GG", sort: (c) => c.opgg?.wr, render: (c) => h(`span.num.${wrClass(c.opgg?.wr)}`, fmt.pct(c.opgg?.wr, 2)) },
+      { key: "lola_wr", label: "WR Lolalytics", sort: (c) => c.opgg?.lola_wr, render: (c) => (c.opgg?.lola_wr != null ? h("div.col", { style: { gap: "1px" } }, h(`span.num.${wrClass(c.opgg.lola_wr)}`, fmt.pct(c.opgg.lola_wr, 2)), c.opgg.lola_games ? h("span.tiny.muted", `${fmt.compact(c.opgg.lola_games)} part.`) : null) : h("span.faint", "—")) },
       { key: "pick", label: "Pick", sort: (c) => c.opgg?.pick, render: (c) => h("span.num", fmt.pct(c.opgg?.pick)) },
       { key: "ban", label: "Ban", sort: (c) => c.opgg?.ban, render: (c) => h("span.num", fmt.pct(c.opgg?.ban)) },
       { key: "own_wr", label: "Tu BD", sort: (c) => c.own?.games, render: (c) => (c.own ? h("div.col", { style: { gap: "1px" } }, h(`span.num.${wrClass(c.own.wr)}`, fmt.pct(c.own.wr)), h("span.tiny.muted", `${fmt.compact(c.own.games)} part.`)) : h("span.faint", "—")) },
@@ -102,7 +103,8 @@ function detailView(d) {
         "div.kpis",
         { style: { flex: "1 1 520px" } },
         kpi("WR ajustado", h(`span.${wrClass(b.wr_adj)}`, fmt.pct(b.wr_adj)), `${fmt.compact(b.games)} partidas`),
-        b.opgg ? kpi("OP.GG", fmt.pct(b.opgg.wr), b.opgg.tier ? `Tier ${b.opgg.tier} · #${b.opgg.rank}` : "") : null,
+        b.opgg && b.opgg.wr !== null ? kpi("OP.GG", fmt.pct(b.opgg.wr), b.opgg.tier ? `Tier ${b.opgg.tier} · #${b.opgg.rank}` : "") : null,
+        b.opgg?.lola_wr != null ? kpi("Lolalytics", fmt.pct(b.opgg.lola_wr), b.opgg.lola_games ? `${fmt.compact(b.opgg.lola_games)} partidas` : "") : null,
         b.opgg ? kpi("Pick / Ban", fmt.pct(b.opgg.pick), `ban ${fmt.pct(b.opgg.ban)}`) : null,
         d.own?.dgames ? kpi("KDA (tu BD)", fmt.num(d.own.kda, 2), `${fmt.num(d.own.kills)} / ${fmt.num(d.own.deaths)} / ${fmt.num(d.own.assists)}`) : null,
         d.own?.dgames ? kpi("CS/min", fmt.num(d.own.cs_min, 1), `CS@10 ${fmt.num(d.own.cs10)}`) : null,
@@ -168,9 +170,18 @@ function detailView(d) {
   const curve = own?.duration_curve;
   const breakdown = ["tier", "patch", "platform"].filter((k) => d.breakdown[k]?.length);
 
+  // Cambios recientes del campeón (notas de parche oficiales): se cargan aparte, sin retrasar la ficha.
+  const patchEl = h("div");
+  api
+    .get(`/api/patches/champion/${d.champ}`)
+    .then((res) => {
+      if (res.changes?.length && patchEl.isConnected) mount(patchEl, h("section.card", h("h3.card-title", icon("spark"), "Cambios recientes (notas de parche de Riot)"), patchChanges(res.changes, { max: 3 })));
+    })
+    .catch(() => {});
   return h(
     "div.stack",
     head,
+    patchEl,
     h("div.grid.grid-3", muList(h("span.good", "Mejores enfrentamientos"), d.matchups.best), muList(h("span.bad", "Peores enfrentamientos"), d.matchups.worst), muList("Más jugados", d.matchups.common)),
     h("h3.card-title", { style: { marginTop: "8px" } }, icon("link"), "Sinergias (Δ sobre lo esperado)"),
     h("div.grid.grid-4", synergyCards),

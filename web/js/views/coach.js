@@ -2,9 +2,9 @@
 // propósitos para llegar a clasificatorias y una repetición 2D de cada partida.
 import { api } from "../api.js";
 import { lineChart } from "../charts.js";
-import { DEATH_KINDS, deathMap, pathMap, replay } from "../components/minimap.js";
+import { DEATH_KINDS, deathMap, pathMap } from "../components/minimap.js";
 import { dd, loadJSON, ROLE_LABEL, save, state, TIER_LABEL } from "../state.js";
-import { champImg, champText, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
+import { champImg, collapsible, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
 
 const PREFS = "tempu.progreso.v1";
 let prefs = loadJSON(PREFS, { queue: "all", role: "all", last: 30 });
@@ -14,25 +14,21 @@ let headEl = null;
 let bodyEl = null;
 let lastCount = null;
 let mode = null; // "setup" | "summary" | "game"
-let player = null;
 
 const CAMP = { blue: "azul", gromp: "Gromp", wolves: "lobos", raptors: "aves", red: "rojo", krugs: "Krugs" };
-const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve", good: "Bien hecho" };
 
 export function destroy() {
   root = null;
   clearInterval(timer);
-  player?.pause();
-  player = null;
 }
 
 export async function render(container, args = []) {
   root = container;
   clearInterval(timer);
-  player?.pause();
   if (args[0]) {
-    mode = "game";
-    return renderGame(container, args[0].toUpperCase());
+    // La partida se ve ahora en «Repeticiones» (mapa 2D con cada error).
+    location.replace(`#/repeticiones/${encodeURIComponent(args[0].toUpperCase())}`);
+    return;
   }
   mode = null;
   lastCount = null;
@@ -339,43 +335,56 @@ function summaryView(s, data) {
         : ["No hay partidas con estos filtros", "Prueba con otra cola, otro rol o más partidas."];
     return h("div.stack", filtersBar(s), h("section.card", empty(title, text, linked ? "match" : "key")));
   }
+  const d = s.deaths || {};
+  const hoard = metricRow(s, "gold_hoard_min");
+  const idle = metricRow(s, "idle_pct");
+  const builds = buildsCard(s);
+  const champs = championsCard(s);
+  const metricsCount = (s.metrics || []).length;
+  const worse = (s.metrics || []).filter((m) => m.status === "bad").length;
   return h(
     "div.stack",
     filtersBar(s),
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     weaknessesCard(s),
-    h("div.grid.grid-2", deathsCard(s), s.jungle ? jungleCard(s) : timeCard(s)),
-    s.jungle ? timeCard(s) : null,
-    buildsCard(s),
-    metricsCard(s),
     gamesCard(s),
-    championsCard(s),
+    collapsible("progreso.muertes", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { open: true, summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
+    s.jungle ? collapsible("progreso.jungla", [icon("map"), "Tu pathing de jungla (minutos 1-8)"], () => jungleCard(s), { open: true, summary: `${s.jungle.games} ${s.jungle.games === 1 ? "partida" : "partidas"}` }) : null,
+    collapsible("progreso.tiempo", [icon("clock"), "En qué pierdes el tiempo"], () => timeCard(s), {
+      summary: [idle?.value != null ? `${fmt.num(idle.value, 0)} % de minutos vacíos` : null, hoard?.value != null ? `${fmt.num(hoard.value, 1)} min/partida con oro útil` : null].filter(Boolean).join(" · ") || null,
+    }),
+    builds ? collapsible("progreso.builds", [icon("crown"), "Tus builds frente a OP.GG"], builds, { summary: `${(s.builds || []).length} campeones` }) : null,
+    collapsible("progreso.metricas", [icon("activity"), "Todas tus estadísticas frente a la referencia"], () => metricsCard(s), { summary: `${metricsCount} métricas · ${worse} por debajo` }),
+    champs ? collapsible("progreso.campeones", [icon("crown"), "Tus campeones"], champs, { summary: `${(s.champions || []).length} campeones` }) : null,
   );
 }
 
-function ring(score, threshold) {
+function ring(score, threshold, provisional = false) {
   const value = Math.max(0, Math.min(100, score ?? 0));
   const r = 44;
   const c = 2 * Math.PI * r;
-  const color = score === null || score === undefined ? "var(--line-2)" : value >= threshold ? "var(--good)" : value >= threshold - 20 ? "var(--gold)" : "var(--bad)";
+  // Provisional (faltan partidas): gris, sin colores de veredicto.
+  const color = score === null || score === undefined || provisional ? "var(--line-2)" : value >= threshold ? "var(--good)" : value >= threshold - 20 ? "var(--gold)" : "var(--bad)";
   const el = h("div.ring");
   el.innerHTML = `<svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="${r}" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="55" cy="55" r="${r}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(value / 100) * c} ${c}" transform="rotate(-90 55 55)"/></svg>`;
-  el.append(h("div.ring-value", h("b", score === null || score === undefined ? "—" : String(score)), h("small", "/ 100")));
+  el.append(h("div.ring-value", h("b", score === null || score === undefined ? "—" : String(score)), h("small", provisional ? "provisional" : "/ 100")));
+  if (provisional) el.title = "Nota provisional: aún no hay partidas suficientes para valorarlo con fiabilidad.";
   return el;
 }
 
 function readinessCard(s) {
   const r = s.readiness;
+  const provisional = r.score !== null && r.score !== undefined && (r.missing_games || 0) > 0;
   return h(
     "section.card",
     h("h3.card-title", icon("trophy"), "¿Listo para clasificatorias?"),
     h(
       "div.ready-box",
-      ring(r.score, r.threshold),
+      ring(r.score, r.threshold, provisional),
       h(
         "div.col",
         { style: { gap: "6px" } },
-        r.ready ? h("span.pill.pill-good", "¡Sí! Puedes empezar") : h("span.pill.pill-warn", "Todavía no"),
+        r.ready ? h("span.pill.pill-good", "¡Sí! Puedes empezar") : provisional ? h("span.pill", "Faltan partidas") : h("span.pill.pill-warn", "Todavía no"),
         h("div.small", r.message),
         h("div.tiny.muted", `Fundamentos ${r.fundamentals !== null ? fmt.num(r.fundamentals, 1) + "/10" : "—"} · propósitos cumplidos ${r.goals_rate !== null ? r.goals_rate + " %" : "— (añade alguno)"} · últimas ${r.games} partidas`),
       ),
@@ -428,7 +437,7 @@ function goalsCard(s) {
           ),
           h(
             "div.goal-dots",
-            [...g.history].reverse().map((x) => h(`a.gd.${x.ok ? "ok" : "ko"}`, { href: `#/progreso/${x.match_id}`, title: `${dd.name(x.champ)} · ${fmt.num(x.value, 1)} · ${x.ok ? "cumplido" : "no cumplido"}` })),
+            [...g.history].reverse().map((x) => h(`a.gd.${x.ok ? "ok" : "ko"}`, { href: `#/repeticiones/${x.match_id}`, title: `${dd.name(x.champ)} · ${fmt.num(x.value, 1)} · ${x.ok ? "cumplido" : "no cumplido"}` })),
             g.streak > 1 ? h("span.tiny.good", `${g.streak} seguidas`) : null,
           ),
         ),
@@ -517,14 +526,12 @@ async function addGoalModal(s) {
 function weaknessesCard(s) {
   const active = new Set((s.goals || []).map((g) => `${g.metric}|${g.op}`));
   const items = s.weaknesses || [];
+  const TOP = 3;
   return h(
     "section.card",
     h("h3.card-title", icon("alert"), "Qué haces mal (ordenado por lo que más te cuesta)"),
     items.length
-      ? h(
-          "div.col",
-          { style: { gap: "10px" } },
-          items.map((w) =>
+      ? weakList(items, TOP, (w) =>
             h(
               `div.weak.${w.level}`,
               h("div.weak-sev", { title: `Gravedad ${fmt.num(w.severity, 0)}/100` }, h("span", { style: { height: `${Math.max(8, w.severity)}%` } })),
@@ -546,9 +553,24 @@ function weaknessesCard(s) {
                   : h("button.btn.btn-sm", { onclick: () => addGoal(w.goal), title: w.goal.label }, icon("target"), "Ponérmelo de propósito")
                 : null,
             ),
-          ),
         )
-      : notice(`No hay puntos débiles claros frente a ${TIER_LABEL[s.target_tier] || s.target_tier}. Sube tu elo objetivo para exigirte más.`, "info"),
+      : (s.weakness_sample ?? s.games) < (s.min_games_weakness ?? 5)
+        ? notice(`Aún no hay muestra suficiente para señalar puntos débiles fiables: hacen falta al menos ${s.min_games_weakness ?? 5} partidas válidas del mismo rol (sin Swiftplay ni desconexiones) y llevas ${s.weakness_sample ?? 0}. Se calculan solas a medida que juegues.`, "info")
+        : notice(`No hay puntos débiles claros frente a ${TIER_LABEL[s.target_tier] || s.target_tier} en estas ${s.reliable_games ?? s.games} partidas. Sube tu elo objetivo para exigirte más.`, "info"),
+  );
+}
+
+/** Los ``top`` primeros a la vista y el resto en un desplegable. */
+function weakList(items, top, render) {
+  const first = items.slice(0, top).map(render);
+  const rest = items.slice(top);
+  return h(
+    "div.col",
+    { style: { gap: "10px" } },
+    first,
+    rest.length
+      ? h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rest.length} ${rest.length === 1 ? "punto débil más" : "puntos débiles más"}`), h("div.col", { style: { gap: "10px", marginTop: "10px" } }, rest.map(render)))
+      : null,
   );
 }
 
@@ -577,7 +599,7 @@ function deathsCard(s) {
     h("h3.card-title", icon("map"), "Dónde y cómo mueres", h("span.spacer"), h("span.tiny.muted", `${d.total} muertes · ${d.early_total} antes del 14`)),
     h(
       "div.map-split",
-      deathMap(d.points, { onPick: (p) => (location.hash = `#/progreso/${p.match_id}`) }),
+      deathMap(d.points, { onPick: (p) => (location.hash = `#/repeticiones/${p.match_id}`) }),
       h(
         "div.col",
         { style: { gap: "4px", minWidth: 0 } },
@@ -715,12 +737,14 @@ function chips(g) {
   if (g.gold_hoard_min >= 1) out.push(h("span.chip-warn", `${fmt.num(g.gold_hoard_min, 1)} min con oro útil`));
   if (g.idle_pct >= 25) out.push(h("span.chip-warn", `${fmt.num(g.idle_pct, 0)} % vacío`));
   if (g.obj_trades) out.push(h("span.chip-good", g.obj_trades > 1 ? `${g.obj_trades} buenos cambios` : "buen cambio"));
+  if (g.obj_fair_trades) out.push(h("span.chip-muted", g.obj_fair_trades > 1 ? `${g.obj_fair_trades} cambios justos` : "cambio justo"));
+  if (g.reliable === false) out.push(h("span.chip-muted", { title: "Swiftplay o con alguien desconectado 3 min o más: no cuenta en tus estadísticas" }, "no cuenta"));
   if (g.afk_min >= 1) out.push(h("span.chip-muted", `AFK ${fmt.num(g.afk_min, 0)} min`));
   if (!g.has_timeline) out.push(h("span.chip-muted", "esperando timeline"));
   return out;
 }
 
-function scorePill(score) {
+export function scorePill(score) {
   if (score === null || score === undefined) return h("span.score", "—");
   return h(`span.score.${score >= 6.5 ? "hi" : score <= 3.5 ? "lo" : ""}`, { title: "Nota de fundamentos 0-10 (5 = como la referencia de tu elo objetivo)" }, fmt.num(score, 1));
 }
@@ -728,14 +752,14 @@ function scorePill(score) {
 function gamesCard(s) {
   return h(
     "section.card",
-    h("h3.card-title", icon("match"), "Tus partidas", h("span.spacer"), h("span.tiny.muted", "Pulsa una para ver la repetición 2D y sus momentos clave")),
+    h("h3.card-title", icon("match"), "Tus partidas", h("span.spacer"), h("a.tiny", { href: "#/repeticiones" }, "Todas tus repeticiones →")),
     h(
       "div.col",
       { style: { gap: "6px" } },
       (s.recent || []).map((g) =>
         h(
           `a.game-row.${g.win ? "win" : "loss"}`,
-          { href: `#/progreso/${g.match_id}` },
+          { href: `#/repeticiones/${g.match_id}` },
           h("div.bar"),
           h("div.row", { style: { minWidth: 0 } }, champImg(g.champ), h("div", { style: { minWidth: 0 } }, h("div", { style: { fontWeight: 700 } }, dd.name(g.champ)), h("div.tiny.muted", `${g.role ? ROLE_LABEL[g.role] : "—"} · ${g.queue_label}`))),
           h("div", h("div.kda", `${g.kills} / ${g.deaths} / ${g.assists}`), h("div.tiny", { class: g.win ? "good" : "bad" }, g.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.duration(g.duration)}`))),
@@ -777,115 +801,12 @@ function championsCard(s) {
   );
 }
 
-// ------------------------------------------------------------------ partida
-async function renderGame(container, matchId) {
-  const body = h("div");
-  mount(container, h("div.row", { style: { marginBottom: "12px" } }, h("a.btn.btn-ghost.btn-sm", { href: "#/progreso" }, "← Mi progreso")), body);
-  mount(body, loading("Cargando el análisis…"));
-  try {
-    const a = await api.get(`/api/coach/games/${matchId}`);
-    if (!root) return;
-    mount(body, gameView(a));
-  } catch (err) {
-    mount(body, errorBox(err));
-  }
-}
-
-function devOf(info, value, ref) {
-  const scale = Math.max(Math.abs(ref), info.floor ?? 0.5);
-  return info.better === "lower" ? (value - ref) / scale : (ref - value) / scale;
-}
-
-function gameView(a) {
-  const byPid = Object.fromEntries((a.players || []).map((p) => [p.pid, p]));
-  const me = byPid[a.me] || {};
-  const opp = byPid[a.opponent];
-  const ej = byPid[a.enemy_jungler];
-  const m = a.metrics || {};
-  const head = h(
-    "section.card",
-    h(
-      "div.profile-head",
-      champImg(a.champ, "xl"),
-      h(
-        "div",
-        h("div", { style: { fontSize: "22px", fontWeight: 800 } }, dd.name(a.champ), " ", a.win ? h("span.pill.pill-good", "Victoria") : h("span.pill.pill-bad", "Derrota")),
-        h("div.row-wrap.small.muted", a.role ? h("span.row", roleIcon(a.role), ROLE_LABEL[a.role]) : null, h("span", a.queue_label), h("span", fmt.duration(a.duration)), h("span", fmt.date(a.game_start)), h("span", `Parche ${a.patch}`)),
-        h(
-          "div.row-wrap.small",
-          { style: { marginTop: "6px" } },
-          opp ? h("span.row", "Contra ", champImg(opp.champ, "xs"), h("b", dd.name(opp.champ))) : null,
-          ej && a.role !== "JUNGLE" ? h("span.row.muted", "· jungla rival ", champImg(ej.champ, "xs"), dd.name(ej.champ)) : null,
-        ),
-      ),
-      h("div.spacer"),
-      h(
-        "div.kpis",
-        { style: { minWidth: "min(520px, 100%)" } },
-        kpi("KDA", `${m.kills}/${m.deaths}/${m.assists}`, `KP ${fmt.pct(m.kp, 0)}`),
-        kpi("CS/min", fmt.num(m.cs_min, 1), m.cs10 !== undefined && m.cs10 !== null ? `CS@10 ${m.cs10}` : null),
-        kpi("Visión/min", fmt.num(m.vision_min, 2), `${m.control_wards ?? 0} pinks`),
-        kpi("Nota", scorePill(a.score), `vs ${TIER_LABEL[a.target_tier] || a.target_tier}`),
-      ),
-      h("a.btn.btn-sm", { href: `#/partida/${a.match_id}` }, icon("eye"), "Partida completa"),
-    ),
-  );
-  if (!a.has_timeline) {
-    return h("div.stack", head, notice("Riot aún no ha publicado el timeline de esta partida (a veces tarda unos minutos). Se vuelve a pedir solo; mientras tanto solo hay estadísticas generales.", "warn"), gameMetrics(a));
-  }
-  const afk = (a.afk || []).reduce((acc, x) => acc + (x.end - x.start), 0);
-  const afkNotice = afk >= 60 ? notice(`Estuviste ${fmt.duration(afk)} sin moverte (desconexión o AFK). Esos minutos no cuentan como minutos vacíos ni como oro sin gastar.`, "warn") : null;
-
-  player = replay(a);
-  const moments = (a.moments || []).map((mo) =>
-    h(
-      `div.moment.${mo.severity}`,
-      { onclick: () => { player.pause(); player.seek(Math.max(0, mo.t - 6)); }, title: "Ver en la repetición" },
-      h("span.moment-time", fmt.duration(Math.max(1, mo.t))),
-      h("div", { style: { minWidth: 0 } }, h("div.row-wrap", h(`span.sev.${mo.severity}`, SEV_LABEL[mo.severity]), h("b.small", champText(mo.title))), mo.detail ? h("div.tiny.muted", champText(mo.detail)) : null),
-    ),
-  );
-  const replayCard = h("section.card", h("h3.card-title", icon("play"), "Repetición 2D", h("span.spacer"), h("span.tiny.muted", "Reconstruida con el timeline de Riot")), player.el);
-  const momentsCard = h(
-    "section.card",
-    h("h3.card-title", icon("flag"), "Momentos clave", h("span.spacer"), h("span.tiny.muted", `${moments.length}`)),
-    moments.length ? h("div.moments", moments) : h("div.small.muted", "Ningún error claro en esta partida. ¡Bien jugado!"),
-  );
-
-  const charts = [];
-  const s = a.series;
-  if (s && opp) {
-    const points = s.minute.map((x, i) => ({ x, y: (s.gold[i] ?? 0) - (s.opp_gold[i] ?? 0) })).filter((p) => p.y !== null);
-    const markers = [
-      ...(a.deaths || []).map((d) => ({ x: d.t / 60, team: 200, label: `${fmt.duration(d.t)} · mueres` })),
-      ...(a.replay?.kills || []).filter((k) => k[1] === a.me).map((k) => ({ x: k[0] / 60, team: 100, label: `${fmt.duration(k[0])} · matas a ${dd.name(byPid[k[2]]?.champ)}` })),
-    ];
-    charts.push(h("section.card", h("h3.card-title", icon("activity"), `Oro frente a ${dd.name(opp.champ)}`), lineChart(points, { height: 240, markers }), h("div.legend", h("span", h("i", { style: { background: "var(--blue)" } }), "Tus kills (arriba)"), h("span", h("i", { style: { background: "var(--red)" } }), "Tus muertes (abajo)"), h("span", "Línea: tu oro − el de tu rival"))));
-  }
-  if (s) {
-    const caption = s.hoard
-      ? "Naranja: te llegaba para una pieza de tu siguiente objeto, tenías hueco y no volviste (descontando peleas y objetivos). Gris claro: ahorro para un objeto completo con el inventario lleno o la build terminada, que no es un error."
-      : "Por encima de la línea (1.500) estás paseando oro que no pelea: vuelve a base cuando puedas.";
-    charts.push(h("section.card", h("h3.card-title", icon("clock"), "Oro sin gastar cada minuto"), goldBars(s), h("p.tiny.muted", caption)));
-  }
-
-  return h(
-    "div.stack",
-    head,
-    afkNotice,
-    h("div.grid.game-main", replayCard, momentsCard),
-    a.jungle ? jungleGame(a) : null,
-    buildCard(a),
-    ...charts,
-    gameMetrics(a),
-  );
-}
-
+// ------------------------------------------------------------------ partida (piezas que reutiliza «Repeticiones»)
 function minuteText(v) {
   return v !== null && v !== undefined ? `min ${fmt.num(v, 1)}` : "—";
 }
 
-function buildCard(a) {
+export function buildCard(a) {
   const b = a.build;
   if (!b) {
     return a.items_known === false ? notice("Sin datos de objetos (Data Dragon no estaba disponible al analizarla): la build y el oro útil se calcularán al volver a analizarla.", "info") : null;
@@ -941,7 +862,30 @@ function buildCard(a) {
   );
 }
 
-function goldBars(s) {
+/** Gráficas de oro de una partida: ventaja frente a tu rival y oro sin gastar cada minuto. */
+export function goldCharts(a) {
+  const byPid = Object.fromEntries((a.players || []).map((p) => [p.pid, p]));
+  const opp = byPid[a.opponent];
+  const s = a.series;
+  const out = [];
+  if (s && opp) {
+    const points = s.minute.map((x, i) => ({ x, y: (s.gold[i] ?? 0) - (s.opp_gold[i] ?? 0) })).filter((p) => p.y !== null);
+    const markers = [
+      ...(a.deaths || []).map((d) => ({ x: d.t / 60, team: 200, label: `${fmt.duration(d.t)} · mueres` })),
+      ...(a.replay?.kills || []).filter((k) => k[1] === a.me).map((k) => ({ x: k[0] / 60, team: 100, label: `${fmt.duration(k[0])} · matas a ${dd.name(byPid[k[2]]?.champ)}` })),
+    ];
+    out.push(h("div", h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, `Tu oro frente a ${dd.name(opp.champ)}`), lineChart(points, { height: 220, markers }), h("div.legend", h("span", h("i", { style: { background: "var(--blue)" } }), "Tus kills (arriba)"), h("span", h("i", { style: { background: "var(--red)" } }), "Tus muertes (abajo)"), h("span", "Línea: tu oro − el de tu rival"))));
+  }
+  if (s) {
+    const caption = s.hoard
+      ? "Naranja: te llegaba para una pieza de tu siguiente objeto, tenías hueco y no volviste (descontando peleas y objetivos). Gris claro: ahorro para un objeto completo con el inventario lleno o la build terminada, que no es un error."
+      : "Por encima de la línea (1.500) estás paseando oro que no pelea: vuelve a base cuando puedas.";
+    out.push(h("div", { style: { marginTop: out.length ? "16px" : 0 } }, h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, "Oro sin gastar cada minuto"), goldBars(s), h("p.tiny.muted", caption)));
+  }
+  return out.length ? h("div", out) : h("div.small.muted", "Sin datos de oro por minuto.");
+}
+
+export function goldBars(s) {
   const values = s.current_gold.map((v) => v ?? 0);
   const max = Math.max(2000, ...values);
   const hoard = s.hoard || null; // análisis con inventario: minutos con oro útil sin gastar
@@ -959,7 +903,7 @@ function goldBars(s) {
   return wrap;
 }
 
-function jungleGame(a) {
+export function jungleGame(a) {
   const j = a.jungle;
   const steps = (j.path || []).map((p) => h("span.chip", `${p.minute}' ${p.camp ? CAMP[p.camp] + (p.camp_team !== a.team ? " (rival)" : "") : p.zone.startsWith("jungle") ? "jungla" : p.zone.replace("base_100", "base").replace("base_200", "base").replace("river", "río")}`));
   const m = a.metrics;
@@ -978,7 +922,12 @@ function jungleGame(a) {
   );
 }
 
-function gameMetrics(a) {
+function devOf(info, value, ref) {
+  const scale = Math.max(Math.abs(ref), info.floor ?? 0.5);
+  return info.better === "lower" ? (value - ref) / scale : (ref - value) / scale;
+}
+
+export function gameMetrics(a) {
   const info = a.metric_info || [];
   const groups = {};
   for (const mi of info) {

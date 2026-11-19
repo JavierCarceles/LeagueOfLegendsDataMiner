@@ -1,16 +1,34 @@
-// Panel de datos: API key, OP.GG, recolector, límites de la API, base de datos y modelo.
+// Datos y API: API key, precarga en segundo plano, recolector por servidores,
+// fuentes externas, límites de la API, base de datos y modelo de draft.
 import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
-import { platformLabel, state, TIER_LABEL } from "../state.js";
-import { errorBox, fmt, h, icon, kpi, loading, mount, notice, select, toast } from "../ui.js";
+import { champPicker } from "../components/picker.js";
+import { dd, platformLabel, state, TIER_LABEL } from "../state.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, loading, mount, multiSelect, notice, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
 let sections = {};
-let crawlerForm = null;
+let crawlerForm = null; // configuración que estás editando (sobrevive a los refrescos)
+let crawlerFormFor = null; // "running" | "stopped": el formulario solo se reconstruye al cambiar de estado
+let runningSig = null;
 
 const ALL_TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
-const STATUS_LABEL = { starting: "Arrancando", running: "Recolectando", idle: "En espera", waiting_key: "Esperando API key", stopped: "Detenido" };
+const APEX = ["MASTER", "GRANDMASTER", "CHALLENGER"];
+const STATUS_LABEL = {
+  starting: "Arrancando",
+  running: "Recolectando",
+  idle: "En espera",
+  waiting_key: "Esperando API key",
+  paused_game: "En pausa: estás en partida",
+  stopped: "Detenido",
+};
+const REGION_GROUPS = [
+  { id: "europe", label: "Europa" },
+  { id: "americas", label: "América" },
+  { id: "asia", label: "Asia" },
+  { id: "sea", label: "SEA / Oceanía" },
+];
 
 export function destroy() {
   root = null;
@@ -19,23 +37,41 @@ export function destroy() {
 
 export async function render(container) {
   root = container;
-  sections = { key: h("div"), opgg: h("div"), crawler: h("div"), limits: h("div"), db: h("div"), model: h("div") };
   crawlerForm = null;
+  crawlerFormFor = null;
+  sections = {
+    key: h("div"),
+    warmer: h("div"),
+    crawlerForm: h("div"),
+    crawlerStatus: h("div"),
+    otps: h("div"),
+    sources: h("div"),
+    limits: h("div"),
+    db: h("div"),
+    model: h("div"),
+  };
   mount(
     container,
-    h("div.section-head", h("div", h("h2", "Datos y API"), h("p", "Configura tu API key de Riot, sincroniza OP.GG, recoge partidas propias y calibra el modelo de draft."))),
+    h("div.section-head", h("div", h("h2", "Datos y API"), h("p", "Tu API key de Riot, lo que se descarga solo en segundo plano, el recolector de partidas por servidores y el estado de cada fuente de datos."))),
     h(
       "div.grid.grid-2",
       h("section.card", h("h3.card-title", icon("key"), "API key de Riot"), sections.key),
-      h("section.card", h("h3.card-title", icon("globe"), "OP.GG"), sections.opgg),
+      h("section.card", h("h3.card-title", icon("refresh"), "Datos en segundo plano"), sections.warmer),
     ),
-    h("section.card", { style: { marginTop: "16px" } }, h("h3.card-title", icon("database"), "Recolector de partidas (Riot API)"), sections.crawler),
     h(
-      "div.grid.grid-3",
+      "section.card",
       { style: { marginTop: "16px" } },
-      h("section.card", h("h3.card-title", icon("activity"), "Límite de la API"), sections.limits),
-      h("section.card", h("h3.card-title", icon("database"), "Base de datos"), sections.db),
-      h("section.card", h("h3.card-title", icon("chart"), "Modelo de draft"), sections.model),
+      h("h3.card-title", icon("database"), "Recolector de partidas por servidores"),
+      h("div.grid.crawler-grid", sections.crawlerForm, sections.crawlerStatus),
+      h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), "OTPs encontrados"], sections.otps, { summary: "jugadores y sus partidas con tus campeones", cls: "flat" })),
+    ),
+    h(
+      "div.stack",
+      { style: { marginTop: "16px" } },
+      collapsible("datos.fuentes", [icon("globe"), "Fuentes de datos (OP.GG, Lolalytics, Riot)"], sections.sources, { summary: "estado y caché de cada web" }),
+      collapsible("datos.limites", [icon("activity"), "Límite de la API de Riot"], sections.limits, { summary: "uso en tiempo real" }),
+      collapsible("datos.bd", [icon("database"), "Base de datos"], sections.db, { summary: "partidas, jugadores y tamaño" }),
+      collapsible("datos.modelo", [icon("chart"), "Modelo de draft"], sections.model, { summary: "calibración y backtest" }),
     ),
   );
   Object.values(sections).forEach((s) => mount(s, loading()));
@@ -46,16 +82,17 @@ export async function render(container) {
 
 async function refresh() {
   try {
-    const [status, opgg] = await Promise.all([api.get("/api/system/status"), api.get("/api/opgg/status")]);
+    const [status, sources] = await Promise.all([api.get("/api/system/status"), api.get("/api/sources/status").catch(() => null)]);
     if (!root) return;
     state.status = status;
-    state.opgg = opgg;
     // No se repinta una sección mientras el usuario está escribiendo o eligiendo en ella.
     const busy = (el) => el.contains(document.activeElement) && document.activeElement !== document.body;
     if (!busy(sections.key)) renderKey(status.key);
-    if (!busy(sections.opgg)) renderOpgg(opgg);
-    if (!busy(sections.crawler)) renderCrawler(status.crawler, status.key);
+    renderWarmer(status.warmer);
+    renderCrawler(status.crawler, status.key);
+    if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
+    loadOtps(status.crawler);
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
   } catch (err) {
@@ -79,11 +116,18 @@ function renderKey(key) {
   const signature = JSON.stringify([key.status, key.masked, Math.round(key.age_hours || 0), key.rechecking, key.detail]);
   if (keyRendered === signature && sections.key.childElementCount) return;
   keyRendered = signature;
-  const input = h("input.input", { placeholder: "RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", type: "password", autocomplete: "off", spellcheck: "false" });
+  const input = h("input.input", { placeholder: "RGAPI-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", type: "password", autocomplete: "off", spellcheck: "false", "aria-label": "API key de Riot" });
   const save = async () => {
+    if (!input.value.trim()) {
+      input.focus();
+      return toast("Pega primero la key (empieza por RGAPI-)", "error");
+    }
     try {
       const res = await api.post("/api/system/riot-key", { key: input.value.trim() });
       keyResultToast(res, "API key guardada y válida");
+      input.value = "";
+      input.blur();
+      window.dispatchEvent(new Event("tempu:status"));
       keyRendered = null;
       refresh();
     } catch (err) {
@@ -107,10 +151,14 @@ function renderKey(key) {
     unknown: h("span.pill.pill-warn.pill-dot", "Sin validar"),
     missing: h("span.pill.pill-warn.pill-dot", "Sin configurar"),
   }[key.status];
-  const remaining = key.age_hours !== null ? Math.max(0, 24 - key.age_hours) : null;
+  const remaining = key.age_hours !== null ? 24 - key.age_hours : null;
+  let ageText = null;
+  if (remaining !== null && remaining > 0) ageText = `desde ${fmt.ago(key.loaded_at)} · una development key dura 24 h (quedan ~${remaining < 1 ? "menos de 1" : fmt.num(remaining, 0)} h)`;
+  else if (remaining !== null && key.status === "valid") ageText = `desde ${fmt.ago(key.loaded_at)} · sigue funcionando pasadas 24 h (las personal keys no caducan)`;
+  else if (remaining !== null) ageText = `desde ${fmt.ago(key.loaded_at)} · una development key caduca a las 24 h: si Riot la rechaza, genera otra`;
   mount(
     sections.key,
-    h("div.row-wrap", statusPill, key.masked ? h("code.small.muted", key.masked) : null, remaining !== null ? h("span.small.muted", `cargada ${fmt.ago(key.loaded_at)} · una development key dura 24 h (quedan ~${fmt.num(remaining, 0)} h)`) : null),
+    h("div.row-wrap", statusPill, key.masked ? h("code.small.muted", key.masked) : null, ageText ? h("span.small.muted", ageText) : null),
     key.detail ? h("div.small.bad", { style: { marginTop: "6px" } }, key.detail) : null,
     key.rechecking
       ? notice("Si la acabas de generar, Riot puede tardar unos minutos en activarla. Se vuelve a comprobar sola cada poco tiempo; no hace falta que hagas nada.", "info")
@@ -118,129 +166,447 @@ function renderKey(key) {
         ? h("p.small.muted", { style: { marginTop: "6px" } }, "Comprueba que has copiado la key completa y la última que generaste (al regenerar, la anterior deja de valer).")
         : null,
     h("div.input-group", { style: { marginTop: "12px" } }, input, h("button.btn.btn-primary", { onclick: save }, "Guardar"), key.configured ? h("button.btn", { onclick: validate }, "Validar") : null),
-    h("p.small.muted", { style: { marginTop: "10px" } }, "Consíguela en ", h("a", { href: "https://developer.riotgames.com/", target: "_blank", rel: "noopener" }, "developer.riotgames.com"), ". Se guarda en tu .env local y se recarga en caliente: no hace falta reiniciar. Sin key siguen funcionando el draft, los matchups y la tier list con OP.GG."),
+    h("p.small.muted", { style: { marginTop: "10px" } }, "Consíguela en ", h("a", { href: "https://developer.riotgames.com/", target: "_blank", rel: "noopener" }, "developer.riotgames.com"), ". Se guarda en tu .env local y se recarga en caliente: no hace falta reiniciar. Sin key siguen funcionando el draft, los matchups y la tier list con OP.GG y Lolalytics."),
   );
 }
 
-// ------------------------------------------------------------------ OP.GG
-let opggForm = { tier: "emerald_plus", region: "global" };
-function renderOpgg(o) {
-  const sync = o.sync || {};
-  const running = sync.status === "running";
-  const cache = o.cache || {};
-  const progress = sync.total ? Math.round((sync.done / sync.total) * 100) : 0;
+// ------------------------------------------------------------------ precarga
+const PAUSE_TEXT = { in_game: "En pausa: estás en partida (sigue sola al terminar)", manual: "En pausa (la has pausado tú)" };
+
+function renderWarmer(w) {
+  if (!w) return mount(sections.warmer, h("div.small.muted", "Sin información."));
+  if (!w.enabled) {
+    return mount(sections.warmer, notice("La precarga está desactivada (PRELOAD_ENABLED=0 en .env): los datos se descargarán al abrir cada vista.", "warn"));
+  }
+  const plan = w.plan || {};
+  const lanes = Object.entries(w.lanes || {}).filter(([name, l]) => name !== "demand" || l.pending || l.current);
+  const bar = (label, pct, sub) =>
+    h("div.usage", h("span.small", label), h("div.track", h("span", { style: { width: `${pct}%` } })), h("span.small.right", sub ?? `${pct} %`));
+  const pauseBtn = w.pause_reason === "manual"
+    ? h("button.btn.btn-sm", { onclick: () => setPaused(false) }, icon("play"), "Reanudar")
+    : h("button.btn.btn-ghost.btn-sm", { onclick: () => setPaused(true), title: "Detener las descargas de fondo hasta que la reanudes" }, icon("pause"), "Pausar");
   mount(
-    sections.opgg,
-    h(
-      "div.kpis",
-      kpi("Parches", (o.versions || []).join(" · ") || "—", "actual · anterior"),
-      kpi("Counters", fmt.int(cache.counters?.entries || 0), "páginas en caché"),
-      kpi("Tier lists", fmt.int(cache.tier?.entries || 0)),
-      kpi("Guías / sinergias", `${fmt.int(cache.guide?.entries || 0)} / ${fmt.int(cache.synergy?.entries || 0)}`, "MCP oficial"),
-    ),
+    sections.warmer,
     h(
       "div.row-wrap",
-      { style: { marginTop: "12px" } },
-      select(o.tiers.map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (c) => c.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
-      select(o.regions.map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
-      running
-        ? h("button.btn.btn-danger.btn-sm", { onclick: async () => { await api.post("/api/opgg/sync/stop"); refresh(); } }, icon("stop"), "Parar")
-        : h(
-            "button.btn.btn-primary.btn-sm",
-            {
-              onclick: async () => {
-                try {
-                  await api.post("/api/opgg/sync", opggForm);
-                  toast("Sincronizando OP.GG en segundo plano…");
-                  refresh();
-                } catch (err) {
-                  toast(err.message, "error");
-                }
-              },
-            },
-            icon("refresh"),
-            "Sincronizar todo",
-          ),
+      w.paused ? h("span.pill.pill-warn.pill-dot", PAUSE_TEXT[w.pause_reason] || "En pausa") : w.essential_pct < 100 ? h("span.pill.pill-gold.pill-dot", "Descargando lo esencial") : h("span.pill.pill-good.pill-dot", "Todo listo para usar"),
+      h("span.spacer"),
+      pauseBtn,
+      h("button.btn.btn-ghost.btn-sm", { onclick: replan, title: "Revisar ya qué falta y reintentar lo que falló" }, icon("refresh"), "Revisar ahora"),
     ),
-    running || sync.status === "done"
-      ? h(
-          "div",
-          { style: { marginTop: "10px" } },
-          h("div.usage", h("span.small", running ? "Descargando" : "Completado"), h("div.track", h("span", { style: { width: `${progress}%` } })), h("span.small.right", `${sync.done}/${sync.total}`)),
-        )
+    h(
+      "div.col",
+      { style: { marginTop: "12px", gap: "6px" } },
+      bar("Esencial", w.essential_pct, `${fmt.int(plan.essential_done || 0)}/${fmt.int(plan.essential_total || 0)}`),
+      bar("Todo", w.all_pct, `${fmt.int(plan.done || 0)}/${fmt.int(plan.total || 0)}`),
+    ),
+    plan.phase ? h("div.tiny.muted", { style: { marginTop: "6px" } }, plan.phase) : null,
+    h(
+      "div.lanes",
+      lanes.map(([name, l]) =>
+        h(
+          "div.lane",
+          h("div.row", h("b.small", l.label), h("span.spacer"), h("span.tiny.muted", `${fmt.int(l.done)} hechas${l.pending ? ` · ${fmt.int(l.pending)} en cola` : ""}${l.rate_per_min ? ` · ${fmt.int(l.rate_per_min)}/min` : ""}`)),
+          h("div.tiny.faint.ellipsis", l.current || (l.pending ? "esperando turno…" : "al día")),
+          l.errors ? h("div.tiny.warn", `${l.errors} errores (se reintentan solos)`) : null,
+        ),
+      ),
+    ),
+    h(
+      "p.tiny.muted",
+      { style: { marginTop: "10px" } },
+      "Se descargan solas, a ritmo tranquilo y por orden de importancia: tus campeones y matchups, después tier lists y counters con los filtros que usas, y al final sinergias y guías. Así cada vista abre al instante. Mientras juegas (cliente de LoL abierto en este ordenador) se pausa para no quitarte ancho de banda.",
+    ),
+    w.scopes?.length
+      ? h("div.tiny.faint", "Filtros que se mantienen al día: ", w.scopes.map((s) => `${s.tier.replace("_plus", "+")} · ${s.platform === "all" ? "global" : platformLabel(s.platform)} · ${s.patch === "all" ? "actual + anterior" : s.patch}`).join(" | "))
       : null,
-    h("p.small.muted", { style: { marginTop: "10px" } }, "Los datos se descargan solos cuando hacen falta y se guardan en caché (6 h el parche actual, 7 días el anterior). «Sincronizar todo» precarga los counters de todos los campeones (~10 min) para que todo responda al instante. ", o.stats?.errors ? h("span.warn", `${o.stats.errors} errores (${o.stats.last_error || ""})`) : null),
   );
+}
+
+async function setPaused(paused) {
+  try {
+    await api.post("/api/warmer/pause", { paused });
+    toast(paused ? "Descargas en segundo plano en pausa" : "Descargas reanudadas", "success");
+    refresh();
+  } catch (err) {
+    toast(err.message, "error");
+  }
+}
+
+async function replan() {
+  try {
+    await api.post("/api/warmer/replan");
+    toast("Revisando qué falta por descargar…");
+    refresh();
+  } catch (err) {
+    toast(err.message, "error");
+  }
 }
 
 // ------------------------------------------------------------------ recolector
 function renderCrawler(c, key) {
-  const running = c.running;
-  if (!crawlerForm) crawlerForm = { ...c.config };
+  const running = !!c.running;
+  const mode = running ? "running" : "stopped";
+  if (!crawlerForm) crawlerForm = JSON.parse(JSON.stringify(c.config));
+  const sig = JSON.stringify([c.stored, c.rate_per_min, c.stopping, c.paused, c.autostart, key.configured]);
+  if (crawlerFormFor !== mode) {
+    crawlerFormFor = mode;
+    runningSig = sig;
+    mount(sections.crawlerForm, running ? runningSummary(c) : crawlerFormView(key));
+  } else if (running && sig !== runningSig) {
+    runningSig = sig;
+    mount(sections.crawlerForm, runningSummary(c));
+  }
+  renderCrawlerStatus(c, key);
+}
+
+function crawlerFormView(key) {
   const cfg = crawlerForm;
-  const chip = (label, on, toggle, title) => h(`span.chip${on ? ".on" : ""}`, { onclick: toggle, title }, label);
-  const toggleIn = (list, value) => (list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
   const platforms = state.meta?.platforms || [];
-  const form = h(
+  const startBtn = h("button.btn.btn-primary", { onclick: () => start(startBtn) }, icon("play"), "Iniciar recolector");
+  const updateStart = () => {
+    const ok = cfg.platforms.length && cfg.tiers.length && key.configured;
+    startBtn.disabled = !ok;
+    startBtn.title = !key.configured ? "Configura primero la API key" : !cfg.platforms.length ? "Elige al menos un servidor" : !cfg.tiers.length ? "Elige al menos un elo" : "";
+  };
+  const servers = multiSelect({
+    items: platforms.map((p) => ({ value: p.id, label: p.label, title: p.name, group: p.region })),
+    groups: REGION_GROUPS,
+    selected: cfg.platforms,
+    noun: "servidores",
+    presets: [{ label: "Solo EUW", values: ["euw1"] }],
+    onChange: (v) => {
+      cfg.platforms = v;
+      updateStart();
+    },
+  });
+  const tiers = multiSelect({
+    items: ALL_TIERS.map((t) => ({ value: t, label: TIER_LABEL[t] })),
+    selected: cfg.tiers,
+    noun: "elos",
+    presets: [
+      { label: "Esmeralda+", values: ALL_TIERS.slice(ALL_TIERS.indexOf("EMERALD")) },
+      { label: "Diamante+", values: ALL_TIERS.slice(ALL_TIERS.indexOf("DIAMOND")) },
+      { label: "Ápice", values: APEX },
+    ],
+    onChange: (v) => {
+      cfg.tiers = v;
+      updateStart();
+    },
+  });
+  const num = (label, keyName, min, max, suffix = null) =>
+    h(
+      "label.row.small",
+      label,
+      h("input.input", {
+        type: "number",
+        min,
+        max,
+        value: cfg[keyName],
+        style: { width: "76px" },
+        onchange: (e) => {
+          const v = Number(e.target.value);
+          cfg[keyName] = Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : cfg[keyName];
+          e.target.value = cfg[keyName];
+        },
+      }),
+      suffix,
+    );
+  updateStart();
+  return h(
     "div.col",
-    h("div", h("div.small.muted", { style: { marginBottom: "6px" } }, "Regiones (cada región de Riot va en paralelo)"), h("div.chips", platforms.map((p) => chip(p.label, cfg.platforms.includes(p.id), () => { cfg.platforms = toggleIn(cfg.platforms, p.id); renderCrawler(c, key); }, p.name)))),
-    h("div", h("div.small.muted", { style: { marginBottom: "6px" } }, "Elos de los jugadores semilla (ligas oficiales)"), h("div.chips", ALL_TIERS.map((t) => chip(TIER_LABEL[t], cfg.tiers.includes(t), () => { cfg.tiers = toggleIn(cfg.tiers, t); renderCrawler(c, key); })))),
+    !key.configured ? notice("Necesitas una API key para recoger partidas propias. OP.GG y Lolalytics ya cubren los matchups sin ella.", "warn") : null,
+    h("div", h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, "Servidores"), h("div.tiny.muted", { style: { marginBottom: "8px" } }, "Cada región de Riot (Europa, América, Asia, SEA) va en paralelo. Pulsa el nombre de un grupo para marcarlo o quitarlo entero."), servers.el),
+    h("div.divider"),
+    h("div", h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, "Elo de los jugadores"), tiers.el),
+    h("div.divider"),
+    championSection(cfg),
+    h("div.divider"),
+    collapsible(
+      "datos.recolector.avanzado",
+      [icon("edit"), "Opciones avanzadas"],
+      h(
+        "div.row-wrap",
+        { style: { gap: "12px 18px" } },
+        h("label.check", h("input", { type: "checkbox", checked: cfg.include_flex, onchange: (e) => (cfg.include_flex = e.target.checked) }), "Incluir Flex"),
+        num("Primera vez: últimos", "days", 1, 60, "días"),
+        num("Partidas por jugador", "matches_per_player", 5, 100),
+        num("Revisitar cada", "recrawl_hours", 1, 168, "h"),
+      ),
+      { summary: `${cfg.matches_per_player} partidas/jugador · ${cfg.days} días` , cls: "flat" },
+    ),
+    h("div.row-wrap", startBtn, h("span.tiny.muted", "Al iniciarlo, se reanuda solo cada vez que abras la app hasta que lo detengas.")),
+  );
+}
+
+const MASTERY_STEPS = [100_000, 300_000, 500_000, 1_000_000, 2_000_000];
+
+/** Búsqueda por campeones: OTPs o jugadores con mucha maestría de los campeones elegidos. */
+function championSection(cfg) {
+  cfg.champions = cfg.champions || [];
+  const chipsEl = h("div.chips");
+  const drawChips = () =>
+    mount(
+      chipsEl,
+      cfg.champions.length
+        ? cfg.champions.map((id) =>
+            h(
+              "button.chip.on",
+              { type: "button", title: "Quitar", onclick: () => { cfg.champions = cfg.champions.filter((c) => c !== id); drawChips(); } },
+              champImg(id, "xs"),
+              dd.name(id),
+              icon("close"),
+            ),
+          )
+        : h("span.small.muted", "Ningún campeón: se recoge todo el ranking (modo normal)."),
+    );
+  const picker = champPicker({
+    placeholder: "Añadir campeón",
+    compact: true,
+    exclude: () => new Set(cfg.champions),
+    onChange: (id) => {
+      if (id && !cfg.champions.includes(id) && cfg.champions.length < 10) cfg.champions = [...cfg.champions, id];
+      picker.setValue(null);
+      drawChips();
+    },
+  });
+  drawChips();
+  return h(
+    "div.col",
+    h("div.small", { style: { fontWeight: 650 } }, "Buscar por campeones (OTPs)"),
+    h("div.tiny.muted", "Elige campeones y solo se recogen partidas de jugadores del ranking (servidores y elos de arriba) que sean OTPs de ellos o tengan muchísima maestría. Ejemplo: KR + Aspirante/Gran Maestro + Ahri."),
+    h("div.row-wrap", h("div", { style: { width: "220px" } }, picker), h("span.tiny.muted", "hasta 10")),
+    chipsEl,
     h(
       "div.row-wrap",
-      { style: { gap: "16px" } },
-      h("label.check", h("input", { type: "checkbox", checked: cfg.include_flex, onchange: (e) => (cfg.include_flex = e.target.checked) }), "Incluir Flex"),
-      h("label.row.small", "Primera vez: últimos", h("input.input", { type: "number", min: 1, max: 60, value: cfg.days, style: { width: "70px" }, onchange: (e) => (cfg.days = Number(e.target.value)) }), "días"),
-      h("label.row.small", "Partidas por jugador", h("input.input", { type: "number", min: 5, max: 100, value: cfg.matches_per_player, style: { width: "70px" }, onchange: (e) => (cfg.matches_per_player = Number(e.target.value)) })),
-      h("label.row.small", "Revisitar cada", h("input.input", { type: "number", min: 1, max: 168, value: cfg.recrawl_hours, style: { width: "70px" }, onchange: (e) => (cfg.recrawl_hours = Number(e.target.value)) }), "h"),
+      { style: { gap: "10px 16px" } },
+      h(
+        "label.row.small",
+        "Quién cuenta",
+        select(
+          [
+            { value: "otp", label: "OTPs (es su campeón principal)" },
+            { value: "mastery", label: "Mucha maestría (entre sus 3 primeros)" },
+          ],
+          cfg.focus || "otp",
+          (v) => (cfg.focus = v),
+          "select select-sm",
+        ),
+      ),
+      h(
+        "label.row.small",
+        "Mínimo",
+        select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
+      ),
+      h("label.check", h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }), "Solo sus partidas con esos campeones"),
+    ),
+    h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días). OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
+  );
+}
+
+function runningSummary(c) {
+  const cfg = c.config || {};
+  const tierText = (cfg.tiers || []).map((t) => TIER_LABEL[t] || t).join(", ");
+  return h(
+    "div.col",
+    h("div.row-wrap", h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"), c.autostart ? h("span.pill", { title: "Seguirá al volver a abrir la app" }, icon("refresh"), "Se reanuda solo") : null),
+    h("div.small", h("b", "Servidores: "), (cfg.platforms || []).map((p) => platformLabel(p)).join(", ") || "—"),
+    h("div.small", h("b", "Elos: "), tierText || "—"),
+    cfg.champions?.length
+      ? h(
+          "div.small.row-wrap",
+          h("b", cfg.focus === "mastery" ? "Mucha maestría con: " : "OTPs de: "),
+          cfg.champions.map((id) => h("span.row", { style: { gap: "4px" } }, champImg(id, "xs"), dd.name(id))),
+          h("span.tiny.muted", `≥ ${fmt.compact(cfg.min_mastery)} puntos${cfg.only_target_games ? " · solo partidas con ellos" : ""}`),
+        )
+      : null,
+    h("div.tiny.muted", `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.matches_per_player} partidas por jugador · revisita cada ${cfg.recrawl_hours} h`),
+    h(
+      "div.row-wrap",
+      { style: { marginTop: "6px" } },
+      h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
+      h("span.small.muted", `${fmt.int(c.stored)} partidas nuevas`, c.rate_per_min ? ` · ${fmt.num(c.rate_per_min, 1)}/min` : ""),
+    ),
+    h("p.tiny.muted", "Para cambiar servidores o elos, detenlo: el formulario vuelve con tu última configuración."),
+  );
+}
+
+function renderCrawlerStatus(c, key) {
+  const workers = Object.values(c.workers || {});
+  mount(
+    sections.crawlerStatus,
+    h(
+      "div.col",
+      workers.length
+        ? workers.map((w) =>
+            h(
+              "div.worker",
+              h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${w.status === "running" ? "pill-good" : w.status === "waiting_key" || w.status === "paused_game" ? "pill-warn" : ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "")),
+              h("div.tiny.muted", { style: { marginTop: "4px" } }, `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} semillas`),
+              w.mastery_checked
+                ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} encontrados · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+                : null,
+              w.last_error ? h("div.tiny.warn", w.last_error) : null,
+            ),
+          )
+        : h("div.small.muted", key.configured ? "Sin actividad todavía: elige servidores y elos y pulsa «Iniciar recolector»." : "Sin actividad."),
+      h("p.tiny.muted", "Coste con la key gratuita: ~1 llamada por partida nueva. Las semillas salen de las ligas oficiales (205 jugadores por llamada) y se descartan partidas repetidas, remakes y colas que no son ranked. Se pausa solo mientras juegas."),
     ),
   );
-  const start = async () => {
-    try {
-      await api.post("/api/crawler/start", cfg);
-      toast("Recolector en marcha", "success");
-      refresh();
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  };
-  const stop = async () => {
+}
+
+async function start(btn) {
+  btn.disabled = true;
+  try {
+    await api.post("/api/crawler/start", crawlerForm);
+    toast("Recolector en marcha", "success");
+    crawlerFormFor = null;
+    refresh();
+  } catch (err) {
+    toast(err.message, "error");
+    btn.disabled = false;
+  }
+}
+
+async function stop() {
+  try {
     await api.post("/api/crawler/stop");
     toast("Deteniendo el recolector…");
     refresh();
-  };
-  const workers = Object.values(c.workers || {});
+  } catch (err) {
+    toast(err.message, "error");
+  }
+}
+
+// ------------------------------------------------------------------ OTPs encontrados
+let otpsAt = 0;
+let otpsSig = null;
+async function loadOtps(c) {
+  const box = sections.otps;
+  const details = box.closest("details");
+  if (!details?.open || Date.now() - otpsAt < 10000) return;
+  otpsAt = Date.now();
+  if (!c?.config?.champions?.length) {
+    otpsSig = null;
+    return mount(box, h("div.small.muted", "Elige campeones en «Buscar por campeones (OTPs)» y arranca el recolector: aquí aparecerán los OTPs que encuentre y sus partidas."));
+  }
+  let data;
+  try {
+    data = await api.get("/api/crawler/otps", { limit: 80 });
+  } catch (err) {
+    return mount(box, errorBox(err));
+  }
+  const sig = JSON.stringify(data.players.map((p) => [p.platform, p.champ, p.points, p.games.length]));
+  if (sig === otpsSig) return;
+  otpsSig = sig;
+  if (!data.players.length) {
+    return mount(box, h("div.small.muted", "Todavía ninguno: se está revisando la maestría de los jugadores del ranking (1 llamada por jugador, al ritmo de tu API key)."));
+  }
   mount(
-    sections.crawler,
-    !key.configured ? notice("Necesitas una API key para recoger partidas propias. OP.GG ya cubre los matchups sin ella.", "warn") : null,
+    box,
     h(
-      "div.grid",
-      { style: { gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr)", marginTop: key.configured ? 0 : "12px" } },
-      h(
-        "div",
-        running ? h("div.small.muted", "Configuración en uso: para cambiarla, detén el recolector.") : form,
-        h(
-          "div.row",
-          { style: { marginTop: "12px" } },
-          running ? h("button.btn.btn-danger", { onclick: stop }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener") : h("button.btn.btn-primary", { onclick: start, disabled: !key.configured }, icon("play"), "Iniciar recolector"),
-          running ? h("span.small.muted", `${fmt.int(c.stored)} partidas nuevas`, c.rate_per_min ? ` · ${fmt.num(c.rate_per_min, 1)}/min` : "") : null,
-        ),
-        h("p.tiny.muted", { style: { marginTop: "10px" } }, "Coste con la key gratuita: ~1 llamada por partida nueva. Las semillas salen de las ligas oficiales (205 jugadores por llamada) y se descartan partidas repetidas, remakes y colas que no son ranked."),
-      ),
-      h(
-        "div.col",
-        workers.length
-          ? workers.map((w) =>
-              h(
-                "div.worker",
-                h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${w.status === "running" ? "pill-good" : w.status === "waiting_key" ? "pill-warn" : ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "")),
-                h("div.tiny.muted", { style: { marginTop: "4px" } }, `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} semillas`),
-                w.last_error ? h("div.tiny.warn", w.last_error) : null,
-              ),
-            )
-          : h("div.small.muted", "Sin actividad todavía."),
-      ),
+      "div.col",
+      { style: { gap: "8px" } },
+      data.players.map((p) => {
+        const name = p.game_name ? `${p.game_name}#${p.tag_line}` : "Nombre aún desconocido";
+        return h(
+          "div.otp-row",
+          h(
+            "div.row",
+            { style: { minWidth: 0 } },
+            champImg(p.champ, "sm"),
+            h(
+              "div",
+              { style: { minWidth: 0 } },
+              p.game_name
+                ? h("a.ellipsis", { href: `#/jugador/${p.platform}/${encodeURIComponent(p.game_name)}/${encodeURIComponent(p.tag_line)}`, style: { fontWeight: 650, display: "block" } }, name)
+                : h("div.muted", name),
+              h("div.tiny.muted", `${platformLabel(p.platform)} · ${TIER_LABEL[p.tier] || p.tier || "—"}${p.lp != null ? ` ${p.lp} LP` : ""} · ${fmt.compact(p.points)} puntos con ${dd.name(p.champ)}`),
+            ),
+          ),
+          h(
+            "div.row-wrap",
+            { style: { gap: "4px" } },
+            p.games.length
+              ? p.games.map((g) =>
+                  h(
+                    `a.chip.otp-game.${g.win ? "win" : "loss"}`,
+                    { href: `#/partida/${g.match_id}`, title: `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}` },
+                    `${g.win ? "V" : "D"} ${g.kills}/${g.deaths}/${g.assists}`,
+                  ),
+                )
+              : h("span.tiny.muted", "partidas en cola"),
+          ),
+        );
+      }),
     ),
   );
+}
+
+// ------------------------------------------------------------------ fuentes
+let opggForm = { tier: "emerald_plus", region: "global" };
+let sourcesSig = null;
+const SOURCE_INFO = {
+  opgg: { label: "OP.GG", what: "Counters, tier list, guías de matchup, builds y sinergias (web + API oficial para apps)." },
+  lolalytics: { label: "Lolalytics", what: "Segunda fuente de tier list y counters: se combina con OP.GG sin contar dos veces las mismas partidas." },
+  patchnotes: { label: "Notas de parche (Riot)", what: "Cambios de campeones y objetos de las últimas versiones, con mejoras y debilitaciones." },
+};
+
+function renderSources(src) {
+  const sig = JSON.stringify(Object.values(src).map((s) => [s.enabled, s.stats?.requests, s.stats?.errors, Object.values(s.cache || {}).map((c) => c.entries)]));
+  if (sig === sourcesSig) return;
+  sourcesSig = sig;
+  const rows = Object.entries(src).map(([name, s]) => {
+    const info = SOURCE_INFO[name] || { label: name, what: "" };
+    const entries = Object.values(s.cache || {}).reduce((acc, c) => acc + (c.entries || 0), 0);
+    const latest = Math.max(0, ...Object.values(s.cache || {}).map((c) => c.latest || 0));
+    return h(
+      "div.source-row",
+      h("div", h("div.row", h("b", info.label), s.enabled ? h("span.pill.pill-good.pill-dot", "Activa") : h("span.pill.pill-warn.pill-dot", "Desactivada")), h("div.tiny.muted", info.what)),
+      h("div.small", `${fmt.int(entries)} en caché`, latest ? h("div.tiny.muted", `actualizado ${fmt.ago(latest)}`) : null),
+      h("div.small", `${fmt.int(s.stats?.requests || 0)} descargas`, s.stats?.errors ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `${s.stats.errors} errores`) : h("div.tiny.muted", "sin errores")),
+    );
+  });
+  const opgg = state.opgg;
+  const sync = opgg?.sync || {};
+  const running = sync.status === "running";
+  mount(
+    sections.sources,
+    h("div.col", rows),
+    h("div.divider"),
+    h("div.small", h("b", "Descarga completa de OP.GG para otro elo o región")),
+    h("p.tiny.muted", "No hace falta para los filtros que usas (se precargan solos). Útil si vas a consultar un ámbito nuevo sin conexión."),
+    opgg
+      ? h(
+          "div.row-wrap",
+          select((opgg.tiers || []).map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (ch) => ch.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
+          select((opgg.regions || []).map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
+          running
+            ? h("button.btn.btn-danger.btn-sm", { onclick: async () => { await api.post("/api/opgg/sync/stop"); refreshOpgg(); } }, icon("stop"), "Parar")
+            : h("button.btn.btn-sm", { onclick: startOpggSync }, icon("download"), "Descargar"),
+          running || sync.status === "done" ? h("span.small.muted", `${sync.done || 0}/${sync.total || 0} páginas${running ? "" : " · completado"}`) : null,
+        )
+      : h("span.small.muted", "OP.GG no disponible."),
+  );
+}
+
+async function refreshOpgg() {
+  try {
+    state.opgg = await api.get("/api/opgg/status");
+    sourcesSig = null;
+  } catch {
+    /* sin OP.GG */
+  }
+}
+
+async function startOpggSync() {
+  try {
+    await api.post("/api/opgg/sync", opggForm);
+    toast("Descargando OP.GG en segundo plano…");
+    refreshOpgg();
+  } catch (err) {
+    toast(err.message, "error");
+  }
 }
 
 // ------------------------------------------------------------------ límites
@@ -250,7 +616,7 @@ function renderLimits(limits) {
   mount(
     sections.limits,
     h(
-      "div.col",
+      "div.grid.grid-auto",
       hosts.map(([host, info]) =>
         h(
           "div",
@@ -272,11 +638,11 @@ function renderDb(s) {
     h(
       "div.kpis",
       kpi("Partidas propias", fmt.int(db.matches), `${fmt.int(db.stored_matches)} guardadas en total`),
-      kpi("Histórico antiguo", fmt.int(db.legacy_matches), legacy.status === "done" ? "importado" : legacy.status || ""),
+      kpi("Histórico antiguo", fmt.int(db.legacy_matches), legacy.running ? "importando…" : legacy.status === "done" ? "importado" : legacy.status || ""),
       kpi("Jugadores", fmt.compact(db.players), `${fmt.compact(db.seeds)} semillas`),
       kpi("Tamaño", `${fmt.num(db.size_mb, 1)} MB`),
     ),
-    h("div.row", { style: { marginTop: "12px" } }, h("button.btn.btn-sm", { onclick: async () => { try { await api.post("/api/system/legacy-import", null, { force: true }); toast("Reimportando histórico…"); } catch (err) { toast(err.message, "error"); } } }, icon("refresh"), "Reimportar histórico")),
+    h("div.row", { style: { marginTop: "12px" } }, h("button.btn.btn-sm", { onclick: async () => { if (!confirm("¿Reimportar el histórico antiguo? Tarda unos minutos y se hace en segundo plano.")) return; try { await api.post("/api/system/legacy-import", null, { force: true }); toast("Reimportando histórico…"); } catch (err) { toast(err.message, "error"); } } }, icon("refresh"), "Reimportar histórico")),
     h("p.tiny.muted", { style: { marginTop: "8px" } }, `Guías en ${s.guides_dir}`),
   );
 }

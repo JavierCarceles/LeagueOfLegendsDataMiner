@@ -5,7 +5,8 @@ import { dd, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.j
 import { errorBox, h, icon, mount, select } from "./ui.js";
 
 const VIEWS = [
-  { id: "progreso", label: "Mi progreso", icon: "target", section: "Tú", load: () => import("./views/coach.js") },
+  { id: "progreso", label: "Mi progreso", icon: "target", section: "Tú", noFilters: true, load: () => import("./views/coach.js") },
+  { id: "repeticiones", label: "Repeticiones", icon: "film", section: "Tú", noFilters: true, load: () => import("./views/replays.js") },
   { id: "draft", label: "Draft", icon: "draft", section: "Análisis", load: () => import("./views/draft.js") },
   { id: "matchups", label: "Matchups", icon: "swords", section: "Análisis", load: () => import("./views/matchups.js") },
   { id: "campeones", label: "Campeones", icon: "crown", section: "Análisis", load: () => import("./views/champions.js") },
@@ -13,9 +14,9 @@ const VIEWS = [
   { id: "partida", label: "Partida", icon: "match", section: "Estadísticas", load: () => import("./views/match.js") },
   { id: "regiones", label: "Regiones", icon: "globe", section: "Estadísticas", load: () => import("./views/regions.js") },
   { id: "guias", label: "Guías", icon: "book", section: "Coaching", load: () => import("./views/guides.js") },
-  { id: "datos", label: "Datos y API", icon: "database", section: "Sistema", load: () => import("./views/data.js") },
+  { id: "datos", label: "Datos y API", icon: "database", section: "Sistema", noFilters: true, load: () => import("./views/data.js") },
 ];
-const ALIASES = { campeon: "campeones", perfil: "progreso", "mi-progreso": "progreso" };
+const ALIASES = { campeon: "campeones", perfil: "progreso", "mi-progreso": "progreso", repeticion: "repeticiones", replays: "repeticiones" };
 
 const main = document.getElementById("main");
 let current = { id: null, module: null, params: [] };
@@ -54,8 +55,10 @@ function filterOptions() {
   });
   return {
     sources: [
-      { value: "all", label: "OP.GG + Tu BD" },
+      { value: "all", label: "Webs + tu BD" },
+      { value: "web", label: "Solo webs" },
       { value: "opgg", label: "Solo OP.GG" },
+      { value: "lolalytics", label: "Solo Lolalytics" },
       { value: "own", label: "Solo tu BD" },
     ],
     tier: [
@@ -83,14 +86,35 @@ function filterOptions() {
   };
 }
 
+function flatLabel(options, value) {
+  for (const o of options) {
+    if (o.group) {
+      const hit = o.options.find((x) => String(x.value) === String(value));
+      if (hit) return hit.label;
+    } else if (String(o.value) === String(value)) return o.label;
+  }
+  return value;
+}
+
+function filtersSummary() {
+  const opts = filterOptions();
+  const f = state.filters;
+  const el = document.querySelector("#filters-toggle span");
+  const text = [flatLabel(opts.sources, f.sources), flatLabel(opts.tier, f.tier), flatLabel(opts.platform, f.platform), flatLabel(opts.patch, f.patch)].join(" · ");
+  if (el) el.textContent = text.split(" · ").slice(1).join(" · ");
+  const btn = document.getElementById("filters-toggle");
+  if (btn) btn.title = `Filtros: ${text}`;
+}
+
 function renderFilters() {
   const opts = filterOptions();
   const f = state.filters;
+  queueMicrotask(filtersSummary);
   const make = (key, label, title) =>
     h("div.filter", { title }, h("label", label), select(opts[key], f[key], (v) => setFilters({ [key]: v }), "select select-sm"));
   mount(
     document.getElementById("filters"),
-    make("sources", "Fuente", "De dónde salen las estadísticas"),
+    make("sources", "Fuente", "OP.GG y Lolalytics (webs) y tu propia base de datos"),
     make("tier", "Elo", "Rango de las partidas analizadas"),
     make("platform", "Región", "Global o una región concreta"),
     make("patch", "Parche", "Actual + anterior suma más muestra; el anterior ya está completo"),
@@ -108,8 +132,9 @@ async function refreshStatus() {
     let text = "Sin API key";
     if (key.configured && key.status === "valid") {
       pill.classList.add("ok");
-      text = key.age_hours !== null ? `Riot API · ${Math.max(0, Math.round(24 - key.age_hours))} h` : "Riot API OK";
-      pill.title = `Key ${key.masked} válida. Las development keys caducan a las 24 h.`;
+      const left = key.age_hours !== null ? 24 - key.age_hours : null;
+      text = left !== null && left > 0 ? `Riot API · ${left < 1 ? "< 1" : Math.round(left)} h` : "Riot API OK";
+      pill.title = left !== null && left > 0 ? `Key ${key.masked} válida. Las development keys caducan a las 24 h de generarlas.` : `Key ${key.masked} válida.`;
     } else if (key.configured && key.status === "invalid" && key.rechecking) {
       pill.classList.add("warn");
       text = "Key activándose…";
@@ -128,6 +153,7 @@ async function refreshStatus() {
     if (status.crawler?.running) text += " · recolectando";
     pill.lastChild.textContent = text;
     renderProfilePill(status.tracker);
+    renderDataPill(status.warmer);
   } catch {
     /* el servidor puede estar arrancando */
   }
@@ -147,6 +173,71 @@ function renderProfilePill(tracker) {
   const extra = tracker.status === "syncing" ? h("span.spinner.sm", { title: "Descargando partidas" }) : tracker.in_game ? h("span.pill.pill-warn", "en partida") : !p.linked ? h("span.dot.warn") : null;
   mount(el, p.profile_icon != null ? h("img", { src: dd.profileIcon(p.profile_icon), alt: "" }) : icon("user"), h("span.name", p.game_name), extra);
   el.title = `${p.game_name}#${p.tag_line} · Mi progreso${tracker.in_game ? " (estás en partida: se analizará al terminar)" : ""}`;
+}
+
+function renderDataPill(w) {
+  const el = document.getElementById("data-pill");
+  if (!el || !w) return;
+  el.classList.toggle("hidden", !w.enabled);
+  if (!w.enabled) return;
+  const essential = w.essential_pct ?? 100;
+  const all = w.all_pct ?? 100;
+  let cls = "ok";
+  let text = "Datos al día";
+  let title = "Todo lo que usa la web está descargado y fresco.";
+  if (w.paused) {
+    cls = "warn";
+    text = w.pause_reason === "in_game" ? "En partida: descargas en pausa" : "Precarga en pausa";
+    title = w.pause_reason === "in_game" ? "Mientras juegas no se descarga nada para no quitarte ancho de banda. Sigue sola al terminar." : "Reanúdala en Datos y API.";
+  } else if (essential < 100) {
+    cls = "busy";
+    text = `Preparando datos ${essential} %`;
+    title = "Descargando en segundo plano lo esencial (tier lists y counters). Las vistas ya funcionan con lo que hay.";
+  } else if (all < 100) {
+    text = `Datos al día · extras ${all} %`;
+    title = "Lo esencial está listo. Siguen bajando extras (sinergias, guías de matchups populares…).";
+  }
+  el.className = `status-pill data-pill ${cls}`;
+  mount(el, cls === "busy" ? h("span.spinner.sm") : h("span.dot"), h("span", text));
+  el.title = title;
+}
+
+// ------------------------------------------------------------------ datos pendientes
+// Si una vista se ha servido sin algún dato externo (aún descargándose), se
+// recarga sola a los pocos segundos sin perder la posición ni interrumpirte.
+let pendingTimer = null;
+let pendingTries = 0;
+const MAX_PENDING_TRIES = 8;
+function busyUser() {
+  const a = document.activeElement;
+  return !!document.querySelector(".modal-backdrop") || (a && a !== document.body && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName));
+}
+function onPending() {
+  const chip = document.getElementById("pending-chip");
+  if (pendingTries >= MAX_PENDING_TRIES) {
+    chip?.classList.add("hidden"); // ya se reintentó bastante: el resto llegará con la precarga
+    return;
+  }
+  chip?.classList.remove("hidden");
+  if (pendingTimer) return;
+  const routeAtSchedule = location.hash;
+  pendingTimer = setTimeout(async function retry() {
+    pendingTimer = null;
+    if (location.hash !== routeAtSchedule || !current.module) return;
+    if (busyUser()) {
+      pendingTimer = setTimeout(retry, 2500);
+      return;
+    }
+    pendingTries += 1;
+    chip?.classList.add("hidden");
+    const y = main.scrollTop;
+    try {
+      if (current.module.onFilters) await current.module.onFilters();
+      else await route({ keepPending: true });
+    } finally {
+      requestAnimationFrame(() => (main.scrollTop = y));
+    }
+  }, 3500);
 }
 
 // ------------------------------------------------------------------ logs
@@ -191,12 +282,20 @@ function parseHash() {
   return { id: VIEWS.some((v) => v.id === id) ? id : "draft", params };
 }
 
-async function route() {
+async function route({ keepPending = false } = {}) {
   const { id, params } = parseHash();
   const view = VIEWS.find((v) => v.id === id);
+  if (!keepPending) {
+    pendingTries = 0;
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+    document.getElementById("pending-chip")?.classList.add("hidden");
+  }
+  document.body.classList.remove("filters-open", "nav-open");
   closePickers();
   document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
   highlightNav(id);
+  document.body.classList.toggle("no-filters", !!view.noFilters);
   document.getElementById("view-title").textContent = view.label;
   document.title = `${view.label} · Tempu Drafter`;
   try {
@@ -226,21 +325,44 @@ async function boot() {
   }
   renderFilters();
   onFilters(() => {
+    filtersSummary();
     if (current.module?.onFilters) current.module.onFilters();
     else route();
   });
+  // Cerrar el panel de filtros al pulsar fuera de él.
+  document.addEventListener("click", (e) => {
+    if (!document.body.classList.contains("filters-open")) return;
+    if (e.target.closest("#filters, #filters-toggle")) return;
+    document.body.classList.remove("filters-open");
+  });
   document.getElementById("key-pill").onclick = () => (location.hash = "#/datos");
-  window.addEventListener("hashchange", route);
+  document.getElementById("data-pill").onclick = () => (location.hash = "#/datos");
+  const ft = document.getElementById("filters-toggle");
+  ft.append(icon("filter"), h("span", "Filtros"));
+  ft.onclick = () => document.body.classList.toggle("filters-open");
+  window.addEventListener("tempu:pending", onPending);
+  window.addEventListener("hashchange", () => route());
   refreshStatus();
   setInterval(refreshStatus, 15000);
   window.addEventListener("tempu:status", refreshStatus); // p. ej. al guardar o quitar tu perfil
   route();
-  // Data Dragon puede tardar unos segundos la primera vez.
+  // Data Dragon puede tardar la primera vez (o no haber internet al abrir): se reintenta solo hasta que llegue.
   if (!state.champList.length) {
-    setTimeout(async () => {
-      setMeta(await api.get("/api/meta"));
-      route();
-    }, 2500);
+    const retryMeta = async () => {
+      try {
+        const meta = await api.get("/api/meta");
+        if (meta.ddragon?.champions?.length) {
+          setMeta(meta);
+          renderFilters();
+          route();
+          return;
+        }
+      } catch {
+        /* servidor arrancando o sin conexión */
+      }
+      setTimeout(retryMeta, 10000);
+    };
+    setTimeout(retryMeta, 2500);
   }
 }
 

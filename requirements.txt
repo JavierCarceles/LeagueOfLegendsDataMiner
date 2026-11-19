@@ -1,6 +1,9 @@
-# Núcleo: servidor web, Riot API, OP.GG y análisis.
-fastapi>=0.115
-uvicorn[standard]>=0.30
-requests>=2.31
+# Núcleo: servidor web, Riot API, OP.GG, Lolalytics, notas de parche y análisis.
+# Versiones con ruedas para Python 3.14 en Windows (no hace falta compilar nada).
+fastapi>=0.118
+uvicorn>=0.35
+requests>=2.32
 python-dotenv>=1.0
-pydantic>=2.6
+pydantic>=2.12
+# Detección del cliente de LoL (repeticiones, fin de partida) y prioridad baja del proceso.
+psutil>=6.0

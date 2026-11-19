@@ -11,7 +11,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import coach, collector, draft, external, guides, players, stats, system
+from app.api import coach, collector, draft, external, guides, players, replays, sources, stats, system
+from app.budget import BudgetMiddleware
 from app.config import WEB_DIR, Settings, settings as default_settings
 from app.logbus import bus, get_logger, setup_logging
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
@@ -67,8 +68,17 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
     async def _value_error(_: Request, exc: ValueError):
         return JSONResponse({"detail": str(exc)}, status_code=400)
 
-    for router in (system.router, stats.router, draft.router, players.router, collector.router, guides.router, external.router, coach.router):
+    @app.exception_handler(Exception)
+    async def _unexpected(request: Request, exc: Exception):
+        # Nunca una página en blanco: el error llega a la web con un mensaje legible y queda en el log.
+        log.exception("Error inesperado en %s", request.url.path)
+        return JSONResponse({"detail": "Error interno inesperado. El detalle está en «Actividad en tiempo real».", "code": "internal"}, status_code=500)
+
+    for router in (system.router, stats.router, draft.router, players.router, collector.router, guides.router, external.router, coach.router, sources.router, replays.router):
         app.include_router(router)
+
+    # Ninguna vista espera a una descarga más de unos segundos (ver app/budget.py).
+    app.add_middleware(BudgetMiddleware)
 
     app.mount("/static", StaticNoCache(directory=WEB_DIR), name="static")
 

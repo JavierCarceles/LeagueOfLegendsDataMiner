@@ -17,18 +17,32 @@ function buildUrl(path, params = {}) {
   return url;
 }
 
+/** Marca en las respuestas que llegaron con datos externos aún descargándose. */
+export const PENDING = Symbol("pending");
+export const isPending = (data) => !!(data && data[PENDING]);
+
 async function request(method, path, { params, body, signal } = {}) {
-  const res = await fetch(buildUrl(path, params), {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    signal,
-  });
+  let res;
+  try {
+    res = await fetch(buildUrl(path, params), {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    throw new ApiError(0, "No hay conexión con Tempu Drafter. ¿Sigue abierta la ventana de iniciar.bat?", "offline");
+  }
   let data = null;
   try {
     data = await res.json();
   } catch {
     /* respuesta sin cuerpo */
+  }
+  if (res.ok && res.headers.get("x-data-pending") === "1") {
+    if (data && typeof data === "object") Object.defineProperty(data, PENDING, { value: true, enumerable: false });
+    window.dispatchEvent(new CustomEvent("tempu:pending", { detail: { path } }));
   }
   if (!res.ok) {
     const detail = data?.detail;

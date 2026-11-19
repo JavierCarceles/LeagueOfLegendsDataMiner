@@ -36,6 +36,13 @@ def _split(value: str | None) -> list[str]:
     return [item.strip() for item in (value or "").split(",") if item.strip()]
 
 
+def _flag(name: str, default: bool = True) -> bool:
+    value = env(name)
+    if value in (None, ""):
+        return default
+    return value.strip().lower() not in ("0", "false", "no", "off")
+
+
 def _int(value: str | None, default: int) -> int:
     try:
         return int(value) if value not in (None, "") else default
@@ -59,6 +66,15 @@ class Settings:
     stats_queues: tuple[int, ...] = (420, 440)
     # Datos de OP.GG (counters, tier list, sinergias, guías de matchup).
     opgg_enabled: bool = True
+    # Segunda fuente estadística (Lolalytics) y notas de parche oficiales de Riot.
+    lolalytics_enabled: bool = True
+    patchnotes_enabled: bool = True
+    # Precarga en segundo plano para que las vistas abran al instante.
+    warmer_enabled: bool = True
+    # Pausa las descargas en segundo plano mientras juegas (cliente de LoL abierto aquí).
+    pause_in_game: bool = True
+    # Prioridad baja del proceso (Windows): el juego siempre va primero.
+    low_priority: bool = True
 
     @classmethod
     def load(cls) -> "Settings":
@@ -97,7 +113,12 @@ class Settings:
             gemini_keys=gemini_keys,
             gemini_models=_split(env("GEMINI_MODELS", "gemini-2.5-flash,gemini-2.5-flash-lite")),
             stats_queues=queues or (420, 440),
-            opgg_enabled=(env("OPGG_ENABLED", "1") or "1").strip().lower() not in ("0", "false", "no", "off"),
+            opgg_enabled=_flag("OPGG_ENABLED"),
+            lolalytics_enabled=_flag("LOLALYTICS_ENABLED"),
+            patchnotes_enabled=_flag("PATCHNOTES_ENABLED"),
+            warmer_enabled=_flag("PRELOAD_ENABLED"),
+            pause_in_game=_flag("PAUSE_IN_GAME"),
+            low_priority=_flag("LOW_PRIORITY"),
         )
 
 

@@ -11,7 +11,9 @@ host** (cada plataforma y cada región tienen su propio cupo). Este limitador:
   vuelve a quemar el cupo que Riot aún recuerda.
 * Respeta ``Retry-After`` en los 429.
 * Tiene **prioridades**: el recolector en segundo plano deja libre un
-  porcentaje del cupo para que las búsquedas interactivas respondan rápido.
+  porcentaje del cupo para que las búsquedas interactivas respondan rápido, y
+  el seguimiento de tus partidas va por delante del recolector (con el
+  recolector a tope, tus partidas nuevas se siguen analizando).
 """
 
 from __future__ import annotations
@@ -28,6 +30,16 @@ MARGIN = 0.12  # segundos extra por jitter de red / reloj
 class Priority:
     HIGH = 0  # el usuario está esperando la respuesta
     LOW = 1  # recolector en segundo plano
+    NORMAL = 2  # seguimiento de tus partidas: delante del recolector, detrás de lo interactivo
+
+
+def _reserve_for(priority: int, reserve_frac: float) -> float:
+    """Parte del cupo largo que una prioridad deja libre a las superiores."""
+    if priority == Priority.LOW:
+        return reserve_frac
+    if priority == Priority.NORMAL:
+        return reserve_frac / 3
+    return 0.0
 
 
 def parse_limits(header: str | None) -> list[tuple[int, int]]:
@@ -136,7 +148,7 @@ class RateLimiter:
         timeout: float | None = None,
     ) -> bool:
         """Bloquea hasta poder lanzar la petición. False si se cancela/expira."""
-        reserve = self.reserve_frac if priority == Priority.LOW else 0.0
+        reserve = _reserve_for(priority, self.reserve_frac)
         deadline = None if timeout is None else self._clock() + timeout
         method_key = f"{host}|{method}"
         with self._cond:

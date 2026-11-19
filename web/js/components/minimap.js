@@ -86,7 +86,7 @@ export function pathMap(paths) {
 }
 
 // ------------------------------------------------------------------ replay
-function trackPos(track, t) {
+export function trackPos(track, t) {
   for (const [s, e, x, y] of track.dead) {
     if (s <= t && t < e) return { dead: true, x, y };
   }
@@ -108,7 +108,7 @@ function trackPos(track, t) {
   return { x: p[1] + (n[1] - p[1]) * f, y: p[2] + (n[2] - p[2]) * f };
 }
 
-const OBJ_ICON = { dragon: "🐉", elder: "🐉", baron: "👾", herald: "🦀", grubs: "🪲", atakhan: "💀" };
+export const OBJ_ICON = { dragon: "🐉", elder: "🐉", baron: "👾", herald: "🦀", grubs: "🪲", atakhan: "💀" };
 
 /**
  * Repetición 2D: analysis = respuesta de /api/coach/games/{id}.
