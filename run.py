@@ -170,10 +170,41 @@ def ensure_requirements(path: Path, python: Path) -> None:
     stamp.write_text(digest, encoding="utf-8")
 
 
+def _venv_in_use(path: Path) -> bool:
+    """¿Alguien está usando ya este entorno? (nuestro propio proceso o la terminal que lo tiene activado)."""
+    try:
+        if Path(sys.executable).resolve().is_relative_to(path.resolve()):
+            return True
+    except (OSError, ValueError):
+        return True
+    active = os.environ.get("VIRTUAL_ENV")
+    if active:
+        try:
+            if Path(active).resolve() == path.resolve():
+                return True
+        except (OSError, ValueError):
+            return True
+    return False
+
+
 def _remove_old_project_venv(current: Path) -> None:
-    """El lanzador antiguo creaba ``.venv`` dentro del proyecto en Windows; ahora vive fuera y se borra (es regenerable)."""
+    """El lanzador antiguo creaba ``.venv`` dentro del proyecto en Windows; ahora vive fuera y se borra (es regenerable).
+
+    Nunca se borra un entorno que se esté usando: en Windows ``rmtree`` lo dejaba a medias (borraba ``pyvenv.cfg``
+    pero no ``python.exe``, que estaba abierto) y luego ``python`` fallaba con «failed to locate pyvenv.cfg».
+    """
     old = ROOT / ".venv"
-    if os.name != "nt" or old == current or not (old / ".req-hash").exists():
+    try:
+        if os.name != "nt" or old.resolve() == current.resolve():
+            return
+    except OSError:
+        return
+    legacy = (old / ".req-hash").exists()  # entorno del lanzador anterior
+    broken = old.exists() and not (old / "pyvenv.cfg").exists()  # restos de un borrado a medias: no sirve para nada
+    if not (legacy or broken):
+        return
+    if _venv_in_use(old):
+        say("El .venv antiguo del proyecto lo tiene activado esta terminal: escribe «deactivate» para soltarlo.")
         return
     shutil.rmtree(old, ignore_errors=True)
     if not old.exists():

@@ -96,7 +96,7 @@ export function champText(text) {
 
 export function icon(name, cls = "") {
   return svg(
-    `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`,
+    `<svg class="ico${cls ? ` ${cls}` : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`,
   );
 }
 
@@ -109,7 +109,7 @@ const ROLE_PATHS = {
 };
 
 export function roleIcon(role, cls = "role-ico") {
-  return svg(`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ROLE_PATHS[role] || ""}</svg>`);
+  return svg(`<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ROLE_PATHS[role] || ""}</svg>`);
 }
 
 // ---------------------------------------------------------------- formato

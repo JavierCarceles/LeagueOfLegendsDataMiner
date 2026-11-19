@@ -79,6 +79,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .spacer { flex: 1; }
 .stack-sm > * + * { margin-top: 6px; }
 .stack > * + * { margin-top: 14px; }
+/* Iconos SVG: un SVG sin tamaño explícito ocupa todo el ancho disponible,
+   así que les damos un tamaño base. Las reglas más específicas
+   (.card-title svg, .btn svg, .role-ico, …) siguen mandando. */
+.ico { width: 16px; height: 16px; flex: none; vertical-align: -0.15em; }
 
 /* ---------------------------------------------------------------- layout */
 .app {
