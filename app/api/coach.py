@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -9,11 +11,14 @@ from app import lcu
 from app.api.deps import role_param, svc_from
 from app.coach import insights, store
 from app.coach.benchmarks import METRICS, TARGET_TIERS, References, normalize_tier, public_metrics
-from app.coach.tracker import ProfileNotFound, resolve_account
+from app.coach.tracker import ProfileNotFound, build_digest, resolve_account
+from app.logbus import get_logger
 from app.riot.client import RiotAPIError, RiotKeyError
 from app.riot.routing import PLATFORMS, QUEUES
 
 router = APIRouter(prefix="/api", tags=["progreso"])
+log = get_logger("progreso")
+_fetching: set[tuple[int, str]] = set()
 
 
 class ProfileBody(BaseModel):
@@ -170,6 +175,7 @@ def _row(g: dict, refs: References) -> dict:
     keys = (
         "kills", "deaths", "assists", "kda", "cs_min", "cs10", "vision_min", "kp", "deaths_pre14", "deaths_to_jungler_pre14",
         "deaths_ganked", "gold_hoard_min", "idle_pct", "obj_lost_dead", "deaths_before_objective", "time_dead_pct", "ganks_pre10",
+        "obj_lost_far", "obj_trades", "first_item_min", "afk_min", "r_late",
     )
     return {
         "match_id": g["match_id"],
@@ -190,6 +196,37 @@ def _row(g: dict, refs: References) -> dict:
     }
 
 
+def _build_refs(svc, keys) -> dict:
+    """Build más jugada (OP.GG) de cada campeón y rol, solo desde la caché; lo que falte se pide en segundo plano."""
+    refs: dict = {}
+    missing = []
+    for champ, role in keys:
+        if not champ or not role:
+            continue
+        try:
+            ref = svc.opgg.champion_build(champ, role, allow_fetch=False)
+        except Exception:  # OP.GG es opcional
+            ref = None
+        refs[(champ, role)] = ref
+        if ref is None and (champ, role) not in _fetching:
+            missing.append((champ, role))
+    if missing and getattr(svc.opgg, "enabled", False):
+        _fetching.update(missing)
+
+        def run():
+            try:
+                for champ, role in missing:
+                    try:
+                        svc.opgg.champion_build(champ, role)
+                    except Exception:
+                        log.debug("Sin build de referencia para %s (%s)", champ, role, exc_info=True)
+            finally:
+                _fetching.difference_update(missing)
+
+        threading.Thread(target=run, name="opgg-builds", daemon=True).start()
+    return refs
+
+
 @router.get("/coach/summary")
 def summary(
     queue: str = Query("all", pattern="^(all|normal|ranked)$"),
@@ -203,7 +240,12 @@ def summary(
     puuids = store.known_puuids(profile)
     games = store.list_games(svc.db, puuids, queue=_queue(queue), role=_role(role), limit=last)
     refs = References(svc, profile["target_tier"])
-    data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True))
+    counts: dict = {}
+    for g in games:
+        if g.get("build"):
+            counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
+    top = [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
+    data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top))
     roles_played = {g["role"] for g in games if g["role"]}
     data.update(
         {
@@ -244,6 +286,13 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     analysis["target_tier"] = profile["target_tier"]
     analysis["score"] = insights.fundamentals_score(analysis.get("metrics") or {}, role_refs, analysis.get("role"))
     analysis["metric_info"] = public_metrics()
+    ref = None
+    if analysis.get("build") and analysis.get("role"):
+        try:
+            ref = svc.opgg.champion_build(analysis["champ"], analysis["role"])
+        except Exception:  # OP.GG es opcional
+            ref = None
+    analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     return analysis
 
 

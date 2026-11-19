@@ -87,11 +87,61 @@ def champion_json(version: str = DD_VERSION) -> dict:
     return {"type": "champion", "format": "standAloneComplex", "version": version, "data": data}
 
 
+# Subconjunto real de ``item.json`` (parche 16.23, es_ES) con las recetas que usan los tests.
+ITEMS: dict[str, dict] = {
+    "1001": {'name': 'Botas', 'gold': {'base': 300, 'total': 300, 'sell': 210, 'purchasable': True}, 'tags': ['Boots'], 'maps': {'11': True}, 'into': ['3047', '3006', '3111']},
+    "1029": {'name': 'Armadura de tela', 'gold': {'base': 300, 'total': 300, 'sell': 210, 'purchasable': True}, 'tags': ['Armor'], 'maps': {'11': True}, 'into': ['3047']},
+    "3047": {'name': 'Botas blindadas', 'gold': {'base': 600, 'total': 1200, 'sell': 840, 'purchasable': True}, 'tags': ['Armor', 'Boots'], 'maps': {'11': True}, 'from': ['1001', '1029'], 'into': [], 'depth': 2},
+    "1033": {'name': 'Manto de anulación de magia', 'gold': {'base': 400, 'total': 400, 'sell': 280, 'purchasable': True}, 'tags': ['SpellBlock'], 'maps': {'11': True}, 'into': ['3111']},
+    "3111": {'name': 'Botas de mercurio', 'gold': {'base': 550, 'total': 1250, 'sell': 875, 'purchasable': True}, 'tags': ['Boots', 'SpellBlock', 'Tenacity'], 'maps': {'11': True}, 'from': ['1001', '1033'], 'into': [], 'depth': 2},
+    "1036": {'name': 'Espada larga', 'gold': {'base': 350, 'total': 350, 'sell': 245, 'purchasable': True}, 'tags': ['Damage', 'Lane'], 'maps': {'11': True}, 'into': ['2021', '3133', '3035', '3044', '3123']},
+    "1037": {'name': 'Pico', 'gold': {'base': 875, 'total': 875, 'sell': 613, 'purchasable': True}, 'tags': ['Damage'], 'maps': {'11': True}, 'into': ['3071', '3053', '3161']},
+    "1028": {'name': 'Cristal de rubí', 'gold': {'base': 400, 'total': 400, 'sell': 280, 'purchasable': True}, 'tags': ['Health'], 'maps': {'11': True}, 'into': ['2021', '3067', '3044', '3053', '3161']},
+    "2021": {'name': 'Tuneladora', 'gold': {'base': 400, 'total': 1150, 'sell': 805, 'purchasable': True}, 'tags': ['Health', 'Damage'], 'maps': {'11': True}, 'from': ['1036', '1028'], 'into': ['3053', '3161'], 'depth': 2},
+    "3044": {'name': 'Bacteriófago', 'gold': {'base': 350, 'total': 1100, 'sell': 770, 'purchasable': True}, 'tags': ['Health', 'Damage', 'NonbootsMovement'], 'maps': {'11': True}, 'from': ['1028', '1036'], 'into': ['3071'], 'depth': 2},
+    "3067": {'name': 'Gema avivadora', 'gold': {'base': 150, 'total': 800, 'sell': 560, 'purchasable': True}, 'tags': ['Health', 'CooldownReduction', 'AbilityHaste'], 'maps': {'11': True}, 'from': ['1028', '2022'], 'into': ['3071'], 'depth': 2},
+    "2022": {'name': 'Mota brillante', 'gold': {'base': 250, 'total': 250, 'sell': 175, 'purchasable': True}, 'tags': ['CooldownReduction'], 'maps': {'11': True}, 'into': ['3133', '3067']},
+    "3071": {'name': 'Cuchilla negra', 'gold': {'base': 225, 'total': 3000, 'sell': 2100, 'purchasable': True}, 'tags': ['Health', 'Damage', 'CooldownReduction', 'OnHit', 'NonbootsMovement', 'ArmorPenetration', 'AbilityHaste'], 'maps': {'11': True}, 'from': ['3044', '3067', '1037'], 'depth': 3},
+    "3133": {'name': 'Martillo de guerra de Caulfield', 'gold': {'base': 100, 'total': 1050, 'sell': 735, 'purchasable': True}, 'tags': ['Damage', 'CooldownReduction', 'AbilityHaste'], 'maps': {'11': True}, 'from': ['1036', '2022', '1036'], 'into': ['6694'], 'depth': 2},
+    "3035": {'name': 'Últimas palabras', 'gold': {'base': 750, 'total': 1450, 'sell': 1015, 'purchasable': True}, 'tags': ['ArmorPenetration', 'Damage'], 'maps': {'11': True}, 'from': ['1036', '1036'], 'into': ['6694'], 'depth': 2},
+    "6694": {'name': 'Rencor de Serylda', 'gold': {'base': 500, 'total': 3000, 'sell': 2100, 'purchasable': True}, 'tags': ['Damage', 'CooldownReduction', 'ArmorPenetration', 'AbilityHaste'], 'maps': {'11': True}, 'from': ['3133', '3035'], 'depth': 3},
+    "1055": {'name': 'Espada de Doran', 'gold': {'base': 450, 'total': 450, 'sell': 180, 'purchasable': True}, 'tags': ['Health', 'Damage', 'LifeSteal', 'SpellVamp', 'Lane'], 'maps': {'11': True}},
+    "2003": {'name': 'Poción de vida', 'gold': {'base': 50, 'total': 50, 'sell': 20, 'purchasable': True}, 'tags': ['HealthRegen', 'Consumable', 'Lane', 'Jungle'], 'maps': {'11': True}, 'consumed': True},
+    "2055": {'name': 'Guardián de control', 'gold': {'base': 75, 'total': 75, 'sell': 30, 'purchasable': True}, 'tags': ['Consumable', 'Lane', 'Stealth', 'Vision'], 'maps': {'11': True}, 'consumed': True},
+    "3340": {'name': 'Guardián invisible', 'gold': {'base': 0, 'total': 0, 'sell': 0, 'purchasable': True}, 'tags': ['Active', 'Jungle', 'Lane', 'Trinket', 'Vision'], 'maps': {'11': True}},
+    "3123": {'name': 'Llamada del verdugo', 'gold': {'base': 450, 'total': 800, 'sell': 560, 'purchasable': True}, 'tags': ['Damage'], 'maps': {'11': True}, 'from': ['1036'], 'into': [], 'depth': 2, 'description': 'Aplica Heridas graves.'},
+    "3053": {'name': 'Calibrador de Sterak', 'gold': {'base': 775, 'total': 3200, 'sell': 2240, 'purchasable': True}, 'tags': ['Health', 'Damage', 'Tenacity'], 'maps': {'11': True}, 'from': ['1037', '2021', '1028'], 'depth': 3},
+    "3161": {'name': 'Lanza de Shojin', 'gold': {'base': 675, 'total': 3100, 'sell': 2170, 'purchasable': True}, 'tags': ['Health', 'Damage', 'AbilityHaste'], 'maps': {'11': True}, 'from': ['1037', '2021', '1028'], 'depth': 3},
+    "1102": {'name': 'Cría de Caminabrisas', 'gold': {'base': 450, 'total': 450, 'sell': 0, 'purchasable': True}, 'tags': ['Jungle'], 'maps': {'11': True}},
+    "2138": {'name': 'Elixir de hierro', 'gold': {'base': 500, 'total': 500, 'sell': 200, 'purchasable': True}, 'tags': ['Health', 'Consumable', 'NonbootsMovement', 'Tenacity'], 'maps': {'11': True}, 'consumed': True},
+    "1042": {'name': 'Daga', 'gold': {'base': 250, 'total': 250, 'sell': 175, 'purchasable': True}, 'tags': ['AttackSpeed'], 'maps': {'11': True}, 'into': ['3006']},
+    "3006": {'name': 'Grebas de berserker', 'gold': {'base': 300, 'total': 1100, 'sell': 770, 'purchasable': True}, 'tags': ['AttackSpeed', 'Boots'], 'maps': {'11': True}, 'from': ['1001', '1042', '1042'], 'into': [], 'depth': 2},
+    "1052": {'name': 'Tomo amplificador', 'gold': {'base': 400, 'total': 400, 'sell': 280, 'purchasable': True}, 'tags': ['SpellDamage'], 'maps': {'11': True}, 'into': ['3916']},
+    "3916": {'name': 'Orbe del olvido', 'gold': {'base': 400, 'total': 800, 'sell': 560, 'purchasable': True}, 'tags': ['SpellDamage'], 'maps': {'11': True}, 'from': ['1052'], 'into': [], 'depth': 2, 'description': 'Aplica Heridas graves.'},
+    "1082": {'name': 'Sello oscuro', 'gold': {'base': 350, 'total': 350, 'sell': 140, 'purchasable': True}, 'tags': ['Health', 'SpellDamage', 'Lane'], 'maps': {'11': True}, 'into': []},
+    "3865": {'name': 'Atlas mundial', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': True}, 'tags': ['Health', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}},
+    "3866": {'name': 'Brújula rúnica', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': False}, 'tags': ['SpellDamage', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'inStore': False},
+    "3867": {'name': 'Botín universal', 'gold': {'base': 400, 'total': 400, 'sell': 160, 'purchasable': False}, 'tags': ['SpellDamage', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'into': ['3870'], 'inStore': False},
+    "3870": {'name': 'Tejesueños', 'gold': {'base': 0, 'total': 400, 'sell': 160, 'purchasable': True}, 'tags': ['Health', 'HealthRegen', 'ManaRegen', 'Vision', 'GoldPer', 'Lane'], 'maps': {'11': True}, 'from': ['3867'], 'depth': 2},
+}
+
+
+def item_json(version: str = DD_VERSION) -> dict:
+    return {"type": "item", "version": version, "data": json.loads(json.dumps(ITEMS))}
+
+
+def item_catalog():
+    from app.coach.items import ItemCatalog
+
+    return ItemCatalog.from_ddragon(item_json())
+
+
 def write_ddragon_cache(cache_dir: Path, version: str = DD_VERSION) -> Path:
-    """Escribe ``<cache_dir>/<version>/champion.json`` (lo que lee ``DDragon.load(allow_network=False)``)."""
+    """Escribe ``champion.json`` e ``item.json`` en ``<cache_dir>/<version>/`` (lo que lee ``DDragon.load(allow_network=False)``)."""
     target = Path(cache_dir) / version / "champion.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(champion_json(version), ensure_ascii=False), encoding="utf-8")
+    (target.parent / "item.json").write_text(json.dumps(item_json(version), ensure_ascii=False), encoding="utf-8")
     return target
 
 
@@ -408,8 +458,9 @@ class FakeOpgg:
 
     enabled = True
 
-    def __init__(self, *, versions=("16.22",), tier_lists=None, counters=None, synergies=None) -> None:
+    def __init__(self, *, versions=("16.22",), tier_lists=None, counters=None, synergies=None, builds=None) -> None:
         self._versions = list(versions)
+        self._builds = builds or {}  # (campeón, rol) -> build de referencia
         self._tier = tier_lists or {}  # rol -> {campeón: fila}
         self._counters = counters or {}  # (rol, campeón) -> {rival: (partidas, victorias)}
         self._synergies = synergies or {}  # (campeón, rol, rol_compañero) -> {compañero: (partidas, victorias)}
@@ -437,6 +488,11 @@ class FakeOpgg:
 
     def matchup_guide(self, champ, opp, role, lang="es_ES", allow_fetch=True):
         return None
+
+    def champion_build(self, champ, role, allow_fetch=True):
+        self.calls.append(("champion_build", champ, role, allow_fetch))
+        build = self._builds.get((champ, role))
+        return dict(build) if build else None
 
     def prefetch(self, jobs, timeout=15.0, workers=6):
         for job in jobs:
@@ -513,8 +569,10 @@ class FakeRiotClient:
 # * pid 1 = top azul (Aatrox) vs pid 6 = top rojo (Darius); junglas: pid 2 (azul) y pid 7 (rojo).
 # * 5:10 gank del jungla rojo en top: pid 1 adelantado y sin ward; el rojo coge las larvas a las 6:20.
 # * 8:00 pid 1 mata a su rival · 11:30 pid 1 muere 1 contra 1 · 24:00 muere aislado en la jungla roja
-#   con 1.800 de oro sin gastar · 25:45 muere en mid y el rojo coge el barón a las 26:10 (pid 1 muerto).
-# * Minutos 16-18 con +1.500 de oro sin gastar y 19-21 sin farmear ni pelear.
+#   con 1.750-1.800 de oro sin gastar desde el minuto 23 (le llegaba para sus botas blindadas, que compra
+#   muerto a las 24:20) · 25:45 muere en mid y el rojo coge el barón a las 26:10 (pid 1 muerto).
+# * Minutos 16-18 con +1.500 de oro (le llegaba para un Bacteriófago de su Cuchilla negra, que compra a
+#   las 18:30) y 19-21 sin farmear ni pelear (en el 19 vuelve a base: cuenta como actividad).
 # * 6:30 gank del jungla azul (pid 2) en bot · 9:00 dragón azul (pid 2, 4 y 5).
 TL_DURATION_MIN = 30
 TL_HOME = {
@@ -562,7 +620,7 @@ def _tl_frame(pid: int, minute: int) -> dict:
             minions = 116 + (minute - 21) * 7
         damage = min(minute, 18) * 500 + max(0, minute - 21) * 500
         total_gold = 500 + minute * 300
-        current = {16: 1700, 17: 1900, 18: 2100, 24: 1800}.get(minute, current)
+        current = {16: 1700, 17: 1900, 18: 2100, 23: 1750, 24: 1800}.get(minute, current)
     elif pid == 6:
         minions = int(minute * 7.5)
         total_gold = 500 + minute * 380

@@ -147,6 +147,8 @@ def nearest_camp(p, max_distance: float = 1300) -> tuple[int, str] | None:
 
 def zone_label(z: str, team: int) -> str:
     """Texto desde el punto de vista del equipo ``team``."""
+    if z.startswith("base_"):
+        return "tu base" if z == f"base_{team}" else "la base rival"
     if z in ZONE_LABELS:
         return ZONE_LABELS[z]
     if z.startswith("jungle_"):

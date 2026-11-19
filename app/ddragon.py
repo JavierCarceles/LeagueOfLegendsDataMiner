@@ -14,6 +14,7 @@ from pathlib import Path
 
 import requests
 
+from app.coach.items import ItemCatalog
 from app.logbus import get_logger
 
 log = get_logger("ddragon")
@@ -52,6 +53,7 @@ class DDragon:
         self.version: str | None = None
         self.champions: dict[int, dict] = {}
         self.items: dict[int, str] = {}
+        self.item_catalog = ItemCatalog({})
         self.spells: dict[int, dict] = {}
         self.runes: dict[int, dict] = {}
         self._by_norm: dict[str, int] = {}
@@ -136,6 +138,7 @@ class DDragon:
                 by_norm.setdefault(alias, by_key[key])
 
         item_map = {int(k): v.get("name", "") for k, v in ((items or {}).get("data") or {}).items() if k.isdigit()}
+        catalog = ItemCatalog.from_ddragon(items)
         spell_map = {
             int(v["key"]): {"key": v["id"], "name": v.get("name", "")}
             for v in ((spells or {}).get("data") or {}).values()
@@ -154,6 +157,7 @@ class DDragon:
             self._by_norm = by_norm
             self._by_key = by_key
             self.items = item_map
+            self.item_catalog = catalog
             self.spells = spell_map
             self.runes = rune_map
 

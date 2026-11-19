@@ -88,18 +88,18 @@ RULES: list[dict] = [
     {
         "metric": "deaths_unspent_gold",
         "weight": 0.8,
-        "title": "Mueres con oro sin gastar",
-        "detail": "{v} muertes por partida con más de 1.200 de oro en el bolsillo (referencia {ref}).",
-        "tip": "Si tienes oro para una pieza importante, vuelve a base antes de pelear: pelear con ese oro sin gastar es pelear con un objeto menos.",
-        "goal": ("<=", 0, "No morir con más de 1.200 de oro sin gastar"),
+        "title": "Mueres con oro que podías gastar",
+        "detail": "{v} muertes por partida llevando desde antes de la pelea oro para algo de tu build y hueco para comprarlo (referencia {ref}).",
+        "tip": "Si te llega para una pieza de tu siguiente objeto, vuelve a base antes de pelear: pelear con ese oro sin gastar es pelear con un objeto menos.",
+        "goal": ("<=", 0, "No morir con oro para tu build sin gastar"),
     },
     {
         "metric": "gold_hoard_min",
         "weight": 1.0,
-        "title": "Pierdes tiempo con oro en el bolsillo",
-        "detail": "{v} minutos por partida con más de 1.500 de oro sin gastar (referencia {ref}).",
-        "tip": "Vuelve a base cuando tengas oro para un componente clave y la oleada lo permita (tras empujarla o cuando tu rival vuelva).",
-        "goal": ("<=", 1, "Como máximo {t} min con +1.500 de oro sin gastar"),
+        "title": "Tardas en gastar el oro",
+        "detail": "{v} minutos de más por partida con oro para tu siguiente compra y hueco en el inventario (referencia {ref}). No cuenta ahorrar con el inventario lleno, la build completa ni las peleas y objetivos.",
+        "tip": "Vuelve a base cuando te llegue para un componente de tu siguiente objeto y la oleada lo permita (tras empujarla o al acabar un campamento). Con el inventario lleno sí toca ahorrar para el objeto completo.",
+        "goal": ("<=", 0.5, "Como máximo {t} min de más con oro útil sin gastar"),
     },
     {
         "metric": "idle_pct",
@@ -177,10 +177,18 @@ RULES: list[dict] = [
         "goal": (">=", "ref", "Participar en el {t} % de los objetivos de tu equipo"),
     },
     {
+        "metric": "obj_lost_far",
+        "weight": 1.3,
+        "title": "Regalas objetivos",
+        "detail": "{v} objetivos por partida que el rival cogió estando tú lejos y sin que tu equipo sacara algo equivalente a cambio (referencia {ref}). Los buenos cambios (su jungla, torres, un dive, otro objetivo) no cuentan.",
+        "tip": "Antes de cada dragón, larvas o barón decide: o llegas a disputarlo o haces algo de valor parecido al otro lado (invadir su jungla, presionar una torre, un dive). Lo que no puede pasar es estar lejos sin sacar nada.",
+        "goal": ("<=", 0, "No regalar objetivos: disputarlos o cambiarlos por algo"),
+    },
+    {
         "metric": "deaths_before_objective",
         "weight": 1.0,
         "title": "Mueres justo antes de los objetivos",
-        "detail": "{v} muertes por partida seguidas de un objetivo del rival (referencia {ref}).",
+        "detail": "{v} muertes por partida seguidas de un objetivo del rival sin que tu equipo sacara nada a cambio (referencia {ref}). No cuentan las peleas que ganasteis.",
         "tip": "En el minuto previo a un objetivo no te expongas: nada de farmear solo en la línea contraria ni de entrar sin visión en arbustos.",
         "goal": ("<=", 0, "No morir justo antes de un objetivo rival"),
     },
@@ -193,12 +201,12 @@ RULES: list[dict] = [
         "goal": (">=", "ref", "Participar en el {t} % de las kills"),
     },
     {
-        "metric": "ganks_pre10",
+        "metric": "impact_pre10",
         "weight": 0.9,
-        "title": "Poca presión temprana",
-        "detail": "{v} ganks con kill antes del minuto 10 por partida (referencia {ref}).",
-        "tip": "Planifica la ruta en la pantalla de carga: empieza en el lado contrario a la línea que quieres ganquear y llega con nivel 3-4 a una línea con control de masas y empuje.",
-        "goal": (">=", 1, "Al menos {t} gank con kill antes del minuto 10"),
+        "title": "Poco impacto en el early",
+        "detail": "{v} jugadas con impacto antes del minuto 10 por partida: kills en cualquier zona, larvas o dragón e invasiones (referencia {ref}).",
+        "tip": "Planifica la ruta en la pantalla de carga: gank a una línea con control de masas y empuje, o si no hay gank, objetivo con prioridad o invadir el lado donde no está su jungla.",
+        "goal": (">=", 2, "Al menos {t} jugadas con impacto antes del minuto 10"),
     },
     {
         "metric": "enemy_ganks_far",
@@ -215,6 +223,22 @@ RULES: list[dict] = [
         "detail": "{v} CS de jungla a los 10 minutos (referencia {ref}).",
         "tip": "Practica la primera limpieza completa (6 campamentos hacia el 3:15) y no dejes campamentos vivos al ir a ganquear.",
         "goal": (">=", "ref", "Llegar a {t} CS de jungla en el minuto 10"),
+    },
+    {
+        "metric": "first_item_min",
+        "weight": 1.0,
+        "title": "Tardas en completar tu primer objeto",
+        "detail": "Tu primer objeto llega de media al minuto {v} (referencia {ref}).",
+        "tip": "El primer objeto es tu mayor pico de poder: farmea las oleadas y campamentos libres entre jugadas, vuelve a base en cuanto te llegue para un componente y no mueras con el oro encima.",
+        "goal": ("<=", "ref", "Completar el primer objeto antes del minuto {t}"),
+    },
+    {
+        "metric": "r_late",
+        "weight": 0.6,
+        "title": "Subes la R tarde",
+        "detail": "{v} veces por partida subes la R más de 30 s después de llegar a nivel 6, 11 o 16 (referencia {ref}).",
+        "tip": "Usa el atajo de subir habilidad (Ctrl + tecla) en cuanto suba el nivel, o activa la subida automática de la R en las opciones.",
+        "goal": ("<=", 0, "Subir la R en cuanto llegues a 6, 11 y 16"),
     },
     {
         "metric": "deaths",
@@ -237,6 +261,8 @@ FUNDAMENTALS = [
     ("idle_pct", 0.8),
     ("gold_hoard_min", 0.6),
     ("obj_participation", 0.7),
+    ("obj_lost_far", 0.5),
+    ("first_item_min", 0.4),
 ]
 
 GOAL_CATALOG = [
@@ -248,15 +274,19 @@ GOAL_CATALOG = [
     {"metric": "wards_pre14", "op": ">=", "target": 4, "label": "Poner al menos {t} wards antes del minuto 14"},
     {"metric": "control_wards", "op": ">=", "target": 2, "label": "Comprar al menos {t} pinks por partida"},
     {"metric": "vision_min", "op": ">=", "target": 1.0, "label": "Al menos {t} de visión por minuto"},
-    {"metric": "gold_hoard_min", "op": "<=", "target": 1, "label": "Como máximo {t} min con +1.500 de oro sin gastar"},
+    {"metric": "gold_hoard_min", "op": "<=", "target": 0.5, "label": "Como máximo {t} min de más con oro útil sin gastar"},
     {"metric": "idle_pct", "op": "<=", "target": 15, "label": "Menos de un {t} % de minutos vacíos desde el 15"},
     {"metric": "time_dead_pct", "op": "<=", "target": 6, "label": "Pasar menos de un {t} % de la partida muerto"},
     {"metric": "obj_participation", "op": ">=", "target": 60, "label": "Participar en el {t} % de los objetivos de tu equipo"},
     {"metric": "deaths_before_objective", "op": "<=", "target": 0, "label": "No morir justo antes de un objetivo rival"},
-    {"metric": "deaths_unspent_gold", "op": "<=", "target": 0, "label": "No morir con más de 1.200 de oro sin gastar"},
+    {"metric": "deaths_unspent_gold", "op": "<=", "target": 0, "label": "No morir con oro para tu build sin gastar"},
+    {"metric": "obj_lost_far", "op": "<=", "target": 0, "label": "No regalar objetivos: disputarlos o cambiarlos por algo"},
+    {"metric": "first_item_min", "op": "<=", "target": 12, "label": "Completar el primer objeto antes del minuto {t}"},
+    {"metric": "r_late", "op": "<=", "target": 0, "label": "Subir la R en cuanto llegues a 6, 11 y 16"},
     {"metric": "kp", "op": ">=", "target": 50, "label": "Participar en el {t} % de las kills"},
     {"metric": "deaths", "op": "<=", "target": 5, "label": "Morir {t} veces o menos"},
     {"metric": "ganks_pre10", "op": ">=", "target": 1, "label": "Al menos {t} gank con kill antes del minuto 10", "role": "JUNGLE"},
+    {"metric": "impact_pre10", "op": ">=", "target": 2, "label": "Al menos {t} jugadas con impacto antes del minuto 10", "role": "JUNGLE"},
     {"metric": "enemy_ganks_far", "op": "<=", "target": 0, "label": "Que el jungla rival no ganquee al otro lado sin respuesta", "role": "JUNGLE"},
 ]
 
@@ -271,6 +301,10 @@ TAG_LABELS = {
     "before_objective": "Antes de objetivo",
     "isolated": "Aislado",
     "executed": "Torre/súbditos",
+    "fight_won": "Pelea ganada",
+    "fight_even": "Pelea igualada",
+    "traded": "Con algo a cambio",
+    "game_end": "Empujón final",
 }
 
 
@@ -594,7 +628,90 @@ def champion_stats(games: list[dict], refs: References) -> list[dict]:
     return out
 
 
-def summarize(games: list[dict], refs: References, goals: list[dict]) -> dict:
+# ---------------------------------------------------------------- builds
+def compare_build(mine: dict | None, ref: dict | None) -> dict | None:
+    """Tu build (orden de objetos terminados, botas y habilidades) frente a la más jugada en OP.GG."""
+    if not mine or not ref:
+        return None
+    legendary = list(mine.get("items") or [])
+    core = list(ref.get("core") or [])
+    popular = {p["id"]: p.get("pick_rate") for p in ref.get("popular") or [] if p.get("id")}
+    first = legendary[0] if legendary else None
+    notes: list[dict] = []
+    overlap = len(set(legendary[:3]) & set(core)) if core else None
+    if first and core:
+        if first == core[0]:
+            notes.append({"ok": True, "text": "Primer objeto: el mismo que la build más jugada."})
+        elif first in core:
+            notes.append({"ok": True, "text": "Empiezas por otro de los objetos clave de la build más jugada (cambia el orden).", "items": [first, core[0]]})
+        elif first in popular:
+            notes.append({"ok": True, "text": f"Primer objeto distinto al más habitual, pero lo lleva un {round((popular[first] or 0) * 100)} % de las builds.", "items": [first, core[0]]})
+        else:
+            notes.append({"ok": False, "text": "Tu primer objeto no está entre los habituales de tu campeón en este rol.", "items": [first, core[0]]})
+    if overlap is not None and len(legendary) >= 3:
+        notes.append({"ok": overlap >= 2, "text": f"Coincides en {overlap} de {len(core)} objetos clave con la build más jugada."})
+    boots = mine.get("boots")
+    ref_boots = ref.get("boots") or []
+    if boots and ref_boots and boots not in ref_boots:
+        notes.append({"ok": None, "text": "Botas distintas a las más habituales (cámbialas si es por el daño rival).", "items": [boots, ref_boots[0]]})
+    skill_max = "".join(mine.get("skill_max") or [])[:3]
+    ref_max = "".join(ref.get("skill_max") or [])[:3]
+    if skill_max and ref_max:
+        same = skill_max == ref_max
+        notes.append({"ok": same, "text": f"Habilidades: maximizas {' > '.join(skill_max)}" + ("" if same else f"; lo habitual es {' > '.join(ref_max)}") + "."})
+    return {"core": core, "boots": ref_boots, "skill_max": list(ref_max), "popular": ref.get("popular") or [], "overlap": overlap, "first": first, "notes": notes}
+
+
+def build_summary(games: list[dict], refs: dict) -> list[dict]:
+    """Por campeón: tu primer objeto, tu núcleo de build y tiempos, frente a la build más jugada."""
+    by: dict[tuple[int, str | None], list[dict]] = defaultdict(list)
+    for g in games:
+        if g.get("build") and g["build"].get("items") is not None:
+            by[(g["champ"], g["role"])].append(g)
+    out = []
+    for (champ, role), items in sorted(by.items(), key=lambda kv: len(kv[1]), reverse=True)[:4]:
+        firsts: Counter = Counter()
+        cores: Counter = Counter()
+        boots: Counter = Counter()
+        maxes: Counter = Counter()
+        minutes = []
+        for g in items:
+            b = g["build"]
+            legend = list(b.get("items") or [])
+            if legend:
+                firsts[legend[0]] += 1
+            if len(legend) >= 3:
+                cores[tuple(legend[:3])] += 1
+            if b.get("boots"):
+                boots[b["boots"]] += 1
+            if b.get("skill_max"):
+                maxes["".join(b["skill_max"])[:3]] += 1
+            if (g["metrics"] or {}).get("first_item_min") is not None:
+                minutes.append(g["metrics"]["first_item_min"])
+        first = firsts.most_common(1)[0] if firsts else None
+        core = cores.most_common(1)[0] if cores else None
+        mine = {
+            "items": list(core[0]) if core else ([first[0]] if first else []),
+            "boots": boots.most_common(1)[0][0] if boots else None,
+            "skill_max": list(maxes.most_common(1)[0][0]) if maxes else [],
+        }
+        out.append(
+            {
+                "champ": champ,
+                "role": role,
+                "games": len(items),
+                "first_item": {"id": first[0], "games": first[1]} if first else None,
+                "core": {"ids": list(core[0]), "games": core[1]} if core else None,
+                "boots": {"id": mine["boots"], "games": boots.most_common(1)[0][1]} if boots else None,
+                "skill_max": mine["skill_max"],
+                "first_item_min": round(_mean(minutes), 1) if minutes else None,
+                "compare": compare_build(mine, refs.get((champ, role))),
+            }
+        )
+    return out
+
+
+def summarize(games: list[dict], refs: References, goals: list[dict], build_refs: dict | None = None) -> dict:
     table = metric_table(games, refs)
     deaths = death_summary(games)
     evaluated = evaluate_goals(goals, games)
@@ -614,5 +731,6 @@ def summarize(games: list[dict], refs: References, goals: list[dict]) -> dict:
         "goals": evaluated,
         "readiness": readiness(games, refs, evaluated),
         "champions": champion_stats(games, refs),
+        "builds": build_summary(games, build_refs or {}),
         "categories": CATEGORIES,
     }

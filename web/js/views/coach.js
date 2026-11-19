@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { lineChart } from "../charts.js";
 import { DEATH_KINDS, deathMap, pathMap, replay } from "../components/minimap.js";
 import { dd, loadJSON, ROLE_LABEL, save, state, TIER_LABEL } from "../state.js";
-import { champImg, champText, empty, errorBox, fmt, h, icon, kpi, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
+import { champImg, champText, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
 
 const PREFS = "tempu.progreso.v1";
 let prefs = loadJSON(PREFS, { queue: "all", role: "all", last: 30 });
@@ -17,7 +17,7 @@ let mode = null; // "setup" | "summary" | "game"
 let player = null;
 
 const CAMP = { blue: "azul", gromp: "Gromp", wolves: "lobos", raptors: "aves", red: "rojo", krugs: "Krugs" };
-const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve" };
+const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve", good: "Bien hecho" };
 
 export function destroy() {
   root = null;
@@ -178,7 +178,7 @@ function setupView(data) {
         "ul.how",
         h("li", h("b", "Sin grabar nada. "), "Riot guarda de cada partida la posición de los 10 jugadores minuto a minuto y todos los eventos con su coordenada (kills, wards, objetivos, compras). Con eso se reconstruye la partida."),
         h("li", h("b", "Automático. "), "Cada 3 minutos se buscan tus partidas nuevas de la Grieta (normales, clasificatorias, Swiftplay y Clash). Si el cliente de LoL está abierto aquí, la partida se analiza en cuanto termina."),
-        h("li", h("b", "Qué detecta. "), "Ganks del jungla rival estando adelantado o sin ward, muertes antes de objetivos, oro sin gastar, minutos sin farmear ni pelear, pathing de jungla, visión, objetivos y fase de líneas."),
+        h("li", h("b", "Qué detecta. "), "Ganks del jungla rival estando adelantado o sin ward, muertes antes de objetivos (y si ganasteis la pelea o sacasteis algo a cambio), oro que te daba para tu build y no gastaste, objetivos regalados frente a buenos cambios al otro lado del mapa, tu build y su orden, minutos sin farmear, pathing de jungla, visión y fase de líneas."),
         h("li", h("b", "Propósitos. "), "Elige 2-3 propósitos y la app comprueba en cada partida si los cumples. Cuando los cumplas de forma constante, te avisa de que estás listo para clasificatorias."),
       ),
     ),
@@ -346,6 +346,7 @@ function summaryView(s, data) {
     weaknessesCard(s),
     h("div.grid.grid-2", deathsCard(s), s.jungle ? jungleCard(s) : timeCard(s)),
     s.jungle ? timeCard(s) : null,
+    buildsCard(s),
     metricsCard(s),
     gamesCard(s),
     championsCard(s),
@@ -562,10 +563,15 @@ function deathsCard(s) {
     const k = p.tags.includes("gank") || p.tags.includes("jungler") ? "gank" : p.tags.includes("enemy_jungle") ? "invade" : p.tags.includes("solo") ? "solo" : p.tags.includes("isolated") ? "isolated" : "fight";
     kinds[k] = (kinds[k] || 0) + 1;
   }
+  const context = ["fight_won", "fight_even", "traded", "game_end"];
   const tagRows = Object.entries(d.tags || {})
-    .filter(([k]) => k !== "early")
+    .filter(([k]) => k !== "early" && !context.includes(k))
     .slice(0, 7)
     .map(([, t]) => tagBar(t.label, t.count, d.total, `${t.count} · ${fmt.pct((t.count / Math.max(1, d.total)) * 100, 0)}`, "bad"));
+  const mitigated = context.map((k) => d.tags?.[k]).filter((t) => t?.count);
+  const contextLine = mitigated.length
+    ? h("div.tiny.muted", { style: { marginTop: "6px" } }, `Con contexto (pesan menos): ${mitigated.map((t) => `${t.label.toLowerCase()} ${t.count}`).join(" · ")}.`)
+    : null;
   return h(
     "section.card",
     h("h3.card-title", icon("map"), "Dónde y cómo mueres", h("span.spacer"), h("span.tiny.muted", `${d.total} muertes · ${d.early_total} antes del 14`)),
@@ -579,6 +585,7 @@ function deathsCard(s) {
         h("div.tiny.faint", "Siempre desde tu lado: tu base abajo a la izquierda. Pulsa un punto para abrir esa partida."),
         h("div.divider"),
         tagRows.length ? tagRows : h("span.small.muted", "Sin muertes registradas."),
+        contextLine,
       ),
     ),
   );
@@ -610,7 +617,7 @@ function jungleCard(s) {
 }
 
 function timeCard(s) {
-  const pick = ["idle_pct", "gold_hoard_min", "time_dead_pct", "deaths_unspent_gold", "obj_lost_dead"].map((k) => metricRow(s, k)).filter(Boolean);
+  const pick = ["idle_pct", "gold_hoard_min", "time_dead_pct", "deaths_unspent_gold", "obj_lost_dead", "obj_lost_far"].map((k) => metricRow(s, k)).filter(Boolean);
   return h(
     "section.card",
     h("h3.card-title", icon("clock"), "En qué pierdes el tiempo"),
@@ -618,7 +625,46 @@ function timeCard(s) {
     h(
       "p.tiny.muted",
       { style: { marginTop: "10px" } },
-      "Minuto vacío: desde el 15, un minuto entero sin farmear (menos de 3 CS), sin hacer daño a campeones, sin poner wards y sin participar en kills, torres ni objetivos.",
+      "Minuto vacío: desde el 15, un minuto entero sin farmear (menos de 3 CS), sin hacer daño a campeones, sin poner wards, sin volver a base y sin participar en kills, torres ni objetivos (los minutos de desconexión no cuentan). Oro útil: el que te daba para una pieza de tu siguiente objeto y con hueco para comprarla; ahorrar con el inventario lleno o la build terminada no es un error. Objetivo regalado: el rival lo coge, tú estás lejos y tu equipo no saca nada parecido a cambio.",
+    ),
+  );
+}
+
+function buildNote(n) {
+  const cls = n.ok === true ? "good" : n.ok === false ? "bad" : "muted";
+  return h(`li.${cls}`, h("span.mark", n.ok === true ? "✓" : n.ok === false ? "✗" : "•"), h("span", n.text), n.items?.length ? h("span.items", n.items.map((id) => itemImg(id))) : null);
+}
+
+function buildsCard(s) {
+  const rows = s.builds || [];
+  if (!rows.length) return null;
+  return h(
+    "section.card",
+    h("h3.card-title", icon("crown"), "Tus builds", h("span.spacer"), h("span.tiny.muted", "Por campeón, frente a la build más jugada en OP.GG")),
+    h(
+      "div.col",
+      { style: { gap: "10px" } },
+      rows.map((r) =>
+        h(
+          "div.build-row",
+          h("div.row", { style: { minWidth: 0 } }, champImg(r.champ), h("div", { style: { minWidth: 0 } }, h("b", dd.name(r.champ)), h("div.tiny.muted", `${ROLE_LABEL[r.role] || "—"} · ${r.games} partidas`))),
+          h(
+            "div",
+            h("div.tiny.muted", "Tu núcleo de build"),
+            r.core ? h("div.items", r.core.ids.map((id) => itemImg(id))) : r.first_item ? h("div.items", itemImg(r.first_item.id)) : h("span.small.muted", "—"),
+            r.first_item ? h("div.tiny.muted", `1.er objeto: ${dd.itemName(r.first_item.id) || "?"} (${r.first_item.games} de ${r.games})`) : null,
+          ),
+          h(
+            "div",
+            h("div.tiny.muted", "Primer objeto"),
+            h("b", r.first_item_min !== null && r.first_item_min !== undefined ? `min ${fmt.num(r.first_item_min, 1)}` : "—"),
+            r.skill_max?.length ? h("div.tiny.muted", `Habilidades ${r.skill_max.join(" > ")}`) : null,
+          ),
+          r.compare
+            ? h("div", h("div.tiny.muted", "Más jugada (OP.GG)"), h("div.items", r.compare.core.map((id) => itemImg(id))), h("ul.build-notes", r.compare.notes.slice(0, 3).map(buildNote)))
+            : h("div.tiny.muted", "Sin build de referencia de OP.GG todavía: se descarga sola."),
+        ),
+      ),
     ),
   );
 }
@@ -665,8 +711,11 @@ function chips(g) {
   else if (g.deaths_ganked) out.push(h("span.chip-bad", `${g.deaths_ganked}× gank`));
   if (g.deaths_pre14 >= 2) out.push(h("span.chip-bad", `${g.deaths_pre14} muertes antes del 14`));
   if (g.obj_lost_dead) out.push(h("span.chip-bad", "objetivo perdido muerto"));
-  if (g.gold_hoard_min >= 2) out.push(h("span.chip-warn", `${g.gold_hoard_min} min con oro`));
+  if (g.obj_lost_far) out.push(h("span.chip-bad", g.obj_lost_far > 1 ? `${g.obj_lost_far} objetivos regalados` : "objetivo regalado"));
+  if (g.gold_hoard_min >= 1) out.push(h("span.chip-warn", `${fmt.num(g.gold_hoard_min, 1)} min con oro útil`));
   if (g.idle_pct >= 25) out.push(h("span.chip-warn", `${fmt.num(g.idle_pct, 0)} % vacío`));
+  if (g.obj_trades) out.push(h("span.chip-good", g.obj_trades > 1 ? `${g.obj_trades} buenos cambios` : "buen cambio"));
+  if (g.afk_min >= 1) out.push(h("span.chip-muted", `AFK ${fmt.num(g.afk_min, 0)} min`));
   if (!g.has_timeline) out.push(h("span.chip-muted", "esperando timeline"));
   return out;
 }
@@ -784,6 +833,8 @@ function gameView(a) {
   if (!a.has_timeline) {
     return h("div.stack", head, notice("Riot aún no ha publicado el timeline de esta partida (a veces tarda unos minutos). Se vuelve a pedir solo; mientras tanto solo hay estadísticas generales.", "warn"), gameMetrics(a));
   }
+  const afk = (a.afk || []).reduce((acc, x) => acc + (x.end - x.start), 0);
+  const afkNotice = afk >= 60 ? notice(`Estuviste ${fmt.duration(afk)} sin moverte (desconexión o AFK). Esos minutos no cuentan como minutos vacíos ni como oro sin gastar.`, "warn") : null;
 
   player = replay(a);
   const moments = (a.moments || []).map((mo) =>
@@ -811,27 +862,100 @@ function gameView(a) {
     ];
     charts.push(h("section.card", h("h3.card-title", icon("activity"), `Oro frente a ${dd.name(opp.champ)}`), lineChart(points, { height: 240, markers }), h("div.legend", h("span", h("i", { style: { background: "var(--blue)" } }), "Tus kills (arriba)"), h("span", h("i", { style: { background: "var(--red)" } }), "Tus muertes (abajo)"), h("span", "Línea: tu oro − el de tu rival"))));
   }
-  if (s) charts.push(h("section.card", h("h3.card-title", icon("clock"), "Oro sin gastar cada minuto"), goldBars(s), h("p.tiny.muted", "Por encima de la línea (1.500) estás paseando oro que no pelea: vuelve a base cuando puedas.")));
+  if (s) {
+    const caption = s.hoard
+      ? "Naranja: te llegaba para una pieza de tu siguiente objeto, tenías hueco y no volviste (descontando peleas y objetivos). Gris claro: ahorro para un objeto completo con el inventario lleno o la build terminada, que no es un error."
+      : "Por encima de la línea (1.500) estás paseando oro que no pelea: vuelve a base cuando puedas.";
+    charts.push(h("section.card", h("h3.card-title", icon("clock"), "Oro sin gastar cada minuto"), goldBars(s), h("p.tiny.muted", caption)));
+  }
 
   return h(
     "div.stack",
     head,
+    afkNotice,
     h("div.grid.game-main", replayCard, momentsCard),
     a.jungle ? jungleGame(a) : null,
+    buildCard(a),
     ...charts,
     gameMetrics(a),
+  );
+}
+
+function minuteText(v) {
+  return v !== null && v !== undefined ? `min ${fmt.num(v, 1)}` : "—";
+}
+
+function buildCard(a) {
+  const b = a.build;
+  if (!b) {
+    return a.items_known === false ? notice("Sin datos de objetos (Data Dragon no estaba disponible al analizarla): la build y el oro útil se calcularán al volver a analizarla.", "info") : null;
+  }
+  const cmp = a.build_compare;
+  const steps = (b.order || []).map((o) => h("div.build-step", { title: dd.itemName(o.item) }, itemImg(o.item), h("span.tiny.muted", fmt.duration(o.t))));
+  const backs = (b.backs || []).map((x) =>
+    h(
+      "div.build-back",
+      { title: `${fmt.int(x.gold)} de oro${x.dead ? " (comprando muerto)" : ""}` },
+      h("span.tiny.muted", fmt.duration(x.t)),
+      h("div.items", x.items.map((id) => itemImg(id))),
+      h("span.tiny.faint", fmt.int(x.gold)),
+    ),
+  );
+  const healers = b.anti_heal?.healers || [];
+  const dt = b.damage_taken || {};
+  const ref = a.refs?.first_item_min;
+  return h(
+    "section.card",
+    h("h3.card-title", icon("crown"), "Tu build", h("span.spacer"), h("span.tiny.muted", "Objetos terminados en el orden en que los compraste")),
+    steps.length ? h("div.build-order", steps) : h("div.small.muted", "No llegaste a terminar ningún objeto."),
+    h(
+      "div.kpis",
+      { style: { marginTop: "12px" } },
+      kpi("Primer objeto", minuteText(b.first_item_min), ref ? `ref. min ${fmt.num(ref, 1)}` : null),
+      kpi("Segundo objeto", minuteText(b.second_item_min)),
+      kpi("Botas mejoradas", minuteText(b.boots_min)),
+      kpi("Habilidades", b.skill_max?.length ? b.skill_max.join(" > ") : "—", b.r_delays?.length ? `R tarde ${b.r_delays.length} ${b.r_delays.length === 1 ? "vez" : "veces"}` : "R siempre a tiempo"),
+    ),
+    cmp
+      ? h(
+          "div.build-ref",
+          h(
+            "div.row-wrap",
+            h("span.small", h("b", "Más jugada en OP.GG")),
+            h("div.items", cmp.core.map((id) => itemImg(id))),
+            cmp.boots?.length ? h("span.row", h("span.tiny.muted", "botas"), itemImg(cmp.boots[0])) : null,
+            cmp.skill_max?.length ? h("span.tiny.muted", `habilidades ${cmp.skill_max.join(" > ")}`) : null,
+          ),
+          h("ul.build-notes", cmp.notes.map(buildNote)),
+        )
+      : null,
+    h(
+      "div.row-wrap.small",
+      { style: { marginTop: "10px", gap: "6px 16px" } },
+      h("span", "Daño recibido: ", h("b", `${dt.physical ?? 0} % físico`), ` · ${dt.magic ?? 0} % mágico · ${dt.true ?? 0} % verdadero`),
+      healers.length
+        ? h("span", "Curación rival: ", healers.slice(0, 3).map((x, i) => h("span", i ? " · " : "", champImg(x.champ, "xs"), ` ${fmt.int(x.per_min)}/min`)), b.anti_heal.has ? h("span.good", " · llevaste Heridas graves") : h("span.bad", " · sin Heridas graves"))
+        : null,
+    ),
+    backs.length ? h("details.build-backs", h("summary.small", `Compras por vuelta a base (${backs.length})`), h("div.build-backs-list", backs)) : null,
   );
 }
 
 function goldBars(s) {
   const values = s.current_gold.map((v) => v ?? 0);
   const max = Math.max(2000, ...values);
+  const hoard = s.hoard || null; // análisis con inventario: minutos con oro útil sin gastar
   const wrap = h("div.gold-bars");
   values.forEach((v, i) => {
     const hpct = (v / max) * 100;
-    wrap.append(h(`span${v >= 1500 ? ".hot" : ""}`, { style: { height: `${hpct}%` }, title: `${Math.round(s.minute[i])}' · ${fmt.int(v)} de oro` }));
+    const hot = hoard ? !!hoard[i] : v >= 1500;
+    const saving = hoard && !hot && v >= 1500 && (s.useful_gold?.[i] ?? 0) < 1000;
+    let title = `${Math.round(s.minute[i])}' · ${fmt.int(v)} de oro`;
+    if (hot && hoard) title += ` · te llegaba para una compra de ${fmt.int(s.useful_gold?.[i])} de tu build`;
+    if (saving) title += " · ahorrando: no te llegaba para nada que cupiera en tu inventario";
+    wrap.append(h(`span${hot ? ".hot" : saving ? ".saving" : ""}`, { style: { height: `${hpct}%` }, title }));
   });
-  wrap.append(h("i.line", { style: { bottom: `${(1500 / max) * 100}%` } }));
+  if (!hoard) wrap.append(h("i.line", { style: { bottom: `${(1500 / max) * 100}%` } }));
   return wrap;
 }
 

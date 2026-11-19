@@ -505,6 +505,63 @@ class Opgg:
 
         return self._cached("guide", key, TTL_MCP, fetch, allow_fetch)
 
+    def champion_build(self, champ: int, role: str, allow_fetch: bool = True) -> dict | None:
+        """Build más jugada de un campeón en su rol: objetos clave, botas, inicial y orden de habilidades."""
+        key = f"{champ}|{POSITIONS[role]}"
+
+        def fetch():
+            raw = self.mcp_call(
+                "lol_get_champion_analysis",
+                {
+                    "game_mode": "ranked",
+                    "champion": self.mcp_name(champ),
+                    "position": POSITIONS[role],
+                    "lang": "en_US",
+                    "desired_output_fields": [
+                        "data.core_items", "data.boots", "data.starter_items", "data.last_items",
+                        "data.fourth_items", "data.skills", "data.skill_masteries",
+                    ],
+                },
+            )
+            data = (raw or {}).get("data") or {}
+            if not data:
+                return None
+
+            def ids(entry) -> list[int]:
+                out = []
+                for value in (entry or {}).get("ids") or []:
+                    try:
+                        out.append(int(value))
+                    except (TypeError, ValueError):
+                        continue
+                return out
+
+            def options(entries, limit=6) -> list[dict]:
+                rows = []
+                for e in (entries or [])[:limit]:
+                    item = ids(e)
+                    if item:
+                        rows.append({"id": item[0], "games": e.get("play"), "wins": e.get("win"), "pick_rate": e.get("pick_rate")})
+                return rows
+
+            core = data.get("core_items") or {}
+            core = core[0] if isinstance(core, list) and core else core
+            skills = data.get("skills") or {}
+            masteries = data.get("skill_masteries") or {}
+            return {
+                "core": ids(core),
+                "core_games": core.get("play") if isinstance(core, dict) else None,
+                "core_wins": core.get("win") if isinstance(core, dict) else None,
+                "boots": ids(data.get("boots") if isinstance(data.get("boots"), dict) else (data.get("boots") or [{}])[0]),
+                "starter": ids(data.get("starter_items") if isinstance(data.get("starter_items"), dict) else (data.get("starter_items") or [{}])[0]),
+                "popular": options(data.get("last_items")),
+                "fourth": options(data.get("fourth_items"), 3),
+                "skills": [str(s) for s in (skills.get("order") if isinstance(skills, dict) else []) or []],
+                "skill_max": [str(s) for s in (masteries.get("ids") if isinstance(masteries, dict) else []) or []],
+            }
+
+        return self._cached("build", key, TTL_MCP, fetch, allow_fetch)
+
     def synergies(self, champ: int, role: str, partner_role: str, allow_fetch: bool = True) -> dict[int, tuple[int, int]] | None:
         key = f"{champ}|{POSITIONS[role]}|{POSITIONS[partner_role]}"
 

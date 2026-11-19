@@ -6,7 +6,7 @@ Analizador de drafts, matchups y estadísticas de League of Legends. Combina **d
 
 | Sección | Qué hace |
 |---|---|
-| **Mi progreso** | Guarda tu perfil y recoge **solas** tus partidas (normales y clasificatorias de la Grieta), sin grabar repeticiones. Detecta qué haces mal (ganks del jungla rival, muertes adelantado o sin ward, oro sin gastar, minutos vacíos, pathing, visión, objetivos), te propone propósitos, sigue si los cumples partida a partida y te dice cuándo estás listo para clasificatorias. Cada partida tiene una repetición 2D y sus momentos clave. |
+| **Mi progreso** | Guarda tu perfil y recoge **solas** tus partidas (normales y clasificatorias de la Grieta), sin grabar repeticiones. Detecta qué haces mal teniendo en cuenta el contexto (ganks del jungla rival, muertes adelantado o sin ward, oro que te daba para tu build y no gastaste, objetivos regalados frente a buenos cambios al otro lado del mapa, minutos vacíos, pathing, visión) y analiza tu build y su orden frente a la más jugada en OP.GG. Te propone propósitos, sigue si los cumples partida a partida y te dice cuándo estás listo para clasificatorias. Cada partida tiene una repetición 2D y sus momentos clave. |
 | **Draft** | Probabilidad de victoria con intervalo, nota S–F, fuerza de cada equipo, los 5 enfrentamientos (con quién gana la línea), sinergias, perfil de daño AD/AP y curva por duración. Los mejores picks de cada hueco salen solos (en el centro de cada línea y arriba de cada selector), con tus campeones si tienes perfil. Funciona con el draft a medias. |
 | **Matchups** | Todos los rivales de un campeón: WR ajustado, esperado, ventaja propia (Δ), veredicto y fiabilidad. El detalle incluye fuentes por separado, desglose por parche/elo/región, consejo de OP.GG y la build contra ese rival. |
 | **Campeones** | Tier list por rol (OP.GG + tu BD) y ficha de campeón: roles, mejores y peores matchups, sinergias y perfil. |
@@ -74,14 +74,33 @@ marcha, cada 3 minutos se buscan tus partidas nuevas y se analizan. La primera v
   publica (1-3 min). Si la key caduca, el seguimiento se pausa y sigue solo al pegar la nueva.
 - **Muertes.** Cada una se clasifica: *gank* (participa alguien que no es de tu línea, sobre todo el
   jungla rival), *1 contra 1*, *adelantado* (más cerca de la torre exterior rival que de la tuya),
-  *sin ward* (no pusiste ninguno en los 2 minutos previos), *con oro sin gastar* (≥ 1.200), *antes de
-  un objetivo* (el rival coge dragón, larvas, heraldo, barón o Atakhan en los 90 s siguientes), *en su
-  jungla* y *aislado* (después del 14, sin aliados a menos de 2.200 unidades).
-- **Tiempo.** Minutos vivo y fuera de la fuente con ≥ 1.500 de oro sin gastar, *minutos vacíos* (desde
-  el 15: menos de 3 CS, menos de 400 de daño a campeones, sin wards ni participar en kills, torres u
-  objetivos) y porcentaje de la partida muerto.
-- **Jungla.** Campamento inicial, ruta de los minutos 1-8, presencia en cada línea, ganks con kill antes
-  del 10, invasiones, CS de jungla y ganks del jungla rival en la otra mitad del mapa.
+  *sin ward* (no pusiste ninguno en los 2 minutos previos), *con oro sin gastar* (llevabas desde 30 s
+  antes oro para algo de tu build y hueco para comprarlo), *antes de un objetivo* (el rival coge dragón,
+  larvas, heraldo, barón o Atakhan en los 90 s siguientes y tu equipo no saca nada a cambio), *en su
+  jungla* y *aislado* (después del 14, solo, sin aliados a menos de 2.200 unidades). Además se mira la
+  pelea entera (kills encadenadas a ≤ 20 s y ≤ 3.200 unidades): caer en una pelea que ganáis, en el
+  empujón final o mientras tu equipo coge un objetivo o una torre pesa mucho menos.
+- **Oro.** Se reconstruye tu inventario con las compras, ventas, «deshacer» y objetos gastados del
+  timeline, y el árbol de recetas de Data Dragon. Un minuto cuenta como *oro sin gastar* solo si te
+  llegaba para una pieza (≥ 1.000) de tu siguiente objeto y tenías hueco para comprarla. Con el
+  inventario lleno solo vale lo que combine lo que llevas: ahorrar para el objeto completo, tener la
+  build terminada, estar en plena pelea u objetivo o el empujón final no son errores. A cada vuelta
+  tardía se le descuentan 45 s de margen para acabar la oleada o el campamento.
+- **Objetivos y cambios.** Si el rival coge un objetivo y estabas lejos, se suma lo que sacó tu equipo
+  entre 75 s antes y 40 s después (kills, torres, placas, CS en su jungla, otro objetivo) y se compara
+  con lo que vale el objetivo (el tercer dragón y el alma valen más). Un buen cambio sale como acierto;
+  uno justo, como aviso leve; en inferioridad numérica no se te culpa; solo lejos y sin sacar nada es
+  *objetivo regalado*.
+- **Build.** Orden y minuto de cada objeto terminado, compras por vuelta a base, inventario lleno de
+  componentes de otros objetos, objetos vendidos, la R a tiempo (6, 11 y 16), Heridas graves contra
+  rivales que se curan mucho y resistencias frente al daño que recibiste. Se compara con la build más
+  jugada de tu campeón y rol en OP.GG (objetos clave, botas y orden de habilidades).
+- **Tiempo.** *Minutos vacíos* (desde el 15: menos de 3 CS, menos de 400 de daño a campeones, sin wards,
+  sin volver a base ni participar en kills, torres u objetivos) y porcentaje de la partida muerto. Los
+  minutos sin moverte ni ganar experiencia (desconexión o AFK) no cuentan y se avisan aparte.
+- **Jungla.** Campamento inicial, ruta de los minutos 1-8, presencia en cada línea, jugadas con impacto
+  antes del 10 (kills en cualquier zona, objetivos e invasiones), invasiones, CS de jungla y ganks del
+  jungla rival en la otra mitad del mapa.
 - **Referencias.** Cada métrica se compara con una referencia orientativa de tu rol, escalada al *elo
   objetivo* de tu perfil. Si el recolector tiene ≥ 300 partidas de ese elo y rol, se usan las medias
   reales de tu base de datos. Los puntos débiles se ordenan por lo lejos que estás de la referencia.
@@ -121,7 +140,7 @@ app/
   api/         endpoints REST (documentación interactiva en /docs)
 web/           interfaz (HTML + CSS + módulos JS, sin compilación)
 data/          lol.db (generada), legacy/ (datos del proyecto antiguo), coachings/ (guías)
-tests/         470 tests offline (pytest)
+tests/         478 tests offline (pytest)
 ```
 
 ## Cambios respecto a la versión anterior

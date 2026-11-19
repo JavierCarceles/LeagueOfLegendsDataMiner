@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from collections import Counter
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,15 +13,20 @@ from app.coach import geometry as geo
 from app.coach import insights, store
 from app.coach.analyzer import NotInMatch, analyze_game, find_me
 from app.coach.benchmarks import References, static_refs
-from app.coach.tracker import GameTracker, digest
+from app.coach.items import Inventory
+from app.coach.tracker import GameTracker, build_digest, digest
 from app.main import create_app
 from app.riot.client import RiotAPIError
 from tests.factories import (
     AATROX,
+    DARIUS,
     GAME_START_MS,
     LEE_SIN,
     TEST_KEY,
     VIEGO,
+    FakeOpgg,
+    install_opgg,
+    item_catalog,
     make_match,
     make_settings,
     make_timeline,
@@ -101,15 +107,20 @@ def test_laner_metrics(scenario):
     expected = {
         "deaths": 4, "deaths_pre14": 2, "deaths_to_jungler_pre14": 1, "deaths_ganked": 1, "deaths_overextended": 1,
         "deaths_no_vision_pre14": 2, "deaths_solo": 2, "deaths_enemy_jungle": 1, "deaths_unspent_gold": 1,
-        "deaths_before_objective": 2, "deaths_isolated_late": 1, "obj_lost_dead": 1, "objectives_team": 1,
-        "obj_participation": 0.0, "gold_hoard_min": 3, "idle_min": 3, "cs10": 60, "cs_diff10": -15,
+        "deaths_before_objective": 2, "deaths_isolated_late": 1, "obj_lost_dead": 1, "obj_lost_far": 0, "objectives_team": 1,
+        "obj_participation": 0.0, "idle_min": 2, "cs10": 60, "cs_diff10": -15,
         "gold_diff15": -1200, "wards_pre14": 3, "control_wards_placed": 1, "recalls": 2, "first_recall_min": 18.5,
-        "control_wards_bought": 1,
+        "control_wards_bought": 1, "afk_min": 0.0,
     }
     assert {k: m[k] for k in expected} == expected
+    # 15:30-18:30 con oro (menos 45 s de margen) + 20 s de más en el minuto 23 (sin contar la pelea de las 24:00).
+    assert m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
     assert m["time_dead_pct"] == pytest.approx(140 / 1800 * 100, abs=0.1)
     kinds = {mo["kind"] for mo in a["moments"]}
-    assert {"death", "gold", "idle", "objective", "lane"} <= kinds
+    assert {"death", "gold", "idle", "lane"} <= kinds
+    # El barón perdido estando muerto ya lo cuenta la muerte de justo antes: no se repite.
+    assert not any(mo["kind"] == "objective" for mo in a["moments"])
+    assert "barón" in next(mo for mo in a["moments"] if mo["t"] == 1545.0)["detail"]
     assert [mo["t"] for mo in a["moments"]] == sorted(mo["t"] for mo in a["moments"])
 
 
@@ -157,6 +168,178 @@ def test_find_me_by_puuid_or_riot_id():
     assert find_me(match, puuid="otro", game_name="tempu", tag_line="euw")["participantId"] == 1
     with pytest.raises(NotInMatch):
         find_me(match, puuid="otro", game_name="Nadie", tag_line="X")
+
+
+# ------------------------------------------------- contexto: oro, objetivos, build
+ITEMS = item_catalog()
+BLUE_JUNGLE_TOP = (3821, 8101)  # azul de tu jungla
+RED_JUNGLE_TOP = (7035, 10880)  # rojo de la jungla rival (lado del barón)
+
+
+def _event(t: int, kind: str, **fields) -> dict:
+    return {"timestamp": t, "type": kind, **fields}
+
+
+def _buy(t: int, pid: int, item: int) -> dict:
+    return _event(t, "ITEM_PURCHASED", participantId=pid, itemId=item)
+
+
+def _kill(t: int, killer: int, victim: int, pos: tuple[int, int], assists=()) -> dict:
+    return _event(t, "CHAMPION_KILL", killerId=killer, victimId=victim, assistingParticipantIds=list(assists),
+                  position={"x": pos[0], "y": pos[1]}, bounty=300, shutdownBounty=0)
+
+
+def _with(timeline: dict, events=(), frames: dict | None = None) -> dict:
+    """Copia del timeline con eventos extra y valores de frame cambiados: ``{(pid, minuto): {...}}``."""
+    tl = copy.deepcopy(timeline)
+    frames_list = tl["info"]["frames"]
+    for e in events:
+        frames_list[min(e["timestamp"] // 60_000, len(frames_list) - 1)]["events"].append(e)
+    for (pid, minute), values in (frames or {}).items():
+        frame = frames_list[minute]["participantFrames"][str(pid)]
+        for key, value in values.items():
+            frame[key] = {"x": value[0], "y": value[1]} if key == "position" else value
+    return tl
+
+
+def test_item_catalog_and_inventory():
+    assert ITEMS.is_legendary(3071) and ITEMS.is_completed(3047) and not ITEMS.is_completed(1001)
+    assert ITEMS.is_starter(1055) and ITEMS.is_starter(3865) and not ITEMS.is_starter(1036)
+    assert not ITEMS.uses_slot(3340) and not ITEMS.uses_slot(2138) and ITEMS.uses_slot(2055)
+    assert ITEMS.anti_heal(3123) and not ITEMS.anti_heal(3071)
+    # Con hueco puedes comprar cualquier pieza de la Cuchilla negra; con el inventario lleno, solo lo que combina tu Pico.
+    held = Counter({1037: 1})
+    assert ITEMS.options([3071], held, 2) == [(2022, 250), (1036, 350), (1028, 400), (3067, 800), (3044, 1100), (3071, 2125)]
+    assert ITEMS.options([3071], held, 0) == [(3071, 2125)]
+    assert ITEMS.options([3071], Counter({2055: 1}), 0) == []  # una pink no combina con nada
+
+    events = [
+        _buy(1000, 1, 1036), _buy(2000, 1, 1036),
+        _event(3000, "ITEM_DESTROYED", participantId=1, itemId=1036), _event(3000, "ITEM_DESTROYED", participantId=1, itemId=1036),
+        _buy(3000, 1, 3035), _event(4000, "ITEM_UNDO", participantId=1, beforeId=3035, afterId=0, goldGain=750),
+        _event(5000, "ITEM_DESTROYED", participantId=1, itemId=3865),  # el objeto de support viene dado y evoluciona solo
+    ]
+    inv = Inventory(ITEMS, events)
+    assert inv.at(3500) == Counter({3035: 1})
+    assert inv.at(4500) == Counter({1036: 2})  # deshacer devuelve los componentes
+    assert inv.at(6000) == Counter({1036: 2, 3866: 1}) and inv.free_slots(inv.at(6000)) == 3
+    assert [p["item"] for p in inv.bought()] == [1036, 1036]
+
+
+def _analyze(timeline_events=(), frames=None, *, pid: int = 1, overrides=None, items=ITEMS) -> dict:
+    over = copy.deepcopy(ME_OVERRIDES)
+    for k, v in (overrides or {}).items():
+        over.setdefault(k, {}).update(v)
+    match = make_match("EUW1_9400000001", duration=1800, puuids={1: ME}, overrides=over, game_start=GAME_START_MS)
+    return analyze_game(match, _with(make_timeline(match), timeline_events, frames), pid=pid, items=items)
+
+
+def test_gold_with_the_item_catalog():
+    a = _analyze()
+    m, deaths = a["metrics"], {d["t"]: d for d in a["deaths"]}
+    gold = next(mo for mo in a["moments"] if mo["kind"] == "gold")
+    assert "Bacteriófago (1.100)" in gold["detail"] and "hueco" in gold["detail"]  # pieza de su siguiente objeto
+    assert "Botas blindadas (1.200)" in next(mo for mo in a["moments"] if mo["t"] == 1440.0)["detail"]
+    assert m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05) and "unspent_gold" in deaths[1440.0]["tags"]
+    assert a["series"]["hoard"][16:19] == [1, 1, 1] and a["series"]["useful_gold"][16] == 1100
+
+
+def test_saving_with_a_full_inventory_is_not_hoarding():
+    # 15:10: 5 objetos terminados + Doran = inventario lleno. Ahorrar para la Cuchilla negra (18:30) no es un error.
+    full = [_buy(910_000 + i, 1, item) for i, item in enumerate((3161, 3053, 3047, 6694, 3111))]
+    a = _analyze(full)
+    m = a["metrics"]
+    assert m["gold_hoard_min"] == 0 and m["deaths_unspent_gold"] == 0 and m["gold_saving_min"] >= 3
+    assert not any(mo["kind"] == "gold" for mo in a["moments"])
+    assert not any("clogged" in mo["tags"] for mo in a["moments"])
+    # Lleno, pero con dos dagas que no son de tu siguiente objeto: el problema es el orden de compra.
+    clogged = [_buy(910_000 + i, 1, item) for i, item in enumerate((3161, 3053, 3047, 1042, 1042))]
+    a = _analyze(clogged)
+    assert a["metrics"]["gold_hoard_min"] == 0 and a["metrics"]["inv_clogged_min"] >= 3
+    moment = next(mo for mo in a["moments"] if "clogged" in mo["tags"])
+    assert "Daga" in moment["detail"] and "Cuchilla negra" in moment["detail"]
+
+
+def test_final_push_and_afk_are_not_errors():
+    # Oro en el empujón final (gana el azul): no cuenta.
+    a = _analyze(frames={(1, 29): {"currentGold": 2600}, (1, 30): {"currentGold": 2900}})
+    assert a["metrics"]["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
+    # Desconectado en la fuente desde el 27: ni minutos vacíos, ni oro parado, pero se avisa.
+    still = {(1, minute): {"position": (400, 420), "xp": 17_000, "currentGold": 3000} for minute in range(27, 31)}
+    a = _analyze(frames=still)
+    m = a["metrics"]
+    assert m["afk_min"] == pytest.approx(3.0, abs=0.05) and a["afk"] == [{"start": 1620.0, "end": 1800.0}]
+    assert m["idle_min"] == 2 and m["gold_hoard_min"] == pytest.approx(2.6, abs=0.05)
+    assert any(mo["kind"] == "afk" for mo in a["moments"])
+
+
+def test_objective_traded_on_the_other_side_is_a_good_decision():
+    # El rival coge el dragón a las 20:30 mientras el jungla azul (pid 2) invade su jungla, mata y tira una torre.
+    dragon = _event(1_230_000, "ELITE_MONSTER_KILL", killerId=7, killerTeamId=200, monsterType="DRAGON", monsterSubType="FIRE_DRAGON",
+                    position={"x": 9866, "y": 4414}, assistingParticipantIds=[9, 10], bounty=0)
+    far = {(2, 20): {"position": RED_JUNGLE_TOP}, (2, 21): {"position": RED_JUNGLE_TOP, "jungleMinionsKilled": 136}}
+    plays = [
+        _kill(1_210_000, 2, 7, RED_JUNGLE_TOP),
+        _kill(1_215_000, 3, 8, (7500, 11500), assists=[2]),
+        _event(1_240_000, "BUILDING_KILL", killerId=2, teamId=200, buildingType="TOWER_BUILDING", laneType="TOP_LANE",
+               towerType="OUTER_TURRET", position={"x": 4318, "y": 13875}, assistingParticipantIds=[3], bounty=0),
+    ]
+    a = _analyze([dragon, *plays], far, pid=2)
+    trade = next(mo for mo in a["moments"] if mo["kind"] == "trade")
+    assert trade["severity"] == "good" and trade["title"].startswith("Buen cambio: el dragón por")
+    assert "1 torre" in trade["title"] and "su jungla" in trade["title"]
+    # Las larvas de las 6:20 (gank abajo: 1 kill por 3 larvas) siguen siendo un mal cambio; el dragón no cuenta.
+    assert a["metrics"]["obj_lost_far"] == 1 and a["metrics"]["obj_trades"] == 1
+    assert not any("dragón" in mo["title"] for mo in a["moments"] if "far" in mo["tags"])
+    # Lejos y sin sacar nada: eso sí es regalarlo.
+    a = _analyze([dragon], {(2, 20): {"position": BLUE_JUNGLE_TOP}, (2, 21): {"position": BLUE_JUNGLE_TOP}}, pid=2)
+    lost = next(mo for mo in a["moments"] if "far" in mo["tags"] and "dragón" in mo["title"])
+    assert lost["title"] == "El rival cogió el dragón gratis y estabas lejos" and lost["severity"] == "medium"
+    assert a["metrics"]["obj_lost_far"] == 2 and a["metrics"]["obj_trades"] == 0
+
+
+def test_deaths_in_won_fights_or_with_a_trade_weigh_less():
+    # 11:30: pid 1 cae, pero su jungla mata a dos rivales en la misma pelea.
+    won = [_kill(695_000, 2, 6, (1300, 9100)), _kill(700_000, 2, 7, (1250, 9050))]
+    # 24:00: muere aislado en la jungla roja mientras su equipo hace el barón.
+    baron = _event(1_450_000, "ELITE_MONSTER_KILL", killerId=2, killerTeamId=100, monsterType="BARON_NASHOR",
+                   position={"x": 5007, "y": 10471}, assistingParticipantIds=[3, 4, 5], bounty=0)
+    a = _analyze([*won, baron])
+    deaths = {d["t"]: d for d in a["deaths"]}
+    assert "fight_won" in deaths[690.0]["tags"] and deaths[690.0]["severity"] == "low"
+    assert next(mo for mo in a["moments"] if mo["t"] == 690.0)["title"] == "Caíste, pero ganasteis la pelea (2 kills y 1 caído)"
+    assert "traded" in deaths[1440.0]["tags"] and a["metrics"]["deaths_isolated_late"] == 0
+    assert "tu equipo cogió el barón a cambio" in next(mo for mo in a["moments"] if mo["t"] == 1440.0)["detail"]
+
+
+def test_build_order_skills_and_anti_heal():
+    skills = [_event(t, "SKILL_LEVEL_UP", participantId=1, skillSlot=slot, levelUpType="NORMAL")
+              for t, slot in ((1_000, 1), (90_100, 2), (180_100, 3), (270_100, 1), (360_100, 1), (500_000, 4), (905_000, 4), (1_352_000, 4))]
+    extra = [_buy(1_200_000, 1, 3053), _event(1_500_000, "ITEM_SOLD", participantId=1, itemId=3053), *skills]
+    a = _analyze(extra, overrides={6: {"totalHeal": 40_000}})
+    b, m = a["build"], a["metrics"]
+    assert [(o["item"], o["kind"]) for o in b["order"]] == [(3071, "legendary"), (3053, "legendary"), (3047, "boots")]
+    assert m["first_item_min"] == 18.5 and m["second_item_min"] == 20.0 and m["boots_min"] == pytest.approx(24.3, abs=0.05)
+    assert b["skills"].startswith("QWEQQR") and b["skill_max"][0] == "Q"
+    assert b["r_delays"] == [{"level": 6, "t": 450.0, "delay": 50}] and m["r_late"] == 1
+    assert b["sold"][0]["item"] == 3053 and m["sold_legendaries"] == 1
+    assert b["anti_heal"]["healers"][0]["champ"] == DARIUS and b["anti_heal"]["suggest"] == 3123
+    titles = [mo["title"] for mo in a["moments"] if mo["kind"] == "build"]
+    assert "Subiste la R 50 s tarde (nivel 6)" in titles and "Vendiste Calibrador de Sterak" in titles
+    assert f"Sin Heridas graves contra {{champ:{DARIUS}}}" in titles
+    assert build_digest(b) == {"items": [3071, 3053], "boots": 3047, "skill_max": b["skill_max"]}
+
+
+def test_compare_build_with_the_most_played():
+    ref = {"core": [3071, 3053, 6694], "boots": [3047], "skill_max": ["Q", "W", "E"], "popular": [{"id": 3071, "pick_rate": 0.6}]}
+    same = insights.compare_build({"items": [3071, 3053, 6694], "boots": 3047, "skill_max": ["Q", "W", "E"]}, ref)
+    assert same["overlap"] == 3 and all(n["ok"] for n in same["notes"])
+    other = insights.compare_build({"items": [3161, 3053, 3071], "boots": 3111, "skill_max": ["W", "Q", "E"]}, ref)
+    notes = {n["text"]: n["ok"] for n in other["notes"]}
+    assert notes["Tu primer objeto no está entre los habituales de tu campeón en este rol."] is False
+    assert notes["Coincides en 2 de 3 objetos clave con la build más jugada."] is True
+    assert any("maximizas W > Q > E; lo habitual es Q > W > E" in t for t in notes)
+    assert insights.compare_build(None, ref) is None and insights.compare_build({"items": []}, None) is None
 
 
 # ---------------------------------------------------------------- conclusiones
@@ -383,6 +566,8 @@ def test_full_flow(api, monkeypatch):
     # 4 con timeline + 1 que aún espera el timeline (cuenta con las métricas del resumen de la partida).
     assert summary["games"] == 5 and summary["target_tier"] == "GOLD"
     assert summary["weaknesses"] and summary["recent"][0]["match_id"] == "EUW1_9300000001"
+    assert summary["builds"][0]["champ"] == AATROX and summary["builds"][0]["first_item"]["id"] == 3071
+    assert summary["builds"][0]["compare"] is None  # sin OP.GG
     assert [r["has_timeline"] for r in summary["recent"]].count(False) == 1
     assert summary["refs_source"] == {"TOP": "static"}
     assert ok(client.get("/api/coach/summary", params={"queue": "ranked"}))["games"] == 3
@@ -391,6 +576,12 @@ def test_full_flow(api, monkeypatch):
 
     detail = ok(client.get("/api/coach/games/euw1_9300000001"))
     assert detail["replay"]["tracks"] and detail["refs"]["cs_min"] > 0 and detail["score"] is not None
+    assert detail["items_known"] and detail["build"]["order"][0]["item"] == 3071 and detail["build_compare"] is None
+    fake_opgg = install_opgg(svc, FakeOpgg(builds={(AATROX, "TOP"): {"core": [3071, 3053, 6694], "boots": [3047], "skill_max": ["Q", "W", "E"], "popular": []}}))
+    detail = ok(client.get("/api/coach/games/EUW1_9300000001"))
+    assert detail["build_compare"]["core"] == [3071, 3053, 6694] and detail["build_compare"]["first"] == 3071
+    assert ok(client.get("/api/coach/summary"))["builds"][0]["compare"]["core"] == [3071, 3053, 6694]
+    assert ("champion_build", AATROX, "TOP", False) in fake_opgg.calls  # el resumen solo mira la caché
     assert client.get("/api/coach/games/EUW1_1").status_code == 404
     # La vista «Partida» reutiliza el timeline guardado: no gasta otra llamada.
     timelines_before = fake.count("timeline")

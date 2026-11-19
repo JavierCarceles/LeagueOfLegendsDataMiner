@@ -223,6 +223,7 @@ def list_games(db: Database, puuids: list[str], *, queue: str | None = None, rol
                 "metrics": digest.get("m") or {},
                 "deaths": digest.get("deaths") or [],
                 "jungle": digest.get("jungle"),
+                "build": digest.get("build"),
                 "opponent_champ": digest.get("opponent_champ"),
                 "enemy_jungler_champ": digest.get("enemy_jungler_champ"),
                 "has_timeline": digest.get("has_timeline", False),
@@ -242,15 +243,18 @@ def get_game(db: Database, match_id: str) -> dict | None:
     return analysis
 
 
-def outdated(db: Database, version: int) -> list[str]:
-    return [
-        r[0]
-        for r in db.query(
-            "SELECT match_id FROM my_games WHERE match_raw IS NOT NULL AND status IN ('ready', 'no_timeline', 'pending_timeline') "
-            "AND (version IS NULL OR version < ?)",
-            (version,),
-        )
-    ]
+def outdated(db: Database, version: int, with_items: bool = True) -> list[str]:
+    """Partidas analizadas con una versión anterior del análisis.
+
+    Las que se analizaron sin catálogo de objetos guardan ``version - 1``: solo se repiten
+    si ahora hay catálogo (``with_items``), para no re-analizarlas en vano en cada arranque.
+    """
+    rows = db.query(
+        "SELECT match_id, version FROM my_games WHERE match_raw IS NOT NULL AND status IN ('ready', 'no_timeline', 'pending_timeline') "
+        "AND (version IS NULL OR version < ?)",
+        (version,),
+    )
+    return [r["match_id"] for r in rows if with_items or r["version"] is None or r["version"] < version - 1]
 
 
 def counts(db: Database, puuids: list[str]) -> dict:

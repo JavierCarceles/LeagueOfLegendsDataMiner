@@ -546,20 +546,41 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .chip-bad { background: var(--bad-soft); color: #ff9aa6; }
 .chip-warn { background: var(--warn-soft); color: #f4c779; }
 .chip-muted { background: var(--panel-2); color: var(--muted); }
+.chip-good { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; background: var(--good-soft); color: #7fe0ae; }
 .game-main { grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr); align-items: start; }
 .moments { display: flex; flex-direction: column; gap: 6px; max-height: 640px; overflow-y: auto; }
 .moment { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); cursor: pointer; }
 .moment:hover { border-color: var(--line-2); }
 .moment.high { border-left-color: var(--bad); }
 .moment.medium { border-left-color: var(--warn); }
+.moment.good { border-left-color: var(--good); }
 .moment-time { font: 600 12.5px var(--mono); color: var(--text-2); }
 .sev { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; }
 .sev.high { background: var(--bad-soft); color: #ff9aa6; }
 .sev.medium { background: var(--warn-soft); color: #f4c779; }
 .sev.low { background: var(--gold-soft); color: var(--gold-2); }
+.sev.good { background: var(--good-soft); color: #7fe0ae; }
 .gold-bars { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 120px; padding: 4px 0; border-bottom: 1px solid var(--line-2); }
 .gold-bars span { flex: 1; min-width: 3px; border-radius: 3px 3px 0 0; background: #4c5a71; }
 .gold-bars span.hot { background: var(--warn); }
+.gold-bars span.saving { background: #7d8aa1; }
+.build-order { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-start; }
+.build-step { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.build-step .item-img, .build-step .item-slot { width: 34px; height: 34px; }
+.build-ref { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+.build-ref .row-wrap { gap: 8px 12px; align-items: center; }
+.build-notes { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.build-notes li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.build-notes .mark { font-weight: 800; width: 12px; }
+.build-notes li.good .mark { color: var(--good); }
+.build-notes li.bad .mark { color: var(--bad); }
+.build-notes li.muted { color: var(--text-2); }
+.build-notes .items .item-img, .build-notes .items .item-slot { width: 20px; height: 20px; }
+.build-backs { margin-top: 10px; }
+.build-backs summary { cursor: pointer; color: var(--text-2); }
+.build-backs-list { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
+.build-back { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+.build-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 1.2fr) 120px minmax(0, 1.6fr); gap: 14px; align-items: start; padding: 10px 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
 .gold-bars .line { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--bad); }
 
 /* ---------------------------------------------------------------- minimapa */
@@ -630,6 +651,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .grid-2, .grid-3, .grid-4, .draft-summary, .coach-top, .coach-setup { grid-template-columns: 1fr; }
   .game-row { grid-template-columns: 6px minmax(0, 1fr) auto auto; }
   .game-row > :nth-child(4), .game-row > :nth-child(5) { display: none; }
+  .build-row { grid-template-columns: 1fr; }
   .profile-pill .name { display: none; }
   .draft-board { grid-template-columns: 1fr; }
   .match-row { grid-template-columns: 6px 1fr auto; }

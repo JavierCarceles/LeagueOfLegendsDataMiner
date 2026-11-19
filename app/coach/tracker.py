@@ -51,18 +51,39 @@ def digest(analysis: dict) -> dict:
     by_pid = {p["pid"]: p for p in analysis.get("players") or []}
     jungle = analysis.get("jungle")
     moments = analysis.get("moments") or []
+    build = analysis.get("build")
     return {
         "m": analysis.get("metrics") or {},
         "team": analysis.get("team"),
         "has_timeline": analysis.get("has_timeline", False),
         "deaths": [{k: d.get(k) for k in ("t", "x", "y", "tags", "early", "severity")} for d in analysis.get("deaths") or []],
         "jungle": {k: jungle.get(k) for k in ("start_camp", "start_side", "presence", "path")} if jungle else None,
+        "build": build_digest(build),
         "opponent_champ": (by_pid.get(analysis.get("opponent")) or {}).get("champ"),
         "enemy_jungler_champ": (by_pid.get(analysis.get("enemy_jungler")) or {}).get("champ"),
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
             "medium": sum(1 for m in moments if m.get("severity") == "medium"),
         },
+    }
+
+
+def analysis_version(analysis: dict) -> int:
+    """Versión guardada. Sin catálogo de objetos se guarda una menos para repetirlo cuando lo haya."""
+    if analysis.get("has_timeline") and not analysis.get("items_known"):
+        return ANALYSIS_VERSION - 1
+    return ANALYSIS_VERSION
+
+
+def build_digest(build: dict | None) -> dict | None:
+    """Lo mínimo de la build para compararla entre partidas: objetos terminados, botas y habilidades."""
+    if not build:
+        return None
+    order = build.get("order") or []
+    return {
+        "items": [o["item"] for o in order if o.get("kind") == "legendary"],
+        "boots": next((o["item"] for o in order if o.get("kind") == "boots"), None),
+        "skill_max": build.get("skill_max") or [],
     }
 
 
@@ -356,7 +377,7 @@ class GameTracker:
         self._store_general(match)
         if timeline is None:
             timeline = self.svc.riot.timeline(match_id, **kw)
-        analysis = analyze_game(match, timeline, pid=base["pid"])
+        analysis = analyze_game(match, timeline, pid=base["pid"], items=self.items())
         if timeline:
             status, tries_out = "ready", tries
         else:
@@ -373,11 +394,12 @@ class GameTracker:
                 "timeline_raw": timeline,
                 "analysis": analysis,
                 "digest": digest(analysis),
-                "version": ANALYSIS_VERSION,
+                "version": analysis_version(analysis),
                 "analyzed_at": now_s(),
             },
         )
         if status == "ready":
+            self._prefetch_build(base["champ"], base["role"])
             high = sum(1 for m in analysis["moments"] if m["severity"] == "high")
             log.info(
                 "Partida analizada: %s (%s) · %s · %d/%d/%d · %d errores graves.",
@@ -390,6 +412,21 @@ class GameTracker:
                 high,
             )
         return "new" if not state or state.get("status") != "ready" else "updated"
+
+    def items(self):
+        """Catálogo de objetos de Data Dragon (vacío si aún no ha cargado)."""
+        catalog = getattr(self.svc.dd, "item_catalog", None)
+        return catalog if catalog else None
+
+    def _prefetch_build(self, champ: int, role: str | None) -> None:
+        """Deja en caché la build más jugada de ese campeón (para comparar tu build)."""
+        opgg = getattr(self.svc, "opgg", None)
+        if not role or not opgg or not opgg.enabled:
+            return
+        try:
+            opgg.champion_build(champ, role)
+        except Exception:  # OP.GG es opcional
+            log.debug("Sin build de referencia para %s (%s)", champ, role, exc_info=True)
 
     def _store_general(self, match: dict) -> None:
         """La partida también va a la BD general (vista «Partida», agregados si es ranked)."""
@@ -410,20 +447,21 @@ class GameTracker:
     # ------------------------------------------------------------ re-análisis
     def reanalyze_outdated(self, force: bool = False) -> int:
         db = self.svc.db
+        items = self.items()
         if force:
             ids = [r[0] for r in db.query("SELECT match_id FROM my_games WHERE match_raw IS NOT NULL AND status IN ('ready', 'no_timeline', 'pending_timeline')")]
         else:
-            ids = store.outdated(db, ANALYSIS_VERSION)
+            ids = store.outdated(db, ANALYSIS_VERSION, with_items=bool(items))
         done = 0
         for match_id in ids:
             match, timeline, pid = store.raw_game(db, match_id)
             if not match:
                 continue
             try:
-                analysis = analyze_game(match, timeline, pid=pid)
+                analysis = analyze_game(match, timeline, pid=pid, items=items)
             except NotInMatch:
                 continue
-            store.update_analysis(db, match_id, analysis, digest(analysis), ANALYSIS_VERSION)
+            store.update_analysis(db, match_id, analysis, digest(analysis), analysis_version(analysis))
             done += 1
         if done:
             log.info("Re-analizadas %d partidas con la versión %d del análisis.", done, ANALYSIS_VERSION)
