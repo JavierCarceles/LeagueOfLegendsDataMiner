@@ -6,7 +6,6 @@ from types import SimpleNamespace
 
 from app.ingest import otp_details
 from tests.factories import AATROX, make_match
-from tests.test_crawler import keyed_svc  # noqa: F401  (fixture reutilizada)
 from tests.test_crawler_otp import _client
 
 LEE = 64  # el jungla azul por defecto en make_match
@@ -34,7 +33,7 @@ def test_library_ranks_champions_by_otps_then_elo(keyed_svc):
         lib = client.get("/api/otps/library").json()
     assert lib["totals"] == {"otps": 5, "players": 5, "games": 11, "champions": 2, "platforms": 2}
     assert [c["champ"] for c in lib["champions"]] == [AATROX, LEE] and lib["champions"][0]["otps"] == 3
-    assert lib["champions"][1]["best_tier"] == "CHALLENGER" and list(lib["tiers"])[0] == "CHALLENGER"
+    assert lib["champions"][1]["best_tier"] == "CHALLENGER" and next(iter(lib["tiers"])) == "CHALLENGER"
     assert lib["platforms"]["euw1"]["otps"] == 4 and lib["roles"]["TOP"]["games"] == 6
 
 

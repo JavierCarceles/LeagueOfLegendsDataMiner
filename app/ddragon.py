@@ -71,7 +71,7 @@ class DDragon:
             try:
                 versions = requests.get(f"{CDN}/api/versions.json", timeout=8).json()
                 version = versions[0]
-            except Exception as exc:  # sin red: se usa la caché
+            except (requests.RequestException, ValueError, IndexError, KeyError, TypeError) as exc:  # sin red: se usa la caché
                 log.warning("No se pudo consultar Data Dragon (%s). Uso la caché local.", exc)
         if version is None:
             version = self._latest_cached()
@@ -83,7 +83,7 @@ class DDragon:
             items = self._fetch(version, f"data/{self.lang}/item.json", allow_network, required=False)
             spells = self._fetch(version, f"data/{self.lang}/summoner.json", allow_network, required=False)
             runes = self._fetch(version, f"data/{self.lang}/runesReforged.json", allow_network, required=False)
-        except Exception as exc:
+        except (requests.RequestException, OSError, ValueError) as exc:  # sin red y sin caché, o un fichero dañado
             log.error("Error cargando Data Dragon %s: %s", version, exc)
             return False
         self._index(version, champions, items, spells, runes)

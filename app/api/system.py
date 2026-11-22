@@ -11,8 +11,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app import __version__
-from app.analytics.filters import available_patches
 from app.analytics.draft import get_alpha, last_backtest
+from app.analytics.filters import available_patches
 from app.api.deps import svc_from
 from app.ingest.legacy import legacy_status
 from app.lcu import available as lcu_available

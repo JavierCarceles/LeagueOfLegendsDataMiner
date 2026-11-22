@@ -299,14 +299,83 @@ function renderCrawler(c, key) {
   renderCrawlerStatus(c, key);
 }
 
+const MASTERY_STEPS = [10_000, 20_000, 50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
+const OTP_DEPTHS = [
+  { value: "30", label: "Últimos 30 días" },
+  { value: "90", label: "Últimos 90 días" },
+  { value: "180", label: "Últimos 180 días" },
+  { value: "season", label: "Temporada actual" },
+  { value: "365", label: "Último año" },
+  { value: "all", label: "Todo lo que guarde Riot" },
+];
+const PER_OTP = [10, 20, 30, 50, 100].map((n) => ({ value: n, label: `sus ${n} partidas más recientes` })).concat([{ value: 0, label: "todas sus partidas (sin tope)" }]);
+const QUEUES = [
+  { value: "solo", label: "Solo SoloQ" },
+  { value: "flex", label: "SoloQ y Flex" },
+];
+const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[3]).label;
+const hasTargets = (cfg) => !!(cfg?.champions?.length || cfg?.roles?.length);
+const linesText = (roles) => roles.map((r) => ROLE_LABEL[r]).join(" y ");
+
+let formMode = null; // "otp" | "games" | "ladder": qué recoger
+let gamesMastery = 20_000; // «Partidas de un campeón»: puntos mínimos de quien lo tiene entre sus 3 primeros
+let champMode = null; // "lines" | "champs": toda una línea o campeones concretos
+const poolCache = {};
+
+/** Pestañas sencillas (botones .tab). */
+function tabBar(items, value, onChange) {
+  return h(
+    "div.tabs",
+    { role: "tablist" },
+    items.map((it) => h(`button.tab${it.value === value ? ".active" : ""}`, { type: "button", role: "tab", "aria-selected": it.value === value ? "true" : "false", onclick: () => onChange(it.value) }, it.icon ? icon(it.icon) : null, it.label)),
+  );
+}
+
+/** Un apartado del formulario: título, explicación corta (opcional) y su contenido. */
+function field(title, hint, ...content) {
+  return h("div.col", { style: { gap: "6px" } }, h("div.small", { style: { fontWeight: 650 } }, title), hint ? h("div.tiny.muted", hint) : null, ...content);
+}
+
+function numInput(cfg, keyName, min, max, width = "70px") {
+  return h("input.input", {
+    type: "number",
+    min,
+    max,
+    value: cfg[keyName],
+    style: { width },
+    "aria-label": keyName,
+    onchange: (e) => {
+      const v = Number(e.target.value);
+      cfg[keyName] = Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : cfg[keyName];
+      e.target.value = cfg[keyName];
+    },
+  });
+}
+
+const queueSelect = (cfg) => select(QUEUES, cfg.include_flex ? "flex" : "solo", (v) => (cfg.include_flex = v === "flex"), "select select-sm");
+
 function crawlerFormView(key) {
   const cfg = crawlerForm;
+  cfg.champions = cfg.champions || [];
+  cfg.roles = cfg.roles || [];
+  cfg.champion_roles = cfg.champion_roles || {};
+  if (!formMode) formMode = hasTargets(cfg) ? (cfg.focus === "games" ? "games" : "otp") : "ladder";
+  if (cfg.focus === "games") gamesMastery = cfg.min_mastery || gamesMastery;
+  if (!champMode) champMode = cfg.champions.length && !cfg.roles.length ? "champs" : "lines";
   const platforms = state.meta?.platforms || [];
   const startBtn = h("button.btn.btn-primary", { onclick: () => start(startBtn) }, icon("play"), "Iniciar recolector");
   const updateStart = () => {
-    const ok = cfg.platforms.length && cfg.tiers.length && key.configured;
-    startBtn.disabled = !ok;
-    startBtn.title = !key.configured ? "Configura primero la API key" : !cfg.platforms.length ? "Elige al menos un servidor" : !cfg.tiers.length ? "Elige al menos un elo" : "";
+    const noTargets = formMode !== "ladder" && !(champMode === "lines" ? cfg.roles.length : cfg.champions.length);
+    startBtn.disabled = !(cfg.platforms.length && cfg.tiers.length && key.configured && !noTargets);
+    startBtn.title = !key.configured
+      ? "Configura primero la API key"
+      : !cfg.platforms.length
+        ? "Elige al menos un servidor"
+        : !cfg.tiers.length
+          ? "Elige al menos un elo"
+          : noTargets
+            ? champMode === "lines" ? "Elige al menos una línea" : "Añade al menos un campeón"
+            : "";
   };
   const servers = multiSelect({
     items: platforms.map((p) => ({ value: p.id, label: p.label, title: p.name, group: p.region })),
@@ -333,66 +402,256 @@ function crawlerFormView(key) {
       updateStart();
     },
   });
-  const num = (label, keyName, min, max, suffix = null) =>
-    h(
-      "label.row.small",
-      label,
-      h("input.input", {
-        type: "number",
-        min,
-        max,
-        value: cfg[keyName],
-        style: { width: "76px" },
-        onchange: (e) => {
-          const v = Number(e.target.value);
-          cfg[keyName] = Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : cfg[keyName];
-          e.target.value = cfg[keyName];
+  const modeTabs = h("div");
+  const modeHint = h("div.tiny.muted");
+  const modeBox = h("div");
+  const draw = () => {
+    mount(
+      modeTabs,
+      tabBar(
+        [
+          { value: "otp", label: "OTPs", icon: "crown" },
+          { value: "games", label: "Partidas de un campeón", icon: "swords" },
+          { value: "ladder", label: "Todo el ranking", icon: "layers" },
+        ],
+        formMode,
+        (v) => {
+          formMode = v;
+          draw();
         },
-      }),
-      suffix,
+      ),
     );
-  updateStart();
+    modeHint.textContent =
+      formMode === "otp"
+        ? "Jugadores que son OTPs de los campeones que elijas, y sus partidas: para aprender de ellos (builds, rutas, planes de partida) y calibrar «Mi progreso»."
+        : formMode === "games"
+          ? "Cualquier partida de esos servidores y elos en la que alguien juegue ese campeón en esa línea, sea OTP o no: más datos de sus builds y de todos sus matchups."
+          : "Partidas de cualquier jugador del ranking: alimentan las estadísticas de matchups, campeones y el draft.";
+    mount(modeBox, formMode === "ladder" ? ladderOptions(cfg) : formMode === "games" ? gamesOptions(cfg, updateStart) : otpOptions(cfg, updateStart));
+    updateStart();
+  };
+  draw();
   return h(
     "div.col",
     !key.configured ? notice("Necesitas una API key para recoger partidas propias. OP.GG y Lolalytics ya cubren los matchups sin ella.", "warn") : null,
-    h("div", h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, "Servidores"), h("div.tiny.muted", { style: { marginBottom: "8px" } }, "Cada región de Riot (Europa, América, Asia, SEA) va en paralelo. Pulsa el nombre de un grupo para marcarlo o quitarlo entero."), servers.el),
+    field("Qué recoger", null, modeTabs, modeHint),
     h("div.divider"),
-    h("div", h("div.small", { style: { fontWeight: 650, marginBottom: "6px" } }, "Elo de los jugadores"), tiers.el),
+    field("Servidores", "Cada región de Riot (Europa, América, Asia, SEA) va en paralelo. Pulsa el nombre de un grupo para marcarlo o quitarlo entero.", servers.el),
     h("div.divider"),
-    championSection(cfg),
+    field("Elo de los jugadores", null, tiers.el),
     h("div.divider"),
-    collapsible(
-      "datos.recolector.avanzado",
-      [icon("edit"), "Opciones avanzadas"],
-      h(
-        "div.row-wrap",
-        { style: { gap: "12px 18px" } },
-        h("label.check", h("input", { type: "checkbox", checked: cfg.include_flex, onchange: (e) => (cfg.include_flex = e.target.checked) }), "Incluir Flex"),
-        num("Primera vez: últimos", "days", 1, 60, "días"),
-        num("Partidas por jugador", "matches_per_player", 5, 100),
-        num("Revisitar cada", "recrawl_hours", 1, 168, "h"),
-        h("p.tiny.muted", { style: { margin: 0, flexBasis: "100%" } }, "«Primera vez» y «Partidas por jugador» son del modo normal. Buscando OTPs no hay tope: se usa «Historial de cada OTP»."),
-      ),
-      { summary: `${cfg.matches_per_player} partidas/jugador · ${cfg.days} días · revisita ${cfg.recrawl_hours} h`, cls: "flat" },
-    ),
+    modeBox,
     h("div.row-wrap", startBtn, h("span.tiny.muted", "Al iniciarlo, se reanuda solo cada vez que abras la app hasta que lo detengas.")),
   );
 }
 
-const MASTERY_STEPS = [50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
-const OTP_DEPTHS = [
-  { value: "season", label: "Temporada actual" },
-  { value: "90", label: "Últimos 90 días" },
-  { value: "180", label: "Últimos 180 días" },
-  { value: "365", label: "Último año" },
-  { value: "all", label: "Todo lo que guarde Riot" },
-];
-const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[0]).label;
+/** Modo «todo el ranking»: cuántas partidas de cada jugador y cada cuánto se vuelve a mirar. */
+function ladderOptions(cfg) {
+  return h(
+    "div.col",
+    field(
+      "Partidas de cada jugador",
+      null,
+      h("div.row-wrap.small", { style: { gap: "6px" } }, "Sus últimas", numInput(cfg, "matches_per_player", 5, 100), "partidas de los últimos", numInput(cfg, "days", 1, 60), "días"),
+    ),
+    collapsible(
+      "datos.recolector.ranking",
+      [icon("edit"), "Más opciones"],
+      h(
+        "div.col",
+        { style: { gap: "10px" } },
+        h("label.row.small", "Colas", queueSelect(cfg)),
+        h("div.row-wrap.small", { style: { gap: "6px" } }, "Volver a mirar si cada jugador tiene partidas nuevas cada", numInput(cfg, "recrawl_hours", 1, 168), "horas"),
+      ),
+      { cls: "flat", summary: `${cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ"} · partidas nuevas cada ${cfg.recrawl_hours} h` },
+    ),
+  );
+}
 
-/** Búsqueda por campeones: OTPs o jugadores con mucha maestría de los campeones elegidos. */
-function championSection(cfg) {
-  cfg.champions = cfg.champions || [];
-  cfg.champion_roles = cfg.champion_roles || {};
+/** «Toda una línea» o «Campeones concretos» (lo comparten los modos OTPs y partidas de un campeón). */
+function champChooser(cfg, updateStart) {
+  const champTabs = h("div");
+  const champBox = h("div");
+  const drawChamps = () => {
+    mount(
+      champTabs,
+      tabBar(
+        [
+          { value: "lines", label: "Toda una línea" },
+          { value: "champs", label: "Campeones concretos" },
+        ],
+        champMode,
+        (v) => {
+          champMode = v;
+          drawChamps();
+        },
+      ),
+    );
+    mount(champBox, champMode === "lines" ? linesPicker(cfg, updateStart) : champsPicker(cfg, updateStart));
+    updateStart();
+  };
+  drawChamps();
+  return field("Campeones", null, champTabs, champBox);
+}
+
+const periodField = (cfg, hint) => field("Periodo", hint, h("div", select(OTP_DEPTHS, String(cfg.otp_depth || "season"), (v) => (cfg.otp_depth = v), "select select-sm")));
+const recrawlRow = (cfg, who) => h("div.row-wrap.small", { style: { gap: "6px" } }, `Mirar si ${who} ha jugado partidas nuevas cada`, numInput(cfg, "recrawl_hours", 1, 168), "horas");
+
+/** Modo «Partidas de un campeón»: cualquier partida en la que alguien lo juegue en esa línea. */
+function gamesOptions(cfg, updateStart) {
+  return h(
+    "div.col",
+    champChooser(cfg, updateStart),
+    h("div.divider"),
+    periodField(cfg, "Se buscan jugadores que lo hayan jugado en este periodo y se guardan sus partidas de este periodo en las que haya alguien con ese campeón en esa línea (sea él o cualquier otro)."),
+    h("div.divider"),
+    collapsible(
+      "datos.recolector.partidas",
+      [icon("edit"), "Más opciones"],
+      h(
+        "div.col",
+        { style: { gap: "12px" } },
+        h(
+          "div.row-wrap.small",
+          { style: { gap: "6px" }, title: "La API de Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 campeones más jugados (1 llamada por jugador) y se recorren sus partidas. Cuanto más bajo el mínimo, más jugadores distintos." },
+          "Jugadores que lo tengan entre sus 3 más jugados con al menos",
+          select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), gamesMastery, (v) => (gamesMastery = Number(v)), "select select-sm"),
+          h("span.tiny.muted", "ⓘ"),
+        ),
+        h(
+          "div.row-wrap.small",
+          { style: { gap: "6px" }, title: "Variedad antes que cantidad: primero unas pocas partidas de muchos jugadores distintos (y de todos los elos); el resto, cuando ya no aparezcan jugadores nuevos." },
+          "Primero, de cada jugador,",
+          select(PER_OTP, cfg.games_per_otp ?? 30, (v) => (cfg.games_per_otp = Number(v)), "select select-sm"),
+          "; el resto, cuando ya no aparezcan jugadores nuevos",
+          h("span.tiny.muted", "ⓘ"),
+        ),
+        h("label.row.small", "Colas", queueSelect(cfg)),
+        recrawlRow(cfg, "cada jugador"),
+      ),
+      { cls: "flat", summary: `≥ ${fmt.compact(gamesMastery)} puntos · ${cfg.games_per_otp ? `${cfg.games_per_otp} partidas por jugador primero` : "sin tope por jugador"} · ${cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ"}` },
+    ),
+  );
+}
+
+/** Modo OTPs: de qué campeones, en qué periodo y (plegado) quién cuenta y qué se guarda. */
+function otpOptions(cfg, updateStart) {
+  if (cfg.focus === "games") cfg.focus = "otp";
+  const summary = () =>
+    `${cfg.focus === "mastery" ? "entre sus 3 primeros" : "campeón principal"} · ≥ ${fmt.compact(cfg.min_mastery || 300_000)} puntos · ${cfg.games_per_otp ? `${cfg.games_per_otp} partidas por OTP primero` : "sin tope por OTP"}${cfg.save_details !== false ? " · análisis minuto a minuto" : ""}`;
+  return h(
+    "div.col",
+    champChooser(cfg, updateStart),
+    h("div.divider"),
+    periodField(cfg, "Cuentan quienes han jugado ese campeón en este periodo, y de ellos se bajan sus partidas de este mismo periodo."),
+    h("div.divider"),
+    collapsible(
+      "datos.recolector.otp.v2",
+      [icon("edit"), "Quién cuenta y qué se guarda"],
+      h(
+        "div.col",
+        { style: { gap: "12px" } },
+        h(
+          "div.row-wrap.small",
+          { style: { gap: "6px" }, title: "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. «Principal» = su campeón con más puntos, con al menos 1,5 veces los del segundo." },
+          "Cuenta quien lo tiene",
+          select(
+            [
+              { value: "otp", label: "de campeón principal (OTP)" },
+              { value: "mastery", label: "entre sus 3 primeros" },
+            ],
+            cfg.focus || "otp",
+            (v) => (cfg.focus = v),
+            "select select-sm",
+          ),
+          "con al menos",
+          select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
+          h("span.tiny.muted", "ⓘ"),
+        ),
+        h(
+          "div.row-wrap.small",
+          { style: { gap: "6px" }, title: "Variedad antes que cantidad. Orden: 1) al menos un OTP de cada campeón; 2) al menos 3 OTPs de cada campeón en cada elo; 3) el resto de sus partidas del periodo, empezando por el campeón con menos. Mientras se siguen encontrando OTPs nuevos, nadie pasa de este número; cuando ya no queda nadie por revisar, se baja el resto." },
+          "Primero, de cada OTP,",
+          select(PER_OTP, cfg.games_per_otp ?? 30, (v) => (cfg.games_per_otp = Number(v)), "select select-sm"),
+          "; el resto, cuando ya no aparezcan OTPs nuevos",
+          h("span.tiny.muted", "ⓘ"),
+        ),
+        h(
+          "label.check",
+          { title: "Desmarcado, también se guardan sus partidas con otros campeones (sirven para las estadísticas generales, no para aprender de ese campeón)." },
+          h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }),
+          "Guardar solo sus partidas con ese campeón (y en esa línea)",
+        ),
+        h(
+          "label.check",
+          { title: "Baja el timeline de cada partida (1 llamada más por partida) y la analiza como las tuyas: oro, muertes, ruta de jungla, objetivos, build y posiciones minuto a minuto. Se guarda en data/otps y es lo que usan «Tú frente a los OTPs», la página de OTPs y las builds del draft." },
+          h("input", { type: "checkbox", checked: cfg.save_details !== false, onchange: (e) => (cfg.save_details = e.target.checked) }),
+          "Analizar cada partida minuto a minuto (para compararte con ellos; 1 llamada más por partida)",
+        ),
+        h("label.row.small", "Colas", queueSelect(cfg)),
+        recrawlRow(cfg, "cada OTP"),
+      ),
+      { cls: "flat", summary: summary() },
+    ),
+  );
+}
+
+/** «Toda una línea»: botones de línea y la lista de campeones que entran (según la tier list). */
+function linesPicker(cfg, onChange) {
+  const preview = h("div.tiny.muted");
+  const loadPreview = async () => {
+    if (!cfg.roles.length) return mount(preview, "Elige una o varias líneas: se buscan OTPs de todos los campeones que se juegan en ellas, y solo cuentan sus partidas en esa línea.");
+    const keyRoles = cfg.roles.join(",");
+    mount(preview, "Mirando qué campeones se juegan ahí…");
+    try {
+      poolCache[keyRoles] = poolCache[keyRoles] || (await api.get("/api/crawler/role-pool", { roles: keyRoles })).champions || [];
+    } catch (err) {
+      return mount(preview, `No se pudo saber qué campeones entran: ${err.message}`);
+    }
+    if (cfg.roles.join(",") !== keyRoles) return; // cambiaste la selección mientras cargaba
+    const champs = poolCache[keyRoles];
+    if (!champs.length) return mount(preview, "Aún no hay tier list de esa línea (OP.GG o Lolalytics): vuelve a probar en un momento.");
+    const shown = champs.slice(0, 14);
+    mount(
+      preview,
+      h(
+        "div.row-wrap",
+        { style: { gap: "4px" }, title: champs.map((c) => dd.name(c)).join(", ") },
+        h("span", `${champs.length} campeones de ${linesText(cfg.roles).toLowerCase()} (de más a menos jugados):`),
+        shown.map((c) => champImg(c, "xs")),
+        champs.length > shown.length ? h("span", `+${champs.length - shown.length}`) : null,
+      ),
+    );
+  };
+  const buttons = h("div.role-toggles", { role: "group", "aria-label": "Líneas" });
+  const drawButtons = () =>
+    mount(
+      buttons,
+      ROLES.map((r) =>
+        h(
+          `button.role-toggle${cfg.roles.includes(r) ? ".on" : ""}`,
+          {
+            type: "button",
+            "aria-pressed": cfg.roles.includes(r) ? "true" : "false",
+            onclick: () => {
+              cfg.roles = cfg.roles.includes(r) ? cfg.roles.filter((x) => x !== r) : ROLES.filter((x) => x === r || cfg.roles.includes(x));
+              drawButtons();
+              loadPreview();
+              onChange();
+            },
+          },
+          roleIcon(r),
+          h("span", ROLE_LABEL[r]),
+        ),
+      ),
+    );
+  drawButtons();
+  loadPreview();
+  return h("div.col", { style: { gap: "8px" } }, buttons, preview);
+}
+
+/** «Campeones concretos»: sin tope; a cada uno se le puede marcar en qué roles se busca. */
+function champsPicker(cfg, onChange) {
   const chipsEl = h("div.col", { style: { gap: "6px" } });
   const rolesOf = (id) => cfg.champion_roles[String(id)] || [];
   const toggleRole = (id, role) => {
@@ -406,6 +665,7 @@ function championSection(cfg) {
     cfg.champions = cfg.champions.filter((c) => c !== id);
     delete cfg.champion_roles[String(id)];
     drawChips();
+    onChange();
   };
   const drawChips = () =>
     mount(
@@ -432,137 +692,71 @@ function championSection(cfg) {
               h("button.btn.btn-ghost.btn-sm", { type: "button", title: `Quitar ${dd.name(id)}`, onclick: () => remove(id) }, icon("close")),
             );
           })
-        : h("span.small.muted", "Ningún campeón: se recoge todo el ranking (modo normal)."),
+        : h("span.small.muted", "Añade los campeones que quieras (sin límite). Marca en qué rol lo buscas (por ejemplo Sylas: jungla y mid); sin marcar, cualquier rol."),
     );
   const picker = champPicker({
     placeholder: "Añadir campeón",
     compact: true,
     exclude: () => new Set(cfg.champions),
     onChange: (id) => {
-      if (id && !cfg.champions.includes(id) && cfg.champions.length < 10) cfg.champions = [...cfg.champions, id];
+      if (id && !cfg.champions.includes(id)) cfg.champions = [...cfg.champions, id];
       picker.setValue(null);
       drawChips();
+      onChange();
     },
   });
   drawChips();
-  return h(
-    "div.col",
-    h("div.small", { style: { fontWeight: 650 } }, "Buscar por campeones (OTPs)"),
-    h(
-      "div.tiny.muted",
-      { title: "Elige campeones y solo se recogen partidas de jugadores del ranking (servidores y elos de arriba) que sean OTPs de ellos o tengan muchísima maestría. Marca en qué rol lo buscas (por ejemplo Sylas: jungla y mid): solo cuentan sus partidas en esos roles; sin marcar, cualquier rol." },
-      "Solo partidas de OTPs de estos campeones, en el rol que marques ⓘ",
-    ),
-    h("div.row-wrap", h("div", { style: { width: "220px" } }, picker), h("span.tiny.muted", "hasta 10")),
-    chipsEl,
-    collapsible(
-      "datos.recolector.otp-opciones",
-      [icon("edit"), "Opciones de la búsqueda"],
-      h(
-      "div.col",
-      { style: { gap: "10px" } },
-    h(
-      "div.row-wrap",
-      { style: { gap: "10px 16px" } },
-      h(
-        "label.row.small",
-        "Quién cuenta",
-        select(
-          [
-            { value: "otp", label: "OTPs (es su campeón principal)" },
-            { value: "mastery", label: "Mucha maestría (entre sus 3 primeros)" },
-          ],
-          cfg.focus || "otp",
-          (v) => (cfg.focus = v),
-          "select select-sm",
-        ),
-      ),
-      h(
-        "label.row.small",
-        { title: "La maestría se acumula de por vida: así no cuenta quien ya no lo juega. Para recoger datos de la temporada, 90 días también sirve y salen muchos más (con 30, en Platino–Esmeralda se quedaba fuera más de la mitad)." },
-        "Jugado en los últimos",
-        select(
-          [14, 30, 60, 90, 180, 365].map((n) => ({ value: n, label: `${n} días` })),
-          cfg.active_days || 30,
-          (v) => (cfg.active_days = Number(v)),
-          "select select-sm",
-        ),
-      ),
-      h(
-        "label.row.small",
-        { title: "Puntos de maestría mínimos con el campeón. En Platino–Esmeralda muchos OTPs no llegan a 300 K: con 100 K o 50 K salen bastantes más." },
-        "Mínimo",
-        select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
-      ),
-      h(
-        "label.row.small",
-        { title: "Hasta dónde se baja el historial de cada OTP. La temporada actual es lo comparable: el año anterior tenía otro mapa y otros objetos." },
-        "Historial de cada OTP",
-        select(OTP_DEPTHS, String(cfg.otp_depth || "season"), (v) => (cfg.otp_depth = v), "select select-sm"),
-      ),
-      h(
-        "label.row.small",
-        { title: "Variedad antes que cantidad: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones. Cuando ya no queda nadie por revisar, se sigue con el resto de su historial." },
-        "Partidas por OTP mientras busca",
-        select(
-          [{ value: 10, label: "10" }, { value: 20, label: "20" }, { value: 30, label: "30" }, { value: 50, label: "50" }, { value: 100, label: "100" }, { value: 0, label: "Sin tope" }],
-          cfg.games_per_otp ?? 30,
-          (v) => (cfg.games_per_otp = Number(v)),
-          "select select-sm",
-        ),
-      ),
-      h("label.check", h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }), "Solo sus partidas con esos campeones"),
-      h(
-        "label.check",
-        { title: "Baja el timeline de cada partida suya con esos campeones (1 llamada más por partida) y guarda su micro y macro: muertes, oro, build, jungla, objetivos, posiciones minuto a minuto…" },
-        h("input", { type: "checkbox", checked: cfg.save_details !== false, onchange: (e) => (cfg.save_details = e.target.checked) }),
-        "Guardar micro y macro de cada partida (en data/otps)",
-      ),
-    ),
-    h(
-      "p.tiny.muted",
-      {
-        style: { margin: 0 },
-        title:
-          "Variedad primero: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones; cuando ya no queda nadie por revisar, el resto de su historial. " +
-          "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días). " +
-          "OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo. En Platino–Esmeralda baja el «Mínimo» a 100 K o 50 K.",
-      },
-      "Cómo funciona la búsqueda ⓘ",
-    ),
-      ),
-      {
-        cls: "flat",
-        summary: `${cfg.focus === "mastery" ? "mucha maestría" : "OTPs"} · ≥ ${fmt.compact(cfg.min_mastery || 300_000)} · ${cfg.active_days || 30} días · ${cfg.games_per_otp ? `${cfg.games_per_otp} por OTP` : "sin tope"}${cfg.save_details !== false ? " · micro y macro" : ""}`,
-      },
-    ),
-  );
+  return h("div.col", { style: { gap: "8px" } }, h("div", { style: { width: "220px", maxWidth: "100%" } }, picker), chipsEl);
+}
+
+/** Lo que se envía al pulsar «Iniciar»: solo lo del modo elegido (lo del otro modo no se arrastra). */
+function startPayload() {
+  const cfg = { ...crawlerForm };
+  if (formMode === "ladder") Object.assign(cfg, { champions: [], roles: [], champion_roles: {} });
+  else if (champMode === "lines") Object.assign(cfg, { champions: [], champion_roles: {} });
+  else cfg.roles = [];
+  if (formMode === "games") Object.assign(cfg, { focus: "games", min_mastery: gamesMastery, only_target_games: true, save_details: false });
+  else if (cfg.focus === "games") cfg.focus = "otp";
+  delete cfg.role_champions;
+  delete cfg.season_version;
+  return cfg;
 }
 
 function runningSummary(c) {
   const cfg = c.config || {};
   const tierText = (cfg.tiers || []).map((t) => TIER_LABEL[t] || t).join(", ");
+  const queues = cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ";
+  const otp = hasTargets(cfg);
   return h(
     "div.col",
     h("div.row-wrap", h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"), c.autostart ? h("span.pill", { title: "Seguirá al volver a abrir la app" }, icon("refresh"), "Se reanuda solo") : null),
+    h("div.small", h("b", "Recogiendo: "), !otp ? "partidas de todo el ranking" : cfg.focus === "games" ? "partidas en las que aparezcan estos campeones (sea quien sea)" : cfg.focus === "mastery" ? "jugadores con mucha maestría" : "OTPs"),
     h("div.small", h("b", "Servidores: "), (cfg.platforms || []).map((p) => platformLabel(p)).join(", ") || "—"),
     h("div.small", h("b", "Elos: "), tierText || "—"),
+    cfg.roles?.length
+      ? h(
+          "div.small.row-wrap",
+          { style: { gap: "4px" } },
+          h("b", "Campeones: "),
+          `toda la línea de ${linesText(cfg.roles).toLowerCase()}`,
+          cfg.role_champions?.length ? h("span.muted", { title: cfg.role_champions.map((id) => dd.name(id)).join(", ") }, `(${cfg.role_champions.length} campeones)`) : null,
+        )
+      : null,
     cfg.champions?.length
       ? h(
           "div.small.row-wrap",
-          h("b", cfg.focus === "mastery" ? "Mucha maestría con: " : "OTPs de: "),
+          h("b", "Campeones: "),
           cfg.champions.map((id) => {
             const roles = (cfg.champion_roles || {})[String(id)] || [];
             return h("span.row", { style: { gap: "4px" }, title: roles.length ? roles.map((r) => ROLE_LABEL[r]).join(", ") : "Cualquier rol" }, champImg(id, "xs"), dd.name(id), roles.map((r) => roleIcon(r)));
           }),
-          h("span.tiny.muted", `≥ ${fmt.compact(cfg.min_mastery)} puntos${cfg.only_target_games ? " · solo partidas con ellos" : ""}`),
         )
       : null,
     h(
       "div.tiny.muted",
-      cfg.champions?.length
-        ? `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.games_per_otp ? `${cfg.games_per_otp} partidas por OTP mientras busca, luego` : "historial"} hasta: ${depthLabel(cfg.otp_depth).toLowerCase()} · partidas nuevas cada ${cfg.recrawl_hours} h`
-        : `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.matches_per_player} partidas por jugador · revisita cada ${cfg.recrawl_hours} h`,
+      otp
+        ? `${depthLabel(cfg.otp_depth)} · ≥ ${fmt.compact(cfg.min_mastery)} puntos · ${cfg.games_per_otp ? `primero ${cfg.games_per_otp} partidas por ${cfg.focus === "games" ? "jugador" : "OTP"}` : "sin tope por jugador"} · ${queues} · partidas nuevas cada ${cfg.recrawl_hours} h`
+        : `${queues} · sus últimas ${cfg.matches_per_player} partidas de los últimos ${cfg.days} días · partidas nuevas cada ${cfg.recrawl_hours} h`,
     ),
     h(
       "div.row-wrap",
@@ -570,7 +764,7 @@ function runningSummary(c) {
       h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
       h("span.small.muted", `${fmt.int(c.stored)} partidas nuevas`, c.rate_per_min ? ` · ${fmt.num(c.rate_per_min, 1)}/min` : ""),
     ),
-    h("p.tiny.muted", "Para cambiar servidores o elos, detenlo: el formulario vuelve con tu última configuración."),
+    h("p.tiny.muted", "Para cambiar algo, detenlo: el formulario vuelve con tu última configuración."),
   );
 }
 
@@ -629,7 +823,7 @@ function renderCrawlerStatus(c, key) {
 async function start(btn) {
   btn.disabled = true;
   try {
-    await api.post("/api/crawler/start", crawlerForm);
+    await api.post("/api/crawler/start", startPayload());
     toast("Recolector en marcha", "success");
     crawlerFormFor = null;
     refresh();
@@ -685,9 +879,9 @@ async function loadOtps(c) {
   const details = box.closest("details");
   if (!details?.open || Date.now() - otpsAt < 10000) return;
   otpsAt = Date.now();
-  if (!c?.config?.champions?.length) {
+  if (!hasTargets(c?.config)) {
     otpsSig = null;
-    return mount(box, h("div.small.muted", "Elige campeones en «Buscar por campeones (OTPs)» y arranca el recolector: aquí aparecerá un panel por campeón con los OTPs que encuentre."));
+    return mount(box, h("div.small.muted", "Elige «OTPs» en el recolector (una línea o campeones concretos) y arráncalo: aquí aparecerá un panel por campeón con los OTPs que encuentre."));
   }
   let data;
   try {
@@ -709,7 +903,18 @@ async function loadOtps(c) {
         h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todos los OTPs analizados"),
       ),
       otpFunnel(data),
-      h("div.otp-champ-grid", (data.by_champion || []).map((ch) => otpChampCard(ch, data))),
+      h("div.otp-champ-grid", (data.by_champion || []).filter((ch) => ch.found).map((ch) => otpChampCard(ch, data))),
+      (() => {
+        const empty = (data.by_champion || []).filter((ch) => !ch.found);
+        if (!empty.length) return null;
+        return h(
+          "div.row-wrap.tiny.muted",
+          { style: { gap: "4px" }, title: empty.map((ch) => dd.name(ch.champ)).join(", ") },
+          `${empty.length} ${empty.length === 1 ? "campeón" : "campeones"} aún sin ${data.focus === "games" ? "jugadores" : "OTPs"} (se buscan primero):`,
+          empty.slice(0, 16).map((ch) => champImg(ch.champ, "xs")),
+          empty.length > 16 ? h("span", `+${empty.length - 16}`) : null,
+        );
+      })(),
       otpFilesBar(data),
     ),
   );
@@ -719,13 +924,13 @@ async function loadOtps(c) {
 function otpFunnel(data) {
   const f = data.funnel;
   if (!f?.total || !f.total.checked) return null;
-  const champs = (data.champions || []).map((c) => dd.name(c)).join(" / ");
+  const champs = data.lines?.length ? `un campeón de ${linesText(data.lines).toLowerCase()}` : (data.champions || []).map((c) => dd.name(c)).join(" / ");
   const label = {
     checked: "revisados",
     champ: data.focus === "mastery" ? `con ${champs} en su top 3` : `con ${champs} de principal`,
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
     ratio: "OTP estricto (1,5× su 2.º campeón)",
-    active: `jugado en los últimos ${data.active_days || 30} días = OTPs`,
+    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${data.focus === "games" ? "jugadores" : "OTPs"}`,
   };
   const t = f.total;
   const steps = f.stages.map((k, i) => {

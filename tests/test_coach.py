@@ -616,7 +616,7 @@ def ok(response):
 
 
 def test_profile_without_key_is_saved_and_linked_later(api):
-    client, svc = api
+    client, _svc = api
     body = ok(client.post("/api/profile", json={"riot_id": "Tempu#EUW", "platform": "euw1"}))
     assert body["profile"]["linked"] is False and "Sin API key" in body["note"]
     assert ok(client.get("/api/system/status"))["tracker"]["profile"]["game_name"] == "Tempu"

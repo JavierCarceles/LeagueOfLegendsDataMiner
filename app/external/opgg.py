@@ -68,7 +68,7 @@ class OpggError(Exception):
 
 
 # ----------------------------------------------------------------- parsers
-_PUSH = re.compile(r'self\.__next_f\.push\(\[1,"(.*?)"\]\)</script>', re.S)
+_PUSH = re.compile(r'self\.__next_f\.push\(\[1,"(.*?)"\]\)</script>', re.DOTALL)
 
 
 def rsc_payload(html: str) -> str:
@@ -126,7 +126,7 @@ _TOKEN = re.compile(
 def parse_mcp_text(text: str):
     """Parsea las respuestas del MCP de OP.GG (JSON o su formato compacto de clases)."""
     text = text.strip()
-    if text.startswith("{") or text.startswith("["):
+    if text.startswith(("{", "[")):
         return json.loads(text)
     classes: dict[str, list[str]] = {}
     body_lines = []

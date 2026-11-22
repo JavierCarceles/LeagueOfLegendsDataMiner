@@ -53,7 +53,7 @@ def _riot_client_installs() -> list[Path]:
     return out
 
 
-from app.config import env as _config_env  # noqa: E402
+from app.config import env as _config_env
 
 for _folder in _riot_client_installs():
     if _folder not in INSTALL_DIRS:
@@ -264,7 +264,7 @@ def replay_api_enabled() -> bool | None:
         text = _read_cfg(path)
     except OSError:
         return None
-    match = re.search(r"^\s*EnableReplayApi\s*=\s*(\S+)", text, re.M | re.I)
+    match = re.search(r"^\s*EnableReplayApi\s*=\s*(\S+)", text, re.MULTILINE | re.IGNORECASE)
     return bool(match and match.group(1).strip().lower() in ("1", "true"))
 
 
@@ -297,17 +297,17 @@ def enable_replay_api() -> Path:
         raise LCUError("No encuentro Config/game.cfg de League of Legends. Abre el cliente o indica LOL_INSTALL_DIR en .env")
     text = _read_cfg(path)
     newline = "\r\n" if "\r\n" in text else "\n"
-    if re.search(r"^\s*EnableReplayApi\s*=\s*1\s*$", text, re.M | re.I):
+    if re.search(r"^\s*EnableReplayApi\s*=\s*1\s*$", text, re.MULTILINE | re.IGNORECASE):
         return path
     backup = path.with_name("game.cfg.tempu-backup")
     try:
         if not backup.exists():
             shutil.copy2(path, backup)
-        if re.search(r"^\s*EnableReplayApi\s*=", text, re.M | re.I):
-            text = re.sub(r"^([ \t]*)EnableReplayApi[ \t]*=[^\r\n]*", r"\1EnableReplayApi=1", text, flags=re.M | re.I)
-        elif re.search(r"^\[General\][ \t]*\r?$", text, re.M):
+        if re.search(r"^\s*EnableReplayApi\s*=", text, re.MULTILINE | re.IGNORECASE):
+            text = re.sub(r"^([ \t]*)EnableReplayApi[ \t]*=[^\r\n]*", r"\1EnableReplayApi=1", text, flags=re.MULTILINE | re.IGNORECASE)
+        elif re.search(r"^\[General\][ \t]*\r?$", text, re.MULTILINE):
             # Tras la cabecera [General], respetando el final de línea del archivo (CRLF en Windows).
-            text = re.sub(r"^(\[General\][ \t]*)(\r?\n|$)", lambda m: m.group(1) + newline + "EnableReplayApi=1" + (m.group(2) or newline), text, count=1, flags=re.M)
+            text = re.sub(r"^(\[General\][ \t]*)(\r?\n|$)", lambda m: m.group(1) + newline + "EnableReplayApi=1" + (m.group(2) or newline), text, count=1, flags=re.MULTILINE)
         else:
             text = f"[General]{newline}EnableReplayApi=1{newline}" + text
         _write_atomic(path, text)

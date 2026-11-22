@@ -16,7 +16,7 @@ import pytest
 
 from app.data.db import now_s
 from app.ingest.crawler import CrawlerConfig
-from tests.factories import FakeRiotClient, TEST_KEY, build_services, make_match
+from tests.factories import TEST_KEY, FakeRiotClient, make_match
 
 SEEDS = ["seed-0", "seed-1", "seed-2"]
 
@@ -49,16 +49,6 @@ def wait_until(predicate, timeout: float = 10.0) -> bool:
             return True
         time.sleep(0.02)
     return predicate()
-
-
-@pytest.fixture
-def keyed_svc(tmp_path, monkeypatch):
-    services = build_services(tmp_path, monkeypatch, key=TEST_KEY)
-    yield services
-    services.shutdown()
-    for worker in services.crawler.workers.values():
-        worker.join(timeout=5)
-    services.db.close()
 
 
 def run_crawler(svc, fake, tiers):

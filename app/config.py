@@ -77,7 +77,7 @@ class Settings:
     low_priority: bool = True
 
     @classmethod
-    def load(cls) -> "Settings":
+    def load(cls) -> Settings:
         data_dir = Path(env("DATA_DIR") or (BASE_DIR / "data"))
         if not data_dir.is_absolute():
             data_dir = BASE_DIR / data_dir

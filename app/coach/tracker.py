@@ -320,11 +320,7 @@ class GameTracker:
             todo = []
             for match_id in ids:
                 st = states.get(match_id)
-                if st is None:
-                    todo.append(match_id)
-                elif st["status"] == "pending_timeline" and st["tries"] < MAX_TIMELINE_TRIES:
-                    todo.append(match_id)
-                elif st["status"] == "error" and st["tries"] < 3:
+                if st is None or st["status"] == "pending_timeline" and st["tries"] < MAX_TIMELINE_TRIES or st["status"] == "error" and st["tries"] < 3:
                     todo.append(match_id)
             new = 0
             for index, match_id in enumerate(todo):
@@ -479,7 +475,8 @@ class GameTracker:
         if finder is not None:
             try:
                 catalog = finder(version)
-            except Exception:
+            except Exception as exc:  # noqa: BLE001  (sin el catálogo de ese parche se usa el actual)
+                log.warning("Catálogo de objetos del parche %s: %s", version, exc)
                 catalog = None
         return catalog or self.items()
 

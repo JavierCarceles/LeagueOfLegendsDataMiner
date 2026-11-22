@@ -217,7 +217,7 @@ def test_game_version_maps_year_patches():
 def test_lolalytics_parses_tier_list_and_counters(db, dd, monkeypatch):
     lola = Lolalytics(db, dd)
     champ = next(iter(dd.champions))
-    other = [c for c in dd.champions if c != champ][0]
+    other = next(c for c in dd.champions if c != champ)
 
     def fake_get(params):
         if params["ep"] == "list":

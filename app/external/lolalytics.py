@@ -94,7 +94,8 @@ class Lolalytics(CachedSource):
         latest = None
         try:
             latest = self._latest_patch() if self._latest_patch else None
-        except Exception:
+        except Exception as exc:  # noqa: BLE001  (sin saber el último parche, se trata como el actual: caduca antes)
+            log.debug("Último parche desconocido: %s", exc)
             latest = None
         return TTL_LATEST if not latest or game_version(patch) == game_version(latest) else TTL_OLD
 
@@ -180,7 +181,7 @@ class Lolalytics(CachedSource):
                     continue
                 if opp == champ or games <= 0 or not 0 <= wr <= 100:
                     continue
-                out[str(opp)] = [games, int(round(games * wr / 100))]
+                out[str(opp)] = [games, round(games * wr / 100)]
             return out  # {} es un resultado válido (nadie lo juega en esa línea)
 
         data = self._cached("lola_counters", key, self._ttl(patch), fetch, allow_fetch)

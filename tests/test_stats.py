@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from itertools import pairwise
 
 import pytest
 
@@ -149,7 +150,7 @@ def test_posterior_logit_var_is_positive(wins, games, prior, k):
 
 def test_posterior_logit_var_shrinks_with_more_data():
     values = [stats.posterior_logit_var(n // 2, n, 0.5, 100) for n in (0, 10, 100, 1_000, 10_000)]
-    assert all(a > b for a, b in zip(values, values[1:]))
+    assert all(a > b for a, b in pairwise(values))
 
 
 def test_posterior_logit_var_matches_beta_delta_method():

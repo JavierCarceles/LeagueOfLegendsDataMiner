@@ -221,7 +221,8 @@ def _build_refs(svc, keys) -> dict:
             continue
         try:
             ref = svc.opgg.champion_build(champ, role, allow_fetch=False)
-        except Exception:  # OP.GG es opcional
+        except Exception as exc:  # noqa: BLE001  (OP.GG es opcional: sin su build, el resto sigue)
+            log.warning("Build de OP.GG de %s (%s): %s", champ, role, exc)
             ref = None
         refs[(champ, role)] = ref
         if ref is None and (champ, role) not in _fetching:
@@ -318,7 +319,8 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     if analysis.get("build") and analysis.get("role"):
         try:
             ref = svc.opgg.champion_build(analysis["champ"], analysis["role"])
-        except Exception:  # OP.GG es opcional
+        except Exception as exc:  # noqa: BLE001  (OP.GG es opcional: sin su build, el resto sigue)
+            log.warning("Build de OP.GG de %s (%s): %s", analysis["champ"], analysis["role"], exc)
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     return analysis

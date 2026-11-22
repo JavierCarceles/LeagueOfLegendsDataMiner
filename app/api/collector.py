@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.deps import svc_from
+from app.ingest import crawler as crawler_ingest
 from app.ingest import otp_details
 from app.ingest.crawler import (
     CrawlerConfig,
+    otp_champs,
     otp_depth_start,
     otp_history_state,
     otp_list_key,
@@ -29,14 +31,14 @@ class CrawlerBody(BaseModel):
     days: int = 14
     matches_per_player: int = 20
     recrawl_hours: float = 12.0
-    champions: list[int | str] = Field(default_factory=list, description="Vacío = todo el ranking; con campeones, solo OTPs / maestría alta")
-    focus: str = Field("otp", pattern="^(otp|mastery)$")
+    champions: list[int | str] = Field(default_factory=list, description="Vacío (y sin líneas) = todo el ranking; con campeones, solo OTPs / maestría alta")
+    roles: list[str] = Field(default_factory=list, description="Líneas completas: OTPs de todos los campeones que se juegan en ellas")
+    focus: str = Field("otp", pattern="^(otp|mastery|games)$", description="otp, mastery o games (partidas de un campeón, sea OTP o no)")
     min_mastery: int = 300_000
     only_target_games: bool = True
-    otp_depth: str = Field("season", pattern="^(season|90|180|365|all)$", description="Historial de cada OTP: temporada, N días o todo")
+    otp_depth: str = Field("season", pattern="^(30|90|180|season|365|all)$", description="Periodo: cuenta quien jugó el campeón en él y se bajan sus partidas de ese periodo")
     save_details: bool = Field(True, description="Guardar micro y macro (timeline) de cada partida de los OTPs")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
-    active_days: int = Field(30, ge=1, le=365, description="Cuenta quien jugó el campeón en los últimos N días")
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
 
 
@@ -70,24 +72,19 @@ def start(body: CrawlerBody, svc=Depends(svc_from)):
         raise HTTPException(409, str(exc)) from exc
 
 
+@router.get("/role-pool")
+def role_pool_preview(roles: str = Query(..., description="Líneas separadas por comas: TOP,JUNGLE…"), svc=Depends(svc_from)):
+    """Campeones que entrarían buscando OTPs de toda una línea (de más a menos jugados)."""
+    wanted = [r.strip().upper() for r in roles.split(",") if r.strip()]
+    return {"roles": wanted, "champions": crawler_ingest.role_pool(svc, wanted)}
+
+
 @router.post("/stop")
 def stop(svc=Depends(svc_from)):
     return svc.crawler.stop()
 
 
 OTP_SORTS = ("games", "winrate", "elo", "points", "name")
-
-
-def _otp_champs(cfg: CrawlerConfig, top: list, sourced: set[int] | None = None) -> list[int]:
-    """Campeones elegidos por los que cuenta este jugador: su principal (OTP), los de su top 3 con maestría alta o
-    los de la tabla de los mejores de cada campeón (OP.GG)."""
-    targets = set(cfg.champions)
-    entries = [(int(e[0]), int(e[1])) for e in top if len(e) >= 2]
-    if cfg.focus == "otp":
-        found = [entries[0][0]] if entries and entries[0][0] in targets else []
-    else:
-        found = [c for c, pts in entries if c in targets and pts >= cfg.min_mastery]
-    return list(dict.fromkeys([*found, *sorted((sourced or set()) & targets)]))
 
 
 @router.get("/otps")
@@ -103,7 +100,7 @@ def otps(
     """OTPs (o jugadores con mucha maestría) encontrados con la configuración actual: un resumen por campeón
     (``by_champion``) y la lista de jugadores (filtrable y paginada) con sus partidas y cuánto historial se lleva."""
     cfg = svc.crawler.config
-    if cfg is None or not cfg.champions:
+    if cfg is None or not cfg.targets:
         return {"champions": [], "focus": None, "players": [], "by_champion": []}
     target_cond, target_params = target_sql(cfg)
     games_cond, games_params = target_sql(cfg, "pa")
@@ -135,7 +132,7 @@ def otps(
             history = "capped"  # ya tiene sus partidas; el resto de su historial, cuando acabe la búsqueda
         seen = int(row["seen"] or 0)
         points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}
-        for c in _otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.champions), 0)]:
+        for c in otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.targets), 0)]:
             st = stats.get((row["id"], c), {"games": 0, "wins": 0, "roles": {}})
             entries.append(
                 {
@@ -160,9 +157,9 @@ def otps(
                 }
             )
 
-    # Resumen por campeón (en el orden en que los elegiste).
+    # Resumen por campeón (en el orden en que los elegiste; los de una línea, de más a menos jugados).
     by_champion = []
-    for c in cfg.champions:
+    for c in cfg.targets:
         mine = [e for e in entries if e["champ"] == c]
         roles: dict[str, int] = {}
         for e in mine:
@@ -176,7 +173,7 @@ def otps(
         by_champion.append(
             {
                 "champ": c,
-                "roles_wanted": cfg.champion_roles.get(c, []),
+                "roles_wanted": cfg.roles_for(c) or [],
                 "found": len(mine),
                 "with_games": sum(1 for e in mine if e["total"]),
                 "complete": sum(1 for e in mine if e["history"] in ("done", "share")),
@@ -220,13 +217,13 @@ def otps(
         p.pop("puuid", None)
         p["games"] = [dict(g) for g in games]
     return {
-        "champions": cfg.champions,
+        "champions": cfg.targets,
         "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
+        "lines": cfg.roles,
         "focus": cfg.focus,
         "min_mastery": cfg.min_mastery,
         "otp_depth": cfg.otp_depth,
         "games_per_otp": cfg.games_per_otp,
-        "active_days": cfg.active_days,
         "searching": bool(cap),
         "found": len(found),
         "complete": sum(1 for row, _ in found if otp_history_state(row, list_key, depth_start) in ("done", "share")),

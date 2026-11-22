@@ -120,14 +120,14 @@ def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) ->
         )
         conn.executemany(
             "INSERT INTO agg_totals (patch, tier, platform, matches) VALUES (?, ?, ?, ?)",
-            [(LEGACY, t, LEGACY, int(round(m))) for t, m in tier_matches.items() if m >= 1],
+            [(LEGACY, t, LEGACY, round(m)) for t, m in tier_matches.items() if m >= 1],
         )
         conn.executemany("INSERT OR IGNORE INTO legacy_matches(match_id) VALUES (?)", match_ids)
 
     report = {
         "status": "done",
         "imported_at": int(time.time()),
-        "matches": int(round(sum(tier_matches.values()))),
+        "matches": round(sum(tier_matches.values())),
         "processed_ids": len(match_ids),
         "matchup_rows": len(directed),
         "unmapped": dict(unmapped.most_common(20)),

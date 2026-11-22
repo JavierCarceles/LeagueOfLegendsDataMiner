@@ -18,7 +18,7 @@ import contextvars
 import time
 
 DEFAULT_SECONDS = 3.0
-_current: contextvars.ContextVar["Budget | None"] = contextvars.ContextVar("tempu_budget", default=None)
+_current: contextvars.ContextVar[Budget | None] = contextvars.ContextVar("tempu_budget", default=None)
 
 # Rutas que no tienen sentido con presupuesto (flujo de logs) o que el usuario
 # lanza a propósito y esperan su resultado (el backtest del modelo…).

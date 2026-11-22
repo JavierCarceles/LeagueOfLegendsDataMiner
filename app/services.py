@@ -44,10 +44,9 @@ class Services:
         self.opgg_sync_thread: threading.Thread | None = None
         self.opgg_stop = threading.Event()
         self.shutdown_event = threading.Event()
+        from app.coach.replay_client import ClientReplays
         from app.coach.tracker import GameTracker
         from app.ingest.crawler import Crawler
-
-        from app.coach.replay_client import ClientReplays
 
         self.client_replays = ClientReplays()
         from app.replays_local import LocalReplays
@@ -93,6 +92,13 @@ class Services:
         self.calibrator.start()
         # Tus partidas escritas en data/mis_partidas (para subirlas y revisarlas), al día cada minuto.
         self.my_games_files.start()
+        # Partidas de OTPs analizadas con una versión anterior del análisis: se rehacen solas (sin Riot).
+        try:
+            from app.ingest import otp_details
+
+            otp_details.start_reanalysis(self)
+        except Exception:
+            log.exception("No se pudo empezar a re-analizar las partidas de OTPs")
         # Repeticiones (.rofl) de este ordenador: carpeta recordada por sistema operativo, se indexa al arrancar.
         self.local_replays.start()
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.

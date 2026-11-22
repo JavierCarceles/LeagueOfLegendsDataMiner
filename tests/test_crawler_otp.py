@@ -9,7 +9,7 @@ import pytest
 
 from app.ingest.crawler import CrawlerConfig
 from tests.factories import AATROX, DARIUS, GAREN, FakeRiotClient, make_match, make_timeline
-from tests.test_crawler import keyed_svc, wait_until  # noqa: F401  (fixture reutilizada)
+from tests.test_crawler import wait_until
 
 START = 1_763_000_000_000
 MASTERY = {
@@ -128,11 +128,11 @@ def test_start_endpoint_resolves_champion_names(keyed_svc, monkeypatch, value):
 def test_otp_must_still_play_the_champion():
     from app.data.db import now_s
 
-    cfg = CrawlerConfig(champions=[AATROX], focus="otp", min_mastery=300_000).validated()
+    cfg = CrawlerConfig(champions=[AATROX], focus="otp", min_mastery=300_000, otp_depth="30").validated()
     now = now_s()
     assert cfg.qualifies([[AATROX, 900_000, now - 3 * 86400], [GAREN, 100_000, now]], now)
     assert not cfg.qualifies([[AATROX, 900_000, now - 90 * 86400], [GAREN, 100_000, now]], now)  # lo dejó hace meses
-    mastery = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=300_000).validated()
+    mastery = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=300_000, otp_depth="90").validated()
     assert not mastery.qualifies([[GAREN, 2_000_000, now], [AATROX, 400_000, now - 200 * 86400]], now)
 
 
@@ -491,7 +491,7 @@ def test_roles_change_the_history_key_only_when_set():
     assert otp_list_key(base) == f"420|{AATROX}|1"  # sin roles, la clave de siempre: no se rehace el historial
     assert otp_list_key(roled) != otp_list_key(base)
     sql, params = target_sql(CrawlerConfig(champions=[AATROX, GAREN], champion_roles={AATROX: ["JUNGLE", "MID"]}).validated(), "pa")
-    assert sql == "(pa.champ IN (?) OR (pa.champ = ? AND pa.role IN (?,?)))" and params == [GAREN, AATROX, "JUNGLE", "MID"]
+    assert sql == "(pa.champ IN (?) OR (pa.champ IN (?) AND pa.role IN (?,?)))" and params == [GAREN, AATROX, "JUNGLE", "MID"]
 
 
 def test_only_games_in_the_chosen_role_are_kept(keyed_svc):
@@ -771,6 +771,36 @@ def test_reanalyze_and_api_state(keyed_svc):
     assert data["details"]["path"].endswith("otps") and "CHALLENGER" in data["details"]["tiers"]
 
 
+def test_otp_games_are_reanalyzed_on_startup_when_the_analysis_changes(keyed_svc):
+    """Las partidas de OTPs se analizaban una vez y se quedaban en su versión (había 894 en la 7 y 450 en la 9 con el
+    análisis en la 10): «Tú frente a los OTPs» comparaba con reglas distintas. Ahora se rehacen solas al arrancar."""
+    import threading
+
+    ids, payloads = history("otp-a", 3, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    assert otp_details.start_reanalysis(keyed_svc) is None  # todo al día: ni se arranca
+    with keyed_svc.db.write() as conn:
+        conn.execute("UPDATE otp_games SET version = 2007")  # analizadas con la versión 7
+    assert otp_details.outdated(keyed_svc.db) == 3
+    calls_before = len(fake.calls)
+    # Mientras juegas, espera; al cerrar la app, para.
+    keyed_svc.tracker.state["in_game"] = True
+    stop = threading.Event()
+    waiter = threading.Thread(target=lambda: otp_details.reanalyze(keyed_svc.db, keyed_svc, stop=stop, pause=lambda: keyed_svc.tracker.state["in_game"]))
+    waiter.start()
+    waiter.join(0.3)
+    assert waiter.is_alive() and otp_details.outdated(keyed_svc.db) == 3
+    stop.set()
+    waiter.join(6)
+    assert not waiter.is_alive()
+    keyed_svc.tracker.state["in_game"] = False
+    thread = otp_details.start_reanalysis(keyed_svc)
+    thread.join(20)
+    assert otp_details.outdated(keyed_svc.db) == 0 and len(fake.calls) == calls_before  # sin llamar a Riot
+    assert (otps_dir(keyed_svc) / ".formato").read_text(encoding="utf-8").strip() == str(otp_details.LAYOUT_VERSION)
+
+
 def test_each_game_keeps_the_draft_context(keyed_svc):
     """Para planes de partida: las 5 líneas, por dónde anda cada jungla y quién coge cada objetivo."""
     match = make_match("EUW1_700", puuids={2: "jg-otp"})  # pid 2 = jungla azul (Lee Sin)
@@ -824,13 +854,24 @@ def test_search_goes_from_the_top_elo_down(keyed_svc):
         _seed_from_leaderboards=lambda platform: 0,
         _discover=lambda platform, tier: order.append(tier) or 0,
         _refill_seeds=lambda platform, tier: 0,
+        found_by_tier={},
     )
+    worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
     scout = OtpScout(worker, "euw1")
     worker.scouts.append(scout)
     real_set = scout._set
     scout._set = lambda status: (real_set(status), status == "idle" and stop.set())
     scout.run()
-    assert order == ["CHALLENGER", "MASTER", "DIAMOND"]  # no baja de elo hasta acabar el anterior
+    assert order == ["CHALLENGER", "MASTER", "DIAMOND"]  # sin OTPs en ninguno: del más alto al más bajo
+
+
+def test_search_goes_to_the_elo_with_fewest_otps_first():
+    """Variedad de elos: la siguiente tanda del ranking va al elo con menos OTPs encontrados (a igualdad, el más alto)."""
+    from types import SimpleNamespace
+
+    worker = SimpleNamespace(found_by_tier={("euw1", "CHALLENGER"): 9, ("euw1", "MASTER"): 2, ("kr", "DIAMOND"): 50})
+    order = crawler_mod.RegionWorker.tier_order(worker, "euw1", ["CHALLENGER", "MASTER", "DIAMOND"])
+    assert order == ["DIAMOND", "MASTER", "CHALLENGER"]  # en EUW, Diamante aún no tiene ninguno
 
 
 def test_players_seen_with_the_champion_are_checked_first(keyed_svc, monkeypatch):
@@ -982,11 +1023,11 @@ def test_search_funnel_shows_where_players_are_dropped(keyed_svc):
             conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'EMERALD', 1, 50)", (puuid,))
             conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
         conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('f-6', 'euw1', 'EMERALD', 1, 50)")  # sin revisar
-    mastery = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="mastery", min_mastery=100_000).validated()
+    mastery = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="mastery", min_mastery=100_000, otp_depth="30").validated()
     f = search_funnel(keyed_svc.db, mastery, now)
     assert f["stages"] == ["checked", "champ", "points", "active"]
     assert f["total"] == {"checked": 5, "champ": 4, "points": 3, "active": 2, "seeds": 6, "last_hour": 5}
-    otp = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="otp", min_mastery=100_000).validated()
+    otp = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="otp", min_mastery=100_000, otp_depth="30").validated()
     t = search_funnel(keyed_svc.db, otp, now)["total"]
     assert (t["champ"], t["points"], t["ratio"], t["active"]) == (3, 2, 2, 1)
     # Coincide con los OTPs que cuenta el recolector.
@@ -1000,18 +1041,22 @@ def test_funnel_is_written_for_review(keyed_svc):
     assert data["config"]["focus"] == "otp" and "total" in data and data["config"]["champions"]
 
 
-def test_played_in_the_last_n_days_is_configurable(keyed_svc):
-    """Con 30 días se quedaba fuera más de la mitad de los candidatos (data/otps/_busqueda.json): se puede ampliar."""
+def test_the_period_decides_who_counts_and_how_far_back(keyed_svc):
+    """Un solo «Periodo»: cuenta quien jugó el campeón en él (antes «Jugado en los últimos», que podía contradecir al
+    «Historial de cada OTP»). Con 30 días se quedaba fuera más de la mitad de los candidatos: se puede ampliar."""
     now = _now_s()
     top = [[AATROX, 300_000, now - 70 * 86400], [GAREN, 50_000, now]]  # lo jugó hace 70 días
-    month = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000).validated()
-    quarter = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000, active_days=90).validated()
-    assert month.active_days == 30 and not month.qualifies(top, now)
-    assert quarter.qualifies(top, now)
-    assert CrawlerConfig(active_days=45).validated().active_days == 30  # solo los valores del desplegable
+    month = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000, otp_depth="30").validated()
+    quarter = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000, otp_depth="90").validated()
+    assert not month.qualifies(top, now) and quarter.qualifies(top, now)
+    assert CrawlerConfig(otp_depth="all").validated().active_since(now) == 0
+    assert CrawlerConfig(otp_depth="45").validated().otp_depth == "season"  # solo los valores del desplegable
+    # Una configuración guardada por una versión anterior (con active_days) se sigue cargando.
+    old = CrawlerConfig.from_saved({"champions": [AATROX], "active_days": 180, "otp_depth": "90", "unknown": 1})
+    assert old.champions == [AATROX] and old.otp_depth == "90"
     with keyed_svc.db.write() as conn:
         conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('a-1', 'euw1', 'EMERALD', 1, 50)")
         conn.execute("INSERT INTO mastery_checks VALUES ('a-1', 'euw1', ?, ?)", (now, json.dumps(top)))
-    base = dict(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="mastery", min_mastery=100_000)
-    assert search_funnel(keyed_svc.db, CrawlerConfig(**base).validated(), now)["total"]["active"] == 0
-    assert search_funnel(keyed_svc.db, CrawlerConfig(**base, active_days=90).validated(), now)["total"]["active"] == 1
+    base = {"platforms": ["euw1"], "tiers": ["EMERALD"], "champions": [AATROX], "focus": "mastery", "min_mastery": 100_000}
+    assert search_funnel(keyed_svc.db, CrawlerConfig(**base, otp_depth="30").validated(), now)["total"]["active"] == 0
+    assert search_funnel(keyed_svc.db, CrawlerConfig(**base, otp_depth="90").validated(), now)["total"]["active"] == 1

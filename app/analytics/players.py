@@ -407,7 +407,7 @@ def performance_scores(svc, rows: list[dict], duration: int) -> dict[int, float]
             if key == "kp":
                 term = max(-1.0, min(1.0, (value - average) / 0.2))
             else:
-                term = max(-1.0, min(1.0, math.log(max(value, 1e-3) / average, 2)))
+                term = max(-1.0, min(1.0, math.log2(max(value, 1e-3) / average)))
             if r["role"] == "SUPPORT" and key == "cs_min":
                 continue
             total += weight * term

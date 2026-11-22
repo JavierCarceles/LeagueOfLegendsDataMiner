@@ -216,9 +216,14 @@ class CachedSource:
                 return self._fetch(kind, key, fetch, None)
             # Caducado: se sirve ya y se actualiza en segundo plano.
             self.stats["stale_served"] += 1
-            if allow_fetch and self.enabled and not self._backing_off(kind, key):
-                if not self._schedule(kind, key, ttl, fetch, priority) and not budget.interactive():
-                    return self._fetch(kind, key, fetch, None)  # sin precargador (tests, scripts): en línea
+            if (
+                allow_fetch
+                and self.enabled
+                and not self._backing_off(kind, key)
+                and not self._schedule(kind, key, ttl, fetch, priority)
+                and not budget.interactive()
+            ):
+                return self._fetch(kind, key, fetch, None)  # sin precargador (tests, scripts): en línea
             return item[1]
         if not allow_fetch or not self.enabled or self._backing_off(kind, key):
             return None
@@ -256,7 +261,7 @@ class CachedSource:
             try:
                 self.stats["requests"] += 1
                 value = fetch()
-            except Exception as exc:  # una web caída nunca debe tumbar una vista
+            except Exception as exc:  # noqa: BLE001  (una web caída o con otro formato nunca debe tumbar una vista)
                 self._fail(kind, key, exc)
                 log.warning("%s (%s %s): %s", self.name, kind, key, exc)
             else:

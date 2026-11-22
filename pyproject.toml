@@ -14,3 +14,7 @@ cache_dir = ".cache/pytest"
 line-length = 140
 cache-dir = ".cache/ruff"
 target-version = "py310"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declara las dependencias y los parámetros con llamadas en el valor por defecto: es su forma correcta.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Body", "fastapi.Path", "fastapi.Header"]

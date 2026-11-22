@@ -21,10 +21,10 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import app.services  # noqa: E402
-from app.data.db import Database  # noqa: E402
-from app.riot.keys import KeyStore  # noqa: E402
-from tests.factories import build_services, offline_ddragon  # noqa: E402
+import app.services
+from app.data.db import Database
+from app.riot.keys import KeyStore
+from tests.factories import TEST_KEY, build_services, offline_ddragon
 
 REAL_ENV = (ROOT / ".env").resolve()
 REAL_DB = (ROOT / "data" / "lol.db").resolve()
@@ -97,4 +97,15 @@ def svc(tmp_path, monkeypatch):
     services = build_services(tmp_path, monkeypatch)
     yield services
     services.shutdown()
+    services.db.close()
+
+
+@pytest.fixture
+def keyed_svc(tmp_path, monkeypatch):
+    """``Services`` aislado con una API key de pruebas (recolector, seguimiento…); para los hilos del recolector al acabar."""
+    services = build_services(tmp_path, monkeypatch, key=TEST_KEY)
+    yield services
+    services.shutdown()
+    for worker in services.crawler.workers.values():
+        worker.join(timeout=5)
     services.db.close()

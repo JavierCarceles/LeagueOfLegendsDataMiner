@@ -21,7 +21,8 @@ from dataclasses import dataclass
 
 from app.analytics.filters import Filters
 from app.analytics.stats import log5, logit, posterior_logit_var, shrink, sigmoid
-from app.external.opgg import PLATFORM_TO_REGION, TIERS as OPGG_TIERS
+from app.external.opgg import PLATFORM_TO_REGION
+from app.external.opgg import TIERS as OPGG_TIERS
 from app.riot.routing import ROLES
 
 SOURCES = ("all", "web", "opgg", "lolalytics", "own")
@@ -109,7 +110,7 @@ def combine_web(*maps: dict | None) -> dict | None:
         games_sum = sum(r[0] for r in rows)
         wins_sum = sum(r[1] for r in rows)
         games = max(r[0] for r in rows)
-        out[opp] = (games, int(round(wins_sum / games_sum * games)) if games_sum else 0)
+        out[opp] = (games, round(wins_sum / games_sum * games) if games_sum else 0)
     return out
 
 
@@ -185,9 +186,9 @@ class Evidence:
         if any(v is None for v in out.values()):
             self.counters(role, b, fetch=False)
             theirs = self._counter_sources.get((role, b)) or {}
-            for name in out:
+            for name, value in out.items():
                 data = theirs.get(name)
-                if out[name] is None and data and a in data:
+                if value is None and data and a in data:
                     games, wins_b = data[a]
                     out[name] = (games, games - wins_b)
         return out
@@ -329,8 +330,8 @@ class Evidence:
 
     def pair(self, role: str, a: int, b: int, fetch: bool | None = None) -> dict:
         counts = self.pair_counts(role, a, b, fetch)
-        pa, _, ga = self.base(role, a)
-        pb, _, gb = self.base(role, b)
+        pa, _, _ = self.base(role, a)
+        pb, _, _ = self.base(role, b)
         games = counts["own"][0] + counts["ext"][0]
         wins = counts["own"][1] + counts["ext"][1]
         expected = log5(pa, pb)

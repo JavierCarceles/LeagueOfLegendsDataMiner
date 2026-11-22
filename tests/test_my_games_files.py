@@ -9,7 +9,6 @@ from app.coach import store
 from app.coach.analyzer import ANALYSIS_VERSION, analyze_game
 from app.coach.files import MyGamesFiles
 from tests.factories import make_match, make_timeline
-from tests.test_crawler import keyed_svc  # noqa: F401  (fixture reutilizada)
 
 ME = "me-puuid"
 

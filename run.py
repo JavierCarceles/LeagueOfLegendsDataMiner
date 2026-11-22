@@ -17,7 +17,9 @@ Opciones: ``--port 8000``, ``--host 127.0.0.1``, ``--no-browser``, ``--reload`` 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
+import http.client
 import json
 import os
 import shutil
@@ -62,7 +64,7 @@ def _own_console() -> bool:
         import ctypes
 
         return ctypes.windll.kernel32.GetConsoleProcessList((ctypes.c_uint * 4)(), 4) <= 2
-    except Exception:
+    except (AttributeError, OSError):  # sin consola de Windows (IDE, salida redirigida)
         return False
 
 
@@ -95,7 +97,7 @@ def venv_python(path: Path) -> Path:
 
 
 def _run_quiet(cmd: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", timeout=timeout)
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", timeout=timeout, check=False)
 
 
 def _healthy(path: Path) -> bool:
@@ -118,7 +120,7 @@ class _SetupLock:
 
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.handle = open(self.path, "a+b")  # noqa: SIM115 (se cierra en __exit__)
+        self.handle = open(self.path, "a+b")
         if not _try_lock(self.handle, wait=True):
             raise OSError("no se pudo bloquear el entorno")
         return self
@@ -160,7 +162,7 @@ def ensure_requirements(path: Path, python: Path) -> None:
         pass
     say("Instalando dependencias (solo cuando cambian)…")
     cmd = [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-input", "-q", "-r", str(REQUIREMENTS)]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", check=False)
     if result.returncode != 0:
         raise RuntimeError(
             "No se pudieron instalar las dependencias:\n"
@@ -295,7 +297,7 @@ def _ping(port: int, timeout: float = 2.0) -> bool:
     try:
         with LOCAL.open(f"http://127.0.0.1:{port}/api/ping", timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8")).get("app") == "tempu-drafter"
-    except Exception:
+    except (OSError, ValueError, AttributeError, http.client.HTTPException):  # nadie, otra app o respuesta rara
         return False
 
 
@@ -321,7 +323,7 @@ def _disable_quick_edit() -> None:
     """Windows 10: con QuickEdit, un clic en la consola congela la app hasta pulsar Esc. Se desactiva."""
     if os.name != "nt":
         return
-    try:
+    with contextlib.suppress(Exception):  # consola sin modo (redirigida, IDE): no hace falta
         import ctypes
 
         kernel32 = ctypes.windll.kernel32
@@ -329,19 +331,15 @@ def _disable_quick_edit() -> None:
         mode = ctypes.c_uint32()
         if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
             kernel32.SetConsoleMode(handle, (mode.value & ~0x0040) | 0x0080)  # sin QUICK_EDIT, con EXTENDED_FLAGS
-    except Exception:
-        pass
 
 
 def _lower_priority(enabled: bool) -> None:
     if os.name != "nt" or not enabled:
         return
-    try:
+    with contextlib.suppress(Exception):  # sin psutil o sin permiso: no es imprescindible
         import psutil
 
         psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
-    except Exception:
-        pass  # sin permiso: no es imprescindible
 
 
 def _open_when_ready(url: str, port: int, open_browser: bool, low_priority: bool) -> None:
@@ -425,7 +423,7 @@ def serve(args) -> int:
 
 def main() -> int:
     _utf8_console()
-    if sys.version_info < (3, 10):
+    if sys.version_info < (3, 10):  # noqa: UP036  (run.py se abre con cualquier Python: avisa si es antiguo)
         return _fail("Tempu Drafter necesita Python 3.10 o superior (recomendado 3.14): https://www.python.org/downloads/")
     os.chdir(ROOT)
     if str(ROOT) not in sys.path:

@@ -14,6 +14,7 @@ Tres capas, de menos a más fiable:
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 
 from app.analytics.filters import Filters
@@ -196,7 +197,7 @@ def _peer_refs(svc, role: str, target: str, current: str | None) -> tuple[dict[s
 
     try:
         values = store.peer_values(svc.db, role, ANALYSIS_VERSION, PEER_SAMPLES)
-    except Exception:  # BD vieja o en migración: se usan las orientativas
+    except sqlite3.Error:  # BD vieja o en migración: se usan las orientativas
         return {}, 0, {}
     out: dict[str, float] = {}
     sizes: dict[str, int] = {}
@@ -224,7 +225,7 @@ def _tier_refs(svc, role: str, target: str) -> tuple[dict[str, float], int]:
 
     try:
         values = store.peer_values(svc.db, role, ANALYSIS_VERSION, PEER_SAMPLES, source=f"tier:{target}")
-    except Exception:  # BD vieja o en migración
+    except sqlite3.Error:  # BD vieja o en migración
         return {}, 0, {}
     out: dict[str, float] = {}
     sizes: dict[str, int] = {}
@@ -246,7 +247,7 @@ def _db_refs(svc, role: str, tier: str) -> dict[str, float]:
     try:
         f = Filters.parse(svc.db, patch="recent", tier=tier)
         row = svc.agg.role_totals(f).get(role)
-    except Exception:  # BD vacía o en migración: se usan las de referencia
+    except sqlite3.Error:  # BD vacía o en migración: se usan las de referencia
         return {}
     if not row or (row.get("dgames") or 0) < MIN_DB_GAMES or not row.get("minutes"):
         return {}

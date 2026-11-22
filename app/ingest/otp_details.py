@@ -381,25 +381,78 @@ def counts(db) -> dict:
     }
 
 
-def reanalyze(db, svc, limit: int | None = None) -> int:
-    """Rehace los dossiers con el análisis actual a partir del bruto guardado (sin llamadas a Riot) y la carpeta."""
+def outdated(db) -> int:
+    """Partidas de OTPs analizadas con otra versión del análisis (o del dossier)."""
+    return int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE version != ?", (DOSSIER_VERSION * 1000 + ANALYSIS_VERSION,)) or 0)
+
+
+def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None = None, pause=None) -> int:
+    """Rehace los dossiers con el análisis actual a partir del bruto guardado (sin llamadas a Riot) y la carpeta.
+
+    ``stop``: se para a mitad (al cerrar la app); ``pause()``: mientras devuelva ``True`` (estás en partida) espera.
+    Lo que falla una partida se registra y se sigue con la siguiente (nunca se queda en bucle con la misma).
+    """
     current = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
     rows = db.query(
-        "SELECT match_id, puuid, tier, division, lp FROM otp_games WHERE version != ? " + ("LIMIT ?" if limit else ""),
+        "SELECT match_id, puuid, tier, division, lp FROM otp_games WHERE version != ? ORDER BY match_id " + ("LIMIT ?" if limit else ""),
         (current, limit) if limit else (current,),
     )
     done = 0
     for r in rows:
+        if stop is not None and stop.is_set():
+            break
+        while pause is not None and pause():
+            if stop is None:
+                time.sleep(5)
+            elif stop.wait(5):
+                break
+        if stop is not None and stop.is_set():
+            break
         raw = db.one("SELECT match_raw, timeline_raw FROM otp_games WHERE match_id = ? AND puuid = ?", (r["match_id"], r["puuid"]))
+        if raw is None:
+            continue
         match, timeline = unpack(raw["match_raw"]), unpack(raw["timeline_raw"])
         elo = {"tier": r["tier"], "division": r["division"], "lp": r["lp"]}
-        if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False):
-            done += 1
+        try:
+            if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False):
+                done += 1
+        except Exception:
+            log.exception("No se pudo re-analizar la partida %s del OTP", r["match_id"])
+        if stop is not None:
+            stop.wait(0.01)  # suelta el GIL: la web sigue respondiendo mientras tanto
     if done:
         files = Files.of(svc)
         if files is not None:
             files.rebuild()
     return done
+
+
+def start_reanalysis(svc) -> threading.Thread | None:
+    """Al arrancar: si hay partidas de OTPs analizadas con una versión anterior del análisis, se rehacen solas en
+    segundo plano (sin Riot; en pausa mientras juegas) y se regenera ``data/otps``. Así «Tú frente a los OTPs», sus
+    resúmenes y las builds del draft comparan con las mismas reglas que tus partidas."""
+    db = svc.db
+    pending = outdated(db)
+    if not pending:
+        return None
+    stop = getattr(svc, "shutdown_event", None)
+
+    def in_game() -> bool:
+        tracker = getattr(svc, "tracker", None)
+        return bool(tracker is not None and tracker.state.get("in_game"))
+
+    def run() -> None:
+        log.info("Re-analizando %d partidas de OTPs con la versión %d del análisis…", pending, ANALYSIS_VERSION)
+        try:
+            done = reanalyze(db, svc, stop=stop, pause=in_game)
+        except Exception:
+            log.exception("Fallo re-analizando las partidas de OTPs")
+            return
+        log.info("Partidas de OTPs re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
+
+    thread = threading.Thread(target=run, name="otp-reanalyze", daemon=True)
+    thread.start()
+    return thread
 
 
 # ------------------------------------------------------------------ resumen

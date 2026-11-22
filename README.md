@@ -194,22 +194,29 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 - **Recolector (key gratuita: 20 peticiones/s y 100 cada 2 min por región):** semillas de las ligas oficiales, un hilo
   por región, solo ranked, sin duplicados ni remakes (~1 llamada por partida nueva), y deja un 15 % libre para tus
   búsquedas. En *Datos y API* eliges servidores (agrupados por región, con *Todas* / *Ninguna*) y elos.
-- **Recolector por campeones (OTPs):** eliges campeones (hasta 10) y quién cuenta: *OTPs* (su campeón con más puntos de
-  maestría es uno de los elegidos, con al menos el mínimo de puntos y 1,5 veces los del segundo) o *mucha maestría* (uno
-  de los elegidos entre sus 3 primeros con el mínimo de puntos). La API de Riot no ofrece un ranking de maestría por
-  campeón, así que se mira la maestría de cada jugador del ranking de esos servidores y elos (1 llamada por jugador, se
-  recuerda 7 días) y solo se recogen las partidas de los que cumplen; opcionalmente, solo las que jugaron con esos
-  campeones (las demás se recuerdan para no volver a pedirlas; si en esa partida otro OTP buscado jugó uno de los
-  campeones elegidos, se guarda igual).
-- **Historial completo de cada OTP (sin tope de partidas):** de cada OTP se baja su historial entero, de 100 en 100
-  hacia atrás con `endTime` fijo (la lista no se mueve aunque siga jugando), hasta la profundidad elegida: *temporada
-  actual* (por defecto: desde el 1 de enero del año del parche, parando en la primera partida de un parche anterior),
-  90/180/365 días o todo lo que guarde Riot. Reparto justo: primero los OTPs recién encontrados, luego sus partidas
-  nuevas y después el historial antiguo empezando por quien menos lleva bajado; cada visita baja hasta 100 partidas y
-  pasa al siguiente. El avance se guarda (`otp_progress`) y sigue donde se quedó aunque cierres la app. Si una página
-  del historial tiene ≤ 10 % de partidas con esos campeones, se deja de bajar (más atrás ya no lo jugaba). La búsqueda
-  de OTPs (maestría y ligas, host de plataforma) va en un hilo aparte de la descarga (host de región): Riot los limita
-  por separado, así que buscar no frena la descarga.
+- **Qué recoger** (*Datos y API*, tres modos; solo se ven las opciones del elegido):
+  - *OTPs*: jugadores cuyo campeón principal es uno de los elegidos (con el mínimo de puntos y 1,5 veces los del
+    segundo) o, si lo prefieres, que lo tienen entre sus 3 primeros, y sus partidas con él.
+  - *Partidas de un campeón*: cualquier partida de esos servidores y elos en la que alguien juegue ese campeón en esa
+    línea, sea OTP o no (más datos de sus builds y de todos sus matchups). Los jugadores salen de quienes lo tienen
+    entre sus 3 más jugados (20 K puntos por defecto) y se guarda toda partida suya en la que aparezca, lo juegue él o
+    cualquier otro.
+  - *Todo el ranking*: las últimas N partidas de los últimos D días de cada jugador.
+  En los dos primeros eliges **toda una línea** (p. ej. solo top: todos los campeones con ≥ 8 % de sus partidas en
+  ella según la tier list de OP.GG o Lolalytics, y solo cuentan sus partidas en esa línea) o **campeones concretos sin
+  límite** (con su rol, opcional). La API de Riot no ofrece un ranking de maestría por campeón, así que se mira la
+  maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada
+  campeón de OP.GG.
+- **Un solo periodo:** cuenta quien jugó el campeón en él y se bajan sus partidas de ese mismo periodo (30/90/180
+  días, *temporada actual* —desde el 1 de enero del año del parche, parando en la primera partida de un parche
+  anterior—, último año o todo lo que guarde Riot). Antes eran dos opciones que podían contradecirse.
+- **Variedad antes que cantidad:** 1) un OTP de cada campeón; 2) al menos 3 por campeón en cada elo; 3) más partidas,
+  empezando por el campeón con menos. Mientras siguen apareciendo jugadores nuevos, de cada uno solo se bajan sus N
+  partidas más recientes (30 por defecto). La búsqueda en el ranking va primero al elo con menos OTPs encontrados.
+  Cada historial se baja de 100 en 100 hacia atrás con `endTime` fijo (la lista no se mueve aunque siga jugando); el
+  avance se guarda (`otp_progress`) y sigue donde se quedó. Si una página del historial tiene ≤ 10 % de partidas con
+  esos campeones, se deja de bajar (más atrás ya no lo jugaba). Buscar (maestría y ligas, host de plataforma) va en un
+  hilo aparte de descargar (host de región): Riot los limita por separado.
 - **Key compartida:** el limitador compara lo que cuenta Riot con lo que pidió la app; si otra app (otra copia de Tempu
   Drafter en otro ordenador, por ejemplo) usa la misma key, *Datos y API* lo avisa: el cupo es por key y se reparte.
 
@@ -217,7 +224,7 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 
 ```
 run.py       único punto de entrada: prepara el entorno, instala dependencias y arranca la web
-docs/        CONTINUAR.md (traspaso), coaches.md (recursos gratis de coaches), macro.md (reglas de macro → detecciones), enlaces.txt (privado)
+docs/        coaches.md (recursos gratis de coaches), macro.md (reglas de macro → detecciones), enlaces.txt (privado)
 app/
   main.py, services.py, config.py, logbus.py, budget.py   arranque, servicios, .env, logs (SSE), presupuesto por petición
   warmer.py    precarga en segundo plano (carriles, prioridades, pausa en partida)

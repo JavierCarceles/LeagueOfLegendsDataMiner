@@ -361,7 +361,8 @@ class Warmer:
                     try:
                         f = Filters.parse(svc.db, patch=raw["patch"], tier=raw["tier"], platform=raw["platform"])
                         scope = ext_scope(svc, f)
-                    except Exception:
+                    except Exception as exc:  # noqa: BLE001  (un filtro guardado que ya no vale no para la precarga)
+                        log.warning("Ámbito de precarga %s descartado: %s", raw, exc)
                         scope = None
                     if scope is not None and scope not in scopes:
                         scopes.append(scope)
@@ -477,7 +478,8 @@ class Warmer:
             if not profile:
                 return []
             pool = store.champion_pool(self.svc.db, store.known_puuids(profile))
-        except Exception:
+        except Exception as exc:  # noqa: BLE001  (sin tus campeones, la precarga sigue con lo esencial)
+            log.warning("No se pudieron leer tus campeones para la precarga: %s", exc)
             return []
         out = []
         for row in pool:

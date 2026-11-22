@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import threading
 from collections import deque
+from itertools import pairwise
 
 import pytest
 
@@ -137,7 +138,7 @@ def test_burst_is_capped_at_19_requests_per_second():
 
 
 def test_windows_are_per_host():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     for _ in range(19):
         assert limiter.acquire(HOST, METHOD)
     assert limiter.acquire("europe", METHOD, timeout=0)
@@ -232,7 +233,7 @@ def test_low_priority_is_spread_over_the_window_so_your_searches_do_not_wait():
     for _ in range(200):
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW)
         times.append(clock())
-    assert min(b - a for a, b in zip(times, times[1:])) >= gap - 1e-9  # nunca en ráfaga; misma cuota (85 cada 2 min)
+    assert min(b - a for a, b in pairwise(times)) >= gap - 1e-9  # nunca en ráfaga; misma cuota (85 cada 2 min)
     paced, bursty = _search_after_crawler(True), _search_after_crawler(False)
     assert max(paced) < 15  # repartida: tu búsqueda encuentra hueco enseguida
     assert sorted(bursty)[len(bursty) // 2] > 30  # en ráfaga: hasta que caducaba toda (se midieron 92 s en la app)
@@ -261,7 +262,7 @@ def test_crawler_uses_almost_all_the_quota_while_nobody_uses_the_web():
 
 
 def test_acquire_returns_false_when_stopped_while_waiting():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     for _ in range(19):
         limiter.acquire(HOST, METHOD)
     stop = threading.Event()
@@ -272,7 +273,7 @@ def test_acquire_returns_false_when_stopped_while_waiting():
 
 # ---------------------------------------------------------------- update
 def test_update_adapts_app_limits_from_headers():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     for _ in range(3):
         limiter.acquire(HOST, METHOD)
     limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit": "500:10,30000:600", "X-App-Rate-Limit-Count": "3:10,3:600"})
@@ -282,7 +283,7 @@ def test_update_adapts_app_limits_from_headers():
 
 
 def test_update_with_same_limits_keeps_the_buckets():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     limiter.acquire(HOST, METHOD)
     bucket = limiter._app_bucket(HOST)
     before = bucket.windows
@@ -304,7 +305,7 @@ def test_update_syncs_counts_from_server():
 
 
 def test_sync_counts_tolerates_one_request_in_flight():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     for _ in range(5):
         limiter.acquire(HOST, METHOD)
     limiter.update(HOST, METHOD, 200, {"X-App-Rate-Limit-Count": "6:1,6:120"})
@@ -314,7 +315,7 @@ def test_sync_counts_tolerates_one_request_in_flight():
 
 
 def test_method_limits_from_headers():
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     assert limiter.acquire(HOST, "match-v5.ids")
     limiter.update(HOST, "match-v5.ids", 200, {"X-Method-Rate-Limit": "2:10", "X-Method-Rate-Limit-Count": "1:10"})
     assert limiter.acquire(HOST, "match-v5.ids", timeout=0)
@@ -347,7 +348,7 @@ def test_429_method_type_blocks_only_that_method():
 
 @pytest.mark.parametrize("kind, expected", [("service", 2.0), ("method", 5.0), ("", 5.0)])
 def test_429_without_retry_after_uses_default_backoff(kind, expected):
-    limiter, clock = make_limiter()
+    limiter, _clock = make_limiter()
     headers = {"X-Rate-Limit-Type": kind} if kind else {}
     assert limiter.update(HOST, METHOD, 429, headers) == expected
     assert not limiter.acquire(HOST, METHOD, timeout=expected - 0.5)

@@ -89,7 +89,7 @@ class BusHandler(logging.Handler):
             kind = getattr(record, "kind", None) or LEVEL_TO_KIND.get(record.levelno, "info")
             source = record.name.split(".", 1)[-1] if "." in record.name else record.name
             self.bus.publish(record.getMessage(), kind=kind, source=source)
-        except Exception:  # nunca romper por un log
+        except Exception:  # noqa: BLE001  (patrón de logging.Handler: un log nunca rompe nada)
             self.handleError(record)
 
 

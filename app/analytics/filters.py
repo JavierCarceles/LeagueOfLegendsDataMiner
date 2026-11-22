@@ -42,7 +42,7 @@ class Filters:
     label_platform: str = "all"
 
     @classmethod
-    def parse(cls, db: Database, patch: str | None = None, tier: str | None = None, platform: str | None = None) -> "Filters":
+    def parse(cls, db: Database, patch: str | None = None, tier: str | None = None, platform: str | None = None) -> Filters:
         patch = (patch or "all").strip()
         tier = (tier or "all").strip()
         platform = (platform or "all").strip().lower()

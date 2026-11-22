@@ -40,12 +40,12 @@ _SLUG = re.compile(r"league-of-legends-patch-(\d+)-(\d+)-notes")
 _CHAMP_IMG = re.compile(r"/img/champion/([A-Za-z0-9]+)\.png")
 _ITEM_IMG = re.compile(r"/img/item/(\d+)\.png")
 _NUM = re.compile(r"\d+(?:[.,]\d+)?")  # sin signo: «1150-3500» es un rango
-RIFT_SECTIONS = re.compile(r"^(campeones|champions|objetos|items|runas|runes|hechizos de invocador|summoner spells)$", re.I)
+RIFT_SECTIONS = re.compile(r"^(campeones|champions|objetos|items|runas|runes|hechizos de invocador|summoner spells)$", re.IGNORECASE)
 # En estas estadísticas un valor más bajo es mejor para el campeón.
 LOWER_IS_BETTER = re.compile(
     r"enfriamiento|recarga|coste|maná|mana|energía|tiempo de lanzamiento|retraso|cooldown|cost\b|cast time|delay|"
     r"tiempo de reaparición|vulnerab",
-    re.I,
+    re.IGNORECASE,
 )
 
 

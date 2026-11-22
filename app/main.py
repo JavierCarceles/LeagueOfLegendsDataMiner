@@ -14,7 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.api import coach, collector, draft, external, guides, otps, players, replays, sources, stats, system
 from app.budget import BudgetMiddleware
-from app.config import WEB_DIR, Settings, settings as default_settings
+from app.config import WEB_DIR, Settings
+from app.config import settings as default_settings
 from app.logbus import bus, get_logger, setup_logging
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
 from app.services import Services

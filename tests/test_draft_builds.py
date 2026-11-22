@@ -8,7 +8,6 @@ from app.analytics import builds
 from app.analytics.filters import Filters
 from app.coach.items import ItemCatalog
 from tests.factories import AATROX, AHRI, DARIUS, ITEMS, JINX, LEE_SIN, ORIANNA, SYNDRA, THRESH, VIEGO, ZED, FakeOpgg, install_opgg
-from tests.test_crawler import keyed_svc  # noqa: F401  (fixture reutilizada)
 
 EXTRA = {  # objetos completos que el catálogo de pruebas no trae (Heridas graves, armadura, resistencia, defensivos)
     "3033": {"name": "Recordatorio mortal", "gold": {"base": 800, "total": 3000, "sell": 2100, "purchasable": True}, "tags": ["Damage", "ArmorPenetration"], "maps": {"11": True}, "from": ["3123", "1037"], "into": [], "description": "Aplica Heridas graves"},
@@ -154,7 +153,7 @@ def test_otp_items_are_grouped_by_enemy_team_kind():
 
     info = {SYNDRA: (0.8, ["Mage"], "Syndra"), AHRI: (0.7, ["Mage", "Assassin"], "Ahri"), ORIANNA: (0.7, ["Mage"], "Orianna"),
             DARIUS: (0.1, ["Fighter", "Tank"], "Darius"), ZED: (0.1, ["Assassin"], "Zed"), AATROX: (0.25, ["Fighter"], "Aatrox")}
-    champ_info = lambda c: {"magic": info[c][0], "tags": info[c][1], "name": info[c][2]}  # noqa: E731
+    champ_info = lambda c: {"magic": info[c][0], "tags": info[c][1], "name": info[c][2]}
 
     def game(enemies, items, win):
         return {"win": win, "enemies": {f"R{i}": c for i, c in enumerate(enemies)},

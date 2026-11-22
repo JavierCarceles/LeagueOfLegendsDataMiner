@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.deps import champ_param, svc_from
+from app.logbus import get_logger
+
+log = get_logger("sources")
 
 router = APIRouter(prefix="/api", tags=["fuentes"])
 
@@ -47,7 +50,8 @@ def sources_status(svc=Depends(svc_from)):
     ):
         try:
             cache = source.cache_summary(kinds)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001  (es un panel de estado: una fuente con problemas no lo tumba)
+            log.warning("Resumen de caché de %s: %s", name, exc)
             cache = {}
         if hasattr(source, "circuit_open"):
             source.circuit_open()  # refresca «en pausa durante N s» (solo se recalcula al consultarlo)

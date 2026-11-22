@@ -6,7 +6,6 @@ import json
 import struct
 
 from app import replays_local as rl
-from tests.test_crawler import keyed_svc  # noqa: F401  (fixture reutilizada)
 
 META = {"gameLength": 1_834_000, "gameVersion": "16.22.123.4567", "statsJson": json.dumps([{"SKIN": "Sylas", "WIN": "Win"}] * 10)}
 

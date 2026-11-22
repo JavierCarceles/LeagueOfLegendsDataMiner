@@ -16,10 +16,12 @@ from tests.factories import (
     AATROX,
     AHRI,
     DARIUS,
+    EZREAL,
     GAREN,
     JINX,
     KAISA,
     LEE_SIN,
+    LEONA,
     NAUTILUS,
     ORIANNA,
     SYNDRA,
@@ -27,8 +29,6 @@ from tests.factories import (
     VIEGO,
     WUKONG,
     ZED,
-    EZREAL,
-    LEONA,
     build_services,
     generate_draft_matches,
     make_match,
@@ -179,7 +179,7 @@ def test_suggest_excludes_champions_picked_in_another_role(draft_svc):
 def test_suggest_without_opponent_ranks_by_strength(draft_svc):
     res = draft.suggest(draft_svc, F, {}, {}, "TOP", min_games=0)
     assert res["opponent"] is None
-    assert [r["champ"] for r in res["best"]][0] == DARIUS
+    assert res["best"][0]["champ"] == DARIUS
     scores = [r["score_pp"] for r in res["best"]]
     assert scores == sorted(scores, reverse=True)
 
