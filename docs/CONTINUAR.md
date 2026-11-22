@@ -413,8 +413,9 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   no hay ningún .rofl, se usa la carpeta por defecto vacía y no se repite la búsqueda hasta 12 h. Reindexa cada 3 min.
 - Tabla `local_replays` (cabecera: parche, duración, estadísticas finales de los 10; formatos clásico y nuevo).
   **Los paquetes de la partida van cifrados y cambian cada parche: no se decodifican** (no dan posiciones).
-- API: `GET /api/replay/local`, `POST /api/replay/local/rescan` (`{path}` = carpeta manual). Web: desplegable
-  «Repeticiones de este ordenador (.rofl)» en Datos y API.
+- API: `GET /api/replay/local` (también `match_ids`), `POST /api/replay/local/rescan` (`{path}` = carpeta manual).
+  Web: desplegable «Repeticiones .rofl de este ordenador» arriba de **Repeticiones** (`web/js/components/rofl.js`;
+  antes estaba en Datos y API y el usuario no lo encontraba) y etiqueta «.rofl en tu PC» en cada partida que la tiene.
 - Ideas: marcar en «Repeticiones»/«Mi progreso» qué partidas tienen ya su .rofl (abrir sin descargar).
 
 ## 3 decies. Sesión del 2026-11-22 (5.ª) — búsqueda de OTPs más rápida (sin commitear)
@@ -469,6 +470,19 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   mientras busca».
 - Tabla de OP.GG: solo se añaden (y solo se gasta la llamada en) jugadores de los elos elegidos; si no hay ninguno de
   Diamante o más, ni se pide. El usuario NO quiere OTPs fuera de los elos que marca.
+
+## 3 terdecies. Sesión del 2026-11-22 (8.ª) — más datos de OTPs: Esmeralda frente a Aspirante (sin commitear)
+
+- Datos nuevos (commit 8217813): Hecarim 682 partidas (438 Aspirante, 240 Esmeralda de 12 OTPs, 4 GM); total 894.
+  Las del usuario se analizaron en Windows con la versión 7 del análisis.
+- Método nuevo: comparar cada aviso entre Esmeralda y Aspirante del mismo campeón. Los que salen 2-3 veces más en
+  Esmeralda son buenos consejos (1 contra 1, oro sin gastar, pelea ganada sin aprovechar, heraldo/barón regalados,
+  muerte junto al dragón con uno menos). Los que salen igual (o más en Aspirante) no distinguen nada.
+- `analyzer.py` versión 9: dragón normal cedido → leve (Esmeralda 10 %, Aspirante 11 %); «inventario lleno de
+  componentes» solo si se repite (≥ 2 minutos; Aspirante 6 % frente a Esmeralda 2,5 %).
+- BASE de JUNGLE = lo que hace Esmeralda de verdad (muertes 5,7; tiempo muerto 9,8 %; KP 55; oro/min 445; impacto antes
+  del 10: 6,0; ganks 1,7…). Visión sin tocar (los OTPs de Hecarim Esmeralda casi no ponen pinks: no es la norma).
+- Falta: Esmeralda de otros campeones (solo Hecarim) y otros roles.
 
 ## 4 bis. Pendiente (por prioridad)
 

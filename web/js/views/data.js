@@ -60,15 +60,12 @@ export async function render(container) {
   sourcesSig = null;
   otpsSig = null;
   otpsAt = 0;
-  roflSig = null;
-  roflAt = 0;
   sections = {
     key: h("div"),
     warmer: h("div"),
     crawlerForm: h("div"),
     crawlerStatus: h("div"),
     otps: h("div"),
-    rofl: h("div"),
     sources: h("div"),
     limits: h("div"),
     db: h("div"),
@@ -93,7 +90,6 @@ export async function render(container) {
       "div.stack",
       { style: { marginTop: "16px" } },
       collapsible("datos.fuentes", [icon("globe"), "Fuentes de datos (OP.GG, Lolalytics, Riot)"], sections.sources, { summary: "estado y caché de cada web" }),
-      collapsible("datos.rofl", [icon("film"), "Repeticiones de este ordenador (.rofl)"], sections.rofl, { summary: "carpeta encontrada sola y repeticiones que tienes" }),
       collapsible("datos.limites", [icon("activity"), "Límite de la API de Riot"], sections.limits, { summary: "uso en tiempo real" }),
       collapsible("datos.bd", [icon("database"), "Base de datos"], sections.db, { summary: "partidas, jugadores y tamaño" }),
       collapsible("datos.modelo", [icon("chart"), "Modelo de draft"], sections.model, { summary: "calibración y backtest" }),
@@ -126,7 +122,6 @@ async function refresh() {
     if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
     loadOtps(status.crawler);
-    loadRofl();
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
   } catch (err) {
@@ -839,79 +834,6 @@ function otpPlayerRow(p, rank) {
       `span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`,
       { title: historyText },
       p.history === "done" || p.history === "share" ? "Completo" : p.history === "capped" ? "En su tope" : p.history === "loading" ? "Bajando" : "En cola",
-    ),
-  );
-}
-
-// ------------------------------------------------------------------ repeticiones (.rofl)
-const ROFL_FOUND_BY = { client: "la dice el cliente de LoL", default: "carpeta por defecto", scan: "encontrada buscando en el disco", manual: "elegida por ti" };
-let roflAt = 0;
-let roflSig = null;
-async function loadRofl() {
-  const box = sections.rofl;
-  if (!box.closest("details")?.open || Date.now() - roflAt < 4000) return;
-  roflAt = Date.now();
-  let data;
-  try {
-    data = await api.get("/api/replay/local", { limit: 12 });
-  } catch (err) {
-    return mount(box, errorBox(err));
-  }
-  const sig = JSON.stringify([data.status, data.path, data.files, data.scanned, data.recent?.map((r) => r.path)]);
-  if (sig === roflSig || box.contains(document.activeElement)) return;
-  roflSig = sig;
-  const pathInput = h("input.input.input-sm", { type: "text", placeholder: "Otra carpeta (opcional)", "aria-label": "Carpeta de repeticiones", style: { flex: "1 1 220px", minWidth: 0 } });
-  const rescan = async (btn, path) => {
-    btn.disabled = true;
-    try {
-      await api.post("/api/replay/local/rescan", { path: path || null });
-      toast(path ? "Carpeta guardada" : "Buscando la carpeta de repeticiones…");
-      roflAt = 0;
-      roflSig = null;
-      setTimeout(loadRofl, 800);
-    } catch (err) {
-      toast(err.message, "error");
-    }
-    btn.disabled = false;
-  };
-  const statusLine =
-    data.status === "scanning"
-      ? h("div.small", h("span.pill.pill-warn.pill-dot", "Buscando en el disco"), h("span.tiny.muted", ` ${fmt.int(data.scanned || 0)} carpetas revisadas${data.at ? ` · ${data.at}` : ""}`))
-      : data.path
-        ? h("div.small.otp-path", h("b", "Carpeta: "), data.path, h("span.tiny.muted", ` · ${ROFL_FOUND_BY[data.found_by] || data.found_by || ""}`))
-        : h("div.small.muted", data.status === "starting" ? "Buscando…" : "No hay ninguna repetición (.rofl) en este ordenador. Descarga una desde el historial del cliente y aparecerá aquí.");
-  mount(
-    box,
-    h(
-      "div.col",
-      { style: { gap: "10px" } },
-      statusLine,
-      h("div.small", h("b", fmt.int(data.files || 0)), ` ${data.files === 1 ? "repetición" : "repeticiones"} en la carpeta`),
-      data.recent?.length
-        ? h(
-            "div.row-wrap",
-            { style: { gap: "6px" } },
-            data.recent.map((r) =>
-              h(
-                r.match_id ? "a.chip" : "span.chip",
-                r.match_id ? { href: `#/partida/${r.match_id}`, title: r.path } : { title: r.path },
-                r.match_id || r.path.split(/[\\/]/).pop(),
-                h("span.tiny.muted", ` · ${r.game_version ? r.game_version.split(".").slice(0, 2).join(".") : "?"}${r.game_length ? ` · ${fmt.duration(r.game_length / 1000)}` : ""}`),
-              ),
-            ),
-          )
-        : null,
-      h(
-        "div.row-wrap",
-        { style: { gap: "8px" } },
-        pathInput,
-        h("button.btn.btn-sm", { type: "button", onclick: (e) => rescan(e.currentTarget, pathInput.value.trim()) }, pathInput.value ? "Usar esta carpeta" : "Usar carpeta / buscar de nuevo"),
-      ),
-      h(
-        "p.tiny.muted",
-        { style: { margin: 0 } },
-        "Se busca sola al abrir la app (la del cliente de LoL, la de por defecto en Documentos o, si no, por todo el disco) y se recuerda para este sistema operativo; luego se revisa cada 3 minutos. De cada .rofl se lee la cabecera (parche, duración y estadísticas finales de los 10). El resto de la repetición va cifrado y cambia cada parche: solo el cliente del juego la reproduce.",
-      ),
     ),
   );
 }

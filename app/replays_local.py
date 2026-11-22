@@ -376,7 +376,8 @@ class LocalReplays:
             "SELECT match_id, path, size, mtime, game_version, game_length, readable FROM local_replays ORDER BY mtime DESC LIMIT ?",
             (limit,),
         )
-        return {**self.state, "saved": self.saved(), "recent": [dict(r) for r in rows]}
+        ids = [r[0] for r in self.svc.db.query("SELECT match_id FROM local_replays WHERE match_id IS NOT NULL")]
+        return {**self.state, "saved": self.saved(), "recent": [dict(r) for r in rows], "match_ids": ids}
 
     def players(self, match_id: str) -> list[dict] | None:
         row = self.svc.db.one("SELECT players FROM local_replays WHERE match_id = ?", (match_id,))

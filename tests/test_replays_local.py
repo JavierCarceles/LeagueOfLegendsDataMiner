@@ -123,4 +123,4 @@ def test_api_reports_and_accepts_a_manual_folder(keyed_svc, tmp_path, monkeypatc
         keyed_svc.local_replays.index(keyed_svc.local_replays.locate())
         data = client.get("/api/replay/local").json()
     assert data["path"] == str(folder) and data["found_by"] == "manual" and data["files"] == 1
-    assert data["recent"][0]["match_id"] == "EUW1_9"
+    assert data["recent"][0]["match_id"] == "EUW1_9" and data["match_ids"] == ["EUW1_9"]  # para marcar «.rofl en tu PC»

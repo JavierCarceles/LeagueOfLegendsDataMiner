@@ -8,7 +8,7 @@ from tests.test_coach import RED_JUNGLE_TOP, _analyze, _event, _kill
 
 
 def test_analysis_version_bumped_so_your_games_are_reanalysed():
-    assert ANALYSIS_VERSION >= 8
+    assert ANALYSIS_VERSION >= 9
 
 
 def test_r_is_only_required_at_level_6():
@@ -45,3 +45,10 @@ def test_jungle_references_are_never_better_than_challenger():
     challenger_higher_better = {"cs_min": 7.1, "gold_min": 480, "impact_pre10": 7.0, "jungle_cs10": 71}
     for key, value in challenger_higher_better.items():
         assert BASE["JUNGLE"][key] < value, key
+
+
+def test_jungle_references_match_what_emerald_otps_do():
+    """240 partidas de OTPs Esmeralda (Hecarim): la base de jungla (≈ Esmeralda) queda cerca de su valor real."""
+    emerald = {"deaths": 5.83, "deaths_pre14": 2.03, "time_dead_pct": 10.4, "kp": 51.9, "cs10": 68.8, "gold_min": 458, "impact_pre10": 6.6}
+    for key, value in emerald.items():
+        assert abs(BASE["JUNGLE"][key] - value) <= 0.15 * value, (key, BASE["JUNGLE"][key], value)

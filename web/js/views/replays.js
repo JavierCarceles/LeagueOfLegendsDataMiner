@@ -6,6 +6,7 @@ import { api } from "../api.js";
 import { learnBox, learnCatalog, learnForTags } from "../components/learn.js";
 import { createReplay, SEV_LABEL } from "../components/replay.js";
 import { trackPos } from "../components/minimap.js";
+import { localReplayIds, roflSection } from "../components/rofl.js";
 import { dd, loadJSON, ROLE_LABEL, save, TIER_LABEL } from "../state.js";
 import { champImg, champText, collapsible, debounce, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, roleIcon, select, toast } from "../ui.js";
 import { buildCard, gameMetrics, goldCharts, jungleGame, scorePill } from "./coach.js";
@@ -112,6 +113,7 @@ async function renderList(container) {
       "div.section-head",
       h("div", h("h2", "Tus repeticiones"), h("p", "Cada partida reconstruida en 2D con el timeline de Riot y tus errores marcados en la línea de tiempo: pulsa una para verla, error a error.")),
     ),
+    h("div", { style: { marginBottom: "14px" } }, roflSection()),
     body,
   );
   mount(body, loading("Cargando tus partidas…"));
@@ -133,8 +135,9 @@ async function renderList(container) {
 
 async function loadList(body, profile) {
   let data;
+  let local;
   try {
-    data = await api.get("/api/coach/games", { queue: prefs.queue, role: prefs.role, limit: 300 });
+    [data, local] = await Promise.all([api.get("/api/coach/games", { queue: prefs.queue, role: prefs.role, limit: 300 }), localReplayIds()]);
   } catch (err) {
     return mount(body, errorBox(err));
   }
@@ -170,7 +173,7 @@ async function loadList(body, profile) {
         : ["No hay partidas con estos filtros", "Cambia la cola, el rol o el resultado."];
     return mount(body, h("div.stack", filters, h("section.card", empty(title, text, "film"))));
   }
-  mount(body, h("div.stack", filters, h("div.replay-list", games.map(gameCard))));
+  mount(body, h("div.stack", filters, h("div.replay-list", games.map((g) => gameCard(g, local.has(g.match_id))))));
 }
 
 function tabs(items, value, onChange) {
@@ -186,7 +189,7 @@ function sevCount(n, sev) {
   return h(`span.sev-count.sev-${sev}`, { title: SEV_LABEL[sev] }, `${n} ${n === 1 ? one : many}`);
 }
 
-function gameCard(g) {
+function gameCard(g, hasRofl = false) {
   const i = g.issues || {};
   return h(
     `a.replay-card.${g.win ? "win" : "loss"}`,
@@ -199,6 +202,7 @@ function gameCard(g) {
       "div.row-wrap.replay-issues",
       g.has_timeline ? [sevCount(i.high, "high"), sevCount(i.medium, "medium"), sevCount(i.low, "low"), sevCount(i.good, "good")] : h("span.chip-muted", "esperando timeline"),
       g.has_timeline && !i.high && !i.medium ? h("span.tiny.good", "sin errores importantes") : null,
+      hasRofl ? h("span.chip-good", { title: "La repetición (.rofl) está en tu ordenador: se abre en el cliente sin descargarla" }, ".rofl en tu PC") : null,
     ),
     h("div.right", scorePill(g.score), h("div.tiny.muted", fmt.ago(g.game_start))),
     h("span.replay-go", icon("play")),

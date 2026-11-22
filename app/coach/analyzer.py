@@ -58,7 +58,11 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #    (su trabajo) no le suma gravedad ni le cambia el título si era una pelea; la R solo se exige a nivel 6 (a 11/16 los
 #    Aspirante la retrasan a propósito en el 11 % de partidas); sin aviso de botas al jungla (1 de cada 3 Aspirante
 #    no las tiene mejoradas al 20).
-ANALYSIS_VERSION = 8
+# 9: con 240 partidas de OTPs Esmeralda frente a 438 de Aspirante (mismo campeón): los dragones normales cedidos salen
+#    igual en los dos elos (10 % y 11 % de partidas), así que bajan a leve (heraldo, larvas y barón sí distinguen: 1,6-2,8
+#    veces más en Esmeralda); «inventario lleno de componentes» salía más en Aspirante (6 % frente a 2,5 %): solo si se
+#    repite.
+ANALYSIS_VERSION = 9
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1787,7 +1791,9 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
             free = ex["value_gain"] < 0.25 * _obj_value(g, o)
             title = f"El rival cogió {label} gratis y estabas lejos" if free else f"El rival cogió {label} y no lo compensasteis"
             g.flagged.add(id(o))
-            moments.append(_moment(o["t"], "objective", "high" if big else "medium", title, detail, p, ["objective", "far"]))
+            # Un dragón normal cedido es flujo de partida (pasa igual en Esmeralda que en Aspirante): leve.
+            severity = "high" if big else "low" if o["kind"] == "dragon" else "medium"
+            moments.append(_moment(o["t"], "objective", severity, title, detail, p, ["objective", "far"]))
     metrics["objectives_team"] = taken
     if taken:
         metrics["obj_participation"] = round(participated / taken * 100, 1)
@@ -2495,13 +2501,14 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         if strays and r.get("targets"):
             clogged.append((i, strays))
     metrics["inv_clogged_min"] = len(clogged)
-    if clogged:
+    # Solo si se repite: llevar un componente de otro objeto una vez es normal (en Aspirante pasa más que en Esmeralda).
+    if len(clogged) >= 2:
         i, strays = clogged[0]
         names = _join([cat.name(c) for c in strays[:3]])
         nxt = cat.name(g.gold_rows[i]["targets"][0])
         moments.append(
             _moment(
-                g.ts[i], "build", "medium" if len(clogged) >= 2 else "low",
+                g.ts[i], "build", "medium" if len(clogged) >= 3 else "low",
                 "Inventario lleno con componentes de otros objetos",
                 f"Con {_int(g.gold_rows[i]['gold'])} de oro no podías avanzar hacia {nxt}: {names} ocupaban hueco sin ser parte de ese objeto. Termina un objeto antes de empezar el siguiente.",
                 tags=["build", "clogged"],
