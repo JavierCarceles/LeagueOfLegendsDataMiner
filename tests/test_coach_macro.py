@@ -341,3 +341,74 @@ def test_duel_behind_groups_in_recurring_mistakes():
     out = insights.recurring_mistakes(games)
     assert [x["id"] for x in out["items"]] == ["death_duel_behind"]
     assert out["items"][0]["learn"]["topic"] == "trades"
+
+
+# ------------------------------------------------------- prioridad de línea
+def _jungle_far_from_dragon_at_20(frames=None) -> dict:
+    """Dragón rojo a las 20:30 con el jungla azul (pid 2) farmeando arriba, lejos del foso."""
+    far = {(2, 20): {"position": (3800, 11800)}, (2, 21): {"position": (3850, 11750)}, **(frames or {})}
+    return run([monster(1_230_000, 7, 200, "DRAGON", DRAGON, sub="FIRE_DRAGON", assists=[8])], far, pid=2)
+
+
+def test_dragon_conceded_without_priority_is_not_a_mistake():
+    behind = {(3, 20): {"minionsKilled": 120}, (4, 20): {"minionsKilled": 120}}  # mid y ADC a −20 CS
+    a = _jungle_far_from_dragon_at_20(behind)
+    m = next(x for x in moments(a, tag="no_prio"))
+    assert m["severity"] == "info" and m["title"] == "El rival cogió el dragón: tenía la prioridad en mid y bot"
+    assert "tu mid iba -20 CS y tu ADC iba -20 CS frente a los suyos" in m["detail"]
+    split = _jungle_far_from_dragon_at_20({(3, 20): {"minionsKilled": 120}})  # el mismo dragón, solo mid por detrás
+    assert a["metrics"]["obj_lost_far"] == split["metrics"]["obj_lost_far"] - 1  # ya no cuenta como regalado
+    assert a["metrics"]["obj_lost_noprio"] == 1
+    assert insights._mistake_type("objective", set(m["tags"])) is None
+    # Al top no se le enseña (como cualquier dragón cedido), pero tampoco cuenta como regalado.
+    from tests.test_coach_audit import _dragon_at_20
+
+    top = _dragon_at_20(frames=behind)
+    assert not moments(top, tag="no_prio") and top["metrics"]["obj_lost_far"] == 0 and top["metrics"]["obj_lost_noprio"] == 1
+
+
+def test_dragon_conceded_with_split_priority_is_still_judged_and_explained():
+    a = _jungle_far_from_dragon_at_20({(3, 20): {"minionsKilled": 120}})  # solo mid por detrás
+    far = next(x for x in moments(a, tag="far") if "dragón" in x["title"])
+    assert "prioridad: tu mid iba -20 CS y tu ADC iba +0 CS frente a los suyos" in far["detail"]
+    assert a["metrics"]["obj_lost_noprio"] == 0
+
+
+def test_priority_needs_both_lane_players_without_disconnections():
+    from app.coach.analyzer import _Game, _priority, find_me
+    from tests.factories import make_timeline
+    from tests.test_coach_audit import ITEMS, base_match
+
+    match = base_match()
+    g = _Game(match, make_timeline(match), find_me(match, pid=1), ITEMS)
+    assert _priority(g, "dragon", 1_230_000)["state"] == "mixed"
+    g.afk[9] = [(600_000, 700_000)]  # su ADC se desconectó: no es una comparación justa
+    assert _priority(g, "dragon", 1_230_000) is None
+    assert _priority(g, "atakhan", 1_230_000) is None
+
+
+def test_priority_stats_per_game():
+    a = run()
+    m = a["metrics"]
+    assert (m["drag_mixed_n"], m["drag_mixed_won"]) == (1, 1)  # el dragón del 9:00, con mid y bot igualados
+    assert m["drag_prio_n"] == m["drag_noprio_n"] == 0
+    assert m["first_tower_ours"] == 0 and m["our_first_tower_min"] is None  # solo cae la torre de top azul
+
+
+def test_priority_summary_aggregates_your_dragons_and_first_tower():
+    def game(i, win, prio, noprio, first):
+        return {"match_id": f"EUW1_{i}", "queue": 420, "role": "JUNGLE", "champ": 64, "win": win, "has_timeline": True,
+                "metrics": {"drag_prio_n": prio[0], "drag_prio_won": prio[1], "drag_mixed_n": 0, "drag_mixed_won": 0,
+                            "drag_noprio_n": noprio[0], "drag_noprio_won": noprio[1], "first_tower_ours": first,
+                            "our_first_tower_min": 13.0 + i if first else None}}
+
+    assert insights.priority_summary([game(i, True, (1, 1), (0, 0), 1) for i in range(4)]) is None  # pocas partidas
+    games = [game(0, True, (2, 2), (1, 0), 1), game(1, True, (1, 1), (0, 0), 1), game(2, False, (0, 0), (2, 1), 0),
+             game(3, False, (1, 0), (1, 0), 0), game(4, True, (0, 0), (0, 0), 1)]
+    s = insights.priority_summary(games)
+    rows = {r["key"]: r for r in s["dragons"]}
+    assert (rows["prio"]["won"], rows["prio"]["n"], rows["prio"]["pct"]) == (3, 4, 75)
+    assert (rows["noprio"]["won"], rows["noprio"]["n"], rows["noprio"]["pct"]) == (1, 4, 25)
+    assert rows["mixed"]["pct"] is None and rows["prio"]["ref"]["Challenger"] == 68
+    ft = s["first_tower"]
+    assert (ft["rate"], ft["wr_with"], ft["wr_without"], ft["median_min"]) == (60, 100, 0, 14.0)

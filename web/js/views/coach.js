@@ -389,6 +389,11 @@ function summaryView(s, data) {
     habitsCard(s),
     collapsible("progreso.muertes.v2", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
     s.jungle ? collapsible("progreso.jungla.v2", [icon("map"), "Tu pathing de jungla (minutos 1-8)"], () => jungleCard(s), { summary: `${s.jungle.games} ${s.jungle.games === 1 ? "partida" : "partidas"}` }) : null,
+    s.priority
+      ? collapsible("progreso.prioridad", [icon("map"), "Prioridad de línea y objetivos"], () => priorityCard(s), {
+          summary: priorityLine(s.priority),
+        })
+      : null,
     collapsible("progreso.tiempo", [icon("clock"), "En qué pierdes el tiempo"], () => timeCard(s), {
       summary: [idle?.value != null ? `${fmt.num(idle.value, 0)} % de minutos vacíos` : null, hoard?.value != null ? `${fmt.num(hoard.value, 1)} min/partida con oro útil` : null].filter(Boolean).join(" · ") || null,
     }),
@@ -944,6 +949,53 @@ function jungleCard(s) {
         presence,
       ),
     ),
+  );
+}
+
+function priorityLine(p) {
+  const pr = p.dragons.find((r) => r.key === "prio");
+  const no = p.dragons.find((r) => r.key === "noprio");
+  return [pr?.pct != null ? `${pr.pct} % de dragones con prioridad` : null, no?.pct != null ? `${no.pct} % sin ella` : null].filter(Boolean).join(" · ") || null;
+}
+
+function priorityCard(s) {
+  const p = s.priority;
+  const ft = p.first_tower;
+  const refText = (ref) => Object.entries(ref).map(([tier, v]) => `${tier} ${v} %`).join(" · ");
+  const rows = p.dragons.map((r) =>
+    h(
+      "div",
+      tagBar(r.label, r.pct ?? 0, 100, r.n ? `${r.won} de ${r.n} (${r.pct} %)` : "sin dragones", r.key === "prio" ? "good" : r.key === "noprio" ? "bad" : ""),
+      h("div.tiny.muted", `Referencia: ${refText(r.ref)}`),
+    ),
+  );
+  const ch = ft.ref.Challenger;
+  return h(
+    "section.card",
+    h("h3.card-title", icon("map"), "Prioridad de línea y objetivos", h("span.spacer"), h("span.tiny.muted", `${p.games} partidas`)),
+    h(
+      "p.small.muted",
+      "Prioridad: las dos líneas junto al objetivo (mid y bot para el dragón) llevan al menos 5 CS más que sus rivales. Con ella tu equipo llega antes al río; sin ella, cederlo y cambiarlo al otro lado es lo normal y no cuenta como error.",
+    ),
+    h("div.small", { style: { marginTop: "8px" } }, h("b", "Dragones que cogéis")),
+    h("div.col", { style: { gap: "6px" } }, rows),
+    h("div.divider"),
+    h("div.small", h("b", "Primera torre")),
+    ft.rate != null
+      ? h(
+          "div.small",
+          `Tu equipo tira la primera torre en el ${ft.rate} % de tus partidas`,
+          ft.median_min != null ? ` (vuestra primera torre, de mediana al ${fmt.num(ft.median_min, 1)}')` : "",
+          ft.wr_with != null && ft.wr_without != null ? `. Ganas el ${ft.wr_with} % con ella y el ${ft.wr_without} % sin ella.` : ".",
+        )
+      : h("div.small.muted", "Aún no hay partidas con torres."),
+    h("div.tiny.muted", `Challenger: ${ch.rate} % de partidas, ganan el ${ch.wr_with} % con ella y el ${ch.wr_without} % sin ella; su primera torre, de mediana al ${fmt.num(ch.median_min, 1)}'.`),
+    h(
+      "p.tiny.muted",
+      { style: { marginTop: "8px" } },
+      `El CS dice quién tiene la línea: en Challenger, con tu top a +10 CS a los 10 vuestra torre de top cae antes el ${p.lane_tower.ahead[0]} % de las veces, y a −10 solo el ${p.lane_tower.behind[0]} % (mid ${p.lane_tower.ahead[1]} / ${p.lane_tower.behind[1]} %, bot ${p.lane_tower.ahead[2]} / ${p.lane_tower.behind[2]} %). Datos de 1.818 partidas de junglas OTP.`,
+    ),
+    learnBox(p.learn),
   );
 }
 

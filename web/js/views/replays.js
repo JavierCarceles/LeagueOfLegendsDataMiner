@@ -56,6 +56,7 @@ const TAG_LABEL = {
   baron_buff: ["Con el barón", "bad"],
   bounty: ["Recompensa regalada", "bad"],
   duel_behind: ["Duelo en desventaja", "bad"],
+  no_prio: ["Sin prioridad", ""],
   late_recall: ["Base a destiempo", "bad"],
   late: ["Llegada tarde", "bad"],
   unconverted: ["Ventaja sin convertir", "bad"],

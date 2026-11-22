@@ -188,3 +188,51 @@ contra 17 antes del barón): todas correctas.
   su plan.
 - **Propósito de un roam y comunicación** (MID 3-6, 14; support 5-7; jungla 16): se mide el tiempo fuera de la línea y
   sus kills, no qué se buscaba ni los pings.
+
+## F) Macro deducida de los datos (22-11-2026, `ANALYSIS_VERSION = 12`)
+
+Con 1.818 partidas de junglas OTP (`data/otps` y `data/partidas_campeon`: 1.026 de Challenger, 560 de Esmeralda,
+120 de Platino, 69 de Diamante y 43 de Master/GM) y las 47 de jungla del usuario. Cada partida trae, minuto a minuto,
+la posición y el CS de jungla del OTP y de su jungla rival, todas las kills con posición, las torres y el CS de cada
+línea a los 5, 10, 15 y 20.
+
+**El CS dice quién tiene la línea (sí se usa).** Con tu línea a ≥ +10 CS a los 10, vuestra torre de esa línea cae
+antes en el 84 / 75 / 72 % de las partidas de Challenger (top / mid / bot); a ≤ −10, solo en el 31 / 44 / 24 %. En
+Esmeralda, 79 / 79 / 81 % frente a 26 / 32 / 24 %.
+
+**Dragón y prioridad (sí se usa).** Prioridad = las dos líneas junto al objetivo (mid y bot para el dragón; top y
+mid para larvas, heraldo y barón) a ≥ +5 CS de sus rivales en el último frame. Dragones normales, sin contar el
+punto de alma ni el alma:
+
+| | Con prioridad | Repartida | Sin prioridad |
+|---|---|---|---|
+| Challenger | 68 % (318) | 58 % (1.669) | 44 % (322) |
+| Esmeralda | 76 % (136) | 57 % (999) | 38 % (169) |
+| Platino | 60 % (35) | 58 % (200) | 37 % (49) |
+
+Morir en el foso pasa casi igual con o sin prioridad (Challenger 6-9 %, Esmeralda 13-14 %): lo que separa los elos
+es morir allí, no la prioridad. Por eso:
+
+- Un dragón normal cedido **sin prioridad** en mid y bot ya no cuenta como «objetivo regalado»: es un momento
+  informativo (`no_prio`) que explica el CS de las dos líneas y propone el cambio al otro lado. Se cuenta aparte
+  (`obj_lost_noprio`). En las 51 partidas del usuario son 8 de los 21 objetivos que antes salían como regalados.
+- El resto de objetivos cedidos y las muertes justo antes de un objetivo junto al foso dicen la prioridad que había.
+- Mi progreso tiene la tarjeta **«Prioridad de línea y objetivos»**: tus dragones según la prioridad y la primera
+  torre, frente a Challenger y Esmeralda (`insights.PRIORITY_REFS`).
+
+**Primera torre (referencia).** La primera torre de la partida cae de mediana al 13:32 en Challenger y al 13:39 en
+Esmeralda. El equipo que la tira gana el 78 % en Challenger (36 % sin ella) y el 69 % en Esmeralda (33 %).
+
+**Probado y descartado como error**
+
+- **Gank sin resultado en vez de farmear.** Una «visita a línea» es un frame (minutos 3-13) con el jungla en una línea.
+  Las visitas sin kill, sin torre, sin farmear la oleada y sin morir son el 27 % en Challenger, el 25 % en Esmeralda,
+  el 26 % en Platino y el 31 % en el usuario (59 visitas, sin diferencia real). Con un frame por minuto, una visita a
+  línea casi nunca coincide con un minuto sin CS de jungla (0,00-0,03 por partida): el coste de un gank fallido no
+  se ve en campamentos (≈ 2 CS a los 10). Sí se asocia a perder: en Challenger ganan el 63 % con 0 visitas vacías y
+  el 49 % con 2 o más, pero eso también puede ser porque la partida ya iba mal. No se juzga partida a partida.
+- **Ganks a líneas ganadas o perdidas.** Salen algo mejor a líneas que ganan (Challenger 64 % con kill frente a
+  58 %; Platino 73 % frente a 49 %), con el mismo riesgo de morir (~19 %). Diferencia pequeña: queda como consejo.
+- **Jugar del lado de las líneas que ganan.** Los junglas de todos los elos pasan el 47 % del early (5-14) en la mitad
+  de arriba sea cual sea el CS de top y bot a los 5. Y en Challenger, los que juegan del lado que pierde ganan más
+  (65 % frente a 55 %). La regla no se cumple en los datos: no se juzga.

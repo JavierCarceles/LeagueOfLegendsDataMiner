@@ -69,7 +69,12 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 # 11: duelo en desventaja (reglas de macro/macro_por_rol.txt: «compara nivel, objetos y definitivas antes de pelear»):
 #     morir 1 contra 1 con 2 niveles menos, con un legendario menos (y ≥ 1.000 de oro de diferencia) o sin la R contra
 #     un rival que ya la tiene, sin ir tú por delante en lo otro. 8 de 25 muertes en duelo en 51 partidas del usuario.
-ANALYSIS_VERSION = 11
+# 12: prioridad de línea (CS de las dos líneas junto al objetivo frente a sus rivales). Con 1.818 partidas de junglas
+#     OTP: con mid y bot ≥ +5 CS el equipo coge el dragón el 68 % (Challenger) y el 76 % (Esmeralda); con los dos ≤ −5,
+#     el 44 % y el 38 %. Un dragón normal cedido sin prioridad deja de ser error (info, como en inferioridad numérica);
+#     la prioridad se explica en los objetivos y en las muertes junto al foso. Jugar del lado de las líneas que ganan
+#     NO se juzga: los junglas de todos los elos pasan el 47 % del early arriba sea cual sea el estado de las líneas.
+ANALYSIS_VERSION = 12
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -136,6 +141,10 @@ DUEL_LEVEL_GAP = 2  # duelo en desventaja: el rival te sacaba al menos 2 niveles
 DUEL_GOLD_GAP = 1000  # …o un legendario más y al menos este oro total de diferencia (no un objeto recién cerrado)
 ULT_LEVEL = 6
 DUEL_BEFORE_MS = 3_000  # nivel y objetos de cada uno al empezar el duelo, no tras tu muerte
+PRIO_CS = 5  # prioridad: las dos líneas junto al objetivo con al menos esta ventaja (o desventaja) de CS
+PRIO_LANES = {"dragon": ("mid", "bot"), "elder": ("mid", "bot"), "baron": ("top", "mid"), "herald": ("top", "mid"), "grubs": ("top", "mid")}
+LANE_ROLE = {"top": "TOP", "mid": "MID", "bot": "ADC"}
+LANE_NAME = {"top": "top", "mid": "mid", "bot": "ADC"}
 
 # Tiempo base de reaparición por nivel (s) y factor por minuto de partida.
 BRW = [10, 10, 12, 12, 14, 16, 20, 25, 28, 32.5, 35, 37.5, 40, 42.5, 45, 47.5, 50, 52.5]
@@ -833,6 +842,7 @@ def analyze_game(
     _afk_moments(g, moments)
     _lane_phase(g, metrics, moments)
     _objectives(g, metrics, moments)
+    _priority_stats(g, metrics)
     _macro(g, metrics, moments)
     _gold_use(g, metrics, moments)
     _time_use(g, metrics, moments)
@@ -1073,6 +1083,9 @@ def _classify_death(g: _Game, k: dict) -> dict:
         details.append(f"con {_int(gold['gold'])} de oro sin gastar{buy}")
     if "before_objective" in tags:
         details.append(f"y el rival cogió {OBJ_LABEL[lost['kind']]} a continuación")
+        prio = _priority(g, lost["kind"], t) if pos and geo.dist(pos, lost["pos"]) <= OBJ_FIGHT_RADIUS else None
+        if prio and prio["state"] == "theirs":
+            details.append(f"sin prioridad ({_prio_text(prio)}): llegaban antes y pelear ahí era a su favor")
     if gained:
         details.append(f"tu equipo cogió {gained['label']} a cambio")
     if "isolated" in tags and "fight_won" not in tags:
@@ -1763,6 +1776,58 @@ def _contest_expected(g: _Game, o: dict) -> bool:
     )
 
 
+def _lane_cs_diff(g: _Game, lane: str, t: int) -> int | None:
+    """CS de tu jugador de esa línea menos el de su rival en el último frame antes de ``t`` (bot: los ADC)."""
+    ally, enemy = g._by_role(g.team, LANE_ROLE[lane]), g._by_role(300 - g.team, LANE_ROLE[lane])
+    if not ally or not enemy or any(s < t for p in (ally, enemy) for s, _e in g.afk.get(p) or []):
+        return None  # rol desconocido o alguien desconectado: no es una comparación justa
+    i = g.frame_before(t)
+    a, b = g.fval(ally, i, "cs"), g.fval(enemy, i, "cs")
+    return a - b if a is not None and b is not None else None
+
+
+def _priority(g: _Game, kind: str, t: int) -> dict | None:
+    """Prioridad de las dos líneas junto a un objetivo: ``ours`` si las dos van ≥ +5 CS, ``theirs`` si ≤ −5."""
+    lanes = PRIO_LANES.get(kind)
+    if not lanes:
+        return None
+    diffs = {lane: _lane_cs_diff(g, lane, t) for lane in lanes}
+    if any(v is None for v in diffs.values()):
+        return None
+    vals = list(diffs.values())
+    state = "ours" if all(v >= PRIO_CS for v in vals) else "theirs" if all(v <= -PRIO_CS for v in vals) else "mixed"
+    return {"lanes": diffs, "state": state}
+
+
+def _prio_text(prio: dict) -> str:
+    """«tu mid iba −12 CS y tu ADC −8 CS frente a los suyos»."""
+    parts = [f"tu {LANE_NAME[lane]} iba {v:+d} CS" for lane, v in prio["lanes"].items()]
+    return f"{_join(parts)} frente a los suyos"
+
+
+def _priority_stats(g: _Game, metrics: dict) -> None:
+    """Dragones normales según la prioridad de mid y bot, y la primera torre (para «Prioridad y objetivos»)."""
+    counts = {"ours": [0, 0], "mixed": [0, 0], "theirs": [0, 0]}
+    seen = {100: 0, 200: 0}
+    for o in g.objectives:
+        if o["kind"] != "dragon":
+            continue
+        soulish = max(seen.values()) >= 2  # punto de alma o alma: se pelean distinto
+        seen[o["team"]] = seen.get(o["team"], 0) + 1
+        if soulish or g.is_afk(g.me["pid"], o["t"]):
+            continue
+        prio = _priority(g, "dragon", o["t"])
+        if prio:
+            counts[prio["state"]][0] += 1
+            counts[prio["state"]][1] += int(o["team"] == g.team)
+    for state, key in (("ours", "prio"), ("mixed", "mixed"), ("theirs", "noprio")):
+        metrics[f"drag_{key}_n"], metrics[f"drag_{key}_won"] = counts[state]
+    towers = sorted((b for b in g.buildings if b["kind"] == "tower"), key=lambda b: b["t"])
+    metrics["first_tower_ours"] = int(towers[0]["owner"] != g.team) if towers else None
+    ours = next((b["t"] for b in towers if b["owner"] != g.team), None)
+    metrics["our_first_tower_min"] = round(ours / 60_000, 1) if ours is not None else None
+
+
 def _contributed(mine: dict) -> bool:
     """¿Participaste tú en lo que sacó tu equipo a cambio?"""
     return bool(mine["takedowns"] or mine["towers"] or mine["plates"] or mine["objectives"] or mine["jungle_cs"] >= 4)
@@ -1770,7 +1835,7 @@ def _contributed(mine: dict) -> bool:
 
 def _objectives(g: _Game, metrics: dict, moments: list) -> None:
     me = g.me["pid"]
-    taken = participated = lost_dead = conceded = trades = fair = 0
+    taken = participated = lost_dead = conceded = trades = fair = no_prio = 0
     my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
     for o in g.objectives:
         here = me in o["takers"] if o["assists_known"] else False
@@ -1848,6 +1913,19 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
                         "No se podía disputar: lo que costó el objetivo fueron las muertes de antes.", p, ["objective", "outnumbered"])
             )
             continue
+        prio = _priority(g, o["kind"], o["t"])
+        if o["kind"] == "dragon" and not label.startswith("el alma") and "punto de alma" not in label and prio and prio["state"] == "theirs":
+            # Sin prioridad en las dos líneas del dragón, cederlo es lo normal (en Challenger lo pierde el 56 % de los
+            # equipos así): no es error. Lo que se puede hacer es cambiarlo al otro lado.
+            no_prio += 1
+            g.flagged.add(id(o))
+            if g.role in ("JUNGLE", "SUPPORT", "MID"):  # como los cedidos: al top y al ADC no se les enseña
+                moments.append(
+                    _moment(o["t"], "objective", "info", f"El rival cogió {label}: tenía la prioridad en mid y bot",
+                            f"Cuando cayó, {_prio_text(prio)}: llegaban antes al río y cederlo era razonable. Aprovecha ese tiempo al otro lado "
+                            "(larvas, heraldo, su jungla de arriba o una torre).", p, ["objective", "no_prio"])
+                )
+            continue
         conceded += 1
         if g.role in ("JUNGLE", "SUPPORT", "MID") or big:
             recalled = any(
@@ -1868,6 +1946,8 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
                 detail += f"; tu equipo no sacó nada a cambio y el rival además sacó {extra}"
             else:
                 detail += "; tu equipo no sacó nada a cambio"
+            if prio:
+                detail += f"; prioridad: {_prio_text(prio)}"
             detail += ". Si no vas a disputarlo, cámbialo: invade su jungla al otro lado, presiona una torre o haz un dive."
             free = ex["value_gain"] < 0.25 * _obj_value(g, o)
             title = f"El rival cogió {label} gratis y estabas lejos" if free else f"El rival cogió {label} y no lo compensasteis"
@@ -1880,6 +1960,7 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
         metrics["obj_participation"] = round(participated / taken * 100, 1)
     metrics["obj_lost_dead"] = lost_dead
     metrics["obj_lost_far"] = conceded
+    metrics["obj_lost_noprio"] = no_prio  # dragones cedidos sin prioridad en mid y bot: no cuentan como regalados
     metrics["obj_trades"] = trades  # solo buenos cambios en los que participaste
     metrics["obj_fair_trades"] = fair
 

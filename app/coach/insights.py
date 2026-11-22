@@ -564,7 +564,7 @@ RECURRING_MIN_RATE = 0.2  # …y al menos en el 20 % de tus partidas fiables con
 RECURRING_EXAMPLES = 4
 # No son errores aunque se muestren: peleas ganadas, buenos cambios, AFK, final de partida, build completa (ahorrar
 # es lo correcto) y objetivos que no se podían disputar (inferioridad numérica).
-NOT_A_MISTAKE = {"fight_won", "traded", "fair_trade", "afk", "game_end", "full_build", "outnumbered"}
+NOT_A_MISTAKE = {"fight_won", "traded", "fair_trade", "afk", "game_end", "full_build", "outnumbered", "no_prio"}
 SEVERITY_WEIGHT = {"high": 3.0, "medium": 2.0, "low": 1.0}
 MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo más general)
     {"id": "death_outnumbered_objective", "kind": "death", "need": ("fight_outnumbered",), "metric": None,
@@ -923,6 +923,46 @@ def jungle_summary(games: list[dict]) -> dict | None:
     }
 
 
+# Prioridad de línea en 1.818 partidas de junglas OTP (data/otps y data/partidas_campeon, noviembre de 2026): dragones
+# normales que coge tu equipo según el CS de mid y bot frente a sus rivales (las dos ≥ +5, mezcla, las dos ≤ −5) y la
+# primera torre. Son partidas de OTPs (ganan algo más de la mitad): sirven para ver cuánto pesa la prioridad, no como nota.
+PRIORITY_REFS = {
+    "dragons": {"prio": {"Challenger": 68, "Esmeralda": 76}, "mixed": {"Challenger": 58, "Esmeralda": 57}, "noprio": {"Challenger": 44, "Esmeralda": 38}},
+    "first_tower": {"Challenger": {"rate": 55, "wr_with": 78, "wr_without": 36, "median_min": 14.5},
+                    "Esmeralda": {"rate": 52, "wr_with": 69, "wr_without": 33, "median_min": 14.7}},
+    # CS de tu línea a los 10 → vuestra torre de esa línea cae antes (Challenger, top / mid / bot).
+    "lane_tower": {"ahead": (84, 75, 72), "behind": (31, 44, 24)},
+}
+PRIORITY_MIN_GAMES = 5
+
+
+def priority_summary(games: list[dict]) -> dict | None:
+    """Tus dragones según la prioridad de mid y bot y tu primera torre, frente a Challenger y Esmeralda."""
+    pool = [g for g in games if reliable(g) and g.get("has_timeline") and (g.get("metrics") or {}).get("drag_prio_n") is not None]
+    if len(pool) < PRIORITY_MIN_GAMES:
+        return None
+    rows = []
+    for key, label in (("prio", "Con prioridad en mid y bot"), ("mixed", "Prioridad repartida"), ("noprio", "Sin prioridad en mid y bot")):
+        n = sum(g["metrics"].get(f"drag_{key}_n") or 0 for g in pool)
+        won = sum(g["metrics"].get(f"drag_{key}_won") or 0 for g in pool)
+        rows.append({"key": key, "label": label, "n": n, "won": won, "pct": round(won / n * 100) if n else None,
+                     "ref": PRIORITY_REFS["dragons"][key]})
+    towers = [g for g in pool if g["metrics"].get("first_tower_ours") is not None]
+    first = [g for g in towers if g["metrics"]["first_tower_ours"]]
+    without = [g for g in towers if not g["metrics"]["first_tower_ours"]]
+    mins = sorted(g["metrics"]["our_first_tower_min"] for g in pool if g["metrics"].get("our_first_tower_min") is not None)
+    tower = {
+        "games": len(towers),
+        "rate": round(len(first) / len(towers) * 100) if towers else None,
+        "wr_with": round(sum(g["win"] for g in first) / len(first) * 100) if first else None,
+        "wr_without": round(sum(g["win"] for g in without) / len(without) * 100) if without else None,
+        "median_min": mins[len(mins) // 2] if mins else None,
+        "ref": PRIORITY_REFS["first_tower"],
+    }
+    return {"games": len(pool), "dragons": rows, "first_tower": tower, "lane_tower": PRIORITY_REFS["lane_tower"],
+            "learn": learn.topic("objectives")}
+
+
 def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
     out = []
     pool = [g for g in games if reliable(g)]
@@ -1146,6 +1186,7 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         "recurring_sample": recurring["sample"],
         "deaths": deaths,
         "jungle": jungle_summary(games),
+        "priority": priority_summary(games),
         "goals": evaluated,
         "readiness": readiness(games, refs, evaluated),
         "champions": champion_stats(games, refs),
