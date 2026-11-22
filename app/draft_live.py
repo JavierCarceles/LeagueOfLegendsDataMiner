@@ -6,9 +6,11 @@ vienen del cliente (en las colas con posiciones); los del rival, y los tuyos en 
 con el reparto de roles más probable según en qué línea se juega cada campeón (y quién lleva Castigo).
 
 Cuando están elegidos los 10 (o, en las colas a ciegas, cuando llega la fase final con tu campeón fijado) se importa
-la build del Draft para tu campeón: página de runas «Tempu», hechizos (con el Castigo en la tecla que prefieras) y un
-conjunto de objetos. Una vez por partida y campeón: si cambias de campeón en la fase final, se vuelve a importar.
-Solo se tocan las páginas y los conjuntos que crea la app (nombre «Tempu …»).
+la build del Draft para tu campeón: runas, hechizos (con el Castigo en la tecla que prefieras) y un conjunto de
+objetos. Una vez por partida y campeón: si cambias de campeón en la fase final, se vuelve a importar.
+
+Runas: siempre en **la página con «TD» en el nombre** (TempuDrafter), que se sobrescribe en su mismo hueco y se renombra
+«Campeón TD». Si no hay ninguna y queda un hueco libre, se crea ahí. Tus otras páginas nunca se tocan.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from __future__ import annotations
 import itertools
 import json
 import math
+import re
 import threading
 import time
 import uuid
@@ -29,8 +32,50 @@ ROLES = ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")
 POSITION_ROLE = {"top": "TOP", "jungle": "JUNGLE", "middle": "MID", "mid": "MID", "bottom": "ADC", "utility": "SUPPORT", "support": "SUPPORT"}
 SMITE = 11
 FLASH = 4
-PAGE_PREFIX = "Tempu"
+PAGE_PREFIX = "Tempu"  # las de versiones anteriores («Tempu · Hecarim»): también son de la app
 SET_PREFIX = "Tempu"
+TD_MARK = re.compile(r"(?:^|[^A-Za-z0-9])TD(?:$|[^A-Za-z0-9])")
+
+
+def is_app_page(name) -> bool:
+    """¿Es la página (o el conjunto) de la app? Lleva «TD» como palabra en el nombre, o es una antigua «Tempu …»."""
+    name = str(name or "")
+    return bool(TD_MARK.search(name)) or name.startswith(PAGE_PREFIX)
+
+
+class NoRuneSlot(Exception):
+    pass
+
+
+def write_rune_page(client, page: dict) -> str:
+    """Escribe la página en la de la app («TD»): ``updated`` (sobrescrita en su hueco) o ``created`` (en un hueco libre)."""
+    pages = [p for p in client.rune_pages() if isinstance(p, dict)]
+    editable = [p for p in pages if p.get("isEditable", True) and p.get("isDeletable", True)]
+    ours = sorted((p for p in editable if is_app_page(p.get("name"))), key=lambda p: (not TD_MARK.search(str(p.get("name") or "")), p.get("id", 0)))
+    if ours:
+        target = ours[0]
+        try:
+            client.update_rune_page(target["id"], page)
+        except lcu.LCUError:  # algunas versiones del cliente no dejan editar: se rehace en el mismo hueco
+            client.delete_rune_page(target["id"])
+            target = client.create_rune_page(page) or target
+        _make_current(client, target.get("id"))
+        return "updated"
+    slots = client.rune_page_slots()
+    if slots is not None and len(editable) >= slots:
+        raise NoRuneSlot
+    created = client.create_rune_page(page) or {}
+    _make_current(client, created.get("id"))
+    return "created"
+
+
+def _make_current(client, page_id) -> None:
+    if not page_id:
+        return
+    try:
+        client.set_current_rune_page(page_id)
+    except lcu.LCUError:
+        log.debug("No se pudo marcar la página de runas como la actual", exc_info=True)
 POLL_IN_SELECT_S = 1.0
 POLL_IDLE_S = 3.0
 DEFAULT_SHARDS = [5008, 5008, 5011]  # adaptativo, adaptativo, vida: lo más jugado cuando OP.GG no los da
@@ -219,20 +264,20 @@ def _rune_page(rec_runes: dict | None, fallback: dict | None, name: str) -> dict
 def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, prefs: dict, extra_runes: dict | None = None) -> dict:
     """Escribe en el cliente lo que toque según ``prefs``. ``client``: el módulo ``lcu`` (o un doble en los tests)."""
     done: dict = {"runes": None, "spells": None, "items": None, "errors": []}
-    title = f"{PAGE_PREFIX} · {champ_name}" + (f" vs {opponent_name}" if opponent_name else "")
+    title = f"{champ_name} TD" + (f" vs {opponent_name}" if opponent_name else "")
     if prefs.get("runes"):
-        page = _rune_page(rec.get("runes"), extra_runes, f"{PAGE_PREFIX} · {champ_name}"[:25])  # el cliente corta a 25
+        page = _rune_page(rec.get("runes"), extra_runes, f"{champ_name[:22]} TD")  # el cliente admite 25 caracteres
         if page is None:
             done["errors"].append("Sin página de runas recomendada para este campeón")
         else:
             try:
-                for old in client.rune_pages():
-                    if str(old.get("name") or "").startswith(PAGE_PREFIX) and old.get("isDeletable", True):
-                        client.delete_rune_page(old["id"])
-                client.create_rune_page(page)
+                done["rune_page"] = write_rune_page(client, page)
                 done["runes"] = page["selectedPerkIds"]
+            except NoRuneSlot:
+                done["errors"].append("Runas: no hay ninguna página con «TD» en el nombre ni huecos libres. Pon «TD» en el nombre de una de "
+                                      "tus páginas y la app escribirá siempre ahí, sin tocar las demás.")
             except lcu.LCUError as exc:
-                done["errors"].append(f"Runas: {exc} (si no te quedan páginas libres, borra una en el cliente)")
+                done["errors"].append(f"Runas: {exc}")
     if prefs.get("spells"):
         spells = order_spells(rec.get("spells") or [], prefs.get("smite_key", "F"))
         if spells is None:
@@ -247,7 +292,7 @@ def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, 
         try:
             sid = client.summoner_id()
             payload = client.item_sets(sid) or {}
-            sets = [s for s in payload.get("itemSets") or [] if not str(s.get("title") or "").startswith(SET_PREFIX)]
+            sets = [s for s in payload.get("itemSets") or [] if not is_app_page(s.get("title"))]
             new = _item_set(rec["champ"], title[:75], rec)
             sets.append(new)
             client.save_item_sets(sid, {**payload, "accountId": payload.get("accountId", sid), "itemSets": sets, "timestamp": int(time.time() * 1000)})
@@ -255,6 +300,46 @@ def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, 
         except lcu.LCUError as exc:
             done["errors"].append(f"Objetos: {exc}")
     return done
+
+
+# ------------------------------------------------------------------ perfil
+AUTO_PROFILE_KEY = "profile_autodetect"  # "0" si borraste tu perfil a propósito: no se vuelve a crear solo
+AUTO_PROFILE_EVERY_S = 60
+
+
+def ensure_profile(svc, client=lcu) -> dict | None:
+    """Sin perfil guardado y con el cliente abierto, guarda solo tu cuenta (la del cliente). Devuelve el perfil nuevo."""
+    from app.coach import store
+    from app.coach.benchmarks import DEFAULT_TARGET
+    from app.coach.tracker import ProfileNotFound, resolve_account
+    from app.riot.client import RiotAPIError, RiotKeyError
+
+    if store.get_profile(svc.db) or svc.db.meta_get(AUTO_PROFILE_KEY) == "0":
+        return None
+    account = client.current_summoner()
+    if not account.get("platform"):
+        return None
+    resolved: dict = {}
+    if svc.keys.get() and svc.keys.status != "invalid":
+        try:
+            resolved = resolve_account(svc, account["game_name"], account["tag_line"], account["platform"])
+        except (ProfileNotFound, RiotKeyError, RiotAPIError):
+            resolved = {}  # se vincula solo cuando Riot responda (como al guardarlo a mano)
+    profile = store.save_profile(
+        svc.db,
+        game_name=resolved.get("game_name") or account["game_name"],
+        tag_line=resolved.get("tag_line") or account["tag_line"],
+        platform=resolved.get("platform") or account["platform"],
+        puuid=resolved.get("puuid"),
+        profile_icon=resolved.get("profile_icon") or account.get("profile_icon"),
+        summoner_level=resolved.get("summoner_level") or account.get("summoner_level"),
+        target_tier=DEFAULT_TARGET,
+    )
+    tracker = getattr(svc, "tracker", None)
+    if tracker is not None:
+        tracker.trigger()
+    log.info("Perfil detectado en el cliente de LoL: %s#%s (%s).", profile["game_name"], profile["tag_line"], profile["platform"])
+    return profile
 
 
 # ------------------------------------------------------------------ vigilante
@@ -266,6 +351,7 @@ class DraftLive:
         self._lock = threading.Lock()
         self._imported: tuple | None = None
         self._share_for: tuple | None = None  # (partida, función): una consulta de roles por selección, no por segundo
+        self._next_profile = 0.0
         self.state: dict = {"active": False, "client": False, "draft": None, "import": None, "updated": None, "error": None}
 
     def start(self) -> None:
@@ -314,6 +400,13 @@ class DraftLive:
     def poll(self) -> float:
         phase = lcu.gameflow_phase()
         self.state["client"] = phase is not None
+        if phase is not None and time.time() >= self._next_profile:
+            self._next_profile = time.time() + AUTO_PROFILE_EVERY_S
+            try:
+                if ensure_profile(self.svc):
+                    self.state["profile_detected"] = time.time()
+            except lcu.LCUError:
+                log.debug("El cliente aún no ha cargado tu cuenta", exc_info=True)
         if phase != "ChampSelect":
             if self.state["active"]:
                 self.state.update(active=False)

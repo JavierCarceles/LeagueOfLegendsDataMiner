@@ -235,6 +235,25 @@ def delete_rune_page(page_id: int) -> None:
     _request("DELETE", f"/lol-perks/v1/pages/{int(page_id)}")
 
 
+def update_rune_page(page_id: int, page: dict) -> None:
+    """Sobrescribe una página de runas (la «TD» de la app): mismo hueco, contenido y nombre nuevos."""
+    _request("PUT", f"/lol-perks/v1/pages/{int(page_id)}", {**page, "id": int(page_id)})
+
+
+def set_current_rune_page(page_id: int) -> None:
+    _request("PUT", "/lol-perks/v1/currentpage", int(page_id))
+
+
+def rune_page_slots() -> int | None:
+    """Cuántas páginas de runas editables puedes tener (``None`` si el cliente no lo dice)."""
+    try:
+        inv = _get("/lol-perks/v1/inventory")
+    except LCUError:
+        return None
+    value = (inv or {}).get("ownedPageCount") if isinstance(inv, dict) else None
+    return int(value) if value else None
+
+
 def create_rune_page(page: dict) -> dict:
     data = _request("POST", "/lol-perks/v1/pages", page)
     return data if isinstance(data, dict) else {}

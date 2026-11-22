@@ -51,6 +51,9 @@ def _ids(values) -> list[int]:
     return out
 
 
+_PASSIVE = re.compile(r"<passive>(.*?)</passive>")
+
+
 def _stack_size(value) -> int:
     try:
         return max(1, int(value or 1))
@@ -96,6 +99,8 @@ class ItemCatalog:
                 "stacks": _stack_size(v.get("stacks")),  # pociones (5), pinks (2)… comparten un hueco
                 "buyable": bool(gold.get("purchasable", True)) and v.get("inStore", True) is not False and not v.get("requiredAlly"),
                 "champion": v.get("requiredChampion") or "",
+                "special": int(v.get("specialRecipe") or 0),  # objeto que se transforma en este (Manamune -> Muramana)
+                "passives": sorted(set(_PASSIVE.findall(v.get("description") or ""))),  # pasivas únicas por su nombre
                 "gw": bool(_GW.search(v.get("description") or "")),
             }
         for item in items.values():  # solo recetas que existen en la Grieta
@@ -112,6 +117,14 @@ class ItemCatalog:
     # ------------------------------------------------------------- consultas
     def get(self, item: int) -> dict:
         return self.items.get(item) or {}
+
+    def buyable_form(self, item: int) -> int:
+        """El objeto que se compra de verdad: Muramana, Abrazo del serafín o El gran invierno no están en la tienda,
+        salen al transformarse Manamune, Bastón del arcángel o Llegada del invierno."""
+        it = self.get(item)
+        if it and not it.get("buyable", True) and it.get("special") in self.items:
+            return it["special"]
+        return item
 
     def name(self, item: int) -> str:
         return self.get(item).get("name") or f"#{item}"

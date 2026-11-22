@@ -203,7 +203,7 @@ class Lolalytics(CachedSource):
             return None
         lane = LANES[role]
         version = game_version(patch)
-        key = f"{champ}|{lane}|{scope[0]}|{scope[1]}|{version}|v2"  # v2: botas de itemBootSet2
+        key = f"{champ}|{lane}|{scope[0]}|{scope[1]}|{version}|v3"  # v3: posición de compra y builds completas
 
         def fetch():
             data = self._get({"ep": "build-itemset", "patch": version, "c": slug, "lane": lane, "tier": scope[0], "region": scope[1]})
@@ -222,12 +222,19 @@ class Lolalytics(CachedSource):
                 return out
 
             items: dict[str, list[int]] = {}
+            # Posición de compra (1-5): las builds vienen en orden. Un objeto que se compra de primero (Soberbia,
+            # objetos de bola de nieve) no tiene sentido de 4.º o 5.º aunque lo lleve un tercio de las builds.
+            pos: dict[str, list[int]] = {}
             five = rows("itemSet5")
             for ids, games, wins in five:
                 for i in set(ids):
                     cur = items.setdefault(str(i), [0, 0])
                     cur[0] += games
                     cur[1] += wins
+                for k, i in enumerate(ids, start=1):
+                    cur = pos.setdefault(str(i), [0, 0])
+                    cur[0] += k * games
+                    cur[1] += games
             first = {str(ids[0]): [g, w] for ids, g, w in rows("itemSet1") if ids}
             # Botas: de «primer objeto + botas» (itemBootSet2). itemBootSet1 solo cuenta las partidas en que las botas
             # fueron la primera compra (≈ 1/5 de la muestra y sesgada); aquí salen también los objetos, se filtran al usarlas.
@@ -243,9 +250,48 @@ class Lolalytics(CachedSource):
                 "boots": boots,
                 "games": sum(g for _ids, g, _w in five),
                 "paths": [[ids, g, w] for ids, g, w in sorted(five, key=lambda r: -r[1])[:8]],
+                "pos": {i: round(total / games, 2) for i, (total, games) in pos.items() if games},
+                # Las builds completas (las más jugadas): para medir qué se compra junto al núcleo que se recomienda.
+                "sets": [[ids, g, w] for ids, g, w in sorted(five, key=lambda r: -r[1])[:SETS_KEPT]],
             }
 
         return self._cached("lola_items", key, self._ttl(patch), fetch, allow_fetch)
+
+    def rune_pages(self, champ: int, role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> list[dict] | None:
+        """Las dos páginas de runas de referencia: la más jugada y la que más gana (completas, con fragmentos).
+
+        ``[{"kind": "pick"|"win", "keystone", "primary", "secondary", "ids": [6], "shards": [3], "games", "wr", "share"}]``.
+        """
+        scope = self._scope(tier, region)
+        slug = self.slug(champ)
+        if scope is None or role not in LANES or not slug:
+            return None
+        lane = LANES[role]
+        version = game_version(patch)
+        key = f"{champ}|{lane}|{scope[0]}|{scope[1]}|{version}|runas"
+
+        def fetch():
+            data = self._get({"ep": "rune", "patch": version, "c": slug, "lane": lane, "tier": scope[0], "region": scope[1]})
+            total = (data.get("header") or {}).get("n") or 0
+            out = []
+            for kind, page in ((data.get("summary") or {}).get("runes") or {}).items():
+                rune_set = page.get("set") or {}
+                pri, sec, mod = rune_set.get("pri") or [], rune_set.get("sec") or [], rune_set.get("mod") or []
+                if len(pri) != 4 or len(sec) != 2 or len(mod) != 3:
+                    continue
+                primary = (self.dd.runes.get(int(pri[0])) or {}).get("style")
+                secondary = (self.dd.runes.get(int(sec[0])) or {}).get("style")
+                if not primary or not secondary:
+                    continue
+                out.append({"kind": kind, "keystone": int(pri[0]), "primary": primary, "secondary": secondary,
+                            "ids": [int(i) for i in pri + sec], "shards": [int(i) for i in mod], "games": page.get("n"),
+                            "wr": page.get("wr"), "share": round(page["n"] / total, 3) if total and page.get("n") else None})
+            return out or None
+
+        return self._cached("lola_runes", key, self._ttl(patch), fetch, allow_fetch)
+
+
+SETS_KEPT = 1500  # builds de 5 objetos que se guardan por campeón y línea (Hecarim jungla: 2.663 distintas, 5.881 partidas)
 
 
 def _float(value) -> float | None:

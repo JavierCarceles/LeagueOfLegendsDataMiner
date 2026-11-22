@@ -914,7 +914,7 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 
 /* Draft: builds recomendadas */
 .build-rows { display: flex; flex-direction: column; gap: 4px; }
-.build-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) 28px auto auto; align-items: center; gap: 12px; padding: 7px 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.build-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) 28px auto auto auto; align-items: center; gap: 12px; padding: 7px 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .build-row:hover { background: var(--panel-2); border-color: var(--line); }
 .build-row:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .build-items { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -1121,3 +1121,10 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .map-callout.sev-info .callout-ring { border-color: var(--sev-info); background: rgba(143, 152, 173, 0.14); }
 .replay-banner.sev-info { border-left-color: var(--sev-info); }
 .moment-card.sev-info { border-left-color: var(--sev-info); }
+
+/* Plan de partida del Draft */
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin-top: 8px; }
+.plan-player { padding: 10px 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
+.plan-player.me { border-color: var(--gold); }
+.plan-lines { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); }
+@media (max-width: 760px) { .plan-grid { grid-template-columns: 1fr; } }

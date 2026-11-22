@@ -179,9 +179,10 @@ class DDragon:
         rune_map: dict[int, dict] = {}
         for style in runes or []:
             rune_map[int(style["id"])] = {"name": style.get("name", ""), "icon": style.get("icon", "")}
-            for slot in style.get("slots", []):
+            for row, slot in enumerate(style.get("slots", [])):
                 for rune in slot.get("runes", []):
-                    rune_map[int(rune["id"])] = {"name": rune.get("name", ""), "icon": rune.get("icon", "")}
+                    # Árbol y fila de cada runa: hacen falta para crear la página en el cliente (árbol principal y secundario).
+                    rune_map[int(rune["id"])] = {"name": rune.get("name", ""), "icon": rune.get("icon", ""), "style": int(style["id"]), "row": row}
 
         with self._lock:
             self.version = version

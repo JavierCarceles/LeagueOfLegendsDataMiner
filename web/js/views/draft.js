@@ -174,9 +174,9 @@ function renderLivePanel() {
         { style: { gap: "14px", flexWrap: "wrap", marginTop: "10px", alignItems: "center" } },
         prefCheck("enabled", "Seguir la selección de campeones", "Con el cliente abierto, el draft se rellena y se analiza solo mientras eliges"),
         prefCheck("auto_import", "Importar al elegirse los 10", "Al terminar la selección se pasa la build de tu campeón al cliente"),
-        prefCheck("runes", "Runas", "Crea (o sustituye) la página «Tempu» con las runas recomendadas"),
+        prefCheck("runes", "Runas", "Escribe siempre en tu página con «TD» en el nombre (la renombra «Campeón TD»); si no tienes ninguna, la crea en un hueco libre. Tus otras páginas no se tocan"),
         prefCheck("spells", "Hechizos", "Pone los hechizos recomendados"),
-        prefCheck("items", "Objetos", "Crea un conjunto de objetos «Tempu» para ese campeón"),
+        prefCheck("items", "Objetos", "Crea un conjunto de objetos «Campeón TD» para ese campeón"),
         smite,
       ),
     ),
@@ -185,9 +185,9 @@ function renderLivePanel() {
 
 function importText(imp) {
   const parts = [];
-  if (imp.runes) parts.push("runas");
+  if (imp.runes) parts.push(imp.rune_page === "created" ? "runas (página «TD» nueva en un hueco libre)" : "runas (en tu página «TD»)");
   if (imp.spells) parts.push(`hechizos (D: ${SPELL_NAME[imp.spells[0]] || imp.spells[0]}, F: ${SPELL_NAME[imp.spells[1]] || imp.spells[1]})`);
-  if (imp.items) parts.push(`${imp.items} objetos en el conjunto «Tempu»`);
+  if (imp.items) parts.push(`${imp.items} objetos en el conjunto «${dd.name(imp.champ)} TD»`);
   return parts.join(", ");
 }
 
@@ -487,6 +487,7 @@ async function loadBuilds(mine) {
   if (!res.ally.length && !res.enemy.length) return mount(buildsEl);
   mount(
     buildsEl,
+    planCard(res),
     h(
       "section.card",
       h("h3.card-title", icon("crown"), "Builds recomendadas", h("span.spacer"), h("span.tiny.muted.hide-sm", "contra su rival de línea y ajustadas al equipo rival · pulsa una para ver el porqué")),
@@ -495,6 +496,38 @@ async function loadBuilds(mine) {
         ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.builds.rival", [icon("crown"), "Builds del rival"], () => h("div.build-rows", res.enemy.map(buildRow)), { cls: "flat", summary: `${res.enemy.length} ${res.enemy.length === 1 ? "campeón" : "campeones"} · para saber qué van a construir` }))
         : null,
     ),
+  );
+}
+
+// ------------------------------------------------------------------ plan de partida
+const TEMPO_LABEL = { early: "Partida corta", late: "Partida larga", even: "Sin ventaja por duración" };
+
+function planPlayer(p, isMe) {
+  const lines = p.plan?.lines || [];
+  if (!lines.length) return null;
+  return h(
+    `div.plan-player${isMe ? ".me" : ""}`,
+    h("div.row", { style: { gap: "8px", alignItems: "center" } }, roleIcon(p.role), champImg(p.champ, "sm"), h("b.small", dd.name(p.champ)), isMe ? h("span.pill.pill-gold", "Tú") : null),
+    h("ul.plan-lines", lines.map((l) => h("li.small", h("b", `${l.topic}: `), l.text))),
+  );
+}
+
+function planCard(res) {
+  const myRole = live.last?.active ? live.last?.draft?.me?.role : null;
+  const allies = [...(res.ally || [])].sort((a, b) => (b.role === myRole) - (a.role === myRole));
+  const rows = allies.map((p) => planPlayer(p, p.role === myRole)).filter(Boolean);
+  if (!rows.length) return null;
+  const team = res.plans?.ally;
+  const rivals = (res.enemy || []).map((p) => planPlayer(p, false)).filter(Boolean);
+  return h(
+    "section.card",
+    { style: { marginBottom: "16px" } },
+    h("h3.card-title", icon("map"), "Plan de partida", h("span.spacer"), team ? h("span.pill", TEMPO_LABEL[team.tempo] || "") : null),
+    h("p.tiny.muted", "Sale del draft: cómo va cada equipo según la duración de la partida y quién gana cada línea (OP.GG y el winrate de cada cruce)."),
+    h("div.plan-grid", rows),
+    rivals.length
+      ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.plan.rival", [icon("map"), "Lo que hará el rival"], () => h("div.plan-grid", rivals), { cls: "flat", summary: res.plans?.enemy ? TEMPO_LABEL[res.plans.enemy.tempo] : null }))
+      : null,
   );
 }
 
@@ -514,6 +547,9 @@ function buildRow(p) {
     p.runes?.keystone ? runeImg(p.runes.keystone, 24) : h("span"),
     h("span.tiny.muted.hide-sm", p.opponent ? `vs ${dd.name(p.opponent)}` : ""),
     draftPicks ? h("span.pill.pill-gold", { title: "Objetos elegidos por cómo es el equipo rival (en dorado)" }, `${draftPicks} por el draft`) : h("span"),
+    p.plan?.style && p.plan.style !== "normal"
+      ? h(`span.pill${p.plan.style === "aggressive" ? ".pill-red" : ".pill-blue"}`, { title: p.plan.text || "" }, p.plan.style === "aggressive" ? "Bola de nieve" : "Escalar")
+      : h("span"),
   );
 }
 
@@ -531,6 +567,7 @@ function openBuild(p) {
     h(
       "div.col",
       { style: { gap: "16px" } },
+      p.plan?.text ? h(`div.notice.notice-${p.plan.style === "aggressive" ? "warn" : "info"}`, icon("info"), h("div.small", h("b", "Plan de partida: "), p.plan.text)) : null,
       p.build?.length
         ? h(
             "div.col",
@@ -545,6 +582,7 @@ function openBuild(p) {
             "div.col",
             { style: { gap: "6px" } },
             p.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(p.runes.keystone, 22), h("span", p.runes.names.map((n, i) => dd.runeName(p.runes.ids?.[i]) || n).join(" · ")))) : null,
+            p.runes?.why ? h("div.tiny.muted", p.runes.why) : null,
             p.starter?.length ? h("div.row", { style: { gap: "6px" } }, h("span.tiny.muted", "Inicio"), h("span.build-items", p.starter.map((i) => itemImg(i)))) : null,
             p.skills ? h("div.small.muted", `Habilidades: ${p.skills}`) : null,
           )

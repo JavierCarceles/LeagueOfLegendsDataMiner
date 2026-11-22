@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import ClassVar
 
 from app.analytics import builds
 from app.analytics.filters import Filters
@@ -130,6 +131,8 @@ def test_lolalytics_item_sets_are_parsed(keyed_svc, monkeypatch):
     data = lola.item_sets(AATROX, "TOP", "emerald_plus", "global", "16.22")
     assert data["games"] == 180 and data["items"]["3071"] == [180, 107] and data["items"]["3156"] == [80, 47]
     assert data["first"]["3071"] == [600, 300] and data["boots"]["3111"] == [200, 110]
+    assert data["pos"]["3071"] == 1.33 and data["pos"]["3026"] == 5.0  # posición media de compra (1-5)
+    assert data["sets"][0] == [[3071, 3053, 3161, 6694, 3026], 100, 60]
 
 
 def test_lolalytics_boots_come_from_first_item_plus_boots(keyed_svc, monkeypatch):
@@ -192,3 +195,244 @@ def test_lolalytics_winrate_is_never_shown_as_a_bare_number():
     assert builds._wr_text(None, 5000) == "" and builds._wr_text(1.5, 5000) == "" and builds._wr_text(6, 100) == ""
     assert builds._wr_text(3.4, 2000) == ", 3 pp mejor que sus otras opciones en Lolalytics"
     assert "peor" in builds._wr_text(-4, 2000)
+
+
+class FakeLola:
+    """Lolalytics con builds completas: 3033 se compra de primero (camino aparte) y el resto va con el núcleo 3071 + 3053."""
+
+    enabled = True
+
+    def __init__(self, sets):
+        self.sets = sets
+
+    def item_sets(self, champ, role, tier, region, patch, allow_fetch=True):
+        items, pos = {}, {}
+        for ids, games, wins in self.sets:
+            for k, i in enumerate(ids, start=1):
+                cur = items.setdefault(str(i), [0, 0])
+                cur[0] += games
+                cur[1] += wins
+                acc = pos.setdefault(str(i), [0, 0])
+                acc[0] += k * games
+                acc[1] += games
+        return {"items": items, "first": {}, "boots": {}, "games": sum(g for _i, g, _w in self.sets), "paths": [],
+                "pos": {i: round(t / g, 2) for i, (t, g) in pos.items()}, "sets": [list(r) for r in self.sets]}
+
+
+def test_first_buy_items_are_never_recommended_late_and_usage_is_measured_with_the_core(keyed_svc):
+    """Partida real: a Hecarim le salió Soberbia de 5.º objeto porque la llevaba el 36 % de sus builds, pero se compra de
+    primero (camino de letalidad). Ahora va a alternativas como otra forma de empezar."""
+    _svc(keyed_svc, generals={(AATROX, "TOP"): {**GENERAL, "fourth": [], "fifth": [], "sixth": []}})
+    keyed_svc.lolalytics = FakeLola([
+        ([3033, 3071, 3053, 6694, 3026], 400, 220),  # 3033 siempre de primero
+        ([3033, 3071, 3053, 3156, 3026], 300, 160),
+        ([3071, 3053, 3156, 6694, 3065], 350, 190),
+        ([3071, 3053, 6694, 3156, 3026], 250, 140),
+        ([3161, 3065, 3075, 3026, 3156], 200, 90),  # 3075 nunca va con el núcleo 3071 + 3053
+    ])
+    (top,) = builds.recommend(keyed_svc, Filters(), {"TOP": AATROX}, {"TOP": ZED})["ally"]  # sin curanderos: sin Heridas graves
+    chosen = items_of(top)
+    assert chosen[:2] == [3071, 3053] and 3033 not in chosen and 3075 not in chosen
+    rush = next(a for a in top["alternatives"] if a["item"] == 3033)
+    assert rush["reason"].startswith("Otra forma de empezar: se compra de primer objeto (posición media 1")
+    # El resto, en el orden en que se compra.
+    pos = keyed_svc.lolalytics.item_sets(AATROX, "TOP", "", "", "")["pos"]
+    rest = chosen[2:]
+    assert len(rest) == 3 and rest == sorted(rest, key=lambda i: pos.get(str(i), 9.0))
+    popular = next(b for b in top["build"] if b["item"] == 6694)
+    assert "de sus builds con ese núcleo" in popular["reason"]
+
+
+def test_with_core_needs_enough_builds():
+    lola = FakeLola([([3071, 3053, 6694, 3156, 3026], 100, 50)]).item_sets(0, "TOP", "", "", "")
+    assert builds._with_core(lola, [3071, 3053]) is None  # 100 < 300: se usa el total
+    lola = FakeLola([([3071, 3053, 6694, 3156, 3026], 400, 200), ([3161, 3065, 3075, 3026, 3156], 500, 250)]).item_sets(0, "TOP", "", "", "")
+    out = builds._with_core(lola, [3071, 3053])
+    assert out["games"] == 400 and "3075" not in out["items"] and out["items"]["6694"] == [400, 200]
+
+
+def test_items_that_never_go_together_are_not_recommended_together(keyed_svc):
+    """Auditoría: Dominik + Recordatorio letal (pasiva única) o Cuchilla negra + Rencor de Serylda salían juntos."""
+    _svc(keyed_svc, generals={(AATROX, "TOP"): {**GENERAL, "fourth": [], "fifth": [], "sixth": []}})
+    keyed_svc.lolalytics = FakeLola([
+        ([3071, 3053, 6694, 3026, 3065], 500, 260),  # 6694 y 3156 nunca juntos (los dos muy comprados)
+        ([3071, 3053, 3156, 3026, 3065], 450, 240),
+        ([3071, 3053, 6694, 3065, 3075], 300, 150),
+        ([3071, 3053, 3156, 3065, 3075], 250, 130),
+    ])
+    (top,) = builds.recommend(keyed_svc, Filters(), {"TOP": AATROX}, {"TOP": ZED})["ally"]
+    chosen = items_of(top)
+    assert not ({6694, 3156} <= set(chosen))
+    exclusive = builds._Exclusive(keyed_svc.lolalytics.item_sets(0, "TOP", "", "", ""))
+    assert exclusive(6694, 3156) and not exclusive(6694, 3026)
+
+
+def test_aggressive_items_are_damage_with_penetration_and_no_defense():
+    cat = ItemCatalog.from_ddragon({"data": {**ITEMS, **EXTRA}})
+    assert builds._aggressive_item(cat, 3033)  # daño + penetración
+    assert not builds._aggressive_item(cat, 3071)  # con vida (Cuchilla negra)
+    assert not builds._aggressive_item(cat, 3026)  # con armadura
+
+
+def test_the_game_plan_picks_a_real_snowball_build_when_it_fits():
+    """El ejemplo del usuario: jungla, draft que pierde el late, mid con prioridad y ganando a su jungla: invadir con
+    build de bola de nieve (si el campeón la tiene de verdad: ≥ 10 % de sus builds y sin perder más de 1,5 pp)."""
+    cat = ItemCatalog.from_ddragon({"data": {**ITEMS, **EXTRA}})
+    team = {"tempo": "early", "early": 54.0, "late": 45.0, "lanes": {"TOP": 0, "JUNGLE": 1, "MID": 1, "ADC": 0, "SUPPORT": 0}}
+    plan = builds._player_plan(team, "JUNGLE")
+    assert plan["style"] == "aggressive"
+    assert plan["text"].startswith("Vuestro draft es mejor en partidas cortas (54 % antes del 25 frente a 45 % pasado el 35); ganas a su jungla; tu mid gana su línea. Invade su jungla")
+    lola = FakeLola([([3071, 3053, 3156, 3026, 3065], 700, 360), ([3033, 3071, 3053, 6694, 3026], 300, 158)]).item_sets(0, "JUNGLE", "", "", "")
+    paths = builds._paths(cat, lola)
+    assert [(x["first"], x["second"], x["aggressive"]) for x in paths] == [(3071, 3053, False), (3033, 3071, True)]
+    base = builds._choose_path(cat, {"core": [3071, 3053, 3161]}, paths, plan)
+    assert base["core"][:2] == [3033, 3071] and base["path"]["share"] == 0.3
+    # Normal o con una build agresiva que gana claramente menos: no se cambia.
+    assert builds._choose_path(cat, {"core": [3071, 3053]}, paths, {"style": "normal"})["core"] == [3071, 3053]
+    worse = FakeLola([([3071, 3053, 3156, 3026, 3065], 700, 380), ([3033, 3071, 3053, 6694, 3026], 300, 140)]).item_sets(0, "JUNGLE", "", "", "")
+    assert builds._choose_path(cat, {"core": [3071, 3053]}, builds._paths(cat, worse), plan)["core"] == [3071, 3053]
+
+
+def test_plan_texts_for_lanes_and_a_losing_jungle_matchup():
+    lanes = {"TOP": -1, "JUNGLE": -1, "MID": 1, "ADC": 1, "SUPPORT": 0}
+    even = {"tempo": "even", "early": 50.0, "late": 50.0, "lanes": lanes}
+    jungle = builds._player_plan(even, "JUNGLE")
+    assert jungle["style"] == "scaling" and "No le invadas" in jungle["text"]
+    top = builds._player_plan(even, "TOP")
+    assert top["text"] == "Pierdes tu línea. Juega seguro en línea, sin forzar intercambios, y escala."
+    support = builds._player_plan({**even, "tempo": "early", "early": 55.0, "late": 45.0}, "SUPPORT")
+    assert support["style"] == "aggressive" and "tu dúo gana la línea" in support["text"]
+    assert builds._player_plan(None, "MID") == {"style": "normal", "text": None}
+
+
+def test_transformed_items_are_recommended_as_the_one_you_can_buy():
+    cat = ItemCatalog.from_ddragon({"data": {
+        "3004": {"name": "Manamune", "gold": {"total": 2900, "purchasable": True}, "tags": ["Damage", "Mana"], "maps": {"11": True}, "from": ["1037"], "depth": 3},
+        "3042": {"name": "Muramana", "gold": {"total": 2900, "purchasable": False}, "tags": ["Damage", "Mana"], "maps": {"11": True}, "inStore": False, "specialRecipe": 3004},
+    }})
+    assert cat.buyable_form(3042) == 3004 and cat.buyable_form(3004) == 3004 and cat.buyable_form(999) == 999
+
+
+def test_game_limits_apply_even_without_data_for_the_champion():
+    """Escenarios: Pantheon top con plan de bola de nieve llevaba Dominik + Recordatorio letal (los dos de Últimas
+    palabras: el juego solo deja uno) porque de Pantheon top había pocas builds para verlo en los datos."""
+    cat = ItemCatalog.from_ddragon({"data": {
+        "3035": {"name": "Últimas palabras", "gold": {"total": 1450, "purchasable": True}, "tags": ["Damage"], "maps": {"11": True}, "into": ["3036", "3033"]},
+        "3036": {"name": "Recuerdos de lord Dominik", "gold": {"total": 3100, "purchasable": True}, "tags": ["Damage", "CriticalStrike"], "maps": {"11": True}, "from": ["3035"], "depth": 3,
+                 "description": "<passive>Verdugo de gigantes</passive>"},
+        "3033": {"name": "Recordatorio letal", "gold": {"total": 3000, "purchasable": True}, "tags": ["Damage", "CriticalStrike"], "maps": {"11": True}, "from": ["3035"], "depth": 3,
+                 "description": "<passive>Heridas graves</passive>"},
+        "3053": {"name": "Calibrador de Sterak", "gold": {"total": 3200, "purchasable": True}, "tags": ["Health"], "maps": {"11": True}, "depth": 3,
+                 "description": "<passive>Las garras que atrapan</passive><passive>Salvavidas</passive>"},
+        "3156": {"name": "Fauces de Malmortius", "gold": {"total": 2800, "purchasable": True}, "tags": ["Damage", "SpellBlock"], "maps": {"11": True}, "depth": 3,
+                 "description": "<passive>Salvavidas</passive>"},
+        "3004": {"name": "Manamune", "gold": {"total": 2900, "purchasable": True}, "tags": ["Damage"], "maps": {"11": True}, "depth": 3, "description": "<passive>Carga de maná</passive>"},
+        "3003": {"name": "Bastón del arcángel", "gold": {"total": 2900, "purchasable": True}, "tags": ["SpellDamage"], "maps": {"11": True}, "depth": 3, "description": "<passive>Carga de maná</passive>"},
+    }})
+    no_data = builds._Exclusive(None, cat)
+    assert no_data(3036, 3033)  # mismo componente limitado
+    assert no_data(3053, 3156)  # misma pasiva única (Salvavidas)
+    assert not no_data(3036, 3053)
+    # Si los datos los muestran juntos, mandan los datos (Manamune + Bastón del arcángel en Ryze).
+    seen = FakeLola([([3004, 3003, 3053, 3036, 3156], 400, 200), ([3004, 3003, 3036, 3053, 3156], 300, 150), ([3053, 3036, 3156, 3004, 3003], 300, 150)]).item_sets(0, "MID", "", "", "")
+    assert no_data(3004, 3003) and not builds._Exclusive(seen, cat)(3004, 3003)
+
+
+def test_anti_heal_duty_never_clashes_with_the_core(keyed_svc):
+    """Escenarios: a Smolder le tocaba Heridas graves y salía Recordatorio letal, que no va con su Cuchilla negra."""
+    _svc(keyed_svc, generals={(AATROX, "TOP"): {**GENERAL, "fourth": [], "fifth": [], "sixth": []}})
+    keyed_svc.lolalytics = FakeLola([
+        ([3071, 3053, 6694, 3026, 3065], 500, 260),  # con la Cuchilla negra nunca va 3033
+        ([3071, 3053, 3156, 3026, 3065], 450, 240),
+        ([3033, 3161, 6694, 3026, 3065], 400, 200),
+        ([3033, 3161, 3156, 3026, 3065], 350, 180),
+    ])
+    (top,) = builds.recommend(keyed_svc, Filters(), {"TOP": AATROX}, {"TOP": DARIUS})["ally"]  # Darius se cura
+    assert items_of(top)[:2] == [3071, 3053] and 3033 not in items_of(top)
+
+
+class _DD:
+    runes: ClassVar[dict] = {8128: {"name": "Cosecha oscura"}, 8010: {"name": "Conquistador"}, 8230: {"name": "Irrupción de la tormenta"}}
+
+    @staticmethod
+    def name(champ):
+        return {64: "Lee Sin"}.get(champ, str(champ))
+
+
+KAYN_LOLA = [
+    {"kind": "pick", "keystone": 8128, "primary": 8100, "secondary": 8300, "ids": [8128, 8143, 8140, 8135, 8347, 8304], "shards": [5008, 5008, 5001],
+     "games": 28065, "wr": 51.67, "share": 0.465},
+    {"kind": "win", "keystone": 8010, "primary": 8000, "secondary": 8100, "ids": [8010, 9111, 9105, 8299, 8321, 8313], "shards": [5008, 5008, 5013],
+     "games": 24565, "wr": 51.89, "share": 0.407},
+]
+
+
+def test_runes_follow_the_game_plan_among_the_champions_real_pages():
+    """Kayn puede ir con Cosecha (bola de nieve) o Conquistador (pelea larga): se elige por el plan de la partida."""
+    base = {"source": "general", "runes": None}
+    normal = builds._choose_runes(_DD, base, [], KAYN_LOLA, None, None)
+    assert normal["keystone"] == 8128 and normal["why"] == "Cosecha oscura: la más jugada con él (46 % de sus partidas)"
+    assert normal["shards"] == [5008, 5008, 5001] and normal["primary"] == 8100 and normal["names"][0] == "Cosecha oscura"
+    scaling = builds._choose_runes(_DD, base, [], KAYN_LOLA, None, "durable")
+    assert scaling["keystone"] == 8010 and "para pelear largo por el plan" in scaling["why"]
+    assert builds._choose_runes(_DD, base, [], KAYN_LOLA, None, "aggressive")["keystone"] == 8128
+    # Una página del plan que gana claramente menos no se usa.
+    worse = [KAYN_LOLA[0], {**KAYN_LOLA[1], "wr": 49.0}]
+    assert builds._choose_runes(_DD, base, [], worse, None, "durable")["keystone"] == 8128
+
+
+def test_runes_prefer_the_page_played_against_that_opponent():
+    guide = [{"keystone": 8010, "primary": 8000, "secondary": 8100, "ids": [8010, 9111, 9105, 8299, 8321, 8313], "games": 400, "wins": 216}]
+    runes = builds._choose_runes(_DD, {"source": "matchup"}, guide, KAYN_LOLA, 64, None)
+    assert runes["keystone"] == 8010 and runes["why"] == "Conquistador: la más jugada contra Lee Sin (400 partidas en OP.GG)"
+    assert runes["shards"] == [5008, 5008, 5013]  # los fragmentos de la página de Lolalytics con la misma piedra angular
+    thin = [{**guide[0], "games": 40}]  # con pocas partidas, manda la más jugada en general
+    assert builds._choose_runes(_DD, {"source": "matchup"}, thin, KAYN_LOLA, 64, None)["keystone"] == 8128
+
+
+def test_plan_lines_tell_the_jungler_where_to_gank_and_which_objectives_to_play():
+    team = {"tempo": "early", "early": 55.0, "late": 45.0, "lanes": {"TOP": 1, "JUNGLE": 1, "MID": 0, "ADC": -1, "SUPPORT": 0}}
+    mine = {"TOP": "Aatrox", "JUNGLE": "Hecarim", "MID": "Ahri", "ADC": "Jinx", "SUPPORT": "Thresh"}
+    theirs = {"TOP": "Darius", "JUNGLE": "Skarner", "MID": "Syndra", "ADC": "Kai'Sa", "SUPPORT": "Nautilus"}
+    lines = {l["topic"]: l["text"] for l in builds._plan_lines(team, "JUNGLE", mine, theirs)}
+    assert lines["Partida"].startswith("Vuestro draft es mejor en partidas cortas (55 % antes del 25")
+    assert lines["Jungla"].startswith("Ganas a Skarner: puedes robarle campamentos")  # mid igualado: invadir con cuidado
+    assert lines["Ganks"] == ("Ganquea top (Aatrox contra Darius): ganan su línea y con tu ayuda hacen bola de nieve; "
+                              "mid está igualado: un gank decide la línea; ADC pierde su línea: no fuerces ganks ahí, juega a contragankear y a cubrirlos en defensa.")
+    assert lines["Objetivos"].startswith("Dragón: no tenéis prioridad (mid está igualado y ADC pierde su línea)")
+    assert "Larvas y heraldo: tenéis prioridad (top gana su línea y mid está igualado)" in lines["Objetivos"]
+    mid = {l["topic"]: l["text"] for l in builds._plan_lines(team, "MID", mine, theirs)}
+    assert mid["Jungla"].startswith("Mid igualado: muévete con tu jungla solo cuando")
+    support = {l["topic"]: l["text"] for l in builds._plan_lines(team, "SUPPORT", mine, theirs)}
+    assert support["Línea"].startswith("Perdéis la línea (Jinx y Thresh contra Kai'Sa y Nautilus)")
+    assert support["Objetivos"].startswith("Dragón: no tenéis prioridad")
+    assert builds._plan_lines(None, "TOP", mine, theirs) == []
+    assert builds.team_priorities(team) == {"dragon": "theirs", "top_side": "ours"}
+
+
+def test_tempo_never_says_winning_when_behind_in_both_phases():
+    behind = builds._tempo_line({"tempo": "late", "early": 39.0, "late": 43.0})[0]["text"]
+    assert behind.startswith("Vuestro draft va por detrás en cualquier duración, pero sufre menos si la partida se alarga (39 % antes del 25, 43 % pasado el 35)")
+    ahead = builds._tempo_line({"tempo": "early", "early": 61.0, "late": 57.0})[0]["text"]
+    assert ahead.startswith("Vuestro draft es mejor en partidas cortas (61 % antes del 25 frente a 57 % en las largas)")
+    assert builds._tempo_line({"tempo": "even", "early": 50.0, "late": 50.0}) == []
+    lanes = {"TOP": -1, "JUNGLE": 0, "MID": -1, "ADC": -1, "SUPPORT": 0}
+    names = {r: r.title() for r in ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")}
+    lines = {l["topic"]: l["text"] for l in builds._plan_lines({"tempo": "even", "early": 50.0, "late": 50.0, "lanes": lanes}, "JUNGLE", names, names)}
+    assert lines["Ganks"].startswith("Todas tus líneas pierden su línea: no fuerces ganks; farmea")
+
+
+def test_rounded_fifty_is_not_behind():
+    text = builds._tempo_line({"tempo": "early", "early": 49.6, "late": 46.0})[0]["text"]
+    assert text.startswith("Vuestro draft es mejor en partidas cortas (50 % antes del 25 frente a 46 % pasado el 35)")
+
+
+def test_lanes_without_both_champions_are_unknown_not_even():
+    team = {"tempo": "even", "early": 50.0, "late": 50.0, "lanes": {"TOP": 0, "JUNGLE": 1, "MID": 1, "ADC": 0, "SUPPORT": 0}}
+    mine = {"TOP": "Aatrox", "JUNGLE": "Hecarim", "MID": "Ahri", "ADC": "Jinx", "SUPPORT": "Thresh"}
+    theirs = {"JUNGLE": "Lee Sin", "MID": "Syndra"}  # top y bot aún sin elegir
+    lines = {l["topic"]: l["text"] for l in builds._plan_lines(team, "JUNGLE", mine, theirs)}
+    assert lines["Ganks"] == "Ganquea mid (Ahri contra Syndra): ganan su línea y con tu ayuda hacen bola de nieve; top y ADC: aún sin rival."
+    assert "(mid gana su línea y ADC aún sin rival)" in lines["Objetivos"]
+    top = {l["topic"]: l["text"] for l in builds._plan_lines(team, "TOP", mine, theirs)}
+    assert top["Línea"].startswith("Aún no se sabe tu rival de línea")

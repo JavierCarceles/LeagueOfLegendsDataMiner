@@ -130,6 +130,7 @@ def save_profile(body: ProfileBody, svc=Depends(svc_from)):
         target_tier=body.target_tier,
         settings=settings,
     )
+    svc.db.meta_set("profile_autodetect", "1")
     svc.tracker.trigger()
     return {"profile": _public(profile), "tracker": svc.tracker.status(), "note": note}
 
@@ -150,6 +151,7 @@ def update_profile(body: ProfileUpdate, svc=Depends(svc_from)):
 @router.delete("/profile")
 def delete_profile(purge: bool = Query(False, description="Borrar también las partidas y propósitos guardados"), svc=Depends(svc_from)):
     store.delete_profile(svc.db, purge=purge)
+    svc.db.meta_set("profile_autodetect", "0")  # lo has quitado tú: no se vuelve a detectar solo del cliente
     return {"profile": None, "purged": purge}
 
 

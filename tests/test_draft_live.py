@@ -98,23 +98,36 @@ def test_blind_pick_imports_in_finalization_and_deduces_your_role():
 
 # ------------------------------------------------------------------ importar
 class FakeClient:
-    def __init__(self, fail_runes=False):
-        self.pages = [{"id": 1, "name": "Mi página", "isDeletable": True}, {"id": 2, "name": "Tempu · Viejo", "isDeletable": True}]
-        self.created, self.deleted, self.spells, self.saved = [], [], None, None
+    def __init__(self, pages=None, slots=3, fail_runes=False):
+        self.pages = pages if pages is not None else [
+            {"id": 1, "name": "Mi página", "isEditable": True, "isDeletable": True},
+            {"id": 2, "name": "Kayn TD", "isEditable": True, "isDeletable": True},
+        ]
+        self.slots = slots
+        self.created, self.updated, self.deleted, self.current, self.spells, self.saved = [], [], [], None, None, None
         self.fail_runes = fail_runes
         self.sets = {"accountId": 99, "itemSets": [{"title": "Mi set", "uid": "a"}, {"title": "Tempu · Viejo", "uid": "b"}], "timestamp": 1}
 
     def rune_pages(self):
         return list(self.pages)
 
+    def rune_page_slots(self):
+        return self.slots
+
+    def update_rune_page(self, page_id, page):
+        if self.fail_runes:
+            raise lcu.LCUError("no se puede editar", 400)
+        self.updated.append((page_id, page))
+
     def delete_rune_page(self, page_id):
         self.deleted.append(page_id)
 
     def create_rune_page(self, page):
-        if self.fail_runes:
-            raise lcu.LCUError("Max pages reached", 400)
         self.created.append(page)
-        return page
+        return {**page, "id": 50}
+
+    def set_current_rune_page(self, page_id):
+        self.current = page_id
 
     def set_summoner_spells(self, a, b):
         self.spells = [a, b]
@@ -138,33 +151,50 @@ REC = {
 }
 
 
-def test_apply_import_writes_runes_spells_and_item_set_without_touching_yours():
+def test_runes_always_overwrite_the_td_page_in_its_slot():
     client = FakeClient()
     prefs = {**dl.DEFAULT_PREFS, "smite_key": "D"}
-    extra = {"keystone": 8230, "shards": [5008, 5008, 5001]}
-    done = dl.apply_import(client, REC, "Hecarim", "Lee Sin", prefs, extra)
-    assert done["errors"] == []
-    assert client.deleted == [2]  # solo la página que creó la app
-    page = client.created[0]
-    assert page["primaryStyleId"] == 8200 and page["subStyleId"] == 8000 and page["current"]
+    done = dl.apply_import(client, REC, "Hecarim", "Lee Sin", prefs, {"keystone": 8230, "shards": [5008, 5008, 5001]})
+    assert done["errors"] == [] and done["rune_page"] == "updated"
+    page_id, page = client.updated[0]
+    assert page_id == 2 and page["name"] == "Hecarim TD" and client.current == 2  # el mismo hueco, renombrada
+    assert page["primaryStyleId"] == 8200 and page["subStyleId"] == 8000
     assert page["selectedPerkIds"] == [8230, 8275, 8234, 8232, 9105, 9111, 5008, 5008, 5001]
+    assert client.created == [] and client.deleted == []  # «Mi página» intacta
     assert client.spells == [11, 6]  # Castigo en la D
     titles = [s["title"] for s in client.saved["itemSets"]]
-    assert titles[0] == "Mi set" and len(titles) == 2 and titles[1].startswith("Tempu · Hecarim vs Lee Sin")
+    assert titles == ["Mi set", "Hecarim TD vs Lee Sin"]  # el conjunto antiguo de la app se sustituye
     blocks = {b["type"]: [i["id"] for i in b["items"]] for b in client.saved["itemSets"][1]["blocks"]}
     assert blocks["Inicio"] == ["1102"] and blocks["Núcleo"] == ["6631", "3071"] and blocks["Botas"] == ["3111"]
-    assert client.saved["itemSets"][1]["associatedChampions"] == [HECARIM] and client.saved["accountId"] == 99
 
 
-def test_apply_import_respects_prefs_and_reports_client_errors():
+def test_same_name_is_overwritten_too_and_td_must_be_a_word():
+    same = FakeClient(pages=[{"id": 7, "name": "Hecarim TD"}, {"id": 8, "name": "STDOUT"}])
+    dl.apply_import(same, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)
+    assert [pid for pid, _p in same.updated] == [7]
+    assert dl.is_app_page("Jinx TD") and dl.is_app_page("TD") and dl.is_app_page("Tempu · Viejo") and dl.is_app_page("Kayn (TD)")
+    assert not dl.is_app_page("STDOUT") and not dl.is_app_page("Mi página")
+
+
+def test_without_a_td_page_it_uses_a_free_slot_or_explains_what_to_do():
+    free = FakeClient(pages=[{"id": 1, "name": "Mi página"}], slots=2)
+    done = dl.apply_import(free, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)
+    assert done["rune_page"] == "created" and free.created[0]["name"] == "Hecarim TD" and free.current == 50
+    assert free.created[0]["selectedPerkIds"][-3:] == dl.DEFAULT_SHARDS  # sin fragmentos de OP.GG: los más jugados
+    full = FakeClient(pages=[{"id": 1, "name": "A"}, {"id": 3, "name": "B"}], slots=2)
+    done = dl.apply_import(full, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)
+    assert done["runes"] is None and "Pon «TD» en el nombre" in done["errors"][0]
+    assert full.created == [] and full.deleted == [] and full.updated == []  # nunca toca tus páginas
+    # Las páginas por defecto del cliente (no editables) no cuentan como de la app.
+    fixed = FakeClient(pages=[{"id": 9, "name": "TD", "isEditable": False, "isDeletable": False}], slots=5)
+    assert dl.apply_import(fixed, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)["rune_page"] == "created"
+
+
+def test_apply_import_respects_prefs_and_falls_back_when_the_client_cannot_edit():
     client = FakeClient(fail_runes=True)
     done = dl.apply_import(client, REC, "Hecarim", None, {**dl.DEFAULT_PREFS, "items": False}, None)
-    assert done["runes"] is None and "Runas: Max pages reached" in done["errors"][0]
+    assert done["rune_page"] == "updated" and client.deleted == [2] and client.created[0]["name"] == "Hecarim TD"
     assert done["spells"] == [6, 11] and done["items"] is None and client.saved is None
-    # Sin fragmentos de OP.GG: los más jugados.
-    ok = FakeClient()
-    dl.apply_import(ok, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)
-    assert ok.created[0]["selectedPerkIds"][-3:] == dl.DEFAULT_SHARDS
 
 
 # ------------------------------------------------------------------ vigilante y API
@@ -213,3 +243,24 @@ def test_watcher_follows_champ_select_and_imports_once(api, monkeypatch):
     monkeypatch.setattr(lcu, "gameflow_phase", lambda: "InProgress")
     live.poll()
     assert live.state["active"] is False
+
+
+class FakeAccountClient:
+    def __init__(self, platform="euw1"):
+        self.platform = platform
+
+    def current_summoner(self):
+        return {"game_name": "Tempu", "tag_line": "EUW", "platform": self.platform, "profile_icon": 7, "summoner_level": 300}
+
+
+def test_profile_is_detected_from_the_client_without_clicking(api):
+    client, svc = api
+    from app.coach import store
+
+    assert dl.ensure_profile(svc, FakeAccountClient(platform=None)) is None  # sin región aún: se reintenta
+    profile = dl.ensure_profile(svc, FakeAccountClient())
+    assert profile["game_name"] == "Tempu" and profile["platform"] == "euw1" and store.get_profile(svc.db)["tag_line"] == "EUW"
+    assert dl.ensure_profile(svc, FakeAccountClient()) is None  # ya hay perfil: no se toca
+    # Si lo borras tú, no se vuelve a crear solo.
+    assert client.delete("/api/profile").status_code == 200
+    assert dl.ensure_profile(svc, FakeAccountClient()) is None and store.get_profile(svc.db) is None
