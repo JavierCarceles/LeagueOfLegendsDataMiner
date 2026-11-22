@@ -409,6 +409,27 @@ def test_priority_summary_aggregates_your_dragons_and_first_tower():
     rows = {r["key"]: r for r in s["dragons"]}
     assert (rows["prio"]["won"], rows["prio"]["n"], rows["prio"]["pct"]) == (3, 4, 75)
     assert (rows["noprio"]["won"], rows["noprio"]["n"], rows["noprio"]["pct"]) == (1, 4, 25)
-    assert rows["mixed"]["pct"] is None and rows["prio"]["ref"]["Challenger"] == 68
+    assert rows["mixed"]["pct"] is None and rows["prio"]["ref"]["Challenger"] == 72
     ft = s["first_tower"]
     assert (ft["rate"], ft["wr_with"], ft["wr_without"], ft["median_min"]) == (60, 100, 0, 14.0)
+
+
+def test_herald_fought_at_its_despawn_time_keeps_the_clocks():
+    """Partidas reales: el heraldo muere a las 19:51-19:55 porque lo estaban pegando cuando tocaba irse."""
+    late = [objective("dragon", 340_000), objective("grubs", 500_000), objective("herald", 1_193_000, 200)]
+    assert clk.assign_spawns(late, clk.SEASON_CLOCKS["16"])
+    assert late[2]["spawn"] == 900_000
+    too_late = [objective("herald", 1_230_000)]  # 20:30: eso ya no es el heraldo de esta temporada
+    assert not clk.assign_spawns(too_late, clk.SEASON_CLOCKS["16"])
+
+
+def test_duel_behind_is_a_jungle_weakness_with_its_reference():
+    from app.coach.benchmarks import BASE, METRICS, applies
+
+    m = METRICS["deaths_duel_behind"]
+    assert m.count and applies(m, "JUNGLE") and not applies(m, "TOP")
+    assert BASE["JUNGLE"]["deaths_duel_behind"] == 0.12
+    rule = insights.RULE_BY_METRIC["deaths_duel_behind"]
+    assert "deaths_duel_behind" in insights.RULE_BY_METRIC["deaths_solo"]["skip_if"]
+    assert [r["metric"] for r in insights.RULES].index("deaths_duel_behind") < [r["metric"] for r in insights.RULES].index("deaths_solo")
+    assert rule["goal"][0] == "<="

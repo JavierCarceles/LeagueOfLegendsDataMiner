@@ -74,7 +74,9 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #     el 44 % y el 38 %. Un dragón normal cedido sin prioridad deja de ser error (info, como en inferioridad numérica);
 #     la prioridad se explica en los objetivos y en las muertes junto al foso. Jugar del lado de las líneas que ganan
 #     NO se juzga: los junglas de todos los elos pasan el 47 % del early arriba sea cual sea el estado de las líneas.
-ANALYSIS_VERSION = 12
+# 13: relojes: el heraldo (y las larvas) que alguien está pegando a su hora de irse aguanta hasta morir. 6 de 1.818
+#     partidas con el heraldo muerto entre 19:51 y 19:55 se quedaban sin relojes (sin juzgar la preparación de objetivos).
+ANALYSIS_VERSION = 13
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1915,8 +1917,8 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
             continue
         prio = _priority(g, o["kind"], o["t"])
         if o["kind"] == "dragon" and not label.startswith("el alma") and "punto de alma" not in label and prio and prio["state"] == "theirs":
-            # Sin prioridad en las dos líneas del dragón, cederlo es lo normal (en Challenger lo pierde el 56 % de los
-            # equipos así): no es error. Lo que se puede hacer es cambiarlo al otro lado.
+            # Sin prioridad en las dos líneas del dragón, cederlo es lo normal (en Challenger lo pierde el 53 % de los
+            # equipos así; en Esmeralda, el 59 %): no es error. Lo que se puede hacer es cambiarlo al otro lado.
             no_prio += 1
             g.flagged.add(id(o))
             if g.role in ("JUNGLE", "SUPPORT", "MID"):  # como los cedidos: al top y al ADC no se les enseña

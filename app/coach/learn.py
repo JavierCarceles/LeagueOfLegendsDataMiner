@@ -101,6 +101,7 @@ METRIC_TOPIC = {
     "deaths_overextended": "ganks",
     "deaths_pre14": "trades",
     "deaths_solo": "trades",
+    "deaths_duel_behind": "trades",
     "deaths_enemy_jungle": "vision",
     "deaths_isolated_late": "macro",
     "deaths_unspent_gold": "backs",

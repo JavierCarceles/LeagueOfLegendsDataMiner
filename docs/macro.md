@@ -236,3 +236,22 @@ Esmeralda. El equipo que la tira gana el 78 % en Challenger (36 % sin ella) y el
 - **Jugar del lado de las líneas que ganan.** Los junglas de todos los elos pasan el 47 % del early (5-14) en la mitad
   de arriba sea cual sea el CS de top y bot a los 5. Y en Challenger, los que juegan del lado que pierde ganan más
   (65 % frente a 55 %). La regla no se cumple en los datos: no se juzga.
+
+## G) Revisión con los datos analizados en la versión 12 (22-11-2026, `ANALYSIS_VERSION = 13`)
+
+Las 1.818 partidas de OTPs y las 51 del usuario llegaron ya analizadas con la versión 12 en Windows.
+
+- **Mismo cálculo en los dos equipos:** al volver a analizar aquí las 51 partidas del usuario (con el timeline en bruto
+  y los objetos de Data Dragon de cada parche), las métricas y los momentos salen idénticos a los guardados.
+- **Fallo arreglado en los relojes:** 6 partidas se quedaban sin relojes porque el heraldo moría entre las 19:51 y
+  las 19:55, después de su hora de irse (19:45). Si alguien lo está pegando, aguanta hasta que muere: el heraldo y las
+  larvas tienen ahora 30 s de margen (`clocks.IN_COMBAT_GRACE`). El más tardío de los datos, a las 19:55.
+- **Sin primera torre:** 10 partidas (9 de OTPs y 1 del usuario) acaban entre los 5 y los 15 minutos sin que caiga
+  ninguna torre (rendiciones y remakes). Que salga vacío es lo correcto.
+- **Duelo en desventaja, por elo** (partidas sin AFK de al menos 15 min): 0,05 por partida en Challenger, 0,13 en
+  Esmeralda, 0,11 en Platino y 0,18 en el usuario (2,7 veces más en Esmeralda que en Challenger). Pasa a ser un punto
+  débil de jungla con referencia 0,12 (`deaths_duel_behind`). Si sale, no se repite «Pierdes muchos 1 contra 1».
+- **Dragones según la prioridad** con el CS minuto a minuto: Challenger 72 / 56 / 47 % (con, repartida, sin) y
+  Esmeralda 75 / 55 / 41 %. Sustituyen a las cifras aproximadas del apartado F en la tarjeta de Mi progreso.
+- **Objetivos regalados** con la nueva definición: Challenger 0,28 por partida y Esmeralda 0,44. La referencia de
+  jungla (0,4) sigue valiendo.

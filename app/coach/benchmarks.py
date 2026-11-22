@@ -71,6 +71,8 @@ METRICS: dict[str, Metric] = {
         Metric("deaths_pre14", "Muertes antes del minuto 14", "lower", "muertes", decimals=2, count=True),
         Metric("deaths", "Muertes por partida", "lower", "muertes", count=True),
         Metric("deaths_solo", "Muertes en 1 contra 1", "lower", "muertes", decimals=2, count=True),
+        # Solo jungla: es lo que hay medido (junglas OTP: Challenger 0,05, Esmeralda 0,13, Platino 0,11 por partida).
+        Metric("deaths_duel_behind", "Muertes en duelo con niveles u objetos de menos", "lower", "muertes", decimals=2, roles=("JUNGLE",), count=True),
         Metric("deaths_enemy_jungle", "Muertes en la jungla rival", "lower", "muertes", decimals=2, count=True),
         Metric("deaths_isolated_late", "Muertes aislado (después del 14)", "lower", "muertes", decimals=2, count=True),
         Metric("deaths_unspent_gold", "Muertes con oro para tu build sin gastar", "lower", "tiempo", decimals=2, count=True),
@@ -122,7 +124,7 @@ BASE: dict[str, dict[str, float | None]] = {
     # deja como estaba: los OTPs de Hecarim en Esmeralda apenas ponen wards ni pinks (0,4 por partida), no es la norma.
     "JUNGLE": {
         "deaths_to_jungler_pre14": None, "deaths_ganked": None, "deaths_no_vision_pre14": 0.3, "deaths_overextended": None,
-        "deaths_pre14": 2.0, "deaths": 5.7, "deaths_solo": 0.3, "deaths_enemy_jungle": 0.55, "deaths_isolated_late": 0.35,
+        "deaths_pre14": 2.0, "deaths": 5.7, "deaths_solo": 0.3, "deaths_duel_behind": 0.12, "deaths_enemy_jungle": 0.55, "deaths_isolated_late": 0.35,
         "deaths_unspent_gold": 0.3, "time_dead_pct": 9.8, "gold_hoard_min": 0.3, "idle_pct": 5,
         "cs_min": 6.9, "cs10": 69, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 445,
         "vision_min": 1.1, "wards_pre14": 5, "control_wards": 2.8,

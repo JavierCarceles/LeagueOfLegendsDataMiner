@@ -73,7 +73,17 @@ RULES: list[dict] = [
         "goal": ("<=", 1, "Morir como máximo {t} vez antes del minuto 14"),
     },
     {
+        # Con 1.818 partidas de junglas OTP: 0,05 por partida en Challenger, 0,13 en Esmeralda y 0,11 en Platino.
+        "metric": "deaths_duel_behind",
+        "weight": 1.0,
+        "title": "Aceptas duelos con niveles u objetos de menos",
+        "detail": "{v} muertes por partida en un 1 contra 1 en el que el rival te sacaba 2 niveles, un legendario o la definitiva (referencia {ref}).",
+        "tip": "Antes de un 1 contra 1 mira el nivel y los objetos del rival (pulsa Tab): con 2 niveles menos, un legendario menos o sin tu R contra la suya, retrocede y farmea seguro o espera ayuda. Pelea cuando subas tú antes de nivel o cierres tu objeto.",
+        "goal": ("<=", 0, "Ningún duelo con niveles u objetos de menos"),
+    },
+    {
         "metric": "deaths_solo",
+        "skip_if": ["deaths_duel_behind"],
         "weight": 0.9,
         "title": "Pierdes muchos 1 contra 1",
         "detail": "{v} muertes por partida en las que te mata un único rival (referencia {ref}).",
@@ -576,9 +586,8 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "Te ganquean sin visión"},
     {"id": "death_overextended", "kind": "death", "need": ("overextended",), "metric": "deaths_overextended",
      "title": "Mueres adelantado en la línea"},
-    {"id": "death_duel_behind", "kind": "death", "need": ("duel_behind",), "metric": None,
-     "title": "Aceptas duelos con niveles u objetos de menos",
-     "tip": "Antes de un 1 contra 1 mira el nivel y los objetos del rival (pulsa Tab): con 2 niveles menos, un legendario menos o sin tu R contra la suya, retrocede y farmea bajo torre o espera a tu jungla. Pelea cuando subas tú antes de nivel o cierres tu objeto."},
+    {"id": "death_duel_behind", "kind": "death", "need": ("duel_behind",), "metric": "deaths_duel_behind",
+     "title": "Aceptas duelos con niveles u objetos de menos"},
     {"id": "death_enemy_jungle", "kind": "death", "need": ("enemy_jungle",), "metric": "deaths_enemy_jungle",
      "title": "Mueres en la jungla rival"},
     {"id": "death_unspent_gold", "kind": "death", "need": ("unspent_gold",), "metric": "deaths_unspent_gold",
@@ -926,10 +935,10 @@ def jungle_summary(games: list[dict]) -> dict | None:
 # Prioridad de línea en 1.818 partidas de junglas OTP (data/otps y data/partidas_campeon, noviembre de 2026): dragones
 # normales que coge tu equipo según el CS de mid y bot frente a sus rivales (las dos ≥ +5, mezcla, las dos ≤ −5) y la
 # primera torre. Son partidas de OTPs (ganan algo más de la mitad): sirven para ver cuánto pesa la prioridad, no como nota.
-PRIORITY_REFS = {
-    "dragons": {"prio": {"Challenger": 68, "Esmeralda": 76}, "mixed": {"Challenger": 58, "Esmeralda": 57}, "noprio": {"Challenger": 44, "Esmeralda": 38}},
+PRIORITY_REFS = {  # con el análisis 12 (CS minuto a minuto) de 1.012 partidas de Challenger y 551 de Esmeralda sin AFK
+    "dragons": {"prio": {"Challenger": 72, "Esmeralda": 75}, "mixed": {"Challenger": 56, "Esmeralda": 55}, "noprio": {"Challenger": 47, "Esmeralda": 41}},
     "first_tower": {"Challenger": {"rate": 55, "wr_with": 78, "wr_without": 36, "median_min": 14.5},
-                    "Esmeralda": {"rate": 52, "wr_with": 69, "wr_without": 33, "median_min": 14.7}},
+                    "Esmeralda": {"rate": 52, "wr_with": 69, "wr_without": 34, "median_min": 14.8}},
     # CS de tu línea a los 10 → vuestra torre de esa línea cae antes (Challenger, top / mid / bot).
     "lane_tower": {"ahead": (84, 75, 72), "behind": (31, 44, 24)},
 }

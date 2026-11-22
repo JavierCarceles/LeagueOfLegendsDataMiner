@@ -42,6 +42,10 @@ SEASON_CLOCKS: dict[str, dict[str, int]] = {
 }
 EXCLUDED_QUEUES = {480}  # Swiftplay: objetivos antes y con otros tiempos
 EARLY_TOLERANCE = 5 * SECOND  # un objetivo que «muere» antes de aparecer invalida los relojes de la partida
+# Heraldo y larvas se van a su hora salvo que alguien los esté pegando: entonces aguantan hasta que mueren. En 1.818
+# partidas de 2026, 12 heraldos murieron después de las 19:45 (el último a las 19:55); con 5 s de margen esas partidas
+# se quedaban sin relojes.
+IN_COMBAT_GRACE = 30 * SECOND
 SOUL_DRAGONS = 4
 
 # Torres de la Grieta: (equipo dueño, línea, tipo) -> posición (las de los eventos BUILDING_KILL reales).
@@ -126,11 +130,11 @@ def assign_spawns(objectives: list[dict], clocks: dict[str, int] | None) -> bool
             next_baron = t + clocks["baron_respawn"]
         elif kind == "grubs":
             spawn = clocks["grubs_first"]
-            if t > clocks["grubs_until"] + EARLY_TOLERANCE:
+            if t > clocks["grubs_until"] + IN_COMBAT_GRACE:
                 return _invalid(objectives)
         elif kind == "herald":
             spawn = clocks["herald_first"]
-            if t > clocks["herald_until"] + EARLY_TOLERANCE:
+            if t > clocks["herald_until"] + IN_COMBAT_GRACE:
                 return _invalid(objectives)
         else:  # Atakhan u otro objetivo que estos relojes no conocen: la temporada no es la de la tabla
             return _invalid(objectives)
