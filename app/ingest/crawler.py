@@ -55,6 +55,8 @@ MASTERY_TTL_S = 7 * 86400
 MASTERY_BATCH = 25
 OTP_RATIO = 1.5  # el campeón principal debe tener ≥ 1,5× los puntos del segundo
 FOCUSES = ("otp", "mastery", "games")
+GAMES_MIN_MASTERY = 10_000  # «partidas de un campeón»: basta con tenerlo entre sus 3 más jugados (no es una opción)
+FOCUS_NOUN = {"otp": "OTPs", "mastery": "jugadores con mucha maestría", "games": "jugadores"}
 ELO_MIN_OTPS = 3  # variedad: cada campeón con al menos 3 OTPs en cada elo antes de profundizar en nadie
 ROLE_MIN_RATE = 0.08  # «toda una línea» = campeones con ≥ 8 % de sus partidas en ella (tier list de OP.GG/Lolalytics)
 
@@ -219,7 +221,7 @@ class CrawlerConfig:
             recrawl_hours=max(1.0, min(float(self.recrawl_hours), 168.0)),
             champions=list(dict.fromkeys(int(c) for c in (self.champions or []) if str(c).isdigit() and int(c) > 0)),
             focus=self.focus if self.focus in FOCUSES else "otp",
-            min_mastery=max(10_000, min(int(self.min_mastery or 300_000), 10_000_000)),
+            min_mastery=GAMES_MIN_MASTERY if self.focus == "games" else max(10_000, min(int(self.min_mastery or 300_000), 10_000_000)),
             only_target_games=bool(self.only_target_games) or self.focus == "games",
             otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
             champion_roles=self._clean_roles(),
@@ -355,11 +357,15 @@ def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
         return {"stages": [], "platforms": {}}
     pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
     cutoff = cfg.active_since(now)
-    stages = ["checked", "champ", "points", "ratio", "active"] if cfg.focus == "otp" else ["checked", "champ", "points", "active"]
+    stages = {
+        "otp": ["checked", "champ", "points", "ratio", "active"],
+        "mastery": ["checked", "champ", "points", "active"],
+        "games": ["checked", "champ", "active"],  # sin mínimo de puntos: basta con que esté entre sus 3 primeros
+    }[cfg.focus]
     per: dict[str, dict] = {}
 
     def bucket(platform: str) -> dict:
-        return per.setdefault(platform, {k: 0 for k in (*stages, "seeds", "last_hour")})
+        return per.setdefault(platform, {k: 0 for k in ("checked", "champ", "points", "ratio", "active", "seeds", "last_hour")})
 
     for r in db.query(
         f"SELECT platform, COUNT(*) AS n FROM players WHERE is_seed = 1 AND platform IN ({pm}) AND tier IN ({tm}) GROUP BY platform",
@@ -397,7 +403,8 @@ def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
         if last is None or last >= cutoff:
             b["active"] += 1
     total = {k: sum(b[k] for b in per.values()) for k in (*stages, "seeds", "last_hour")}
-    return {"stages": stages, "total": total, "platforms": dict(sorted(per.items(), key=lambda kv: -kv[1]["checked"])), "at": now}
+    shown = {p: {k: b[k] for k in (*stages, "seeds", "last_hour")} for p, b in per.items()}  # solo las fases de este modo
+    return {"stages": stages, "total": total, "platforms": dict(sorted(shown.items(), key=lambda kv: -kv[1]["checked"])), "at": now}
 
 
 def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: list[str] | None = None, now: int | None = None) -> list:
@@ -459,6 +466,13 @@ def otp_champs(cfg: CrawlerConfig, top: list, sourced: set[int] | None = None) -
     else:
         found = [c for c, pts in entries if c in targets and pts >= cfg.min_mastery]
     return list(dict.fromkeys([*found, *sorted((sourced or set()) & targets)]))
+
+
+def cap_count(cfg: CrawlerConfig, hits: int, seen: int) -> int:
+    """Lo que cuenta para el tope «Primero, de cada jugador, sus N partidas»: buscando partidas de un campeón, todas
+    las suyas que se bajan (casi todas se guardan: con una línea entera, en casi cualquier partida hay alguien con un
+    campeón de ella); buscando OTPs, solo las suyas con ese campeón (las demás ni se guardan)."""
+    return int(seen or 0) if cfg.focus == "games" else int(hits or 0)
 
 
 def sourced_champs(row) -> set[int]:
@@ -586,8 +600,9 @@ class RegionWorker(threading.Thread):
     def _run_otp(self) -> None:
         """Modo por campeones: este hilo baja partidas de los OTPs y ``OtpScout`` los busca a la vez."""
         log.info(
-            "Recolector %s de OTPs iniciado (%s): historial %s, sin tope de partidas.",
+            "Recolector %s por campeones (%s) iniciado (%s): periodo %s.",
             self.region,
+            FOCUS_NOUN[self.config.focus],
             ", ".join(PLATFORMS[p][1] for p in self.platforms),
             self.config.otp_depth,
         )
@@ -764,7 +779,7 @@ class RegionWorker(threading.Thread):
             dd = getattr(svc, "dd", None)
             champ_name = (dd.name(champ) if dd is not None and hasattr(dd, "name") else None) or f"campeón {champ}"
             log.info(
-                "Tabla de los mejores de %s en %s (OP.GG): %d OTPs de tus elos añadidos.", champ_name, PLATFORMS[platform][1], champ_added
+                "Tabla de los mejores de %s en %s (OP.GG): %d jugadores de tus elos añadidos.", champ_name, PLATFORMS[platform][1], champ_added
             )
         return added
 
@@ -876,7 +891,7 @@ class RegionWorker(threading.Thread):
                 key = (0, level, in_tier, in_champ, *rank)
             elif row["fwd_more"] or (row["last_crawled_at"] or 0) < now - recrawl:
                 key = (1, row["last_crawled_at"] or 0, 0, 0, *rank)
-            elif state == "loading" and not (cap and int(row["hits"] or 0) >= cap):
+            elif state == "loading" and not (cap and cap_count(cfg, row["hits"], row["seen"]) >= cap):
                 key = (2, champ_games.get(champ, 0), int(row["hits"] or 0), row["back_offset"] or 0, *rank)
             elif row["id"] in lacking:
                 key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
@@ -945,7 +960,7 @@ class RegionWorker(threading.Thread):
         try:
             saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
         except Exception:
-            log.exception("No se pudo analizar la partida %s del OTP", match_id)
+            log.exception("No se pudo analizar la partida %s del jugador", match_id)
             return False
         if saved:
             self.state["details"] += 1
@@ -1068,7 +1083,7 @@ class RegionWorker(threading.Thread):
             cap = self._games_cap()
             while (
                 prog["done_at"] is None and budget > 0 and pages < OTP_BACK_PAGES and not self.stop_event.is_set()
-                and not (cap and prog["hits"] >= cap)  # variedad: el resto, cuando la búsqueda termine
+                and not (cap and cap_count(cfg, prog["hits"], prog["seen"]) >= cap)  # variedad: el resto, al terminar la búsqueda
             ):
                 base = prog["offset"]
                 ids = svc.riot.match_ids(
@@ -1092,7 +1107,7 @@ class RegionWorker(threading.Thread):
                             old_season = True  # primera partida de la temporada anterior: hasta aquí
                     consumed += 1
                     prog["offset"] = base + consumed
-                    if old_season or (cap and prog["hits"] >= cap):
+                    if old_season or (cap and cap_count(cfg, prog["hits"], prog["seen"]) >= cap):
                         break
                 if old_season or (consumed == len(ids) and len(ids) < OTP_PAGE):
                     prog.update(done_at=now_s(), done_start=depth_start, reason="end")
@@ -1126,7 +1141,7 @@ class RegionWorker(threading.Thread):
         if stored_now:
             svc.agg.bump()
         log.info(
-            "%s · %s · OTP: %d partidas nuevas (historial: %d revisadas%s).",
+            "%s · %s · jugador: %d partidas nuevas (historial: %d revisadas%s).",
             PLATFORMS[platform][1],
             row["tier"],
             stored_now,
@@ -1282,7 +1297,7 @@ class RegionWorker(threading.Thread):
         if added:
             if self.config.targets:
                 log.info(
-                    "Ranking %s %s: +%d jugadores por revisar (candidatos; solo cuentan los que resulten OTPs al mirar su maestría).",
+                    "Ranking %s %s: +%d jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
                     PLATFORMS[platform][1], tier, added,
                 )
             else:
@@ -1415,12 +1430,12 @@ class OtpScout(threading.Thread):
             except RiotAPIError as exc:
                 w.state["errors"] += 1
                 w.state["last_error"] = exc.message
-                log.warning("Búsqueda de OTPs %s: %s", self.platform, exc.message)
+                log.warning("Búsqueda de jugadores %s: %s", self.platform, exc.message)
                 w.stop_event.wait(3)
             except Exception as exc:
                 w.state["errors"] += 1
                 w.state["last_error"] = str(exc)
-                log.exception("Error inesperado buscando OTPs en %s", self.platform)
+                log.exception("Error inesperado buscando jugadores en %s", self.platform)
                 w.stop_event.wait(5)
         self._set("stopped")
 
@@ -1475,7 +1490,7 @@ class Crawler:
             tmp.write_text(json.dumps(funnel, ensure_ascii=False, indent=1), encoding="utf-8")
             tmp.replace(base / "_busqueda.json")
         except Exception:  # es un informe: nunca debe parar la búsqueda
-            log.exception("No se pudo escribir el estado de la búsqueda de OTPs")
+            log.exception("No se pudo escribir el estado de la búsqueda de jugadores")
 
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):

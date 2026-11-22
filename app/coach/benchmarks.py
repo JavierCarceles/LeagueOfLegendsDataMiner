@@ -32,7 +32,7 @@ PEER_SAMPLES = 150  # las más recientes
 # En tu rol, los jugadores de tus partidas son tus rivales directos: en las métricas «frente a tu rival» su media es tu
 # propia diferencia cambiada de signo, y «ganks del jungla rival al otro lado» cuenta tus propios ganks. Esas no se
 # calibran (se quedan las orientativas). En el resto queda un sesgo pequeño: si les ganas, su media baja un poco.
-PEER_EXCLUDED = {"cs_diff10", "gold_diff15", "enemy_ganks_far"}
+PEER_EXCLUDED = {"cs_diff10", "gold_diff15", "enemy_ganks_far", "invade_cs_pre10"}  # invadir: solo con OTPs de tu campeón
 
 
 @dataclass(frozen=True)
@@ -96,6 +96,9 @@ METRICS: dict[str, Metric] = {
         Metric("ganks_pre10", "Ganks con kill antes del 10", "higher", "pathing", decimals=2, roles=("JUNGLE",), count=True),
         Metric("impact_pre10", "Jugadas con impacto antes del 10", "higher", "pathing", decimals=1, roles=("JUNGLE",), floor=1, count=True),
         Metric("jungle_cs10", "CS de jungla a los 10", "higher", "pathing", decimals=0, roles=("JUNGLE",)),
+        # Solo frente a los OTPs de tu campeón (``CHAMP_METRICS``): invadir depende mucho del campeón. Con el mismo
+        # (Hecarim), Esmeralda 8,5 y Aspirante 14,3: la métrica de jungla que más cambia con el elo.
+        Metric("invade_cs_pre10", "CS de la jungla rival antes del 10", "higher", "pathing", decimals=1, roles=("JUNGLE",), floor=3),
         Metric("enemy_ganks_far", "Ganks rivales en la otra mitad del mapa", "lower", "pathing", decimals=2, roles=("JUNGLE",), count=True),
         Metric("first_item_min", "Minuto de tu primer objeto", "lower", "build", decimals=1, floor=5),
         Metric("r_late", "Subidas de la R tardías", "lower", "build", decimals=2, count=True),
@@ -157,6 +160,31 @@ BASE: dict[str, dict[str, float | None]] = {
 }
 
 # Factor sobre la referencia base según el elo objetivo.
+# Métricas que en ese rol NO cambian con el elo: su referencia no se escala de una liga a otra. Medido con OTPs del
+# mismo campeón (Hecarim jungla, partidas fiables) en Esmeralda (552) y Aspirante (486): muertes antes del 14 1,90 vs
+# 1,94; muertes en la jungla rival 0,50 vs 0,50; ganks con kill antes del 10 1,82 vs 1,80; ganks rivales en la otra
+# mitad 0,21 vs 0,18 (Lee Sin Aspirante: 1,70 / 0,48 / 1,96 / 0,17). Mientras, muertes (5,7 → 4,5), tiempo muerto
+# (10,1 → 8,1 %) o CS/min (7,3 → 8,8) sí cambian. Escalarlas hacía más exigente la referencia sin fundamento (p. ej.
+# un 7 % de Platino a Esmeralda con las referencias de tus propias partidas).
+ELO_FLAT: dict[str, frozenset[str]] = {
+    "JUNGLE": frozenset({"deaths_pre14", "deaths_enemy_jungle", "ganks_pre10", "enemy_ganks_far"}),
+}
+
+
+def scales(metric: Metric, role: str) -> bool:
+    """¿La referencia de esta métrica se ajusta al elo en este rol?"""
+    return metric.scale and metric.key not in ELO_FLAT.get(role, frozenset())
+
+
+# Farm y primer objeto dependen del campeón, no solo del rol: OTPs de jungla en Aspirante (partidas fiables), Hecarim
+# (486) frente a Lee Sin (223): CS/min 8,76 vs 7,12; CS a los 10 81 vs 74; CS de jungla a los 10 77 vs 71; oro/min 511 vs
+# 483; primer objeto 10,4 vs 9,1 min (lo demás —muertes, KP, ganks— casi igual). Si hay OTPs suficientes de tu campeón
+# en tu elo objetivo, estas referencias son las suyas (``References.for_game``); si no, las del rol.
+CHAMP_METRICS = ("cs_min", "cs10", "jungle_cs10", "gold_min", "first_item_min", "invade_cs_pre10")
+MIN_CHAMP_REF_GAMES = 100  # partidas fiables de OTPs de ese campeón, rol y elo…
+MIN_CHAMP_REF_PLAYERS = 5  # …de al menos tantos OTPs distintos
+
+
 UP = {"IRON": 0.72, "BRONZE": 0.78, "SILVER": 0.85, "GOLD": 0.91, "PLATINUM": 0.96, "EMERALD": 1.0, "DIAMOND": 1.05, "MASTER": 1.09}
 DOWN = {"IRON": 1.45, "BRONZE": 1.35, "SILVER": 1.25, "GOLD": 1.15, "PLATINUM": 1.07, "EMERALD": 1.0, "DIAMOND": 0.93, "MASTER": 0.88}
 
@@ -174,7 +202,7 @@ def static_refs(role: str, tier: str) -> dict[str, float]:
         metric = METRICS.get(key)
         if value is None or metric is None:
             continue
-        if metric.scale:
+        if scales(metric, role):
             value = value * (UP[tier] if metric.better == "higher" else DOWN[tier])
         out[key] = round(value, 3)
     return out
@@ -210,7 +238,7 @@ def _peer_refs(svc, role: str, target: str, current: str | None) -> tuple[dict[s
             continue
         mean = sum(vals) / len(vals)
         sizes[key] = len(vals)
-        if m.scale:
+        if scales(m, role):
             factors = UP if m.better == "higher" else DOWN
             mean *= factors[target] / factors[current]
         out[key] = round(mean, 3)
@@ -284,6 +312,23 @@ class References:
         self._cache: dict[str, dict] = {}
         self._info: dict[str, dict] = {}
         self._sizes: dict[str, dict[str, int]] = {}
+        self._champ: dict[tuple, dict] = {}
+
+    def for_game(self, game: dict) -> dict[str, float]:
+        """Referencias para una partida: las de su rol y, en farm y primer objeto, las de su campeón si hay datos."""
+        role = game.get("role")
+        base = self.for_role(role)
+        champ = self.champion(game.get("champ"), role)
+        return {**base, **champ["refs"]} if champ else base
+
+    def champion(self, champ: int | None, role: str | None) -> dict | None:
+        """Medias de los OTPs de ese campeón y rol en tu elo objetivo (``data/otps``): ``{refs, games, players}`` o None."""
+        if not champ or not role or self.svc is None:
+            return None
+        key = (int(champ), role)
+        if key not in self._champ:
+            self._champ[key] = _champ_refs(self.svc, int(champ), role, self.tier)
+        return self._champ[key]
 
     def for_role(self, role: str | None) -> dict[str, float]:
         if not role:
@@ -322,6 +367,33 @@ class References:
     def info(self, role: str) -> dict:
         self.for_role(role)
         return self._info.get(role, {"source": "static", "peer_samples": 0, "tier_samples": 0, "calibrated": [], "from_tier": None})
+
+
+def _champ_refs(svc, champ: int, role: str, tier: str) -> dict | None:
+    import json
+    from pathlib import Path
+
+    from app.ingest.otp_details import FILES_DIR, _slug  # aquí: evita un import circular
+
+    dd = getattr(svc, "dd", None)
+    settings = getattr(svc, "settings", None)
+    name = dd.name(champ) if dd is not None and hasattr(dd, "name") else None
+    if not name or settings is None or getattr(settings, "data_dir", None) is None:
+        return None
+    try:
+        summary = json.loads((Path(settings.data_dir) / FILES_DIR / _slug(name) / "resumen.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    block = ((((summary.get("roles") or {}).get(role) or {}).get("by_tier")) or {}).get(tier) or {}
+    if (block.get("games") or 0) < MIN_CHAMP_REF_GAMES or (block.get("players") or 0) < MIN_CHAMP_REF_PLAYERS:
+        return None
+    metrics = block.get("metrics") or {}
+    refs = {
+        k: round(float(metrics[k]["mean"]), 3)
+        for k in CHAMP_METRICS
+        if isinstance((metrics.get(k) or {}).get("mean"), (int, float)) and METRICS.get(k) is not None and applies(METRICS[k], role)
+    }
+    return {"refs": refs, "games": block["games"], "players": block.get("players"), "champ": champ} if refs else None
 
 
 def next_target(current: str | None, target: str | None) -> str | None:

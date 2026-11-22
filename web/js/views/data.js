@@ -12,6 +12,7 @@ let sections = {};
 let crawlerForm = null; // configuración que estás editando (sobrevive a los refrescos)
 let crawlerFormFor = null; // "running" | "stopped": el formulario solo se reconstruye al cambiar de estado
 let runningSig = null;
+let resultsMode = null; // modo de los resultados que se ven (null = ninguno: no se está buscando por campeones)
 let limitsNow = {}; // uso de la API por host (para avisar si otra app usa tu misma key)
 
 const ALL_TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
@@ -19,7 +20,7 @@ const APEX = ["MASTER", "GRANDMASTER", "CHALLENGER"];
 const STATUS_LABEL = {
   starting: "Arrancando",
   running: "Recolectando",
-  searching: "Buscando OTPs",
+  searching: "Buscando jugadores",
   idle: "En espera",
   waiting_key: "Esperando API key",
   paused_game: "En pausa: estás en partida",
@@ -56,6 +57,7 @@ export async function render(container) {
   root = container;
   crawlerForm = null;
   crawlerFormFor = null;
+  resultsMode = undefined; // distinto de null: el primer refresco siempre pinta (o vacía) la sección de resultados
   keyRendered = null;
   sourcesSig = null;
   limitsSig = null;
@@ -67,6 +69,7 @@ export async function render(container) {
     crawlerForm: h("div"),
     crawlerStatus: h("div"),
     otps: h("div"),
+    results: h("div"),
     sources: h("div"),
     limits: h("div"),
     db: h("div"),
@@ -85,7 +88,7 @@ export async function render(container) {
       { style: { marginTop: "16px" } },
       h("h3.card-title", icon("database"), "Recolector de partidas"),
       h("div.grid.crawler-grid", sections.crawlerForm, sections.crawlerStatus),
-      h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), "OTPs encontrados"], sections.otps, { summary: "un panel por campeón; pulsa uno para ver sus jugadores", cls: "flat" })),
+      sections.results,
     ),
     h(
       "div.stack",
@@ -297,6 +300,19 @@ function renderCrawler(c, key) {
     mount(sections.crawlerForm, crawlerPanel(c, key));
   }
   renderCrawlerStatus(c, key);
+  // Resultados: solo mientras se busca por campeones (al cargar o con el recolector parado no se enseña nada viejo).
+  const resultsFor = running && hasTargets(c.config) ? c.config.focus : null;
+  if (resultsFor !== resultsMode) {
+    resultsMode = resultsFor;
+    otpsSig = null;
+    otpsAt = 0;
+    mount(
+      sections.results,
+      resultsFor
+        ? h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), RESULTS_TITLE[resultsFor]], sections.otps, { summary: "un panel por campeón; pulsa uno para ver sus jugadores", cls: "flat", open: true }))
+        : null,
+    );
+  }
 }
 
 const MASTERY_STEPS = [10_000, 20_000, 50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
@@ -320,7 +336,10 @@ const PLAYERS = [
   { value: "otp", label: "Solo OTPs", hint: "Es su campeón principal (1,5 veces los puntos del segundo): para aprender de especialistas y compararte con ellos." },
   { value: "mastery", label: "Mucha maestría", hint: "Lo tienen entre sus 3 campeones con más puntos." },
 ];
-const MASTERY_DEFAULT = { games: 20_000, otp: 300_000, mastery: 100_000 };
+const MASTERY_DEFAULT = { games: 10_000, otp: 300_000, mastery: 100_000 }; // «games»: fijo (no es una opción)
+/** Cómo se llama a los jugadores encontrados según lo que buscas («OTPs» solo si buscas OTPs). */
+const noun = (focus, n = 2) => (focus === "otp" ? (n === 1 ? "OTP" : "OTPs") : n === 1 ? "jugador" : "jugadores");
+const RESULTS_TITLE = { otp: "OTPs encontrados", mastery: "Jugadores con mucha maestría encontrados", games: "Jugadores encontrados" };
 const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[3]).label;
 const hasTargets = (cfg) => !!(cfg?.champions?.length || cfg?.roles?.length);
 const linesText = (roles) => roles.map((r) => ROLE_LABEL[r]).join(" y ");
@@ -364,7 +383,7 @@ function champsText(cfg, poolSize = null) {
 function playersText(cfg) {
   if (!hasTargets(cfg)) return "Cualquiera";
   const p = PLAYERS.find((x) => x.value === cfg.focus) || PLAYERS[1];
-  return `${p.label} · ≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
+  return cfg.focus === "games" ? p.label : `${p.label} · ≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
 }
 function gamesText(cfg) {
   const queues = cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ";
@@ -663,15 +682,21 @@ function playersEditor(cfg, changed) {
         draw();
         changed();
       }),
-      inlineRow(
-        cfg.focus === "games" ? "Se buscan entre quienes lo tienen entre sus 3 más jugados, con al menos" : "Con al menos",
-        select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery, (v) => {
-          cfg.min_mastery = Number(v);
-          changed();
-        }, "select select-sm"),
-        "de maestría con él",
+      cfg.focus === "games"
+        ? null
+        : inlineRow(
+            "Con al menos",
+            select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery, (v) => {
+              cfg.min_mastery = Number(v);
+              changed();
+            }, "select select-sm"),
+            "de maestría con él",
+          ),
+      editHint(
+        cfg.focus === "games"
+          ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados y se guarda toda partida suya en la que alguien lo juegue en esa línea."
+          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG.",
       ),
-      editHint("Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG."),
     );
   draw();
   return box;
@@ -788,7 +813,9 @@ function searchRate(w) {
 }
 
 function renderCrawlerStatus(c, key) {
-  const workers = Object.values(c.workers || {});
+  // Solo con el recolector en marcha: parado, los números de la última vez confunden.
+  const workers = c.running ? Object.values(c.workers || {}) : [];
+  const focus = hasTargets(c.config) ? c.config.focus : null;
   mount(
     sections.crawlerStatus,
     h(
@@ -803,7 +830,7 @@ function renderCrawlerStatus(c, key) {
                 "div.small",
                 { style: { marginTop: "4px" } },
                 w.search
-                  ? `${fmt.int(w.otps_known)} OTPs · ${fmt.int(w.stored)} partidas nuevas · ${fmt.int(w.mastery_checked)} jugadores revisados${searchRate(w)}`
+                  ? `${fmt.int(w.otps_known)} ${noun(focus, w.otps_known)} · ${fmt.int(w.stored)} partidas nuevas · ${fmt.int(w.mastery_checked)} revisados${searchRate(w)}`
                   : `${fmt.int(w.stored)} partidas guardadas · ${fmt.int(w.players)} jugadores`,
               ),
               sharedKeyLine(w),
@@ -816,10 +843,10 @@ function renderCrawlerStatus(c, key) {
                   { style: { gap: "2px" } },
                   h("div.tiny.muted", `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} jugadores del ranking`),
                   w.search
-                    ? h("div.tiny.muted", `OTPs: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con el historial completo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
+                    ? h("div.tiny.muted", `${noun(focus)[0].toUpperCase()}${noun(focus).slice(1)}: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con todas sus partidas del periodo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
                     : null,
                   w.mastery_checked || w.search
-                    ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} OTPs nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+                    ? h("div.tiny.muted", `Revisados: ${fmt.int(w.mastery_checked)} jugadores del ranking · ${fmt.int(w.targets_found)} ${noun(focus)} nuevos · ${fmt.int(w.target_games)} partidas con esos campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
                     : null,
                   w.details ? h("div.tiny.muted", `${fmt.int(w.details)} partidas analizadas minuto a minuto`) : null,
                 ),
@@ -892,10 +919,7 @@ async function loadOtps(c) {
   const details = box.closest("details");
   if (!details?.open || Date.now() - otpsAt < 10000) return;
   otpsAt = Date.now();
-  if (!hasTargets(c?.config)) {
-    otpsSig = null;
-    return mount(box, h("div.small.muted", "Elige campeones en el recolector (líneas completas o campeones sueltos) y arráncalo: aquí aparecerá un panel por campeón con los jugadores que encuentre."));
-  }
+  if (!c?.running || !hasTargets(c?.config)) return; // sin búsqueda en marcha, la sección ni se muestra
   let data;
   try {
     data = await api.get("/api/crawler/otps", { limit: 1 });
@@ -912,8 +936,8 @@ async function loadOtps(c) {
       { style: { gap: "10px" } },
       h(
         "div.row-wrap",
-        h("div.tiny.muted", { style: { flex: "1 1 auto" } }, `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo`),
-        h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todos los OTPs analizados"),
+        h("div.tiny.muted", { style: { flex: "1 1 auto" } }, `${fmt.int(data.found)} ${noun(data.focus, data.found)} · ${fmt.int(data.games || 0)} partidas con esos campeones · ${fmt.int(data.complete)} con todas sus partidas del periodo`),
+        h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todas las partidas analizadas"),
       ),
       otpFunnel(data),
       h("div.otp-champ-grid", (data.by_champion || []).filter((ch) => ch.found).map((ch) => otpChampCard(ch, data))),
@@ -923,7 +947,7 @@ async function loadOtps(c) {
         return h(
           "div.row-wrap.tiny.muted",
           { style: { gap: "4px" }, title: empty.map((ch) => dd.name(ch.champ)).join(", ") },
-          `${empty.length} ${empty.length === 1 ? "campeón" : "campeones"} aún sin ${data.focus === "games" ? "jugadores" : "OTPs"} (se buscan primero):`,
+          `${empty.length} ${empty.length === 1 ? "campeón" : "campeones"} aún sin ${noun(data.focus)} (se buscan primero):`,
           empty.slice(0, 16).map((ch) => champImg(ch.champ, "xs")),
           empty.length > 16 ? h("span", `+${empty.length - 16}`) : null,
         );
@@ -940,10 +964,10 @@ function otpFunnel(data) {
   const champs = data.lines?.length ? `un campeón de ${linesText(data.lines).toLowerCase()}` : (data.champions || []).map((c) => dd.name(c)).join(" / ");
   const label = {
     checked: "revisados",
-    champ: data.focus === "mastery" ? `con ${champs} en su top 3` : `con ${champs} de principal`,
+    champ: data.focus === "otp" ? `con ${champs} de principal` : `con ${champs} entre sus 3 más jugados`,
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
     ratio: "OTP estricto (1,5× su 2.º campeón)",
-    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${data.focus === "games" ? "jugadores" : "OTPs"}`,
+    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${noun(data.focus)}`,
   };
   const t = f.total;
   const steps = f.stages.map((k, i) => {
@@ -966,7 +990,7 @@ function otpFunnel(data) {
         [icon("chart"), "Por servidor"],
         h(
           "div.table-wrap",
-          h("table.table.tiny", h("thead", h("tr", h("th", "Servidor"), h("th.num", "En ranking"), h("th.num", "Revisados"), h("th.num", "Última hora"), h("th.num", "Con el campeón"), h("th.num", "OTPs"))), h("tbody", rows)),
+          h("table.table.tiny", h("thead", h("tr", h("th", "Servidor"), h("th.num", "En ranking"), h("th.num", "Revisados"), h("th.num", "Última hora"), h("th.num", "Con el campeón"), h("th.num", noun(data.focus)[0].toUpperCase() + noun(data.focus).slice(1)))), h("tbody", rows)),
         ),
         { cls: "flat" },
       ),
@@ -986,8 +1010,8 @@ function otpFilesBar(data) {
       { style: { minWidth: 0 } },
       h(
         "div.small",
-        h("b", "Micro y macro: "),
-        d.games ? `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} OTPs` : "aún ninguna partida",
+        h("b", "Analizadas minuto a minuto: "),
+        d.games ? `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} jugadores` : "aún ninguna partida",
         d.games && d.timelines < d.games ? h("span.muted", ` (${fmt.int(d.games - d.timelines)} sin timeline)`) : null,
       ),
       tiers.length ? h("div.row-wrap.tiny", { style: { gap: "4px", marginTop: "4px" } }, tiers.map(([t, n]) => h("span.chip-muted", `${TIER_LABEL[t] || t}: ${fmt.int(n)}`))) : null,
@@ -996,7 +1020,7 @@ function otpFilesBar(data) {
         { style: { marginTop: "4px" } },
         rebuilding
           ? `Reorganizando la carpeta… ${fmt.int(d.files.done || 0)} de ${fmt.int(d.files.total || 0)} partidas`
-          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → OTP (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo.",
+          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → jugador (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo.",
       ),
       d.path ? h("div.tiny.muted.otp-path", h("b", "Carpeta: "), d.path) : null,
     ),
@@ -1009,7 +1033,7 @@ function otpChampCard(ch, data) {
   const searching = !ch.found;
   return h(
     "button.otp-card",
-    { type: "button", disabled: searching || null, onclick: () => openOtpChamp(ch, data), title: searching ? "Aún no hay OTPs de este campeón" : `Ver los OTPs de ${dd.name(ch.champ)}` },
+    { type: "button", disabled: searching || null, onclick: () => openOtpChamp(ch, data), title: searching ? `Aún no hay ${noun(data.focus)} de este campeón` : `Ver los ${noun(data.focus)} de ${dd.name(ch.champ)}` },
     h(
       "div.otp-card-head",
       champImg(ch.champ, "lg"),
@@ -1025,14 +1049,14 @@ function otpChampCard(ch, data) {
       : [
           h(
             "div.otp-card-stats",
-            h("div", h("b", fmt.int(ch.found)), h("span", ch.found === 1 ? "OTP" : "OTPs")),
+            h("div", h("b", fmt.int(ch.found)), h("span", noun(data.focus, ch.found))),
             h("div", h("b", fmt.int(ch.games)), h("span", "partidas")),
             h("div", h(`b.${wrClass(wr)}`, wr === null ? "—" : fmt.pct(wr, 0)), h("span", "winrate")),
           ),
           roleBar(ch.roles, ch.games),
           h(
             "div.tiny.muted",
-            `Historial completo: ${fmt.int(ch.complete)}/${fmt.int(ch.found)}`,
+            `Con todas sus partidas del periodo: ${fmt.int(ch.complete)}/${fmt.int(ch.found)}`,
             ch.best ? ` · mejor elo: ${eloText(ch.best)}` : "",
           ),
           ch.leaders?.length && ch.leaders[0].total
@@ -1071,7 +1095,7 @@ function openOtpChamp(ch, data) {
     { style: { gap: "14px" } },
     h(
       "div.kpis",
-      kpi(ch.found === 1 ? "OTP" : "OTPs", fmt.int(ch.found), `${fmt.int(ch.with_games)} con partidas guardadas`),
+      kpi(noun(data.focus, ch.found).replace(/^./, (x) => x.toUpperCase()), fmt.int(ch.found), `${fmt.int(ch.with_games)} con partidas guardadas`),
       kpi("Partidas", fmt.int(ch.games), rolesText(data.champion_roles, ch.champ) ? `solo${rolesText(data.champion_roles, ch.champ)}` : "en cualquier rol"),
       kpi("Winrate", wr === null ? "—" : fmt.pct(wr, 1), ch.games ? `${fmt.int(ch.wins)} V · ${fmt.int(ch.games - ch.wins)} D` : null, wrClass(wr)),
       kpi("Historial", `${fmt.int(ch.complete)}/${fmt.int(ch.found)}`, "completos"),
@@ -1096,7 +1120,7 @@ function openOtpChamp(ch, data) {
     list,
     h("div.row", { style: { justifyContent: "center" } }, moreBtn),
   );
-  modal(h("div.row", { style: { gap: "12px" } }, champImg(ch.champ, "lg"), h("div", h("h3", `OTPs de ${dd.name(ch.champ)}`), h("div.tiny.muted", `${platforms.map(platformLabel).join(", ") || "—"} · historial: ${depthLabel(data.otp_depth).toLowerCase()}`))), body, { wide: true });
+  modal(h("div.row", { style: { gap: "12px" } }, champImg(ch.champ, "lg"), h("div", h("h3", `${noun(data.focus).replace(/^./, (x) => x.toUpperCase())} de ${dd.name(ch.champ)}`), h("div.tiny.muted", `${platforms.map(platformLabel).join(", ") || "—"} · historial: ${depthLabel(data.otp_depth).toLowerCase()}`))), body, { wide: true });
 
   async function load(reset) {
     if (reset) loaded = [];

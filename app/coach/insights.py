@@ -427,6 +427,11 @@ def _trend(m, pairs: list[tuple[float, float, str | None]]) -> dict | None:
     return {"recent": _round(recent, m.decimals), "older": _round(older, m.decimals), "improving": (delta > 0) if clear else None, "games": len(same)}
 
 
+def game_refs(refs, g: dict) -> dict:
+    """Referencias de una partida: las de su rol y, si hay datos de OTPs de su campeón, las de ese campeón en farm."""
+    return refs.for_game(g) if hasattr(refs, "for_game") else refs.for_role(g.get("role"))
+
+
 def metric_table(games: list[dict], refs: References) -> list[dict]:
     games = [g for g in games if reliable(g)]
     rows = []
@@ -436,7 +441,7 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
             if not applies(m, g["role"]):
                 continue
             value = (g["metrics"] or {}).get(key)
-            ref = refs.for_role(g["role"]).get(key)
+            ref = game_refs(refs, g).get(key)
             if value is None or ref is None:
                 continue
             pairs.append((value, ref, g["role"]))
@@ -955,7 +960,7 @@ def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
 def readiness(games: list[dict], refs: References, goals: list[dict]) -> dict:
     games = [g for g in games if reliable(g)]
     recent = games[:RECENT]
-    scores = [fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"]) for g in recent]
+    scores = [fundamentals_score(g["metrics"] or {}, game_refs(refs, g), g["role"]) for g in recent]
     scores = [s for s in scores if s is not None]
     fundamentals = round(sum(scores) / len(scores), 1) if scores else None
     rated = [g["rate"] for g in goals if g.get("active", True) and g.get("rate") is not None and g.get("games", 0) >= MIN_GOAL_GAMES]
@@ -1002,7 +1007,7 @@ def champion_stats(games: list[dict], refs: References) -> list[dict]:
         by[(g["champ"], g["role"])].append(g)
     out = []
     for (champ, role), items in by.items():
-        scores = [fundamentals_score(g["metrics"] or {}, refs.for_role(role), role) for g in items if reliable(g)]
+        scores = [fundamentals_score(g["metrics"] or {}, game_refs(refs, g), role) for g in items if reliable(g)]
         scores = [s for s in scores if s is not None]
         wins = sum(1 for g in items if g["win"])
         out.append(
@@ -1110,7 +1115,7 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
     wins = sum(1 for g in games if g["win"])
     roles = Counter(g["role"] or "?" for g in games)
     for g in games:  # Swiftplay o con alguien AFK: sin nota (no es comparable con tu referencia)
-        g["score"] = fundamentals_score(g["metrics"] or {}, refs.for_role(g["role"]), g["role"]) if reliable(g) else None
+        g["score"] = fundamentals_score(g["metrics"] or {}, game_refs(refs, g), g["role"]) if reliable(g) else None
     # Muestra que de verdad sirve para señalar puntos débiles (partidas fiables del rol de cada métrica).
     sample = max((row.get("games") or 0 for row in table), default=0)
     weak = weaknesses(table, deaths)

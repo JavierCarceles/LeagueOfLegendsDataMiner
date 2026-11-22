@@ -200,7 +200,7 @@ def _row(g: dict, refs: References) -> dict:
         "enemy_jungler_champ": g.get("enemy_jungler_champ"),
         "issues": g.get("issues") or {},
         # Swiftplay o con alguien AFK ≥ 3 min: no se puntúa (igual que en el resumen).
-        "score": insights.fundamentals_score(m, refs.for_role(g["role"]), g["role"]) if insights.reliable(g) else None,
+        "score": insights.fundamentals_score(m, insights.game_refs(refs, g), g["role"]) if insights.reliable(g) else None,
         "reliable": insights.reliable(g),
         **{k: m.get(k) for k in keys},
     }
@@ -277,6 +277,12 @@ def summary(
             "target_hint": next_target(rank.get("tier"), profile["target_tier"]),
             "refs_source": {r: refs.source(r) for r in sorted(roles_played)},
             "refs_info": {r: refs.info(r) for r in sorted(roles_played)},
+            # Campeones tuyos con referencia propia de farm (OTPs de ese campeón en tu elo objetivo).
+            "champion_refs": [
+                {"champ": c, "role": r, "games": info["games"], "players": info["players"]}
+                for c, r in sorted({(g.get("champ"), g.get("role")) for g in games if g.get("champ") and g.get("role")})
+                if (info := refs.champion(c, r))
+            ],
             "calibration": svc.calibrator.status() if getattr(svc, "calibrator", None) else None,
             "filters": {"queue": _queue(queue), "role": _role(role) or "all", "last": last},
             "recent": [_row(g, refs) for g in games[:60]],
@@ -308,7 +314,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     if not analysis:
         raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
     refs = _references(svc, profile)
-    role_refs = refs.for_role(analysis.get("role"))
+    role_refs = insights.game_refs(refs, analysis)
     analysis["refs"] = role_refs
     analysis["refs_source"] = refs.source(analysis["role"]) if analysis.get("role") else None
     analysis["target_tier"] = profile["target_tier"]

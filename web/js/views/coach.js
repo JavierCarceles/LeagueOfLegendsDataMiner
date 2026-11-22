@@ -334,7 +334,9 @@ function refsLabel(s, sources) {
     : sources.includes("db")
       ? "Medias reales de las partidas de ese elo guardadas por el recolector."
       : "Medias aproximadas. Se calibran solas cuando haya al menos 20 jugadores de tu rol en tus partidas y se sepa tu liga.";
-  return h("span.tiny.muted", { title }, `Comparado con ${target} · referencia ${kind}${progress}`);
+  const champs = (s.champion_refs || []).map((c) => `${dd.name(c.champ)} (${fmt.int(c.games)} partidas de ${fmt.int(c.players)} OTPs)`);
+  const champTitle = champs.length ? ` En farm y primer objeto, con ${champs.join(", ")}, la referencia es la de sus OTPs de ${target}: el farm esperado depende del campeón.` : "";
+  return h("span.tiny.muted", { title: title + champTitle }, `Comparado con ${target} · referencia ${kind}${champs.length ? ` · farm de ${champs.map((c) => c.split(" (")[0]).join(", ")} según sus OTPs` : ""}${progress}`);
 }
 
 function filtersBar(s) {

@@ -10,6 +10,7 @@ from app.ingest import crawler as crawler_ingest
 from app.ingest import otp_details
 from app.ingest.crawler import (
     CrawlerConfig,
+    cap_count,
     otp_champs,
     otp_depth_start,
     otp_history_state,
@@ -126,7 +127,7 @@ def otps(
     entries = []
     for row, top in found:
         history = otp_history_state(row, list_key, depth_start)
-        if history == "loading" and cap and int(row["hits"] or 0) >= cap:
+        if history == "loading" and cap and cap_count(cfg, row["hits"], row["seen"]) >= cap:
             history = "capped"  # ya tiene sus partidas; el resto de su historial, cuando acabe la búsqueda
         seen = int(row["seen"] or 0)
         points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}

@@ -187,3 +187,29 @@ def test_endpoint_accepts_lines_and_champion_games(keyed_svc, monkeypatch):
         assert cfg["save_details"] is True  # el análisis minuto a minuto no se puede apagar desde fuera
         preview = client.get("/api/crawler/role-pool", params={"roles": "TOP"}).json()
         assert preview["champions"] == [DARIUS, AATROX]
+
+
+def test_champion_games_mode_has_no_mastery_option_and_its_funnel_no_points_stage(keyed_svc):
+    """«Cualquiera que lo juegue»: la maestría no es una opción (basta con tenerlo entre sus 3 más jugados)."""
+    from app.ingest.crawler import GAMES_MIN_MASTERY, search_funnel
+
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[LEE_SIN], focus="games", min_mastery=500_000).validated()
+    assert cfg.min_mastery == GAMES_MIN_MASTERY
+    now = _now()
+    with keyed_svc.db.write() as conn:
+        for puuid, top in (("a", [[AHRI, 900_000, now], [LEE_SIN, 40_000, now]]), ("b", [[AHRI, 900_000, now]])):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'EMERALD', 1, 10)", (puuid,))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
+    funnel = search_funnel(keyed_svc.db, cfg, now)
+    assert funnel["stages"] == ["checked", "champ", "active"] and funnel["total"]["active"] == 1
+    assert "points" not in funnel["platforms"]["euw1"]
+
+
+def test_per_player_cap_counts_every_game_when_collecting_a_champions_games():
+    """Con la jungla entera y «Cualquiera que lo juegue» casi toda partida se guarda: el tope «sus 30 partidas» cuenta
+    todas las que se bajan (antes solo las suyas con el campeón: más de 100 descargas por jugador antes de pasar a otro)."""
+    from app.ingest.crawler import cap_count
+
+    games = CrawlerConfig(roles=["JUNGLE"], role_champions=[LEE_SIN], focus="games").validated()
+    otp = CrawlerConfig(champions=[LEE_SIN], focus="otp").validated()
+    assert cap_count(games, hits=8, seen=30) == 30 and cap_count(otp, hits=8, seen=30) == 8
