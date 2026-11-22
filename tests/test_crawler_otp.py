@@ -998,3 +998,20 @@ def test_funnel_is_written_for_review(keyed_svc):
     keyed_svc.crawler.write_funnel(force=True)
     data = json.loads((keyed_svc.settings.data_dir / "otps" / "_busqueda.json").read_text(encoding="utf-8"))
     assert data["config"]["focus"] == "otp" and "total" in data and data["config"]["champions"]
+
+
+def test_played_in_the_last_n_days_is_configurable(keyed_svc):
+    """Con 30 días se quedaba fuera más de la mitad de los candidatos (data/otps/_busqueda.json): se puede ampliar."""
+    now = _now_s()
+    top = [[AATROX, 300_000, now - 70 * 86400], [GAREN, 50_000, now]]  # lo jugó hace 70 días
+    month = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000).validated()
+    quarter = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=100_000, active_days=90).validated()
+    assert month.active_days == 30 and not month.qualifies(top, now)
+    assert quarter.qualifies(top, now)
+    assert CrawlerConfig(active_days=45).validated().active_days == 30  # solo los valores del desplegable
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('a-1', 'euw1', 'EMERALD', 1, 50)")
+        conn.execute("INSERT INTO mastery_checks VALUES ('a-1', 'euw1', ?, ?)", (now, json.dumps(top)))
+    base = dict(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="mastery", min_mastery=100_000)
+    assert search_funnel(keyed_svc.db, CrawlerConfig(**base).validated(), now)["total"]["active"] == 0
+    assert search_funnel(keyed_svc.db, CrawlerConfig(**base, active_days=90).validated(), now)["total"]["active"] == 1

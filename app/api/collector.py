@@ -36,6 +36,7 @@ class CrawlerBody(BaseModel):
     otp_depth: str = Field("season", pattern="^(season|90|180|365|all)$", description="Historial de cada OTP: temporada, N días o todo")
     save_details: bool = Field(True, description="Guardar micro y macro (timeline) de cada partida de los OTPs")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
+    active_days: int = Field(30, ge=1, le=365, description="Cuenta quien jugó el campeón en los últimos N días")
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
 
 
@@ -225,6 +226,7 @@ def otps(
         "min_mastery": cfg.min_mastery,
         "otp_depth": cfg.otp_depth,
         "games_per_otp": cfg.games_per_otp,
+        "active_days": cfg.active_days,
         "searching": bool(cap),
         "found": len(found),
         "complete": sum(1 for row, _ in found if otp_history_state(row, list_key, depth_start) in ("done", "share")),

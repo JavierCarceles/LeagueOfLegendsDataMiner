@@ -521,6 +521,14 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   (≥ 40 partidas de ≥ 3 OTPs) y del más alto con datos, ordenado de peor a mejor, y su build más jugada. Lee
   `data/otps/<Campeón>/resumen.json`. `tests/test_otp_compare.py`.
 
+## 3 septendecies. Sesión del 2026-11-22 (12.ª) — `_busqueda.json`: la búsqueda va bien, Hecarim es raro
+
+- Informe real (Hecarim, jungla, Platino–Esmeralda, 15 servidores, «Mucha maestría», ≥ 100 K): 11.120 revisados
+  (9.608 en la última hora, ~650/h por servidor, sin errores) → 121 con Hecarim en su top 3 (1,1 %) → 83 con ≥ 100 K →
+  35 jugado en 30 días. No hay fallo: la búsqueda va a tope; el campeón es raro (~1 OTP por 320 revisados, ~30/hora).
+- El filtro de actividad dejaba fuera al 58 % de los candidatos: `CrawlerConfig.active_days` (14/30/60/90/180/365,
+  30 por defecto) + «Jugado en los últimos» en la web; el embudo lo usa y lo guarda en la configuración.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

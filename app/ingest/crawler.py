@@ -54,7 +54,8 @@ EXHAUSTED_COOLDOWN_S = 20 * 60
 MASTERY_TTL_S = 7 * 86400
 MASTERY_BATCH = 25
 OTP_RATIO = 1.5  # el campeón principal debe tener ≥ 1,5× los puntos del segundo
-ACTIVE_DAYS = 30  # y haberlo jugado en el último mes (la maestría es acumulada de por vida)
+ACTIVE_DAYS = 30  # por defecto: haberlo jugado en el último mes (la maestría es acumulada de por vida)
+ACTIVE_CHOICES = (14, 30, 60, 90, 180, 365)
 
 # Historial de los OTPs (sin tope de partidas por jugador).
 OTP_PAGE = 100  # ids por petición de match-v5 (el máximo de Riot)
@@ -185,6 +186,9 @@ class CrawlerConfig:
     # partidas más recientes con esos campeones; el resto de su historial, cuando ya no quedan jugadores por revisar.
     # 0 = sin tope.
     games_per_otp: int = 30
+    # Cuenta quien lo ha jugado en los últimos N días. Con 30, en Platino–Esmeralda se quedaban fuera más de la mitad
+    # de los que tenían el campeón en su top 3 con el mínimo de puntos (data/otps/_busqueda.json, noviembre de 2026).
+    active_days: int = ACTIVE_DAYS
 
     def validated(self) -> CrawlerConfig:
         platforms = [p for p in dict.fromkeys(p.lower() for p in self.platforms) if p in PLATFORMS]
@@ -208,6 +212,7 @@ class CrawlerConfig:
             champion_roles=self._clean_roles(),
             save_details=bool(self.save_details),
             games_per_otp=0 if not int(self.games_per_otp or 0) else max(5, min(int(self.games_per_otp), 1000)),
+            active_days=int(self.active_days) if int(self.active_days or 0) in ACTIVE_CHOICES else ACTIVE_DAYS,
         )
 
     def _clean_roles(self) -> dict[int, list[str]]:
@@ -240,7 +245,7 @@ class CrawlerConfig:
         targets = set(self.champions)
         if not targets or not top:
             return False
-        cutoff = (now or now_s()) - ACTIVE_DAYS * 86400
+        cutoff = (now or now_s()) - self.active_days * 86400
 
         def active(entry) -> bool:
             last = int(entry[2]) if len(entry) > 2 and entry[2] else None
@@ -265,7 +270,7 @@ def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
     if not targets or not platforms or not tiers:
         return {"stages": [], "platforms": {}}
     pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
-    cutoff = now - ACTIVE_DAYS * 86400
+    cutoff = now - cfg.active_days * 86400
     stages = ["checked", "champ", "points", "ratio", "active"] if cfg.focus == "otp" else ["checked", "champ", "points", "active"]
     per: dict[str, dict] = {}
 
@@ -1331,7 +1336,8 @@ class Crawler:
             funnel["config"] = {
                 "champions": [dd.name(c) if dd is not None and hasattr(dd, "name") else c for c in cfg.champions],
                 "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
-                "focus": cfg.focus, "min_mastery": cfg.min_mastery, "platforms": cfg.platforms, "tiers": cfg.tiers,
+                "focus": cfg.focus, "min_mastery": cfg.min_mastery, "active_days": cfg.active_days,
+                "platforms": cfg.platforms, "tiers": cfg.tiers,
             }
             funnel["workers"] = {r: {k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error")} for r, w in self.workers.items()}
             base = Path(self.svc.settings.data_dir) / "otps"

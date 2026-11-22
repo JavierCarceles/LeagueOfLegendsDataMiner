@@ -460,6 +460,17 @@ function championSection(cfg) {
       ),
       h(
         "label.row.small",
+        { title: "La maestría se acumula de por vida: así no cuenta quien ya no lo juega. Para recoger datos de la temporada, 90 días también sirve y salen muchos más (con 30, en Platino–Esmeralda se quedaba fuera más de la mitad)." },
+        "Jugado en los últimos",
+        select(
+          [14, 30, 60, 90, 180, 365].map((n) => ({ value: n, label: `${n} días` })),
+          cfg.active_days || 30,
+          (v) => (cfg.active_days = Number(v)),
+          "select select-sm",
+        ),
+      ),
+      h(
+        "label.row.small",
         { title: "Puntos de maestría mínimos con el campeón. En Platino–Esmeralda muchos OTPs no llegan a 300 K: con 100 K o 50 K salen bastantes más." },
         "Mínimo",
         select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
@@ -662,7 +673,7 @@ function otpFunnel(data) {
     champ: data.focus === "mastery" ? `con ${champs} en su top 3` : `con ${champs} de principal`,
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
     ratio: "OTP estricto (1,5× su 2.º campeón)",
-    active: "jugado en el último mes = OTPs",
+    active: `jugado en los últimos ${data.active_days || 30} días = OTPs`,
   };
   const t = f.total;
   const steps = f.stages.map((k, i) => {
