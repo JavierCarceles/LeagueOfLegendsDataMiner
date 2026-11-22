@@ -245,6 +245,28 @@ CREATE TABLE IF NOT EXISTS otp_skips (
     PRIMARY KEY (puuid, match_id)
 ) WITHOUT ROWID;
 
+-- Micro y macro de las partidas de los OTPs con los campeones elegidos (para aprender de jugadores de mucho elo):
+-- el bruto (partida + timeline, zlib) para volver a analizarlas y el dossier ya analizado (zlib JSON).
+CREATE TABLE IF NOT EXISTS otp_games (
+    match_id     TEXT NOT NULL,
+    puuid        TEXT NOT NULL,
+    champ        INTEGER NOT NULL,
+    role         TEXT,
+    win          INTEGER NOT NULL,
+    game_start   INTEGER,
+    patch        TEXT,
+    platform     TEXT,
+    tier         TEXT,
+    has_timeline INTEGER NOT NULL DEFAULT 0,
+    version      INTEGER NOT NULL,      -- versión del dossier × 1000 + versión del análisis
+    match_raw    BLOB,
+    timeline_raw BLOB,
+    dossier      BLOB,
+    fetched_at   INTEGER NOT NULL,
+    PRIMARY KEY (match_id, puuid)
+);
+CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
+
 CREATE TABLE IF NOT EXISTS my_profile (
     id             INTEGER PRIMARY KEY CHECK (id = 1),
     puuid          TEXT,

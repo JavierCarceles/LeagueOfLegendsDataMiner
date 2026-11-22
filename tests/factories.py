@@ -568,6 +568,11 @@ class FakeRiotClient:
         payload = self.payloads.get(match_id)
         return copy.deepcopy(payload) if payload is not None else None
 
+    def timeline(self, match_id, **kw):
+        self._record("timeline", match_id)
+        payload = self.payloads.get(match_id)
+        return make_timeline(payload) if payload is not None else None
+
 
 # ------------------------------------------------------------ timeline-v5
 # Escenario del timeline de pruebas (partida de 30 min, ``make_match`` por defecto):

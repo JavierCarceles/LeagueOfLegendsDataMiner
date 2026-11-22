@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, platformLabel, ROLE_LABEL, ROLES, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, mount, multiSelect, notice, roleIcon, select, toast } from "../ui.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, modal, mount, multiSelect, notice, roleIcon, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
@@ -83,7 +83,7 @@ export async function render(container) {
       { style: { marginTop: "16px" } },
       h("h3.card-title", icon("database"), "Recolector de partidas por servidores"),
       h("div.grid.crawler-grid", sections.crawlerForm, sections.crawlerStatus),
-      h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), "OTPs encontrados"], sections.otps, { summary: "jugadores y sus partidas con tus campeones", cls: "flat" })),
+      h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), "OTPs encontrados"], sections.otps, { summary: "un panel por campeón; pulsa uno para ver sus jugadores", cls: "flat" })),
     ),
     h(
       "div.stack",
@@ -469,6 +469,12 @@ function championSection(cfg) {
         select(OTP_DEPTHS, String(cfg.otp_depth || "season"), (v) => (cfg.otp_depth = v), "select select-sm"),
       ),
       h("label.check", h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }), "Solo sus partidas con esos campeones"),
+      h(
+        "label.check",
+        { title: "Baja el timeline de cada partida suya con esos campeones (1 llamada más por partida) y guarda su micro y macro: muertes, oro, build, jungla, objetivos, posiciones minuto a minuto…" },
+        h("input", { type: "checkbox", checked: cfg.save_details !== false, onchange: (e) => (cfg.save_details = e.target.checked) }),
+        "Guardar micro y macro de cada partida",
+      ),
     ),
     h("p.tiny.muted", { style: { margin: 0 } }, "Sin tope de partidas por jugador: de cada OTP se baja su historial entero hasta la fecha elegida, 100 partidas por petición. Primero lo reciente de todos los OTPs y luego lo más antiguo; sus partidas nuevas van siempre antes. Si más atrás ya casi no jugaba esos campeones, se deja de bajar para no gastar llamadas."),
     h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) en paralelo a la descarga, porque Riot cuenta aparte el servidor y la región. OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
@@ -567,6 +573,29 @@ const rolesText = (champRoles, champ) => {
   const roles = (champRoles || {})[String(champ)] || [];
   return roles.length ? ` de ${roles.map((r) => ROLE_LABEL[r].toLowerCase()).join(" o ")}` : "";
 };
+const OTP_PAGE = 25;
+const OTP_SORTS = [
+  { value: "games", label: "Más partidas" },
+  { value: "elo", label: "Más elo" },
+  { value: "winrate", label: "Mejor winrate (≥ 5)" },
+  { value: "points", label: "Más maestría" },
+  { value: "name", label: "Nombre" },
+];
+const riotId = (p) => (p.game_name ? `${p.game_name}#${p.tag_line}` : null);
+const eloText = (p) => `${TIER_LABEL[p.tier] || p.tier || "—"}${p.division && !["MASTER", "GRANDMASTER", "CHALLENGER"].includes(p.tier) ? ` ${p.division}` : ""}${p.lp != null ? ` · ${fmt.int(p.lp)} LP` : ""}`;
+const wrClass = (wr) => (wr === null ? "muted" : wr >= 55 ? "good" : wr < 47 ? "bad" : "");
+
+/** Barra con el reparto de partidas por rol. */
+function roleBar(roles, total) {
+  const entries = Object.entries(roles || {}).filter(([, n]) => n > 0);
+  if (!entries.length || !total) return null;
+  return h(
+    "div.otp-rolebar",
+    { title: entries.map(([r, n]) => `${ROLE_LABEL[r] || r}: ${fmt.pct((100 * n) / total, 0)}`).join(" · ") },
+    entries.map(([r, n]) => h(`span.seg.role-${r.toLowerCase()}`, { style: { flexGrow: n } })),
+  );
+}
+
 let otpsAt = 0;
 let otpsSig = null;
 async function loadOtps(c) {
@@ -576,70 +605,215 @@ async function loadOtps(c) {
   otpsAt = Date.now();
   if (!c?.config?.champions?.length) {
     otpsSig = null;
-    return mount(box, h("div.small.muted", "Elige campeones en «Buscar por campeones (OTPs)» y arranca el recolector: aquí aparecerán los OTPs que encuentre y sus partidas."));
+    return mount(box, h("div.small.muted", "Elige campeones en «Buscar por campeones (OTPs)» y arranca el recolector: aquí aparecerá un panel por campeón con los OTPs que encuentre."));
   }
   let data;
   try {
-    data = await api.get("/api/crawler/otps", { limit: 80 });
+    data = await api.get("/api/crawler/otps", { limit: 1 });
   } catch (err) {
     return mount(box, errorBox(err));
   }
-  const sig = JSON.stringify([data.found, data.complete, data.games, data.players.map((p) => [p.platform, p.champ, p.points, p.total, p.history, p.history_checked, p.games.length])]);
+  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details, data.export]);
   if (sig === otpsSig) return;
   otpsSig = sig;
-  if (!data.players.length) {
-    return mount(box, h("div.small.muted", "Todavía ninguno: se está revisando la maestría de los jugadores del ranking (1 llamada por jugador, al ritmo de tu API key)."));
-  }
-  const shown = data.players.length < data.found ? ` (se muestran los ${data.players.length} con más partidas)` : "";
   mount(
     box,
     h(
       "div.col",
-      { style: { gap: "8px" } },
-      h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}${shown}`),
-      data.players.map((p) => {
-        const name = p.game_name ? `${p.game_name}#${p.tag_line}` : "Nombre aún desconocido";
-        const wr = p.total ? (100 * p.wins) / p.total : null;
-        const historyText = p.history === "loading" && p.history_checked ? `${HISTORY_LABEL.loading} (${fmt.int(p.history_checked)} revisadas)` : HISTORY_LABEL[p.history] || "";
-        return h(
-          "div.otp-row",
-          h(
-            "div.row",
-            { style: { minWidth: 0 } },
-            champImg(p.champ, "sm"),
-            h(
-              "div",
-              { style: { minWidth: 0 } },
-              p.game_name
-                ? h("a.ellipsis", { href: `#/jugador/${p.platform}/${encodeURIComponent(p.game_name)}/${encodeURIComponent(p.tag_line)}`, style: { fontWeight: 650, display: "block" } }, name)
-                : h("div.muted", name),
-              h("div.tiny.muted", `${platformLabel(p.platform)} · ${TIER_LABEL[p.tier] || p.tier || "—"}${p.lp != null ? ` ${p.lp} LP` : ""} · ${fmt.compact(p.points)} puntos con ${dd.name(p.champ)}`),
-              h(
-                "div.tiny",
-                h("b", `${fmt.int(p.total)} ${p.total === 1 ? "partida" : "partidas"} con ${dd.name(p.champ)}${rolesText(data.champion_roles, p.champ)}`),
-                wr !== null ? h("span.muted", ` · ${fmt.pct(wr)} WR`) : null,
-                p.share !== null && p.share !== undefined ? h("span.muted", { title: "De sus partidas revisadas, cuántas jugó con los campeones elegidos" }, ` · ${fmt.pct(100 * p.share, 0)} de sus partidas`) : null,
-                historyText ? h(`span.${p.history === "loading" || p.history === "queued" ? "muted" : "good"}`, ` · ${historyText}`) : null,
-              ),
-            ),
-          ),
-          h(
-            "div.row-wrap",
-            { style: { gap: "4px" } },
-            p.games.length
-              ? p.games.map((g) =>
-                  h(
-                    `a.chip.otp-game.${g.win ? "win" : "loss"}`,
-                    { href: `#/partida/${g.match_id}`, title: `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}${g.role ? ` · ${ROLE_LABEL[g.role] || g.role}` : ""}` },
-                    g.role ? roleIcon(g.role) : null,
-                    `${g.win ? "V" : "D"} ${g.kills}/${g.deaths}/${g.assists}`,
-                  ),
-                )
-              : h("span.tiny.muted", "partidas en cola"),
-          ),
-        );
-      }),
+      { style: { gap: "10px" } },
+      h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}`),
+      h("div.otp-champ-grid", (data.by_champion || []).map((ch) => otpChampCard(ch, data))),
+      otpExportBar(data),
     ),
+  );
+}
+
+/** Micro y macro guardado de las partidas de los OTPs y su exportación a data/otp_export. */
+function otpExportBar(data) {
+  const d = data.details || { games: 0, players: 0, timelines: 0 };
+  const ex = data.export || { status: "idle" };
+  const running = ex.status === "running";
+  const doExport = async (btn) => {
+    btn.disabled = true;
+    try {
+      await api.post("/api/crawler/otps/export");
+      toast("Exportando los datos de los OTPs…");
+      otpsAt = 0;
+      setTimeout(refresh, 1500);
+    } catch (err) {
+      toast(err.message, "error");
+      btn.disabled = false;
+    }
+  };
+  const btn = h("button.btn.btn-sm", { type: "button", disabled: running || !d.games || null, onclick: (e) => doExport(e.currentTarget) }, icon("download"), running ? "Exportando…" : "Exportar datos");
+  return h(
+    "div.otp-export",
+    h(
+      "div",
+      { style: { minWidth: 0 } },
+      h("div.small", h("b", "Micro y macro guardado: "), `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} OTPs`, d.games && d.timelines < d.games ? h("span.muted", ` (${fmt.int(d.games - d.timelines)} sin timeline)`) : null, !d.enabled ? h("span.warn", " · desactivado en el recolector") : null),
+      running
+        ? h("div.tiny.muted", `Exportando… ${fmt.int(ex.done || 0)} de ${fmt.int(ex.total || 0)} partidas`)
+        : ex.status === "done"
+          ? h("div.tiny.good", `Exportado: ${fmt.int(ex.games)} partidas en ${fmt.int(ex.files)} ficheros (${fmt.num((ex.bytes || 0) / 1e6, 1)} MB) → ${ex.path}`)
+          : ex.status === "error"
+            ? h("div.tiny.bad", `Error al exportar: ${ex.error}`)
+            : h("div.tiny.muted", "Exporta una carpeta por campeón en data/otp_export: un fichero por OTP con todas sus partidas a fondo y un resumen.json con lo agregado."),
+    ),
+    btn,
+  );
+}
+
+function otpChampCard(ch, data) {
+  const wr = ch.games ? (100 * ch.wins) / ch.games : null;
+  const wanted = ch.roles_wanted || [];
+  const searching = !ch.found;
+  return h(
+    "button.otp-card",
+    { type: "button", disabled: searching || null, onclick: () => openOtpChamp(ch, data), title: searching ? "Aún no hay OTPs de este campeón" : `Ver los OTPs de ${dd.name(ch.champ)}` },
+    h(
+      "div.otp-card-head",
+      champImg(ch.champ, "lg"),
+      h(
+        "div",
+        { style: { minWidth: 0 } },
+        h("div.otp-card-name", dd.name(ch.champ)),
+        h("div.tiny.muted.row", { style: { gap: "4px" } }, wanted.length ? [wanted.map((r) => roleIcon(r)), wanted.map((r) => ROLE_LABEL[r]).join(" / ")] : "Cualquier rol"),
+      ),
+    ),
+    searching
+      ? h("div.small.muted", "Buscando… se revisa la maestría del ranking al ritmo de tu API key.")
+      : [
+          h(
+            "div.otp-card-stats",
+            h("div", h("b", fmt.int(ch.found)), h("span", ch.found === 1 ? "OTP" : "OTPs")),
+            h("div", h("b", fmt.int(ch.games)), h("span", "partidas")),
+            h("div", h(`b.${wrClass(wr)}`, wr === null ? "—" : fmt.pct(wr, 0)), h("span", "winrate")),
+          ),
+          roleBar(ch.roles, ch.games),
+          h(
+            "div.tiny.muted",
+            `Historial completo: ${fmt.int(ch.complete)}/${fmt.int(ch.found)}`,
+            ch.best ? ` · mejor elo: ${eloText(ch.best)}` : "",
+          ),
+          ch.leaders?.length && ch.leaders[0].total
+            ? h(
+                "div.otp-card-leaders",
+                ch.leaders.filter((l) => l.total).map((l) => h("span.tiny", h("b", riotId(l) || "Sin nombre"), h("span.muted", ` · ${fmt.int(l.total)}`))),
+              )
+            : null,
+          h("div.otp-card-cta", "Ver jugadores", icon("chevron")),
+        ],
+  );
+}
+
+/** Ventana con todos los OTPs de un campeón: búsqueda, filtros, orden y paginado. */
+function openOtpChamp(ch, data) {
+  const f = { q: "", platform: "", sort: "games" };
+  let loaded = [];
+  let matched = 0;
+  const wr = ch.games ? (100 * ch.wins) / ch.games : null;
+  const list = h("div.otp-list");
+  const countEl = h("span.tiny.muted");
+  const moreBtn = h("button.btn.btn-sm", { type: "button", onclick: () => load(false) }, "Ver más");
+  const platforms = Object.keys(ch.platforms || {});
+  let searchTimer = null;
+  const search = h("input.input.input-sm", {
+    type: "search",
+    placeholder: "Buscar jugador…",
+    "aria-label": "Buscar jugador",
+    oninput: (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => ((f.q = e.target.value), load(true)), 250);
+    },
+  });
+  const body = h(
+    "div.col",
+    { style: { gap: "14px" } },
+    h(
+      "div.kpis",
+      kpi(ch.found === 1 ? "OTP" : "OTPs", fmt.int(ch.found), `${fmt.int(ch.with_games)} con partidas guardadas`),
+      kpi("Partidas", fmt.int(ch.games), rolesText(data.champion_roles, ch.champ) ? `solo${rolesText(data.champion_roles, ch.champ)}` : "en cualquier rol"),
+      kpi("Winrate", wr === null ? "—" : fmt.pct(wr, 1), ch.games ? `${fmt.int(ch.wins)} V · ${fmt.int(ch.games - ch.wins)} D` : null, wrClass(wr)),
+      kpi("Historial", `${fmt.int(ch.complete)}/${fmt.int(ch.found)}`, "completos"),
+      ch.best ? kpi("Mejor elo", TIER_LABEL[ch.best.tier] || ch.best.tier || "—", ch.best.lp != null ? `${fmt.int(ch.best.lp)} LP · ${platformLabel(ch.best.platform)}` : platformLabel(ch.best.platform)) : null,
+    ),
+    Object.keys(ch.roles || {}).length
+      ? h(
+          "div.otp-roles-line",
+          roleBar(ch.roles, ch.games),
+          h("div.row-wrap.tiny.muted", { style: { gap: "4px 12px" } }, Object.entries(ch.roles).map(([r, n]) => h("span.row", { style: { gap: "4px" } }, roleIcon(r), `${ROLE_LABEL[r] || r} ${fmt.pct((100 * n) / ch.games, 0)}`))),
+        )
+      : null,
+    h(
+      "div.otp-filters",
+      search,
+      platforms.length > 1
+        ? select([{ value: "", label: "Todos los servidores" }, ...platforms.map((p) => ({ value: p, label: `${platformLabel(p)} (${ch.platforms[p]})` }))], "", (v) => ((f.platform = v), load(true)), "select select-sm")
+        : null,
+      select(OTP_SORTS, f.sort, (v) => ((f.sort = v), load(true)), "select select-sm"),
+      countEl,
+    ),
+    list,
+    h("div.row", { style: { justifyContent: "center" } }, moreBtn),
+  );
+  modal(h("div.row", { style: { gap: "12px" } }, champImg(ch.champ, "lg"), h("div", h("h3", `OTPs de ${dd.name(ch.champ)}`), h("div.tiny.muted", `${platforms.map(platformLabel).join(", ") || "—"} · historial: ${depthLabel(data.otp_depth).toLowerCase()}`))), body, { wide: true });
+
+  async function load(reset) {
+    if (reset) loaded = [];
+    moreBtn.disabled = true;
+    if (reset) mount(list, loading());
+    const fresh = latest("datos.otps.modal");
+    let res;
+    try {
+      res = await api.get("/api/crawler/otps", { champ: ch.champ, limit: OTP_PAGE, offset: loaded.length, sort: f.sort, q: f.q || undefined, platform: f.platform || undefined });
+    } catch (err) {
+      return mount(list, errorBox(err));
+    }
+    if (!fresh()) return;
+    loaded = [...loaded, ...res.players];
+    matched = res.matched;
+    mount(list, loaded.length ? loaded.map((p, i) => otpPlayerRow(p, i + 1)) : h("div.small.muted", { style: { padding: "12px 0" } }, "Ningún jugador coincide con la búsqueda."));
+    countEl.textContent = `${fmt.int(loaded.length)} de ${fmt.int(matched)}`;
+    moreBtn.hidden = loaded.length >= matched;
+    moreBtn.disabled = false;
+  }
+  load(true);
+}
+
+function otpPlayerRow(p, rank) {
+  const name = riotId(p);
+  const wr = p.total ? (100 * p.wins) / p.total : null;
+  const historyText = p.history === "loading" && p.history_checked ? `${HISTORY_LABEL.loading} · ${fmt.int(p.history_checked)} revisadas` : HISTORY_LABEL[p.history] || "";
+  const mainRole = Object.keys(p.roles || {})[0];
+  return h(
+    "div.otp-player",
+    h("span.otp-rank", rank),
+    h(
+      "div.otp-player-id",
+      name
+        ? h("a.ellipsis", { href: `#/jugador/${p.platform}/${encodeURIComponent(p.game_name)}/${encodeURIComponent(p.tag_line)}`, onclick: () => document.querySelector(".modal-backdrop")?.remove() }, name)
+        : h("span.muted", "Nombre aún desconocido"),
+      h("div.tiny.muted", `${platformLabel(p.platform)} · ${eloText(p)} · ${fmt.compact(p.points)} pts`),
+    ),
+    h(
+      "div.otp-player-games",
+      h("div.small", h("b", fmt.int(p.total)), h("span.muted", p.total === 1 ? " partida" : " partidas"), wr !== null ? h(`span.${wrClass(wr)}`, ` · ${fmt.pct(wr, 0)}`) : null),
+      wr !== null ? h("div.otp-wr", h("span", { style: { width: `${wr}%` } })) : h("div.tiny.muted", "partidas en cola"),
+    ),
+    h("div.otp-player-role", mainRole ? [roleIcon(mainRole), h("span.tiny.muted", ROLE_LABEL[mainRole] || mainRole)] : h("span.tiny.muted", "—")),
+    h(
+      "div.otp-form",
+      { "aria-label": "Últimas partidas" },
+      (p.games || []).map((g) =>
+        h(`a.otp-dot.${g.win ? "win" : "loss"}`, {
+          href: `#/partida/${g.match_id}`,
+          onclick: () => document.querySelector(".modal-backdrop")?.remove(),
+          title: `${g.win ? "Victoria" : "Derrota"} ${g.kills}/${g.deaths}/${g.assists}${g.role ? ` · ${ROLE_LABEL[g.role] || g.role}` : ""} · ${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}`,
+        }),
+      ),
+    ),
+    h(`span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`, { title: historyText }, p.history === "done" || p.history === "share" ? "Completo" : p.history === "loading" ? "Bajando" : "En cola"),
   );
 }
 

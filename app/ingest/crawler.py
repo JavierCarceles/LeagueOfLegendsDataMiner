@@ -38,6 +38,7 @@ from dataclasses import asdict, dataclass, field
 
 from app.data.db import now_s
 from app.data.repository import known_match_ids, mark_skipped, store_match, upsert_seed_players
+from app.ingest import otp_details
 from app.ingest.extractor import parse_match
 from app.logbus import get_logger
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
@@ -67,6 +68,7 @@ OTP_ANCHOR_LAG_S = 2 * 3600  # el ancla va 2 h atrás: la partida en curso o rec
 OTP_IDLE_WAIT_S = 30
 OTP_FAIL_COOLDOWN_S = 3600  # un OTP que falla 3 veces seguidas descansa una hora
 OTP_DEPTHS = ("season", "90", "180", "365", "all")
+OTP_DETAIL_BACKFILL = 25  # partidas ya guardadas a las que se les baja el micro/macro por visita (2 llamadas cada una)
 
 
 def season_start(version: str | None, now: int | None = None) -> tuple[int, int | None]:
@@ -171,6 +173,8 @@ class CrawlerConfig:
     otp_depth: str = "season"
     # Rol buscado de cada campeón ({campeón: [roles]}): sin entrada = cualquier rol. Ej.: Sylas solo jungla o mid.
     champion_roles: dict[int, list[str]] = field(default_factory=dict)
+    # Micro y macro de cada partida de los OTPs con esos campeones (timeline: 1 llamada más por partida).
+    save_details: bool = True
 
     def validated(self) -> CrawlerConfig:
         platforms = [p for p in dict.fromkeys(p.lower() for p in self.platforms) if p in PLATFORMS]
@@ -192,6 +196,7 @@ class CrawlerConfig:
             only_target_games=bool(self.only_target_games),
             otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
             champion_roles=self._clean_roles(),
+            save_details=bool(self.save_details),
         )
 
     def _clean_roles(self) -> dict[int, list[str]]:
@@ -289,6 +294,7 @@ class Ingested:
     patch_major: int | None = None
     valid: bool = False  # ranked de la Grieta, sin remake y con el jugador dentro
     mine_target: bool = False  # el jugador jugó con uno de los campeones elegidos
+    detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
 class RegionWorker(threading.Thread):
@@ -327,6 +333,7 @@ class RegionWorker(threading.Thread):
             "otps_known": 0,
             "otps_complete": 0,
             "otp_pages": 0,
+            "details": 0,  # partidas de OTPs con micro y macro guardados
             "last_error": None,
             "started_at": time.time(),
             "last_activity": time.time(),
@@ -545,7 +552,9 @@ class RegionWorker(threading.Thread):
         recrawl = int(cfg.recrawl_hours * 3600)
         best = None
         known = complete = 0
-        for row, _top in otp_rows(self.svc.db, cfg, self.platforms, cfg.tiers, now):
+        rows = otp_rows(self.svc.db, cfg, self.platforms, cfg.tiers, now)
+        lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details else set()
+        for row, _top in rows:
             known += 1
             state = otp_history_state(row, list_key, depth_start, otp_config_key(cfg))
             if state in ("done", "share"):
@@ -559,12 +568,62 @@ class RegionWorker(threading.Thread):
                 key = (1, row["last_crawled_at"] or 0, *rank)
             elif state == "loading":
                 key = (2, row["back_offset"] or 0, *rank)
+            elif row["id"] in lacking:
+                key = (3, 0, *rank)  # partidas guardadas sin micro/macro (de antes de activarlo o que fallaron)
             else:
                 continue
             if best is None or key < best[0]:
                 best = (key, row)
         self.state.update(otps_known=known, otps_complete=complete)
         return best[1] if best else None
+
+    def _lacking_details(self, player_ids: list[int]) -> set[int]:
+        """OTPs con partidas suyas con los campeones elegidos (en su rol) guardadas pero sin micro/macro."""
+        if not player_ids:
+            return set()
+        cond, params = target_sql(self.config, "p")
+        out: set[int] = set()
+        for i in range(0, len(player_ids), 400):
+            chunk = player_ids[i : i + 400]
+            out |= {
+                r[0]
+                for r in self.svc.db.query(
+                    f"SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl.id = p.player_id "
+                    f"LEFT JOIN otp_games o ON o.match_id = p.match_id AND o.puuid = pl.puuid "
+                    f"WHERE p.player_id IN ({','.join('?' * len(chunk))}) AND {cond} AND o.match_id IS NULL",
+                    (*chunk, *params),
+                )
+            }
+        return out
+
+    def _detail(self, match_id: str, payload: dict | None, player) -> bool:
+        """Baja el timeline (y la partida si no se tiene) y guarda el micro/macro de ese OTP. ``True`` si se guardó."""
+        svc = self.svc
+        if svc.db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (match_id, player["puuid"])):
+            return False
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        try:
+            if payload is None:
+                payload = svc.riot.match(match_id, **kw)
+                if payload is None:
+                    return False
+            timeline = svc.riot.timeline(match_id, **kw)
+        except RiotKeyError:
+            raise
+        except RiotAPIError as exc:
+            if exc.status not in (400, 403, 404, 422):
+                raise  # red o Riot caído: se reintenta en otra visita
+            timeline = None  # Riot no tiene el timeline: se guarda lo que da la partida
+            if payload is None:
+                return False
+        try:
+            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], player.get("tier"))
+        except Exception:
+            log.exception("No se pudo analizar la partida %s del OTP", match_id)
+            return False
+        if saved:
+            self.state["details"] += 1
+        return saved
 
     def _visit_otp(self, row) -> None:
         """Una visita a un OTP: sus partidas nuevas y, con lo que quede de presupuesto, su historial hacia atrás."""
@@ -628,7 +687,7 @@ class RegionWorker(threading.Thread):
         def ingest(match_id: str) -> Ingested:
             nonlocal budget, ingested, newest
             got = self._ingest(match_id, player)
-            budget -= 1
+            budget -= 1 + got.detailed
             ingested += 1
             newest = max(newest, got.game_start)
             prog["seen"] += got.valid
@@ -717,6 +776,14 @@ class RegionWorker(threading.Thread):
                         prog.update(done_at=now_s(), done_start=depth_start, reason="share", config_key=config_key)
                 if consumed < len(ids):
                     break  # se acabó el presupuesto de la visita a mitad de página
+            # 3) Micro/macro de sus partidas ya guardadas que aún no lo tienen (de antes de activarlo o que fallaron).
+            if cfg.save_details and budget > 0 and not self.stop_event.is_set():
+                cond, params = target_sql(cfg, "p")
+                for match_id in otp_details.missing(db, puuid, row["id"], cond, params, min(budget, OTP_DETAIL_BACKFILL)):
+                    if self.stop_event.is_set():
+                        break
+                    self._detail(match_id, None, player)
+                    budget -= 1
             self._otp_fails.pop(puuid, None)
         except RiotAPIError as exc:
             if not isinstance(exc, RiotKeyError):
@@ -819,6 +886,8 @@ class RegionWorker(threading.Thread):
                 got.result = "other"
                 return got
         got.result = store_match(svc.db, record, seed_tier=player["tier"], stats_queues=svc.settings.stats_queues)
+        if cfg.champions and cfg.save_details and got.mine_target and got.result in ("stored", "duplicate"):
+            got.detailed = self._detail(match_id, payload, player)
         if got.result == "stored":
             self.state["stored"] += 1
             self.crawler.total_stored += 1

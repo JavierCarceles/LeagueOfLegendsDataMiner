@@ -362,6 +362,37 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - Web (`data.js` + CSS `.otp-champ`/`.role-toggle`): cada campeón elegido tiene 5 botones de rol; en móvil solo iconos.
 - Tests nuevos en `tests/test_crawler_otp.py` (suite entera en verde).
 
+## 3 septies. Sesión del 2026-11-22 (2.ª) — panel de OTPs por campeón (sin commitear)
+
+- Quitado `matchups_stats.json.bak` del repo (copia antigua de `data/legacy/matchups_stats.json`, con 10 partidas menos;
+  sigue en el historial de git) y `*.bak` en `.gitignore`: commit `6b2bfcf`, subido con permiso del usuario.
+- `/api/crawler/otps` ahora da `by_champion` (por campeón elegido: OTPs, partidas, WR, reparto por rol, servidores,
+  mejor elo, 3 con más partidas, historiales completos) y la lista de jugadores con filtros `champ`, `platform`, `q`,
+  `sort` (games|elo|winrate|points|name), `limit`/`offset` y `matched`. En foco «maestría» un jugador sale bajo cada
+  campeón de su top 3 que cumpla. Cada jugador trae `roles` (partidas por rol).
+- Web: «OTPs encontrados» = una tarjeta por campeón; al pulsarla, ventana (`modal`) con KPIs, barra de roles, buscador,
+  servidor, orden y lista paginada de 25 en 25 («Ver más»). Estilos `.otp-card*`, `.otp-player`, `.otp-dot`…
+  (`.otp-game` se mantiene: la usa Mi progreso).
+
+## 3 octies. Sesión del 2026-11-22 (3.ª) — micro y macro de los OTPs para aprender de ellos (sin commitear)
+
+- Petición: de los OTPs que se recogen, guardar todo el micro/macro posible (y las builds) en un fichero por OTP; el
+  usuario recopila ~10 campeones de mucho elo, devuelve los datos dentro del proyecto y con ellos se ajusta el análisis
+  de «Mi progreso» (umbrales, falsos positivos) y la web.
+- `app/ingest/otp_details.py`: `build_dossier` (= `analyze_game` desde el OTP, sin el `replay` de los 10, + runas,
+  hechizos, `riot_stats`, `challenges`, frames minuto a minuto suyos y de su rival con zona, compras/ventas, habilidades,
+  wards, eventos del mapa), `save` (tabla `otp_games`: bruto de partida y timeline + dossier, zlib), `reanalyze` (rehace
+  dossiers desde el bruto cuando sube `ANALYSIS_VERSION`, sin llamar a Riot; aún sin botón), `summarize` y `export`.
+- Recolector: `CrawlerConfig.save_details` (por defecto sí): timeline de cada partida suya con el campeón y rol
+  buscados (cuenta como 2 descargas en el reparto por visita) y relleno de las ya guardadas (`OTP_DETAIL_BACKFILL`
+  por visita; prioridad 3 en `_next_otp` para OTPs con partidas sin micro/macro).
+- API: `/api/crawler/otps` trae `details` y `export`; `POST/GET /api/crawler/otps/export` (hilo aparte). Escribe
+  `<DATA_DIR>/otp_export/<Campeón>/resumen.json` + `<servidor>_<RiotID>_<puuid8>.json.gz` + `LEEME.md`.
+- Web: casilla «Guardar micro y macro de cada partida» y barra «Exportar datos» bajo los paneles de campeón.
+- **Siguiente paso** cuando el usuario devuelva `otp_export`: leer los `resumen.json` (métricas medias por rol,
+  ganadas vs perdidas, `analysis_flags` = avisos que el análisis marca a jugadores de mucho elo → candidatos a falso
+  positivo) y ajustar `app/coach` (benchmarks, umbrales) y «Mi progreso».
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

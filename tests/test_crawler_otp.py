@@ -50,6 +50,7 @@ def run(svc, **cfg):
     ladder, payloads = world()
     fake = MasteryRiot(ladder, payloads)
     svc.riot = fake
+    cfg.setdefault("save_details", False)
     svc.crawler.start(CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], days=60, **cfg))
     worker = svc.crawler.workers["europe"]
     assert wait_until(lambda: worker.state["status"] == "idle"), worker.state
@@ -216,6 +217,7 @@ def history(puuid, n, *, prefix, every_h=8, champ_for=None, newest_s=None):
 
 
 def run_history(svc, fake, timeout=30, **cfg):
+    cfg.setdefault("save_details", False)  # el micro/macro tiene sus propias pruebas (cambia el reparto por visita)
     svc.riot = fake
     svc.crawler.workers.clear()
     svc.crawler.start(CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], **cfg))
@@ -556,3 +558,166 @@ def test_otps_endpoint_counts_only_games_in_the_chosen_role(keyed_svc):
     (player,) = data["players"]
     assert player["total"] == 2 and {g["role"] for g in player["games"]} == {"JUNGLE"}  # …pero cuentan las de jungla
     assert data["champion_roles"] == {str(AATROX): ["JUNGLE"]}
+
+
+# ------------------------------------------------------------------ panel por campeón y ventana de jugadores
+def _seed_otps(svc, rows):
+    """rows: [(puuid, platform, tier, lp, name, top)] como OTPs ya encontrados (sin partidas)."""
+    now = _now_s()
+    with svc.db.write() as conn:
+        for puuid, platform, tier, lp, name, top in rows:
+            conn.execute(
+                "INSERT INTO players (puuid, platform, tier, is_seed, lp, game_name, tag_line) VALUES (?, ?, ?, 1, ?, ?, 'X')",
+                (puuid, platform, tier, lp, name),
+            )
+            conn.execute("INSERT INTO mastery_checks VALUES (?, ?, ?, ?)", (puuid, platform, now, json.dumps([[c, p, now] for c, p in top])))
+
+
+def _client(svc):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    app = create_app(svc.settings, run_startup=False)
+    app.state.svc = svc
+    return TestClient(app)
+
+
+def test_otps_endpoint_summarises_each_champion(keyed_svc):
+    ids, payloads = role_history("otp-a", 6, prefix="1", role_for=lambda i: "JUNGLE" if i < 4 else "TOP")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)], "otp-b": [(GAREN, 800_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX, GAREN], only_target_games=True)
+    with _client(keyed_svc) as client:
+        data = client.get("/api/crawler/otps").json()
+    by = {c["champ"]: c for c in data["by_champion"]}
+    assert list(by) == [AATROX, GAREN]  # en el orden en que los elegiste, aunque uno no tenga OTPs aún
+    assert by[AATROX]["found"] == 1 and by[AATROX]["games"] == 6 and by[AATROX]["roles"] == {"JUNGLE": 4, "TOP": 2}
+    assert by[AATROX]["leaders"][0]["total"] == 6 and by[AATROX]["best"]["tier"] == "CHALLENGER"
+    assert by[GAREN]["found"] == 0 and by[GAREN]["best"] is None
+    assert data["players"][0]["roles"] == {"JUNGLE": 4, "TOP": 2}
+
+
+def test_otps_endpoint_filters_sorts_and_pages_one_champion(keyed_svc):
+    _seed_otps(
+        keyed_svc,
+        [
+            ("p1", "euw1", "CHALLENGER", 1500, "Alpha", [(AATROX, 900_000)]),
+            ("p2", "euw1", "GRANDMASTER", 700, "Bravo", [(AATROX, 2_000_000)]),
+            ("p3", "kr", "CHALLENGER", 2000, "Charlie", [(AATROX, 500_000)]),
+            ("p4", "kr", "MASTER", 100, "Delta", [(GAREN, 900_000)]),
+        ],
+    )
+    keyed_svc.crawler.config = CrawlerConfig(platforms=["euw1", "kr"], tiers=["MASTER", "GRANDMASTER", "CHALLENGER"], champions=[AATROX, GAREN]).validated()
+    with _client(keyed_svc) as client:
+        elo = client.get("/api/crawler/otps", params={"champ": AATROX, "sort": "elo"}).json()
+        page = client.get("/api/crawler/otps", params={"champ": AATROX, "sort": "points", "limit": 2, "offset": 1}).json()
+        kr = client.get("/api/crawler/otps", params={"champ": AATROX, "platform": "kr"}).json()
+        q = client.get("/api/crawler/otps", params={"q": "brav"}).json()
+    assert [p["game_name"] for p in elo["players"]] == ["Charlie", "Alpha", "Bravo"] and elo["matched"] == 3
+    assert [p["game_name"] for p in page["players"]] == ["Alpha", "Charlie"] and page["matched"] == 3
+    assert [p["game_name"] for p in kr["players"]] == ["Charlie"]
+    assert [p["game_name"] for p in q["players"]] == ["Bravo"]
+    assert {c["champ"]: c["found"] for c in elo["by_champion"]} == {AATROX: 3, GAREN: 1}
+    assert elo["by_champion"][0]["platforms"] == {"euw1": 2, "kr": 1}
+
+
+def test_mastery_focus_lists_a_player_under_each_champion(keyed_svc):
+    _seed_otps(keyed_svc, [("p1", "euw1", "CHALLENGER", 1500, "Alpha", [(AATROX, 900_000), (GAREN, 600_000), (DARIUS, 100_000)])])
+    keyed_svc.crawler.config = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX, GAREN, DARIUS], focus="mastery").validated()
+    with _client(keyed_svc) as client:
+        data = client.get("/api/crawler/otps").json()
+    assert {c["champ"]: c["found"] for c in data["by_champion"]} == {AATROX: 1, GAREN: 1, DARIUS: 0}  # Darius < 300 K
+    assert data["found"] == 1 and sorted(p["champ"] for p in data["players"]) == sorted([AATROX, GAREN])
+
+
+# ------------------------------------------------------------------ micro y macro de los OTPs
+import gzip  # noqa: E402
+
+from app.coach.store import unpack  # noqa: E402
+from app.ingest import otp_details  # noqa: E402
+
+
+def details(svc):
+    return {r["match_id"]: r for r in svc.db.query("SELECT * FROM otp_games")}
+
+
+def test_otp_games_get_their_micro_and_macro(keyed_svc):
+    ids, payloads = history("otp-a", 6, prefix="1", champ_for=lambda i: AATROX if i % 3 else GAREN)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    worker = run_history(keyed_svc, fake, champions=[AATROX], only_target_games=True, save_details=True)
+    saved = details(keyed_svc)
+    wanted = {ids[i] for i in range(6) if i % 3}
+    assert set(saved) == wanted and worker.state["details"] == 4
+    assert {c[1] for c in fake.calls_to("timeline")} == wanted  # solo se gasta la llamada en las que interesan
+    row = saved[ids[1]]
+    assert row["puuid"] == "otp-a" and row["champ"] == AATROX and row["role"] == "TOP" and row["has_timeline"] == 1
+    assert unpack(row["match_raw"])["metadata"]["matchId"] == ids[1] and unpack(row["timeline_raw"])["info"]["frames"]
+    d = unpack(row["dossier"])
+    assert d["analysis"]["has_timeline"] and d["analysis"]["metrics"]["cs_min"] > 0 and "replay" not in d["analysis"]
+    assert len(d["frames"]) == 31 and d["frames"][5]["zone"] and d["opponent_frames"]
+    assert d["events"]["items"] and d["runes"]["keystone"] and d["spells"] and d["track"]
+    assert d["allies"]["TOP"] == AATROX and d["map_events"]["kills"]
+
+
+def test_details_are_backfilled_for_games_saved_before(keyed_svc):
+    ids, payloads = history("otp-a", 5, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=False)
+    assert not details(keyed_svc)
+    fake2 = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake2, champions=[AATROX], save_details=True)
+    assert set(details(keyed_svc)) == set(ids)  # aunque su historial ya estuviera completo
+    assert len(fake2.calls_to("timeline")) == 5 and len(fake2.calls_to("match")) == 5
+
+
+def test_details_only_for_games_in_the_chosen_role(keyed_svc):
+    ids, payloads = role_history("otp-a", 6, prefix="1", role_for=lambda i: "JUNGLE" if i < 2 else "TOP")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], champion_roles={AATROX: ["JUNGLE"]}, only_target_games=False, save_details=True)
+    assert len(stored(keyed_svc)) == 6 and set(details(keyed_svc)) == set(ids[:2])
+    assert {r["role"] for r in details(keyed_svc).values()} == {"JUNGLE"}
+
+
+def test_export_writes_a_file_per_otp_and_a_summary(keyed_svc, tmp_path):
+    ids, payloads = history("otp-a", 4, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    result = otp_details.export(keyed_svc, tmp_path / "out")
+    assert result["games"] == 4 and result["files"] == 1
+    folder = tmp_path / "out" / keyed_svc.dd.name(AATROX)
+    (gz,) = folder.glob("*.json.gz")
+    with gzip.open(gz, "rt", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    assert payload["champ"] == AATROX and len(payload["games"]) == 4 and payload["player"]["platform"] == "euw1"
+    summary = json.loads((folder / "resumen.json").read_text(encoding="utf-8"))
+    top = summary["roles"]["TOP"]
+    assert summary["games"] == 4 and top["games"] == 4 and top["metrics"]["cs_min"]["n"] == 4
+    assert top["keystones"] and top["summoner_spells"] and "analysis_flags" in top
+    assert (tmp_path / "out" / "LEEME.md").exists()
+
+
+def test_export_keeps_players_with_the_same_name_apart(keyed_svc, tmp_path):
+    from types import SimpleNamespace
+
+    for puuid in ("same-1", "same-2"):
+        match = make_match(f"EUW1_{abs(hash(puuid)) % 10**6}", puuids={1: puuid})
+        assert otp_details.save(keyed_svc.db, SimpleNamespace(dd=None), match, None, puuid, "CHALLENGER")
+    result = otp_details.export(keyed_svc, tmp_path / "out")
+    assert result["files"] == 2 and len(list((tmp_path / "out").rglob("*.json.gz"))) == 2
+
+
+def test_export_endpoint_and_reanalyze(keyed_svc):
+    with _client(keyed_svc) as client:
+        assert client.post("/api/crawler/otps/export").status_code == 409  # nada que exportar aún
+    ids, payloads = history("otp-a", 2, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    with keyed_svc.db.write() as conn:
+        conn.execute("UPDATE otp_games SET version = 0, dossier = NULL")
+    assert otp_details.reanalyze(keyed_svc.db, keyed_svc) == 2  # desde el bruto, sin llamar a Riot
+    assert all(unpack(r["dossier"]) for r in details(keyed_svc).values())
+    with _client(keyed_svc) as client:
+        data = client.get("/api/crawler/otps").json()
+        assert data["details"]["games"] == 2 and data["details"]["enabled"] is True
+        assert client.post("/api/crawler/otps/export").json()["status"] in ("running", "done")
+        assert wait_until(lambda: client.get("/api/crawler/otps/export").json()["status"] == "done", 20)
