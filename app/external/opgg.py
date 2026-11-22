@@ -196,9 +196,21 @@ def _runes_of(raw) -> dict | None:
         "secondary": page.get("secondary_page_id"),
         "ids": (page.get("primary_rune_ids") or []) + (page.get("secondary_rune_ids") or []),
         "names": (page.get("primary_rune_names") or []) + (page.get("secondary_rune_names") or []),
+        "shards": _shards(page),
         "games": page.get("play"),
         "wins": page.get("win"),
     }
+
+
+def _shards(page: dict) -> list[int]:
+    """Los 3 fragmentos de estadísticas (``stat_mod_ids``), los que pide el cliente para crear la página."""
+    out = []
+    for value in page.get("stat_mod_ids") or []:
+        try:
+            out.append(int(value))
+        except (TypeError, ValueError):
+            return []
+    return out if len(out) == 3 else []
 
 
 class Opgg(CachedSource):
@@ -419,6 +431,20 @@ class Opgg(CachedSource):
         out = {str(c["champion_id"]): c.get("name") for c in champions if c.get("champion_id") and c.get("name")}
         return out or None
 
+    def rune_page(self, champ: int, role: str, allow_fetch: bool = True) -> dict | None:
+        """Página de runas más jugada con sus fragmentos (para importarla al cliente). Solo pide las runas."""
+        key = f"{champ}|{POSITIONS[role]}|runes"
+
+        def fetch():
+            raw = self.mcp_call(
+                "lol_get_champion_analysis",
+                {"game_mode": "ranked", "champion": self.mcp_name(champ), "position": POSITIONS[role], "lang": "en_US",
+                 "desired_output_fields": ["data.runes"]},
+            )
+            return _runes_of(((raw or {}).get("data") or {}).get("runes"))
+
+        return self._cached("build", key, TTL_MCP, fetch, allow_fetch)
+
     def matchup_guide(self, champ: int, opp: int, role: str, lang: str = "es_ES", allow_fetch: bool = True) -> dict | None:
         """Consejo, ventaja de línea, build y curva por duración contra un rival."""
         key = f"{champ}|{opp}|{POSITIONS[role]}|{lang}"
@@ -452,6 +478,7 @@ class Opgg(CachedSource):
                         "secondary": page.get("secondary_page_id"),
                         "ids": (page.get("primary_rune_ids") or []) + (page.get("secondary_rune_ids") or []),
                         "names": (page.get("primary_rune_names") or []) + (page.get("secondary_rune_names") or []),
+                        "shards": _shards(page),
                         "games": page.get("play"),
                         "wins": page.get("win"),
                         "pick_rate": page.get("pick_rate"),

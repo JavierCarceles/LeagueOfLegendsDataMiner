@@ -342,6 +342,27 @@ async function route({ keepPending = false } = {}) {
   }
 }
 
+// Al entrar en la selección de campeones del cliente de LoL se abre el Draft (una vez por selección: si te vas a otra
+// vista, no se te vuelve a llevar).
+const champSelectsSeen = new Set();
+let watchingChampSelect = false;
+async function watchChampSelect() {
+  if (watchingChampSelect) return; // también con la pestaña en segundo plano: estarás mirando el cliente
+  watchingChampSelect = true;
+  try {
+    const s = await api.get("/api/draft/live");
+    const id = s.active && s.draft ? String(s.draft.game_id ?? "sin-id") : null;
+    if (id && !champSelectsSeen.has(id)) {
+      champSelectsSeen.add(id);
+      if (current.id !== "draft") location.hash = "#/draft";
+    }
+  } catch {
+    // sin servidor o sin cliente: nada que hacer
+  } finally {
+    watchingChampSelect = false;
+  }
+}
+
 async function boot() {
   renderSidebar();
   setupLogs();
@@ -374,6 +395,7 @@ async function boot() {
   window.addEventListener("hashchange", () => route());
   refreshStatus();
   setInterval(refreshStatus, 15000);
+  setInterval(watchChampSelect, 3000);
   window.addEventListener("tempu:status", refreshStatus); // p. ej. al guardar o quitar tu perfil
   route();
   // Data Dragon puede tardar la primera vez (o no haber internet al abrir): se reintenta solo hasta que llegue.

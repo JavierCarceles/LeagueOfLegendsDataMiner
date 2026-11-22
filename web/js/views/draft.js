@@ -28,6 +28,7 @@ function persist() {
 
 export function destroy() {
   root = null;
+  stopLive();
 }
 
 export async function render(container) {
@@ -35,6 +36,10 @@ export async function render(container) {
   pickers = { ally: {}, enemy: {} };
   laneEls = {};
   summaryEl = h("div.draft-summary");
+  live.panel = h("div", { style: { marginBottom: "12px" } });
+  live.status = null;
+  live.lastKey = null;
+  live.prefs = null; // el panel se pinta con las preferencias del servidor en la primera lectura
   bottomEl = h("div.grid.grid-3", { style: { marginTop: "16px" } });
   buildsEl = h("div", { style: { marginTop: "16px" } });
 
@@ -68,12 +73,171 @@ export async function render(container) {
       h("button.btn", { onclick: swapTeams, title: "Intercambiar equipos" }, icon("swap"), "Intercambiar"),
       h("button.btn.btn-ghost", { onclick: clearDraft }, icon("trash"), "Limpiar"),
     ),
+    live.panel,
     summaryEl,
     board,
     buildsEl,
     bottomEl,
   );
   analyze();
+  startLive();
+}
+
+// ------------------------------------------------------------ draft en vivo (cliente de LoL)
+// En la selección de campeones el cliente manda: cada 1,5 s se lee su draft y, si cambia, se rellena y se analiza.
+// Al elegirse los 10, el servidor importa al cliente la build de tu campeón (runas, hechizos y objetos).
+const SPELL_NAME = { 1: "Limpiar", 3: "Agotar", 4: "Destello", 6: "Fantasmal", 7: "Curar", 11: "Castigo", 12: "Teleportar", 14: "Prender", 21: "Barrera", 32: "Marca" };
+const PHASE_LABEL = { PLANNING: "planificación", BAN_PICK: "baneos y elecciones", FINALIZATION: "fase final", GAME_STARTING: "empezando la partida" };
+const live = { timer: null, panel: null, status: null, lastKey: null, prefs: null, busy: false, last: null };
+
+function startLive() {
+  stopLive();
+  pollLive();
+  live.timer = setInterval(pollLive, 1500);
+}
+
+function stopLive() {
+  clearInterval(live.timer);
+  live.timer = null;
+}
+
+async function pollLive() {
+  if (live.busy || !root) return;
+  live.busy = true;
+  let s;
+  try {
+    s = await api.get("/api/draft/live");
+  } catch {
+    return;
+  } finally {
+    live.busy = false;
+  }
+  if (!root) return;
+  if (!live.prefs) {
+    live.prefs = s.prefs;
+    renderLivePanel();
+  }
+  live.last = s;
+  renderLiveStatus(s);
+  if (!s.active || !s.draft) return;
+  const key = JSON.stringify([s.draft.ally, s.draft.enemy]);
+  if (key === live.lastKey) return;
+  live.lastKey = key;
+  draft = { ally: { ...s.draft.ally }, enemy: { ...s.draft.enemy } };
+  persist();
+  for (const side of ["ally", "enemy"]) {
+    for (const role of ROLES) {
+      pickers[side][role]?.setValue(draft[side][role] || null);
+      updateBadge(side, role);
+    }
+  }
+  analyzeSoon();
+}
+
+function savePrefs(changes) {
+  live.prefs = { ...live.prefs, ...changes };
+  api
+    .put("/api/draft/live/prefs", changes)
+    .then((p) => {
+      live.prefs = p;
+      // Si ya se importó en esta selección, cambiar la tecla del Castigo la vuelve a aplicar.
+      if ("smite_key" in changes && live.last?.active && live.last?.import && live.last?.draft?.me?.locked) importNow();
+    })
+    .catch((err) => toast(err.message || "No se pudo guardar la preferencia", "bad"));
+}
+
+function prefCheck(key, label, title) {
+  return h(
+    "label.check",
+    { title },
+    h("input", { type: "checkbox", checked: !!live.prefs[key], onchange: (e) => savePrefs({ [key]: e.target.checked }) }),
+    label,
+  );
+}
+
+function renderLivePanel() {
+  if (!live.panel) return;
+  live.status = h("div.col", { style: { gap: "6px" } });
+  const smite = h(
+    "select.select",
+    { title: "En qué tecla quieres el Castigo cuando se importan los hechizos (el otro hechizo va en la otra)", onchange: (e) => savePrefs({ smite_key: e.target.value }) },
+    ["D", "F"].map((k) => h("option", { value: k, selected: live.prefs.smite_key === k }, `Castigo en la ${k}`)),
+  );
+  mount(
+    live.panel,
+    h(
+      "section.card",
+      h("h3.card-title", icon("draft"), "Draft automático con el cliente de LoL"),
+      live.status,
+      h(
+        "div.row",
+        { style: { gap: "14px", flexWrap: "wrap", marginTop: "10px", alignItems: "center" } },
+        prefCheck("enabled", "Seguir la selección de campeones", "Con el cliente abierto, el draft se rellena y se analiza solo mientras eliges"),
+        prefCheck("auto_import", "Importar al elegirse los 10", "Al terminar la selección se pasa la build de tu campeón al cliente"),
+        prefCheck("runes", "Runas", "Crea (o sustituye) la página «Tempu» con las runas recomendadas"),
+        prefCheck("spells", "Hechizos", "Pone los hechizos recomendados"),
+        prefCheck("items", "Objetos", "Crea un conjunto de objetos «Tempu» para ese campeón"),
+        smite,
+      ),
+    ),
+  );
+}
+
+function importText(imp) {
+  const parts = [];
+  if (imp.runes) parts.push("runas");
+  if (imp.spells) parts.push(`hechizos (D: ${SPELL_NAME[imp.spells[0]] || imp.spells[0]}, F: ${SPELL_NAME[imp.spells[1]] || imp.spells[1]})`);
+  if (imp.items) parts.push(`${imp.items} objetos en el conjunto «Tempu»`);
+  return parts.join(", ");
+}
+
+function renderLiveStatus(s) {
+  if (!live.status) return;
+  const rows = [];
+  if (s.active && s.draft) {
+    const me = s.draft.me;
+    rows.push(
+      h(
+        "div.row",
+        { style: { gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+        h("span.pill.pill-blue.pill-dot", "En directo"),
+        h("span.small", `Selección de campeones${s.draft.phase ? ` · ${PHASE_LABEL[s.draft.phase] || s.draft.phase.toLowerCase()}` : ""}`),
+        me?.champ
+          ? h("span.row.small.muted", { style: { gap: "6px", alignItems: "center" } }, "· Tú:", champImg(me.champ, "xs"), `${dd.name(me.champ)}${me.role ? ` (${ROLE_LABEL[me.role]})` : ""}${me.locked ? "" : " · sin fijar"}`)
+          : null,
+        h("span.spacer"),
+        me?.locked ? h("button.btn.btn-sm", { onclick: importNow, title: "Pasa ya al cliente la build de tu campeón con los filtros de la web" }, icon("crown"), "Importar build ya") : null,
+      ),
+    );
+    if (s.draft.blind) rows.push(h("div.tiny.muted", "Elección a ciegas: el rival no se ve hasta la pantalla de carga; la build se ajusta solo a tu equipo."));
+    else if (Object.keys(s.draft.enemy || {}).length) rows.push(h("div.tiny.muted", "Los roles del rival se deducen de dónde se juega cada campeón (y de quién lleva Castigo)."));
+  } else {
+    rows.push(
+      h(
+        "div.small.muted",
+        s.client
+          ? "Cliente de LoL abierto. Al entrar en la selección de campeones, el draft se rellena y se analiza solo."
+          : "Abre el cliente de LoL en este ordenador: al entrar en la selección de campeones, el draft se rellena y se analiza solo.",
+      ),
+    );
+  }
+  const imp = s.import;
+  if (imp && (s.active || Date.now() / 1000 - imp.at < 600)) {
+    const text = importText(imp);
+    if (text) rows.push(h(`div.small.${imp.status === "ok" ? "good" : "warn"}`, `Build de ${dd.name(imp.champ)} importada al cliente: ${text}.`));
+    for (const e of imp.errors || []) rows.push(h("div.small.bad", e));
+  }
+  if (s.error && s.active) rows.push(h("div.tiny.bad", s.error));
+  mount(live.status, rows);
+}
+
+async function importNow() {
+  try {
+    const res = await api.post("/api/draft/live/import", {}, filterParams());
+    toast(res.status === "error" ? (res.errors || []).join(" · ") || "No se pudo importar" : "Build importada al cliente", res.status === "error" ? "bad" : "good");
+  } catch (err) {
+    toast(err.message || "No se pudo importar", "bad");
+  }
 }
 
 export function onFilters() {

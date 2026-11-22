@@ -9,6 +9,8 @@ de la línea de comandos del proceso del cliente.
 * Tu cuenta (Riot ID y plataforma) para guardar el perfil sin escribirlo.
 * Fase de la partida (``InProgress``, ``EndOfGame``…) para descargar tus
   partidas en cuanto terminan.
+* Selección de campeones en tiempo real y, al terminar, la build del Draft al cliente: página de runas, hechizos
+  (con el Castigo en la tecla que prefieras) y un conjunto de objetos para ese campeón.
 * Repeticiones reales (.rofl): estado, descarga y abrirlas en el cliente. Con
   ``EnableReplayApi=1`` en ``Config/game.cfg``, la *Replay API* del juego
   (``https://127.0.0.1:2999``) permite saltar al segundo exacto de un error.
@@ -202,6 +204,54 @@ def gameflow_phase() -> str | None:
     except LCUError:
         return None
     return value if isinstance(value, str) else None
+
+
+# ------------------------------------------------------- selección de campeones
+def champ_select_session() -> dict | None:
+    """Sesión de la selección de campeones (equipos, acciones, temporizador) o ``None`` si no estás en ella."""
+    try:
+        data = _get("/lol-champ-select/v1/session", timeout=2.0)
+    except LCUError as exc:
+        if exc.status == 404:
+            return None
+        raise
+    return data if isinstance(data, dict) else None
+
+
+def summoner_id() -> int:
+    me = _get("/lol-summoner/v1/current-summoner")
+    sid = (me or {}).get("summonerId") if isinstance(me, dict) else None
+    if not sid:
+        raise LCUError("El cliente aún no ha cargado tu cuenta")
+    return int(sid)
+
+
+def rune_pages() -> list[dict]:
+    data = _get("/lol-perks/v1/pages")
+    return data if isinstance(data, list) else []
+
+
+def delete_rune_page(page_id: int) -> None:
+    _request("DELETE", f"/lol-perks/v1/pages/{int(page_id)}")
+
+
+def create_rune_page(page: dict) -> dict:
+    data = _request("POST", "/lol-perks/v1/pages", page)
+    return data if isinstance(data, dict) else {}
+
+
+def set_summoner_spells(spell1: int, spell2: int) -> None:
+    """Hechizos de la selección actual (``spell1`` va en la D y ``spell2`` en la F)."""
+    _request("PATCH", "/lol-champ-select/v1/session/my-selection", {"spell1Id": int(spell1), "spell2Id": int(spell2)})
+
+
+def item_sets(sid: int) -> dict:
+    data = _get(f"/lol-item-sets/v1/item-sets/{int(sid)}/sets")
+    return data if isinstance(data, dict) else {}
+
+
+def save_item_sets(sid: int, payload: dict) -> None:
+    _request("PUT", f"/lol-item-sets/v1/item-sets/{int(sid)}/sets", payload)
 
 
 # ---------------------------------------------------------------- instalación

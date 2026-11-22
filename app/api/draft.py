@@ -115,3 +115,34 @@ def get_backtest(svc=Depends(svc_from)):
 @router.post("/backtest")
 def run_backtest(sample: int = Query(3000, ge=200, le=20000), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
     return draft.backtest(svc, sample, sources=sources)
+
+
+# ------------------------------------------------------------ draft en vivo (cliente de LoL)
+class LivePrefs(BaseModel):
+    enabled: bool | None = None
+    auto_import: bool | None = None
+    runes: bool | None = None
+    spells: bool | None = None
+    items: bool | None = None
+    smite_key: str | None = Field(None, pattern="^[DFdf]$")
+
+
+@router.get("/live")
+def live_state(svc=Depends(svc_from)):
+    """Selección de campeones del cliente en curso (``active``), su draft y la última importación de la build."""
+    return svc.draft_live.status()
+
+
+@router.put("/live/prefs")
+def live_prefs(body: LivePrefs, svc=Depends(svc_from)):
+    from app import draft_live
+
+    return draft_live.save_prefs(svc.db, body.model_dump(exclude_none=True))
+
+
+@router.post("/live/import")
+def live_import(f: Filters = Depends(filters_dep), svc=Depends(svc_from)):
+    """Importa ya la build de tu campeón (runas, hechizos y objetos) con los filtros de la web."""
+    if not svc.draft_live.state.get("active"):
+        raise HTTPException(409, "No estás en la selección de campeones")
+    return svc.draft_live.import_now(f=f)

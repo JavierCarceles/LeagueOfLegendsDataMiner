@@ -57,6 +57,9 @@ class Services:
         self.my_games_files = MyGamesFiles(self)
         self.crawler = Crawler(self)
         self.tracker = GameTracker(self)
+        from app.draft_live import DraftLive
+
+        self.draft_live = DraftLive(self)
         from app.coach.calibrate import TierCalibrator
 
         self.calibrator = TierCalibrator(self, enabled=settings.calibrate_enabled)
@@ -86,6 +89,8 @@ class Services:
             self.startup_done.set()
         # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
         self.tracker.start()
+        # Draft en vivo: la selección de campeones del cliente de LoL, y al terminar, tu build al cliente.
+        self.draft_live.start()
         # Precarga de OP.GG, Lolalytics y notas de parche en segundo plano.
         self.warmer.start()
         # Referencias de tu elo objetivo con partidas reales (tandas pequeñas, prioridad baja).
@@ -188,6 +193,7 @@ class Services:
         self.crawler.shutdown()
         self.tracker.shutdown()
         self.calibrator.shutdown()
+        self.draft_live.shutdown()
         self.local_replays.stop()
         self.my_games_files.stop()
         from app.external.base import shutdown_fetches
