@@ -241,6 +241,7 @@ CREATE TABLE IF NOT EXISTS otp_skips (
     puuid    TEXT NOT NULL,
     match_id TEXT NOT NULL,
     champ    INTEGER NOT NULL DEFAULT 0,  -- con quién jugó: si luego eliges ese campeón, se vuelve a pedir
+    role     TEXT,                        -- en qué rol ('' = sin rol fiable; NULL = descarte anterior a los roles)
     PRIMARY KEY (puuid, match_id)
 ) WITHOUT ROWID;
 
@@ -355,6 +356,9 @@ class Database:
             if conn.execute("SELECT 1 FROM meta WHERE key = 'otp_skips_v1'").fetchone() is None:
                 conn.execute("DELETE FROM skipped_matches WHERE reason = 'otro campeón'")
                 conn.execute("INSERT INTO meta(key, value) VALUES('otp_skips_v1', '1')")
+            # Rol de la partida descartada (búsqueda de OTPs por campeón y rol).
+            if "role" not in {r[1] for r in conn.execute("PRAGMA table_info(otp_skips)")}:
+                conn.execute("ALTER TABLE otp_skips ADD COLUMN role TEXT")
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES('schema_version', ?) ON CONFLICT(key) DO NOTHING",
                 (str(SCHEMA_VERSION),),

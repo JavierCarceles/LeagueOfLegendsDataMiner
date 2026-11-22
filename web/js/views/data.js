@@ -3,8 +3,8 @@
 import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
 import { champPicker } from "../components/picker.js";
-import { dd, platformLabel, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, mount, multiSelect, notice, select, toast } from "../ui.js";
+import { dd, platformLabel, ROLE_LABEL, ROLES, state, TIER_LABEL } from "../state.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, mount, multiSelect, notice, roleIcon, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
@@ -381,20 +381,46 @@ const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_
 /** Búsqueda por campeones: OTPs o jugadores con mucha maestría de los campeones elegidos. */
 function championSection(cfg) {
   cfg.champions = cfg.champions || [];
-  const chipsEl = h("div.chips");
+  cfg.champion_roles = cfg.champion_roles || {};
+  const chipsEl = h("div.col", { style: { gap: "6px" } });
+  const rolesOf = (id) => cfg.champion_roles[String(id)] || [];
+  const toggleRole = (id, role) => {
+    const now = rolesOf(id);
+    const next = now.includes(role) ? now.filter((r) => r !== role) : ROLES.filter((r) => r === role || now.includes(r));
+    if (next.length && next.length < ROLES.length) cfg.champion_roles[String(id)] = next;
+    else delete cfg.champion_roles[String(id)]; // ninguno o los 5 = cualquier rol
+    drawChips();
+  };
+  const remove = (id) => {
+    cfg.champions = cfg.champions.filter((c) => c !== id);
+    delete cfg.champion_roles[String(id)];
+    drawChips();
+  };
   const drawChips = () =>
     mount(
       chipsEl,
       cfg.champions.length
-        ? cfg.champions.map((id) =>
-            h(
-              "button.chip.on",
-              { type: "button", title: "Quitar", onclick: () => { cfg.champions = cfg.champions.filter((c) => c !== id); drawChips(); } },
-              champImg(id, "xs"),
-              dd.name(id),
-              icon("close"),
-            ),
-          )
+        ? cfg.champions.map((id) => {
+            const roles = rolesOf(id);
+            return h(
+              "div.otp-champ",
+              h("span.row", { style: { gap: "6px", minWidth: 0 } }, champImg(id, "xs"), h("b.small.ellipsis", dd.name(id))),
+              h(
+                "div.role-toggles",
+                { role: "group", "aria-label": `Rol de ${dd.name(id)}` },
+                ROLES.map((r) =>
+                  h(
+                    `button.role-toggle${roles.includes(r) ? ".on" : ""}`,
+                    { type: "button", title: ROLE_LABEL[r], "aria-pressed": roles.includes(r) ? "true" : "false", onclick: () => toggleRole(id, r) },
+                    roleIcon(r),
+                    h("span", ROLE_LABEL[r]),
+                  ),
+                ),
+              ),
+              h("span.tiny.muted", roles.length ? `solo ${roles.map((r) => ROLE_LABEL[r].toLowerCase()).join(" y ")}` : "cualquier rol"),
+              h("button.btn.btn-ghost.btn-sm", { type: "button", title: `Quitar ${dd.name(id)}`, onclick: () => remove(id) }, icon("close")),
+            );
+          })
         : h("span.small.muted", "Ningún campeón: se recoge todo el ranking (modo normal)."),
     );
   const picker = champPicker({
@@ -414,6 +440,7 @@ function championSection(cfg) {
     h("div.tiny.muted", "Elige campeones y solo se recogen partidas de jugadores del ranking (servidores y elos de arriba) que sean OTPs de ellos o tengan muchísima maestría. Ejemplo: KR + Aspirante/Gran Maestro + Ahri."),
     h("div.row-wrap", h("div", { style: { width: "220px" } }, picker), h("span.tiny.muted", "hasta 10")),
     chipsEl,
+    h("p.tiny.muted", { style: { margin: 0 } }, "Marca en qué rol lo buscas (por ejemplo Sylas: jungla y mid). Solo cuentan y se guardan sus partidas con ese campeón en esos roles; sin marcar, cualquier rol."),
     h(
       "div.row-wrap",
       { style: { gap: "10px 16px" } },
@@ -460,7 +487,10 @@ function runningSummary(c) {
       ? h(
           "div.small.row-wrap",
           h("b", cfg.focus === "mastery" ? "Mucha maestría con: " : "OTPs de: "),
-          cfg.champions.map((id) => h("span.row", { style: { gap: "4px" } }, champImg(id, "xs"), dd.name(id))),
+          cfg.champions.map((id) => {
+            const roles = (cfg.champion_roles || {})[String(id)] || [];
+            return h("span.row", { style: { gap: "4px" }, title: roles.length ? roles.map((r) => ROLE_LABEL[r]).join(", ") : "Cualquier rol" }, champImg(id, "xs"), dd.name(id), roles.map((r) => roleIcon(r)));
+          }),
           h("span.tiny.muted", `≥ ${fmt.compact(cfg.min_mastery)} puntos${cfg.only_target_games ? " · solo partidas con ellos" : ""}`),
         )
       : null,
@@ -532,6 +562,11 @@ async function stop() {
 }
 
 // ------------------------------------------------------------------ OTPs encontrados
+/** « de jungla o mid» si ese campeón se busca solo en algunos roles. */
+const rolesText = (champRoles, champ) => {
+  const roles = (champRoles || {})[String(champ)] || [];
+  return roles.length ? ` de ${roles.map((r) => ROLE_LABEL[r].toLowerCase()).join(" o ")}` : "";
+};
 let otpsAt = 0;
 let otpsSig = null;
 async function loadOtps(c) {
@@ -581,7 +616,7 @@ async function loadOtps(c) {
               h("div.tiny.muted", `${platformLabel(p.platform)} · ${TIER_LABEL[p.tier] || p.tier || "—"}${p.lp != null ? ` ${p.lp} LP` : ""} · ${fmt.compact(p.points)} puntos con ${dd.name(p.champ)}`),
               h(
                 "div.tiny",
-                h("b", `${fmt.int(p.total)} ${p.total === 1 ? "partida" : "partidas"} con ${dd.name(p.champ)}`),
+                h("b", `${fmt.int(p.total)} ${p.total === 1 ? "partida" : "partidas"} con ${dd.name(p.champ)}${rolesText(data.champion_roles, p.champ)}`),
                 wr !== null ? h("span.muted", ` · ${fmt.pct(wr)} WR`) : null,
                 p.share !== null && p.share !== undefined ? h("span.muted", { title: "De sus partidas revisadas, cuántas jugó con los campeones elegidos" }, ` · ${fmt.pct(100 * p.share, 0)} de sus partidas`) : null,
                 historyText ? h(`span.${p.history === "loading" || p.history === "queued" ? "muted" : "good"}`, ` · ${historyText}`) : null,
@@ -595,7 +630,8 @@ async function loadOtps(c) {
               ? p.games.map((g) =>
                   h(
                     `a.chip.otp-game.${g.win ? "win" : "loss"}`,
-                    { href: `#/partida/${g.match_id}`, title: `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}` },
+                    { href: `#/partida/${g.match_id}`, title: `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}${g.role ? ` · ${ROLE_LABEL[g.role] || g.role}` : ""}` },
+                    g.role ? roleIcon(g.role) : null,
                     `${g.win ? "V" : "D"} ${g.kills}/${g.deaths}/${g.assists}`,
                   ),
                 )

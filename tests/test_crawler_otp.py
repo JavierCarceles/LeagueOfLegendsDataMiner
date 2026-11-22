@@ -450,3 +450,109 @@ def test_otps_endpoint_only_lists_the_selected_servers_and_tiers(keyed_svc):
     with TestClient(app) as client:
         data = client.get("/api/crawler/otps").json()
     assert [p["platform"] for p in data["players"]] == ["na1"] and data["players"][0]["history"] == "queued"
+
+
+# ------------------------------------------------------------------ rol de cada campeón
+from app.ingest.crawler import target_sql
+
+ROLES_ALL = ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")
+
+
+def role_history(puuid, n, *, prefix, role_for):
+    """Como ``history`` pero el jugador (pid 1, Aatrox) juega en el rol que diga ``role_for(i)``."""
+    ids, payloads = history(puuid, n, prefix=prefix)
+    pid_of = {"TOP": 1, "JUNGLE": 2, "MID": 3, "ADC": 4, "SUPPORT": 5}
+    for i, match_id in enumerate(ids):
+        role = role_for(i)
+        if role != "TOP":  # se intercambia la posición con quien la tenía: los roles siguen siendo únicos
+            positions = {1: {"JUNGLE": "JUNGLE", "MID": "MIDDLE", "ADC": "BOTTOM", "SUPPORT": "UTILITY"}[role], pid_of[role]: "TOP"}
+            payloads[match_id] = make_match(
+                match_id, puuids={1: puuid}, positions=positions, game_start=payloads[match_id]["info"]["gameStartTimestamp"]
+            )
+    return ids, payloads
+
+
+def test_validated_cleans_champion_roles():
+    cfg = CrawlerConfig(
+        champions=[AATROX, GAREN],
+        champion_roles={str(AATROX): ["mid", "JUNGLE", "JUNGLE", "raro"], GAREN: list(ROLES_ALL), 999: ["TOP"]},
+    ).validated()
+    assert cfg.champion_roles == {AATROX: ["JUNGLE", "MID"]}  # orden de los roles; los 5 = cualquiera; 999 no se busca
+    assert cfg.is_target(AATROX, "MID") and not cfg.is_target(AATROX, "TOP") and not cfg.is_target(AATROX, None)
+    assert cfg.is_target(GAREN, "SUPPORT") and cfg.is_target(GAREN, None) and not cfg.is_target(DARIUS, "TOP")
+
+
+
+def test_roles_change_the_history_key_only_when_set():
+    base = CrawlerConfig(champions=[AATROX]).validated()
+    roled = CrawlerConfig(champions=[AATROX], champion_roles={AATROX: ["JUNGLE"]}).validated()
+    assert otp_list_key(base) == f"420|{AATROX}|1"  # sin roles, la clave de siempre: no se rehace el historial
+    assert otp_list_key(roled) != otp_list_key(base)
+    sql, params = target_sql(CrawlerConfig(champions=[AATROX, GAREN], champion_roles={AATROX: ["JUNGLE", "MID"]}).validated(), "pa")
+    assert sql == "(pa.champ IN (?) OR (pa.champ = ? AND pa.role IN (?,?)))" and params == [GAREN, AATROX, "JUNGLE", "MID"]
+
+
+def test_only_games_in_the_chosen_role_are_kept(keyed_svc):
+    ids, payloads = role_history("otp-a", 12, prefix="1", role_for=lambda i: "JUNGLE" if i % 3 == 0 else "TOP")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    worker = run_history(keyed_svc, fake, champions=[AATROX], champion_roles={AATROX: ["JUNGLE"]}, only_target_games=True)
+    assert stored(keyed_svc) == {ids[i] for i in range(12) if i % 3 == 0}
+    assert keyed_svc.db.scalar("SELECT COUNT(*) FROM participants WHERE champ = ? AND role = 'JUNGLE'", (AATROX,)) == 4
+    assert worker.state["other_champ_skipped"] == 8
+    # el descarte recuerda campeón y rol: con el mismo campeón en otro rol ya no se vuelve a pedir
+    assert keyed_svc.db.scalar("SELECT role FROM otp_skips WHERE puuid = 'otp-a' AND match_id = ?", (ids[1],)) == "TOP"
+    assert progress(keyed_svc, "otp-a")["hits"] == 4
+
+    # Añadir top: se piden solo las descartadas por el rol (lo guardado no se vuelve a descargar).
+    fake2 = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake2, champions=[AATROX], champion_roles={AATROX: ["JUNGLE", "TOP"]}, only_target_games=True)
+    assert stored(keyed_svc) == set(ids)
+    assert len(fake2.calls_to("match")) == 8
+
+
+def test_old_skips_without_role_are_checked_again_for_a_role_search(keyed_svc):
+    ids, payloads = role_history("otp-a", 4, prefix="1", role_for=lambda i: "JUNGLE")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], CrawlerConfig(champions=[AATROX], champion_roles={AATROX: ["JUNGLE"]}).validated())
+    keyed_svc.riot = fake
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO otp_skips (puuid, match_id, champ, role) VALUES ('otp-a', ?, ?, NULL)", (ids[0], AATROX))
+        conn.execute("INSERT INTO otp_skips (puuid, match_id, champ, role) VALUES ('otp-a', ?, ?, 'TOP')", (ids[1], AATROX))
+        conn.execute("INSERT INTO otp_skips (puuid, match_id, champ, role) VALUES ('otp-a', ?, ?, NULL)", (ids[2], GAREN))
+    assert worker._known_for("otp-a", ids) == {ids[1], ids[2]}  # el de antes de los roles con Aatrox se vuelve a mirar
+
+
+def test_start_endpoint_resolves_champion_roles(keyed_svc, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    started = {}
+    monkeypatch.setattr(keyed_svc.crawler, "start", lambda config, **kw: started.setdefault("cfg", config) and {"running": True})
+    app = create_app(keyed_svc.settings, run_startup=False)
+    app.state.svc = keyed_svc
+    with TestClient(app) as client:
+        body = {"platforms": ["kr"], "tiers": ["CHALLENGER"], "champions": ["Aatrox"], "champion_roles": {"Aatrox": ["JUNGLE", "MID"]}}
+        res = client.post("/api/crawler/start", json=body)
+        assert res.status_code == 200, res.text
+        bad = client.post("/api/crawler/start", json={**body, "champion_roles": {"NoExiste": ["TOP"]}})
+        assert bad.status_code == 400
+    assert started["cfg"].validated().champion_roles == {AATROX: ["JUNGLE", "MID"]}
+
+
+def test_otps_endpoint_counts_only_games_in_the_chosen_role(keyed_svc):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    ids, payloads = role_history("otp-a", 6, prefix="1", role_for=lambda i: "JUNGLE" if i < 2 else "TOP")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], champion_roles={AATROX: ["JUNGLE"]}, only_target_games=False)
+    assert len(stored(keyed_svc)) == 6  # sin filtrar se guardan todas…
+    app = create_app(keyed_svc.settings, run_startup=False)
+    app.state.svc = keyed_svc
+    with TestClient(app) as client:
+        data = client.get("/api/crawler/otps").json()
+    (player,) = data["players"]
+    assert player["total"] == 2 and {g["role"] for g in player["games"]} == {"JUNGLE"}  # …pero cuentan las de jungla
+    assert data["champion_roles"] == {str(AATROX): ["JUNGLE"]}

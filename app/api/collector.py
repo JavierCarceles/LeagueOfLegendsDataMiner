@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.deps import svc_from
-from app.ingest.crawler import CrawlerConfig, otp_depth_start, otp_history_state, otp_list_key, otp_rows
+from app.ingest.crawler import CrawlerConfig, otp_depth_start, otp_history_state, otp_list_key, otp_rows, target_sql
 
 router = APIRouter(prefix="/api/crawler", tags=["recolector"])
 
@@ -23,6 +23,7 @@ class CrawlerBody(BaseModel):
     min_mastery: int = 300_000
     only_target_games: bool = True
     otp_depth: str = Field("season", pattern="^(season|90|180|365|all)$", description="Historial de cada OTP: temporada, N días o todo")
+    champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
 
 
 @router.get("/status")
@@ -39,8 +40,14 @@ def start(body: CrawlerBody, svc=Depends(svc_from)):
         if not champ:
             raise HTTPException(400, f"Campeón desconocido: {value}")
         champs.append(champ)
+    roles = {}
+    for value, wanted in (data.pop("champion_roles") or {}).items():
+        champ = svc.dd.resolve(value)
+        if not champ:
+            raise HTTPException(400, f"Campeón desconocido: {value}")
+        roles[champ] = wanted
     try:
-        return svc.crawler.start(CrawlerConfig(**data, champions=champs))
+        return svc.crawler.start(CrawlerConfig(**data, champions=champs, champion_roles=roles))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except PermissionError as exc:
@@ -62,7 +69,8 @@ def otps(limit: int = Query(60, ge=1, le=300), svc=Depends(svc_from)):
     if cfg is None or not cfg.champions:
         return {"champions": [], "focus": None, "players": []}
     targets = list(cfg.champions)
-    marks = ",".join("?" * len(targets))
+    target_cond, target_params = target_sql(cfg)
+    games_cond, games_params = target_sql(cfg, "pa")
     found = otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers)  # los de los servidores y elos elegidos (los que se visitan)
     list_key = otp_list_key(cfg)
     depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
@@ -72,8 +80,8 @@ def otps(limit: int = Query(60, ge=1, le=300), svc=Depends(svc_from)):
         chunk = ids[i : i + 400]
         for r in svc.db.query(
             f"SELECT player_id, COUNT(*) AS games, SUM(win) AS wins FROM participants "
-            f"WHERE player_id IN ({','.join('?' * len(chunk))}) AND champ IN ({marks}) GROUP BY player_id",
-            (*chunk, *targets),
+            f"WHERE player_id IN ({','.join('?' * len(chunk))}) AND {target_cond} GROUP BY player_id",
+            (*chunk, *target_params),
         ):
             totals[r["player_id"]] = (int(r["games"] or 0), int(r["wins"] or 0))
     players = []
@@ -109,14 +117,15 @@ def otps(limit: int = Query(60, ge=1, le=300), svc=Depends(svc_from)):
     players = players[:limit]
     for p in players:
         games = svc.db.query(
-            f"SELECT pa.match_id, pa.champ, pa.win, pa.kills, pa.deaths, pa.assists, ma.game_start, ma.duration "
+            f"SELECT pa.match_id, pa.champ, pa.role, pa.win, pa.kills, pa.deaths, pa.assists, ma.game_start, ma.duration "
             f"FROM participants pa JOIN matches ma ON ma.match_id = pa.match_id "
-            f"WHERE pa.player_id = ? AND pa.champ IN ({marks}) ORDER BY ma.game_start DESC LIMIT 8",
-            (p.pop("id"), *targets),
+            f"WHERE pa.player_id = ? AND {games_cond} ORDER BY ma.game_start DESC LIMIT 8",
+            (p.pop("id"), *games_params),
         )
         p["games"] = [dict(g) for g in games]
     return {
         "champions": cfg.champions,
+        "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
         "focus": cfg.focus,
         "min_mastery": cfg.min_mastery,
         "otp_depth": cfg.otp_depth,

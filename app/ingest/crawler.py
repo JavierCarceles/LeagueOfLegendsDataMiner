@@ -42,7 +42,7 @@ from app.ingest.extractor import parse_match
 from app.logbus import get_logger
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
 from app.riot.ratelimit import Priority
-from app.riot.routing import APEX_TIERS, DIVISIONS, PLATFORMS, QUEUE_SOLO, REGIONS, TIER_INDEX, region_of
+from app.riot.routing import APEX_TIERS, DIVISIONS, PLATFORMS, QUEUE_SOLO, REGIONS, ROLES, TIER_INDEX, region_of
 
 log = get_logger("crawler")
 
@@ -91,11 +91,20 @@ def _patch_major(patch: str | None) -> int | None:
     return int(head) if head.isdigit() else None
 
 
+def _roles_key(cfg: CrawlerConfig) -> str:
+    """Roles pedidos por campeón («|r:266:TOP;517:JUNGLE+MID»); vacío sin roles (así las claves de antes no cambian)."""
+    roles = cfg.champion_roles or {}
+    if not roles:
+        return ""
+    return "|r:" + ";".join(f"{c}:{'+'.join(roles[c])}" for c in sorted(roles))
+
+
 def otp_list_key(cfg: CrawlerConfig) -> str:
-    """Qué se pide y qué se descarta: colas (Flex sí/no), campeones y «solo sus partidas con esos campeones». Si cambia,
-    el historial se recorre de nuevo (lo ya guardado no se descarga; lo descartado que ahora interesa, sí)."""
+    """Qué se pide y qué se descarta: colas (Flex sí/no), campeones (y sus roles) y «solo sus partidas con esos
+    campeones». Si cambia, el historial se recorre de nuevo (lo ya guardado no se descarga; lo descartado que ahora
+    interesa, sí)."""
     queues = "ranked" if cfg.include_flex else str(QUEUE_SOLO)
-    return f"{queues}|{','.join(str(c) for c in sorted(cfg.champions))}|{int(cfg.only_target_games)}"
+    return f"{queues}|{','.join(str(c) for c in sorted(cfg.champions))}|{int(cfg.only_target_games)}{_roles_key(cfg)}"
 
 
 def otp_depth_start(cfg: CrawlerConfig, version: str | None, now: int | None = None) -> tuple[int, int | None]:
@@ -109,8 +118,24 @@ def otp_depth_start(cfg: CrawlerConfig, version: str | None, now: int | None = N
 
 
 def otp_config_key(cfg: CrawlerConfig) -> str:
-    """Campeones y filtro: si cambian, un historial parado por «ya no lo jugaba» se reabre."""
-    return f"{','.join(str(c) for c in sorted(cfg.champions))}|{int(cfg.only_target_games)}"
+    """Campeones, roles y filtro: si cambian, un historial parado por «ya no lo jugaba» se reabre."""
+    return f"{','.join(str(c) for c in sorted(cfg.champions))}|{int(cfg.only_target_games)}{_roles_key(cfg)}"
+
+
+def target_sql(cfg: CrawlerConfig, alias: str = "") -> tuple[str, list]:
+    """Condición SQL «partida con uno de los campeones elegidos, en su rol» sobre ``participants`` y sus parámetros."""
+    col = f"{alias}." if alias else ""
+    roles = cfg.champion_roles or {}
+    free = [c for c in cfg.champions if c not in roles]
+    parts, params = [], []
+    if free:
+        parts.append(f"{col}champ IN ({','.join('?' * len(free))})")
+        params.extend(free)
+    for champ in cfg.champions:
+        if champ in roles:
+            parts.append(f"({col}champ = ? AND {col}role IN ({','.join('?' * len(roles[champ]))}))")
+            params.extend([champ, *roles[champ]])
+    return ("(" + " OR ".join(parts) + ")") if parts else "0", params
 
 
 def otp_history_state(row, list_key: str, depth_start: int, config_key: str | None = None) -> str:
@@ -144,6 +169,8 @@ class CrawlerConfig:
     only_target_games: bool = True
     # Hasta dónde se baja el historial de cada OTP: temporada actual, N días o todo lo que tenga Riot.
     otp_depth: str = "season"
+    # Rol buscado de cada campeón ({campeón: [roles]}): sin entrada = cualquier rol. Ej.: Sylas solo jungla o mid.
+    champion_roles: dict[int, list[str]] = field(default_factory=dict)
 
     def validated(self) -> CrawlerConfig:
         platforms = [p for p in dict.fromkeys(p.lower() for p in self.platforms) if p in PLATFORMS]
@@ -164,7 +191,30 @@ class CrawlerConfig:
             min_mastery=max(10_000, min(int(self.min_mastery or 300_000), 10_000_000)),
             only_target_games=bool(self.only_target_games),
             otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
+            champion_roles=self._clean_roles(),
         )
+
+    def _clean_roles(self) -> dict[int, list[str]]:
+        champions = {int(c) for c in (self.champions or []) if str(c).isdigit()}
+        out: dict[int, list[str]] = {}
+        for key, roles in (self.champion_roles or {}).items():
+            champ = int(key) if str(key).isdigit() else 0
+            wanted = {str(r).upper() for r in (roles or [])}
+            clean = [r for r in ROLES if r in wanted]
+            # Los 5 roles = cualquier rol: no se guarda (no cambia qué se recoge).
+            if champ in champions and clean and len(clean) < len(ROLES):
+                out[champ] = clean
+        return out
+
+    def is_target(self, champ: int | None, role: str | None) -> bool:
+        """¿Partida con uno de los campeones elegidos y en el rol que buscas (si le pusiste rol)?
+
+        Sin rol fiable en esa partida (``teamPosition`` repetido o vacío) no cuenta para un campeón con rol elegido.
+        """
+        if champ is None or champ not in self.champions:
+            return False
+        roles = self.champion_roles.get(champ)
+        return not roles or role in roles
 
     def qualifies(self, top: list, now: int | None = None) -> bool:
         """¿Este jugador es OTP (o tiene mucha maestría) de alguno de los campeones elegidos y lo juega aún?
@@ -691,16 +741,17 @@ class RegionWorker(threading.Thread):
         """Ids que este OTP no necesita pedir: guardados, descartados para todos o descartados solo para él."""
         known = known_match_ids(self.svc.db, ids)
         rest = [m for m in ids if m not in known]
-        champs = list(self.config.champions)
-        if rest and self.config.only_target_games and champs:
-            marks, cmarks = ",".join("?" * len(rest)), ",".join("?" * len(champs))
-            known |= {
-                r[0]
-                for r in self.svc.db.query(
-                    f"SELECT match_id FROM otp_skips WHERE puuid = ? AND match_id IN ({marks}) AND champ NOT IN ({cmarks})",
-                    (puuid, *rest, *champs),
-                )
-            }
+        cfg = self.config
+        if rest and cfg.only_target_games and cfg.champions:
+            marks = ",".join("?" * len(rest))
+            for r in self.svc.db.query(
+                f"SELECT match_id, champ, role FROM otp_skips WHERE puuid = ? AND match_id IN ({marks})", (puuid, *rest)
+            ):
+                champ, role = int(r["champ"] or 0), r["role"]
+                if role is None and cfg.champion_roles.get(champ):
+                    continue  # descarte de antes de los roles con un campeón que ahora interesa: se vuelve a mirar
+                if not cfg.is_target(champ, role or None):
+                    known.add(r["match_id"])
         return known
 
     def _stored_starts(self, match_ids: list[str]) -> dict[str, int]:
@@ -712,8 +763,8 @@ class RegionWorker(threading.Thread):
 
     def _other_target(self, record, puuid: str) -> bool:
         """¿Otro OTP buscado jugó esta partida con uno de los campeones elegidos? Entonces también interesa."""
-        champs = set(self.config.champions)
-        others = [p.puuid for p in record.participants if p.puuid and p.puuid != puuid and p.champ in champs]
+        cfg = self.config
+        others = [p.puuid for p in record.participants if p.puuid and p.puuid != puuid and cfg.is_target(p.champ, p.role)]
         if not others:
             return False
         marks = ",".join("?" * len(others))
@@ -752,18 +803,17 @@ class RegionWorker(threading.Thread):
         valid = mine is not None and record.is_rift and not record.is_remake
         got = Ingested("", record.game_start, _patch_major(record.patch), valid)
         if cfg.champions:
-            champs = set(cfg.champions)
-            got.mine_target = mine is not None and mine.champ in champs
+            got.mine_target = mine is not None and cfg.is_target(mine.champ, mine.role)
             keep = got.mine_target or self._other_target(record, player["puuid"])
             if keep:
                 self.state["target_games"] += 1
             elif cfg.only_target_games:
-                # Solo interesan sus partidas con los campeones elegidos: se recuerda para su recorrido (no para todo
-                # el programa: otro OTP o su perfil sí pueden necesitarla).
+                # Solo interesan sus partidas con los campeones elegidos (en su rol): se recuerda para su recorrido (no
+                # para todo el programa: otro OTP o su perfil sí pueden necesitarla).
                 with svc.db.write() as conn:
                     conn.execute(
-                        "INSERT OR REPLACE INTO otp_skips (puuid, match_id, champ) VALUES (?, ?, ?)",
-                        (player["puuid"], match_id, mine.champ if mine is not None else 0),
+                        "INSERT OR REPLACE INTO otp_skips (puuid, match_id, champ, role) VALUES (?, ?, ?, ?)",
+                        (player["puuid"], match_id, mine.champ if mine is not None else 0, (mine.role or "") if mine is not None else ""),
                     )
                 self.state["other_champ_skipped"] += 1
                 got.result = "other"

@@ -349,6 +349,19 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   (10), `tests/test_coach_calibrate.py` (6), más flujo de API y referencias en `tests/test_coach.py`. **646 tests en verde en Python 3.12 y 3.14.10**
   (`-W error::DeprecationWarning`; los 2 avisos son de pytest/Starlette, no del código).
 
+## 3 sexies. Sesión del 2026-11-22 — rol por campeón en la búsqueda de OTPs (sin commitear)
+
+- Petición: «al seleccionar OTPs, cada campeón pueda especificar el rol que busco y que se guarden las partidas de ese
+  rol» (ej. Sylas jungla o mid).
+- `CrawlerConfig.champion_roles` ({campeón: [roles]}, sin entrada o los 5 = cualquier rol) + `is_target(champ, role)`;
+  `_ingest`, `_other_target`, `hits`/«ya no lo jugaba» y `_known_for` usan campeón **y rol**. `otp_skips.role`
+  (migración `ALTER TABLE`; `''` = partida sin rol fiable, `NULL` = descarte antiguo → se vuelve a mirar si ese campeón
+  tiene rol). Los roles entran en `otp_list_key`/`otp_config_key` solo si hay alguno (las claves de antes no cambian).
+- `target_sql(cfg, alias)` para contar en `/api/crawler/otps` solo las partidas en ese rol; la respuesta trae
+  `champion_roles` y el `role` de cada partida. `/api/crawler/start` acepta `champion_roles` por id o nombre.
+- Web (`data.js` + CSS `.otp-champ`/`.role-toggle`): cada campeón elegido tiene 5 botones de rol; en móvil solo iconos.
+- Tests nuevos en `tests/test_crawler_otp.py` (suite entera en verde).
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la
