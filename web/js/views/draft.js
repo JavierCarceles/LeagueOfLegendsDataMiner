@@ -319,78 +319,62 @@ async function loadBuilds(mine) {
 }
 
 function buildRow(p) {
-  const b = p.base || {};
-  const swaps = p.situational || [];
-  const bootsSwap = swaps.find((s) => s.kind === "boots");
-  const boots = bootsSwap?.item || (b.boots || [])[0];
-  const extra = swaps.filter((s) => s.kind !== "boots");
+  const boots = p.boots;
+  const draftPicks = (p.build || []).filter((x) => x.kind === "situational").length + (boots?.situational ? 1 : 0);
   return h(
     "button.build-row",
     { type: "button", onclick: () => openBuild(p) },
     h("span.row", { style: { gap: "6px", minWidth: 0 } }, roleIcon(p.role), champImg(p.champ, "sm"), h("b.small.ellipsis", dd.name(p.champ))),
     h(
       "span.build-items",
-      (b.core || []).map((i) => itemImg(i)),
-      boots ? h(`span${bootsSwap ? ".build-swap" : ""}`, { title: bootsSwap ? bootsSwap.reason : "Botas" }, itemImg(boots)) : null,
-      extra.length ? h("span.build-plus", "+") : null,
-      extra.map((s) => h("span.build-swap", { title: s.reason }, itemImg(s.item))),
-      !b.core?.length && !extra.length ? h("span.tiny.muted", "sin datos de build todavía") : null,
+      boots ? h(`span${boots.situational ? ".build-swap" : ""}`, { title: `${dd.itemName(boots.item)} · ${boots.reason}` }, itemImg(boots.item)) : null,
+      (p.build || []).map((x) => h(`span${x.kind === "situational" ? ".build-swap" : ""}`, { title: `${dd.itemName(x.item)} · ${x.reason}` }, itemImg(x.item))),
+      !p.build?.length ? h("span.tiny.muted", "sin datos de build todavía") : null,
     ),
-    b.runes?.keystone ? runeImg(b.runes.keystone, 24) : h("span"),
-    h("span.tiny.muted.hide-sm", b.source === "matchup" ? `vs ${dd.name(b.opponent)}` : b.source === "general" ? "build general" : ""),
-    swaps.length ? h("span.pill.pill-gold", { title: swaps.map((s) => s.reason).join("\n") }, `${swaps.length} por el draft`) : h("span"),
+    p.runes?.keystone ? runeImg(p.runes.keystone, 24) : h("span"),
+    h("span.tiny.muted.hide-sm", p.opponent ? `vs ${dd.name(p.opponent)}` : ""),
+    draftPicks ? h("span.pill.pill-gold", { title: "Objetos elegidos por cómo es el equipo rival (en dorado)" }, `${draftPicks} por el draft`) : h("span"),
   );
 }
 
 function openBuild(p) {
-  const b = p.base || {};
-  const itemLine = (ids) => h("span.build-items", ids.map((i) => itemImg(i)));
-  const wr = b.games ? (100 * (b.wins || 0)) / b.games : null;
+  const itemRow = (x, extra = null) =>
+    h(
+      "div.row",
+      { style: { gap: "10px", alignItems: "flex-start" } },
+      h(`span${x.kind === "situational" || x.situational ? ".build-swap" : ""}`, itemImg(x.item)),
+      h("div", { style: { minWidth: 0 } }, h("div.small", h("b", dd.itemName(x.item) || `Objeto ${x.item}`), extra), h("div.tiny.muted", x.reason)),
+    );
+  const e = p.enemy || {};
   modal(
-    h("div.row", { style: { gap: "10px" } }, champImg(p.champ, "lg"), h("div", h("h3", `Build de ${dd.name(p.champ)}`), h("div.tiny.muted", `${ROLE_LABEL[p.role]}${p.opponent ? ` · contra ${dd.name(p.opponent)}` : ""}`))),
+    h("div.row", { style: { gap: "10px" } }, champImg(p.champ, "lg"), h("div", h("h3", `Build de ${dd.name(p.champ)}`), h("div.tiny.muted", `${ROLE_LABEL[p.role]}${p.opponent ? ` · contra ${dd.name(p.opponent)}` : ""}${e.phys || e.magic ? ` · daño rival ${fmt.int(e.phys)} % físico / ${fmt.int(e.magic)} % mágico` : ""}`))),
     h(
       "div.col",
       { style: { gap: "16px" } },
-      b.core?.length
+      p.build?.length
         ? h(
             "div.col",
-            { style: { gap: "8px" } },
-            h("div.small", h("b", b.source === "matchup" ? `Contra ${dd.name(b.opponent)} (OP.GG)` : "Build más jugada (OP.GG)"), b.games ? h("span.muted", ` · ${fmt.int(b.games)} partidas${wr !== null ? ` · ${fmt.pct(wr, 1)} WR` : ""}`) : null),
-            h("div.row-wrap", { style: { gap: "14px" } }, h("span.row", h("span.tiny.muted", "Objetos clave"), itemLine(b.core)), b.boots?.length ? h("span.row", h("span.tiny.muted", "Botas"), itemLine(b.boots)) : null, b.starter?.length ? h("span.row", h("span.tiny.muted", "Inicio"), itemLine(b.starter)) : null),
-            b.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(b.runes.keystone, 22), h("span", b.runes.names.join(" · ")))) : null,
-            b.skill_order || b.skill_max?.length ? h("div.small.muted", `Habilidades: ${b.skill_order || b.skill_max.join(" > ")}`) : null,
+            { style: { gap: "10px" } },
+            h("div.small", h("b", "Build para este draft"), h("span.tiny.muted", "  · en dorado, lo que cambia por el equipo rival")),
+            p.boots ? itemRow({ ...p.boots, kind: p.boots.situational ? "situational" : "" }, p.boots.replaces ? h("span.muted", ` en vez de ${dd.itemName(p.boots.replaces)}`) : null) : null,
+            p.build.map((x, i) => itemRow(x, h("span.tiny.muted", ` · ${i + 1}.º objeto`))),
           )
-        : h("div.small.muted", "Aún no hay build de OP.GG para este campeón en este rol (se descarga en segundo plano: vuelve a mirar en un momento)."),
-      p.situational?.length
-        ? h(
-            "div.col",
-            { style: { gap: "8px" } },
-            h("div.small", h("b", "Cambios por el draft rival")),
-            p.situational.map((s) =>
-              h(
-                "div.row",
-                { style: { gap: "10px", alignItems: "flex-start" } },
-                itemImg(s.item),
-                h("div", h("div.small", h("b", dd.itemName(s.item) || `Objeto ${s.item}`), s.replaces ? h("span.muted", ` en vez de ${dd.itemName(s.replaces) || s.replaces}`) : null), h("div.tiny.muted", s.reason)),
-              ),
-            ),
-          )
-        : h("div.small.muted", "Nada que cambiar por el equipo rival (o aún faltan campeones rivales por elegir)."),
-      p.otp
-        ? h(
-            "div.small",
-            h("b", `Sus OTPs (${TIER_NAMES[p.otp.tier] || p.otp.tier}, ${fmt.int(p.otp.games)} partidas): `),
-            [p.otp.first_item ? `primer objeto ${p.otp.first_item.value} (${fmt.pct(p.otp.first_item.pct, 0)})` : null, p.otp.skill_max ? `suben ${p.otp.skill_max.value}` : null, p.otp.path ? `build más jugada: ${p.otp.path.value}` : null].filter(Boolean).join(" · "),
-          )
-        : null,
-      p.own?.items?.length
+        : h("div.small.muted", "Aún no hay datos de build para este campeón en este rol (se descargan en segundo plano: vuelve a mirar en un momento)."),
+      p.runes?.names?.length || p.skills || p.starter?.length
         ? h(
             "div.col",
             { style: { gap: "6px" } },
-            h("div.small", h("b", `En tu base de datos (${fmt.int(p.own.games)} partidas)`)),
-            h("div.row-wrap", { style: { gap: "10px" } }, p.own.items.map((o) => h("span.row", { style: { gap: "4px" }, title: dd.itemName(o.id) }, itemImg(o.id), h(`span.tiny.${wrClass(o.wr)}`, `${fmt.pct(o.wr, 0)}`), h("span.tiny.muted", `· ${fmt.int(o.games)}`)))),
+            p.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(p.runes.keystone, 22), h("span", p.runes.names.map((n, i) => dd.runeName(p.runes.ids?.[i]) || n).join(" · ")))) : null,
+            p.starter?.length ? h("div.row", { style: { gap: "6px" } }, h("span.tiny.muted", "Inicio"), h("span.build-items", p.starter.map((i) => itemImg(i)))) : null,
+            p.skills ? h("div.small.muted", `Habilidades: ${p.skills}`) : null,
           )
         : null,
+      p.team_items?.length ? h("div.col", { style: { gap: "8px" } }, h("div.small", h("b", "Para el equipo (support)")), p.team_items.map((x) => itemRow({ ...x, kind: "situational" }))) : null,
+      p.alternatives?.length
+        ? collapsible("draft.build.alternativas", [icon("crown"), "Otras opciones"], () => h("div.col", { style: { gap: "8px" } }, p.alternatives.map((x) => itemRow(x))), { cls: "flat", summary: p.alternatives.map((x) => dd.itemName(x.item)).join(" · ") })
+        : null,
+      p.otp ? h("div.small.muted", `Sus OTPs (${TIER_NAMES[p.otp.tier] || p.otp.tier}, ${fmt.int(p.otp.games)} partidas): ${p.otp.path?.value ? `build más jugada ${p.otp.path.value}` : ""}${p.otp.skill_max?.value ? ` · suben ${p.otp.skill_max.value}` : ""}`) : null,
+      h("div.tiny.muted", `Fuentes: ${(p.sources || []).join(", ") || "ninguna todavía"}${p.matchup?.games ? ` · núcleo contra ${dd.name(p.matchup.opponent)}: ${fmt.int(p.matchup.games)} partidas en OP.GG` : ""}`),
     ),
   );
 }

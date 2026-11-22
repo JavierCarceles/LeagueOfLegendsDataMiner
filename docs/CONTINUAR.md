@@ -1,7 +1,7 @@
 # Traspaso para el siguiente chat (prompt de continuación)
 
 > Copia este archivo entero como primer mensaje del nuevo chat. Describe el encargo, lo hecho, lo que queda y cómo
-> comprobarlo. Vive en `docs/CONTINUAR.md` (antes en la raíz). Última actualización: 2026-11-19 (noche, 4.ª sesión).
+> comprobarlo. Vive en `docs/CONTINUAR.md` (antes en la raíz). Última actualización: 2026-11-22 (15.ª sesión).
 
 ## 1. El encargo (palabras del usuario, resumidas)
 
@@ -578,6 +578,32 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   (`data/otps`) y objetos con WR en tu BD. Tarjeta: una fila por jugador (cambios en dorado), «Builds del rival»
   plegado, detalle y porqué en ventana. `tests/test_draft_builds.py`.
 - Ideas: usar más tu BD (objetos con WR según el perfil del equipo rival), runas según el draft, hechizos.
+
+## 3 vicesimum. Sesión del 2026-11-22 (15.ª) — build completa de 6 en el Draft (sin commitear)
+
+- `app/analytics/builds.py` reescrito: **build completa** (botas + 5 objetos) por jugador. Candidatos = lo que se le
+  compra de verdad: OP.GG (núcleo contra su rival; 4.º/5.º/6.º objeto, runas y hechizos de `champion_build`, clave de
+  caché `|v2`), **Lolalytics** (`Lolalytics.item_sets`, endpoint `build-itemset`: objetos de las builds de 5, primer
+  objeto, botas), sus **OTPs según cómo era el equipo rival** (`items_by_enemy` en `resumen.json`: grupos
+  `all/ap/ad/mixed/healers/tanks/assassins`; `otp_details.LAYOUT_VERSION = 2`, se regenera solo al arrancar el
+  recolector) y tu BD. Cada objeto se puntúa (uso, WR frente a sus otras opciones, lo que pide el equipo rival, lo que
+  sus OTPs compran más contra equipos así) y se respeta el núcleo (2 primeros). Coordinación del equipo
+  (`_team_plan`): Heridas graves para 2 como mucho (ADC > top > mid > jungla), «poca primera línea». Support:
+  objetos de equipo (Medallón, Mikael, Putrificador solo si no la llevan ya 2 aliados).
+- Revisado con datos reales (OP.GG + Lolalytics en vivo, draft Ornn/Hecarim/Ahri/Jinx/Thresh contra
+  Darius/Viego/Syndra/Kai'Sa/Soraka) y corregido:
+  - el WR de Lolalytics se mostraba suelto («67 % WR») y es de builds de 5 objetos (partidas largas: alto para todo):
+    ahora solo «X pp mejor/peor que sus otras opciones» con ≥ 300 partidas y ≥ 2 pp (`_wr_text`);
+  - botas de Lolalytics de `itemBootSet2` (primer objeto + botas; `itemBootSet1` solo contaba las botas compradas
+    antes que nada, ≈ 1/5 de la muestra). Clave de caché `|v2`;
+  - núcleo contra el rival solo con ≥ 100 partidas (`MIN_MATCHUP_GAMES`; Ornn contra Darius tenía 53): si no, su build
+    general y se dice «contra X aún hay pocas partidas»;
+  - runas en español en la ventana (`dd.runeName` por id; la build general de OP.GG viene en inglés).
+- Ojo (sin tocar, por si se ve raro): `HEAVY_HEAL` es amplio (Darius, Viego, Sett, Irelia…): en el 60 % de las
+  partidas de Hecarim hay algún «curandero», así que 2 aliados suelen recibir Heridas graves. Validarlo cuando haya
+  OTPs de ADC/top (¿la compran contra esos campeones?).
+- Tests en `tests/test_draft_builds.py` (13). Suite entera en verde (Python 3.12). Probado en el navegador (escritorio
+  y 375 px, sin desbordamiento).
 
 ## 4 bis. Pendiente (por prioridad)
 

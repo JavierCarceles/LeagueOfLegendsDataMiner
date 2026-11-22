@@ -185,6 +185,22 @@ _Throttle = Throttle  # compatibilidad
 WEB_KINDS = {"versions", "tier", "counters"}
 
 
+def _runes_of(raw) -> dict | None:
+    """Página de runas más jugada (``data.runes``), en el mismo formato que la de las guías de matchup."""
+    page = raw[0] if isinstance(raw, list) and raw else raw
+    if not isinstance(page, dict) or not page.get("id"):
+        return None
+    return {
+        "keystone": page.get("id"),
+        "primary": page.get("primary_page_id"),
+        "secondary": page.get("secondary_page_id"),
+        "ids": (page.get("primary_rune_ids") or []) + (page.get("secondary_rune_ids") or []),
+        "names": (page.get("primary_rune_names") or []) + (page.get("secondary_rune_names") or []),
+        "games": page.get("play"),
+        "wins": page.get("win"),
+    }
+
+
 class Opgg(CachedSource):
     name = "opgg"
 
@@ -458,8 +474,9 @@ class Opgg(CachedSource):
         return self._cached("guide", key, TTL_MCP, fetch, allow_fetch)
 
     def champion_build(self, champ: int, role: str, allow_fetch: bool = True) -> dict | None:
-        """Build más jugada de un campeón en su rol: objetos clave, botas, inicial y orden de habilidades."""
-        key = f"{champ}|{POSITIONS[role]}"
+        """Build más jugada de un campeón en su rol: objetos clave, botas, inicial, opciones del 4.º al 6.º objeto
+        (los situacionales), runas, hechizos y orden de habilidades."""
+        key = f"{champ}|{POSITIONS[role]}|v2"  # v2: con 5.º y 6.º objeto, runas y hechizos
 
         def fetch():
             raw = self.mcp_call(
@@ -471,7 +488,8 @@ class Opgg(CachedSource):
                     "lang": "en_US",
                     "desired_output_fields": [
                         "data.core_items", "data.boots", "data.starter_items", "data.last_items",
-                        "data.fourth_items", "data.skills", "data.skill_masteries",
+                        "data.fourth_items", "data.fifth_items", "data.sixth_items", "data.skills", "data.skill_masteries",
+                        "data.runes", "data.summoner_spells",
                     ],
                 },
             )
@@ -507,7 +525,11 @@ class Opgg(CachedSource):
                 "boots": ids(data.get("boots") if isinstance(data.get("boots"), dict) else (data.get("boots") or [{}])[0]),
                 "starter": ids(data.get("starter_items") if isinstance(data.get("starter_items"), dict) else (data.get("starter_items") or [{}])[0]),
                 "popular": options(data.get("last_items")),
-                "fourth": options(data.get("fourth_items"), 3),
+                "fourth": options(data.get("fourth_items"), 4),
+                "fifth": options(data.get("fifth_items"), 4),
+                "sixth": options(data.get("sixth_items"), 4),
+                "runes": _runes_of(data.get("runes")),
+                "spells": ids(data.get("summoner_spells") if isinstance(data.get("summoner_spells"), dict) else (data.get("summoner_spells") or [{}])[0]),
                 "skills": [str(s) for s in (skills.get("order") if isinstance(skills, dict) else []) or []],
                 "skill_max": [str(s) for s in (masteries.get("ids") if isinstance(masteries, dict) else []) or []],
             }

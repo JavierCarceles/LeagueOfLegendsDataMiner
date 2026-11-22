@@ -45,7 +45,13 @@ DOSSIER_VERSION = 2  # 2: contexto de draft (las 5 líneas, presencia de los jun
 LANE_MINUTES = (5, 10, 15, 20)
 EARLY_S = 15 * 60
 FILES_DIR = "otps"
-LAYOUT_VERSION = 1  # formato de la carpeta: si cambia, se regenera desde la base de datos
+LAYOUT_VERSION = 2  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival)
+# Campeones que se curan mucho (los que justifican Heridas graves): para separar los objetos de los OTPs contra ellos.
+HEAVY_HEAL = {
+    "Aatrox", "Soraka", "Yuumi", "Vladimir", "Sylas", "Warwick", "Dr. Mundo", "Swain", "Briar", "Illaoi", "Nami",
+    "Sona", "Seraphine", "Olaf", "Trundle", "Volibear", "Gwen", "Nasus", "Maokai", "Zac", "Fiddlesticks", "Kayn",
+    "Senna", "Milio", "Renata Glasc", "Viego", "Darius", "Sett", "Irelia", "Aphelios", "Samira", "Kindred",
+}
 SUMMARY_EVERY_S = 300  # el resumen de un campeón se rehace como mucho cada 5 min mientras entran partidas
 TIER_ORDER = ("CHALLENGER", "GRANDMASTER", "MASTER", "DIAMOND", "EMERALD", "PLATINUM", "GOLD", "SILVER", "BRONZE", "IRON")
 
@@ -420,7 +426,56 @@ def _tier_key(tier: str) -> int:
     return TIER_ORDER.index(tier) if tier in TIER_ORDER else 99
 
 
-def _role_block(role: str, rows: list[dict], name_champ=None, name_item=None) -> dict:
+def enemy_profile(d: dict, champ_info) -> list[str]:
+    """Grupos del equipo rival de una partida: ``ap``/``ad``/``mixed`` por su daño, y ``healers``/``tanks``."""
+    enemies = [int(c) for c in (d.get("enemies") or {}).values() if c]
+    infos = [champ_info(c) for c in enemies]
+    infos = [i for i in infos if i]
+    if not infos:
+        return []
+    magic = sum(i["magic"] for i in infos) / len(infos)
+    out = ["ap" if magic >= 0.5 else "ad" if magic <= 0.3 else "mixed"]
+    if any(i["name"] in HEAVY_HEAL for i in infos):
+        out.append("healers")
+    if sum(1 for i in infos if "Tank" in i["tags"]) >= 2:
+        out.append("tanks")
+    if sum(1 for i in infos if "Assassin" in i["tags"]) >= 2:
+        out.append("assassins")
+    return out
+
+
+def _items_block(rows: list[dict], champ_info) -> dict:
+    """Objetos completos y botas que compran (partidas y victorias), en total y según cómo era el equipo rival."""
+    if champ_info is None:
+        return {}
+    groups: dict[str, dict] = {}
+
+    def add(group: str, kind: str, item: int, win: bool) -> None:
+        g = groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})
+        cur = g[kind].setdefault(str(item), [0, 0])
+        cur[0] += 1
+        cur[1] += int(win)
+
+    for d in rows:
+        build = (d.get("analysis") or {}).get("build") or {}
+        order = build.get("order") or []
+        if not order:
+            continue
+        legend = {o["item"] for o in order if o.get("kind") == "legendary"}
+        boots = {o["item"] for o in order if o.get("kind") == "boots"}
+        for group in ["all", *enemy_profile(d, champ_info)]:
+            groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})["games"] += 1
+            for i in legend:
+                add(group, "items", i, d["win"])
+            for i in boots:
+                add(group, "boots", i, d["win"])
+    for g in groups.values():
+        for kind in ("items", "boots"):
+            g[kind] = {k: v for k, v in sorted(g[kind].items(), key=lambda kv: -kv[1][0]) if v[0] >= 3}
+    return {"items_by_enemy": groups} if groups else {}
+
+
+def _role_block(role: str, rows: list[dict], name_champ=None, name_item=None, champ_info=None) -> dict:
     """Lo agregado de unas partidas de un rol: medias, ganadas contra perdidas, builds, runas, rivales y avisos."""
 
     def metric_block(rows: list[dict]) -> dict:
@@ -494,6 +549,7 @@ def _role_block(role: str, rows: list[dict], name_champ=None, name_item=None) ->
             {"flag": k, "times": c, "games_pct": round(100 * moments_games[k] / len(rows), 1)} for k, c in moments.most_common(40)
         ],
         **_draft_block(role, rows, name_champ),
+        **_items_block(rows, champ_info),
     }
 
 
@@ -585,7 +641,7 @@ def _draft_block(role: str, rows: list[dict], name_champ=None) -> dict:
     return out
 
 
-def summarize(dossiers: list[dict], name_champ=None, name_item=None) -> dict:
+def summarize(dossiers: list[dict], name_champ=None, name_item=None, champ_info=None) -> dict:
     """Lo agregado de un campeón por rol y, dentro de cada rol, por elo (lo que hacen sus OTPs y en qué se diferencian
     sus victorias)."""
     games = len(dossiers)
@@ -599,9 +655,9 @@ def summarize(dossiers: list[dict], name_champ=None, name_item=None) -> dict:
         for d in rows:
             by_tier[d.get("tier") or "?"].append(d)
         roles[role] = {
-            "all": _role_block(role, rows, name_champ, name_item) | {"players": len({d.get("puuid") for d in rows})},
+            "all": _role_block(role, rows, name_champ, name_item, champ_info) | {"players": len({d.get("puuid") for d in rows})},
             "by_tier": {
-                tier: _role_block(role, tier_rows, name_champ, name_item) | {"players": len({d.get("puuid") for d in tier_rows})}
+                tier: _role_block(role, tier_rows, name_champ, name_item, champ_info) | {"players": len({d.get("puuid") for d in tier_rows})}
                 for tier, tier_rows in sorted(by_tier.items(), key=lambda kv: _tier_key(kv[0]))
             },
         }
@@ -811,7 +867,7 @@ class Files:
             "champ": champ,
             "champ_name": self._champ_name(champ),
             "updated_at": now_s(),
-            **summarize(dossiers, name_champ, name_item),
+            **summarize(dossiers, name_champ, name_item, champ_info_from(getattr(self.svc, "dd", None))),
         }
         with self.lock:  # no mientras se regenera la carpeta
             folder = self._champ_dir(root or self.base, champ)
@@ -883,6 +939,22 @@ class Files:
             self.dirty.clear()
         log.info("Carpeta de OTPs regenerada (%s): %d partidas de %d campeones.", self.base, total, len(champs))
         return {"path": str(self.base), "games": total, "folders": len(groups), "champions": len(champs)}
+
+
+def champ_info_from(dd):
+    """``champ_info(c)`` -> {magic: 0-1, tags, name} con Data Dragon (cuánto daño mágico hace, clases y nombre)."""
+    if dd is None or not getattr(dd, "champions", None):
+        return None
+
+    def info(champ: int) -> dict | None:
+        c = dd.champions.get(int(champ)) or {}
+        stats = c.get("info") or {}
+        if not c:
+            return None
+        attack, magic = stats.get("attack", 5), stats.get("magic", 5)
+        return {"magic": magic / max(1, attack + magic), "tags": list(c.get("tags") or []), "name": dd.name(int(champ))}
+
+    return info
 
 
 def ensure_files(svc) -> None:

@@ -7,6 +7,8 @@ protección y a ritmo tranquilo (≈1 petición/s), con caché en SQLite.
 
 * **Tier list** por línea: WR, pick, ban, partidas y % de partidas en esa línea.
 * **Counters** de un campeón en su línea: WR contra cada rival y nº de partidas.
+* **Builds**: todas las builds completas de un campeón en su línea (``build-itemset``), de las que se sacan los
+  objetos que se le compran y su WR (para recomendar la build según el draft).
 
 Las muestras de OP.GG y Lolalytics salen de la misma población (partidas
 clasificatorias de Riot) y se solapan, así que no se suman a ciegas: al
@@ -185,6 +187,64 @@ class Lolalytics(CachedSource):
         if data is None:
             return None
         return {int(k): (v[0], v[1]) for k, v in data.items()}
+
+
+    def item_sets(self, champ: int, role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> dict | None:
+        """Objetos que se le compran a un campeón en su línea, sacados de todas sus builds completas.
+
+        ``{"items": {objeto: [partidas, victorias]}, "first": {objeto: [...]}, "boots": {objeto: [...]}, "games": N,
+        "paths": [[objetos, partidas, victorias], …]}``. Los objetos y su WR salen de las builds de 5 objetos (el WR
+        de las builds largas es más alto para todos: se compara entre objetos, nunca con el 50 %).
+        """
+        scope = self._scope(tier, region)
+        slug = self.slug(champ)
+        if scope is None or role not in LANES or not slug:
+            return None
+        lane = LANES[role]
+        version = game_version(patch)
+        key = f"{champ}|{lane}|{scope[0]}|{scope[1]}|{version}|v2"  # v2: botas de itemBootSet2
+
+        def fetch():
+            data = self._get({"ep": "build-itemset", "patch": version, "c": slug, "lane": lane, "tier": scope[0], "region": scope[1]})
+            sets = data.get("itemSets") or {}
+            if not isinstance(sets, dict) or not sets.get("itemSet5"):
+                return None
+
+            def rows(name):
+                out = []
+                for row in sets.get(name) or []:
+                    try:
+                        ids = [int(x) for x in str(row[0]).split("_") if x.isdigit()]
+                        out.append((ids, int(row[1]), int(row[2])))
+                    except (IndexError, TypeError, ValueError):
+                        continue
+                return out
+
+            items: dict[str, list[int]] = {}
+            five = rows("itemSet5")
+            for ids, games, wins in five:
+                for i in set(ids):
+                    cur = items.setdefault(str(i), [0, 0])
+                    cur[0] += games
+                    cur[1] += wins
+            first = {str(ids[0]): [g, w] for ids, g, w in rows("itemSet1") if ids}
+            # Botas: de «primer objeto + botas» (itemBootSet2). itemBootSet1 solo cuenta las partidas en que las botas
+            # fueron la primera compra (≈ 1/5 de la muestra y sesgada); aquí salen también los objetos, se filtran al usarlas.
+            boots: dict[str, list[int]] = {}
+            for ids, games, wins in rows("itemBootSet2") or rows("itemBootSet1"):
+                for i in ids:
+                    cur = boots.setdefault(str(i), [0, 0])
+                    cur[0] += games
+                    cur[1] += wins
+            return {
+                "items": items,
+                "first": first,
+                "boots": boots,
+                "games": sum(g for _ids, g, _w in five),
+                "paths": [[ids, g, w] for ids, g, w in sorted(five, key=lambda r: -r[1])[:8]],
+            }
+
+        return self._cached("lola_items", key, self._ttl(patch), fetch, allow_fetch)
 
 
 def _float(value) -> float | None:
