@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import re
 import shutil
 import statistics
@@ -469,11 +470,15 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
 
 
 def rebuild_all(svc) -> None:
-    """Regenera las dos carpetas (OTPs y otros jugadores) desde la base de datos."""
+    """Regenera las dos carpetas (OTPs y otros jugadores) desde la base de datos (si una falla, la otra sigue)."""
     for kind in KIND_DIRS:
         files = Files.of(svc, kind)
-        if files is not None:
+        if files is None:
+            continue
+        try:
             files.rebuild()
+        except OSError:
+            log.exception("No se pudo regenerar la carpeta %s: se reintentará al arrancar", files.base)
 
 
 def start_reanalysis(svc) -> threading.Thread | None:
@@ -483,7 +488,8 @@ def start_reanalysis(svc) -> threading.Thread | None:
     db = svc.db
     pending = outdated(db)
     unclassified = int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind IS NULL") or 0)
-    if not pending and not unclassified:
+    stale = any(f is not None and f.needs_rebuild() for f in (Files.of(svc, k) for k in KIND_DIRS))
+    if not pending and not unclassified and not stale:
         return None
     stop = getattr(svc, "shutdown_event", None)
 
@@ -494,8 +500,9 @@ def start_reanalysis(svc) -> threading.Thread | None:
     def run() -> None:
         try:
             # Primero, separar OTPs de otros jugadores en lo guardado antes de la marca (solo SQL).
-            if unclassified and classify_pending(db) and not pending:
-                rebuild_all(svc)
+            classified = classify_pending(db) if unclassified else 0
+            if (classified or stale) and not pending:
+                rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
             if pending:
                 log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
                 done = reanalyze(db, svc, stop=stop, pause=in_game)
@@ -812,6 +819,61 @@ están en la base de datos (`otp_games`): si esta carpeta se borra o cambia de f
 """
 
 
+KEEP_ON_REBUILD = frozenset({"_busqueda.json", "_busqueda.json.tmp"})  # informes de la búsqueda: no son partidas
+REPLACE_RETRIES = 4
+
+
+def _retry(action, path: Path) -> bool:
+    """Ejecuta ``action`` con reintentos cortos (un antivirus o el indexador sueltan el fichero en un momento)."""
+    for attempt in range(REPLACE_RETRIES):
+        try:
+            action()
+            return True
+        except FileNotFoundError:
+            return True
+        except OSError:
+            if attempt == REPLACE_RETRIES - 1:
+                return False
+            time.sleep(0.25 * (attempt + 1))
+    return False
+
+
+def replace_tree(src: Path, dst: Path, keep: frozenset[str] = KEEP_ON_REBUILD) -> list[str]:
+    """Pone el contenido de ``src`` en ``dst`` fichero a fichero y borra de ``dst`` lo que ya no está (salvo ``keep``).
+
+    No renombra ``dst``: en Windows renombrar una carpeta falla (WinError 5, acceso denegado) si cualquier programa
+    tiene algo abierto dentro (el explorador, el IDE indexando, el antivirus, OneDrive). Un fichero bloqueado se
+    reintenta, luego se copia encima y, si tampoco se puede, se devuelve en la lista (no tumba nada). ``src`` se borra.
+    """
+    failed: list[str] = []
+    wanted = {path.relative_to(src) for path in src.rglob("*")}
+    dst.mkdir(parents=True, exist_ok=True)
+    for rel in sorted(wanted, key=lambda r: len(r.parts)):
+        source, target = src / rel, dst / rel
+        if source.is_dir():
+            if target.exists() and not target.is_dir() and not _retry(target.unlink, target):
+                failed.append(str(rel))
+                continue
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        if target.is_dir():
+            _retry(lambda t=target: shutil.rmtree(t), target)
+        if not _retry(lambda s=source, d=target: os.replace(s, d), target) and not _retry(lambda s=source, d=target: shutil.copyfile(s, d), target):
+            failed.append(str(rel))
+    # Lo que sobra (de más profundo a menos): ficheros y carpetas que ya no existen en la versión nueva.
+    for path in sorted(dst.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        rel = path.relative_to(dst)
+        if rel.parts[0] in keep or rel in wanted:
+            continue
+        if path.is_dir():
+            if not any(path.iterdir()) and not _retry(path.rmdir, path):
+                failed.append(str(rel))
+        elif not _retry(path.unlink, path):
+            failed.append(str(rel))
+    shutil.rmtree(src, ignore_errors=True)
+    return failed
+
+
 class Files:
     """Una carpeta de partidas analizadas (``otps`` para OTPs, ``partidas_campeon`` para cualquier otro jugador):
     escribe cada partida al guardarla y mantiene los resúmenes al día (en segundo plano)."""
@@ -1061,15 +1123,19 @@ class Files:
                 self.write_summary(champ, tmp)
             (tmp / "LEEME.md").write_text(self._readme(), encoding="utf-8")
             (tmp / ".formato").write_text(str(LAYOUT_VERSION), encoding="utf-8")
-            old = self.base.with_name(self.base.name + ".old")
-            shutil.rmtree(old, ignore_errors=True)
-            if self.base.exists():
-                self.base.rename(old)
-            tmp.rename(self.base)
-            shutil.rmtree(old, ignore_errors=True)
+            # Restos de versiones anteriores (que sí renombraban la carpeta y en Windows podían quedarse a medias).
+            shutil.rmtree(self.base.with_name(self.base.name + ".old"), ignore_errors=True)
+            failed = replace_tree(tmp, self.base)
+            if failed:
+                # Algo bloqueado por otro programa: sin la marca de formato, se vuelve a intentar al arrancar.
+                (self.base / ".formato").unlink(missing_ok=True)
+                log.warning(
+                    "Carpeta %s regenerada a medias: %d ficheros los tenía abiertos otro programa (%s…). Se reintentará al arrancar.",
+                    self.base, len(failed), ", ".join(failed[:3]),
+                )
             self.dirty.clear()
         log.info("Carpeta regenerada (%s): %d partidas de %d campeones.", self.base, total, len(champs))
-        return {"path": str(self.base), "games": total, "folders": len(groups), "champions": len(champs)}
+        return {"path": str(self.base), "games": total, "folders": len(groups), "champions": len(champs), "failed": len(failed)}
 
 
 def champ_info_from(dd):

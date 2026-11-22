@@ -713,6 +713,71 @@ def test_saved_games_without_a_mark_are_classified_on_startup(keyed_svc):
     assert not (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX)).exists()
 
 
+def test_rebuild_works_when_windows_refuses_to_rename_the_folder(keyed_svc, monkeypatch):
+    """Windows: renombrar data/otps falla (WinError 5) si otro programa tiene algo abierto dentro. Antes la carpeta se
+    regeneraba intercambiándola por otra (rename) y la app daba PermissionError; ahora no se renombra nunca."""
+    import pathlib
+
+    ids, payloads = history("otp-a", 3, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    base = otps_dir(keyed_svc)
+    (base / "_busqueda.json").write_text("{}", encoding="utf-8")  # el informe de la búsqueda no se pierde
+    (base / "Viejo").mkdir()
+    (base / "Viejo" / "resumen.json").write_text("{}", encoding="utf-8")  # lo que ya no existe se borra
+
+    def refuse(self, target):
+        raise PermissionError(5, "Acceso denegado", str(self))
+
+    monkeypatch.setattr(pathlib.Path, "rename", refuse)
+    result = otp_details.Files.of(keyed_svc).rebuild()
+    assert result["games"] == 3 and result["failed"] == 0
+    assert (base / "_busqueda.json").exists() and not (base / "Viejo").exists()
+    assert not base.with_name("otps.tmp").exists()
+    (folder,) = (base / keyed_svc.dd.name(AATROX) / "TOP").iterdir()
+    assert len(read_games(folder / "partidas.jsonl.gz")) == 3
+
+
+def test_a_locked_file_does_not_break_the_rebuild_and_is_retried_later(keyed_svc, monkeypatch):
+    ids, payloads = history("otp-a", 2, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    files = otp_details.Files.of(keyed_svc)
+    monkeypatch.setattr(otp_details, "REPLACE_RETRIES", 1)
+    real_replace, real_copy = otp_details.os.replace, otp_details.shutil.copyfile
+
+    def locked(src, dst):
+        if str(dst).endswith("resumen.json") and "otps.tmp" not in str(dst):  # el de la carpeta real, abierto en otro programa
+            raise PermissionError(32, "El archivo está siendo utilizado por otro proceso", str(dst))
+        return real_replace(src, dst)
+
+    def locked_copy(src, dst):
+        if str(dst).endswith("resumen.json") and "otps.tmp" not in str(dst):  # el de la carpeta real, abierto en otro programa
+            raise PermissionError(32, "El archivo está siendo utilizado por otro proceso", str(dst))
+        return real_copy(src, dst)
+
+    monkeypatch.setattr(otp_details.os, "replace", locked)
+    monkeypatch.setattr(otp_details.shutil, "copyfile", locked_copy)
+    result = files.rebuild()  # no lanza
+    assert result["failed"] == 1 and files.needs_rebuild()  # sin marca de formato: se reintenta al arrancar
+    monkeypatch.setattr(otp_details.os, "replace", real_replace)
+    monkeypatch.setattr(otp_details.shutil, "copyfile", real_copy)
+    assert files.rebuild()["failed"] == 0 and not files.needs_rebuild()
+
+
+def test_a_folder_left_half_done_is_rebuilt_on_startup(keyed_svc):
+    """Como tras el WinError 5: todo clasificado y al día en la BD, pero la carpeta con el formato viejo (o sin marca)."""
+    ids, payloads = history("otp-a", 2, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    marker = otps_dir(keyed_svc) / ".formato"
+    marker.write_text("3", encoding="utf-8")
+    thread = otp_details.start_reanalysis(keyed_svc)
+    assert thread is not None
+    thread.join(20)
+    assert marker.read_text(encoding="utf-8").strip() == str(otp_details.LAYOUT_VERSION)
+
+
 def test_otp_games_get_their_micro_and_macro(keyed_svc):
     ids, payloads = history("otp-a", 6, prefix="1", champ_for=lambda i: AATROX if i % 3 else GAREN)
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
