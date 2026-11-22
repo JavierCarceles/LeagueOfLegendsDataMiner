@@ -14,7 +14,6 @@ from collections import Counter
 
 import pytest
 
-from app.data.db import now_s
 from app.ingest.crawler import CrawlerConfig
 from tests.factories import TEST_KEY, FakeRiotClient, make_match
 
@@ -69,7 +68,7 @@ def test_crawler_stores_matches_and_seeds(keyed_svc):
     assert svc.keys.get() == TEST_KEY and svc.keys.status != "invalid"
     ladder, payloads = build_world()
     fake = FakeRiotClient(ladder, payloads)
-    since = now_s() - 14 * 86400
+    since = CrawlerConfig(season_version=svc.dd.version).validated().active_since()  # el periodo por defecto: la temporada
     worker = run_crawler(svc, fake, ["CHALLENGER"])
     db = svc.db
 
@@ -97,7 +96,7 @@ def test_crawler_stores_matches_and_seeds(keyed_svc):
     assert max(fetched.values()) == 1
     assert set(fetched) == set(payloads)
 
-    # Solo ranked SoloQ y ventana de `days` días.
+    # Solo ranked SoloQ y, la primera vez, desde el inicio del periodo.
     for _, platform, puuid, queue, ranked_only, start_time, count in fake.calls_to("match_ids"):
         assert platform == "euw1" and puuid in SEEDS
         assert queue == 420 and ranked_only is False and count == 20
@@ -151,10 +150,10 @@ def test_crawler_refuses_to_start_without_key(svc):
 
 
 def test_crawler_config_validation():
-    cfg = CrawlerConfig(platforms=["EUW1", "kr", "xx1", "euw1"], tiers=["challenger", "gold", "bogus"], days=999, matches_per_player=1, recrawl_hours=0).validated()
+    cfg = CrawlerConfig(platforms=["EUW1", "kr", "xx1", "euw1"], tiers=["challenger", "gold", "bogus"], matches_per_player=1, recrawl_hours=0).validated()
     assert cfg.platforms == ["euw1", "kr"]
     assert cfg.tiers == ["GOLD", "CHALLENGER"]
-    assert (cfg.days, cfg.matches_per_player, cfg.recrawl_hours) == (60, 5, 1.0)
+    assert (cfg.matches_per_player, cfg.recrawl_hours) == (5, 1.0)
     with pytest.raises(ValueError):
         CrawlerConfig(platforms=["xx1"]).validated()
     with pytest.raises(ValueError):

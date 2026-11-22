@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import svc_from
+from app.coach.insights import reliable
 from app.coach.store import unpack
 from app.ingest.otp_details import FILES_DIR, TIER_ORDER, _slug
 
@@ -168,7 +169,7 @@ def player(puuid: str, champ: int = Query(...), role: str | None = None, svc=Dep
         d = unpack(r["dossier"]) or {}
         a = d.get("analysis") or {}
         m = a.get("metrics") or {}
-        for k in DETAIL_METRICS:
+        for k in DETAIL_METRICS if reliable(a) else ():  # partidas con AFK: se listan, pero no cuentan en sus medias
             if isinstance(m.get(k), (int, float)):
                 metrics[k].append(float(m[k]))
         build = a.get("build") or {}

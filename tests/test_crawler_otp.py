@@ -51,7 +51,7 @@ def run(svc, **cfg):
     fake = MasteryRiot(ladder, payloads)
     svc.riot = fake
     cfg.setdefault("save_details", False)
-    svc.crawler.start(CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], days=60, **cfg))
+    svc.crawler.start(CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], **cfg))
     worker = svc.crawler.workers["europe"]
     assert wait_until(lambda: worker.state["status"] == "idle"), worker.state
     svc.crawler.stop()
@@ -639,6 +639,28 @@ from app.ingest import otp_details
 
 def details(svc):
     return {r["match_id"]: r for r in svc.db.query("SELECT * FROM otp_games")}
+
+
+def test_champion_games_mode_also_saves_the_minute_by_minute_analysis(keyed_svc):
+    """Con «Cualquiera que lo juegue» no llegaba ninguna partida a data/otps (la versión anterior apagaba el análisis
+    minuto a minuto en ese modo): ahora sus partidas con el campeón también se analizan."""
+    ids, payloads = history("otp-a", 4, prefix="1", champ_for=lambda i: AATROX if i % 2 else GAREN)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(GAREN, 900_000), (AATROX, 400_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], focus="games", min_mastery=20_000, save_details=True)
+    saved = details(keyed_svc)
+    assert len(saved) == 2 and all(unpack(r["dossier"])["champ"] == AATROX for r in saved.values())  # solo con Aatrox
+
+
+def test_otp_summaries_leave_out_games_with_an_afk(keyed_svc):
+    """Como tus medias: una partida con alguien AFK (CS/min de 20 minutos, objetivos regalados…) no cuenta."""
+    ids, payloads = history("otp-a", 3, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    dossiers = [unpack(r["dossier"]) | {"puuid": r["puuid"]} for r in details(keyed_svc).values()]
+    assert otp_details.summarize(dossiers)["games"] == 3
+    dossiers[0]["analysis"]["metrics"]["riot_afk"] = 1
+    summary = otp_details.summarize(dossiers)
+    assert summary["games"] == 2 and summary["excluded_afk"] == 1
 
 
 def test_otp_games_get_their_micro_and_macro(keyed_svc):

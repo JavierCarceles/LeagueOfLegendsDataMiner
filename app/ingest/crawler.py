@@ -176,12 +176,12 @@ class CrawlerConfig:
     platforms: list[str] = field(default_factory=lambda: ["euw1", "kr", "na1"])
     tiers: list[str] = field(default_factory=lambda: ["EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"])
     include_flex: bool = False
-    days: int = 14
     matches_per_player: int = 20
     recrawl_hours: float = 12.0
     # Búsqueda por campeones: OTPs («otp»), jugadores con mucha maestría («mastery») o **partidas de un campeón**
     # («games»: toda partida en la que alguien lo juegue en ese rol, sea OTP o no; los jugadores salen de quienes lo
-    # tienen entre sus 3 más jugados y se guarda cualquier partida suya en la que aparezca, aunque lo juegue otro).
+    # tienen entre sus 3 más jugados y se guarda cualquier partida suya en la que aparezca, aunque lo juegue otro; sus
+    # partidas con él también se analizan minuto a minuto).
     champions: list[int] = field(default_factory=list)
     focus: str = "otp"
     min_mastery: int = 300_000
@@ -196,7 +196,8 @@ class CrawlerConfig:
     role_champions: list[int] = field(default_factory=list)
     # Versión del juego al arrancar (para saber cuándo empezó la temporada).
     season_version: str | None = None
-    # Micro y macro de cada partida de los OTPs con esos campeones (timeline: 1 llamada más por partida).
+    # Análisis minuto a minuto (micro y macro) de cada partida suya con esos campeones (timeline: 1 llamada más por
+    # partida). Siempre activo para el usuario (la web y la API no lo ofrecen); solo los tests lo apagan para aislar.
     save_details: bool = True
     # Variedad antes que cantidad: mientras la búsqueda sigue encontrando OTPs, de cada uno solo se bajan sus N
     # partidas más recientes con esos campeones; el resto de su historial, cuando ya no quedan jugadores por revisar.
@@ -214,7 +215,6 @@ class CrawlerConfig:
             platforms=platforms,
             tiers=tiers,
             include_flex=bool(self.include_flex),
-            days=max(1, min(int(self.days), 60)),
             matches_per_player=max(5, min(int(self.matches_per_player), 100)),
             recrawl_hours=max(1.0, min(float(self.recrawl_hours), 168.0)),
             champions=list(dict.fromkeys(int(c) for c in (self.champions or []) if str(c).isdigit() and int(c) > 0)),
@@ -223,7 +223,7 @@ class CrawlerConfig:
             only_target_games=bool(self.only_target_games) or self.focus == "games",
             otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
             champion_roles=self._clean_roles(),
-            save_details=bool(self.save_details) and self.focus != "games",  # el análisis minuto a minuto es de OTPs
+            save_details=bool(self.save_details),
             games_per_otp=0 if not int(self.games_per_otp or 0) else max(5, min(int(self.games_per_otp), 1000)),
             roles=[r for r in ROLES if r in {str(x).upper() for x in (self.roles or [])}],
             role_champions=list(dict.fromkeys(int(c) for c in (self.role_champions or []) if str(c).isdigit() and int(c) > 0)) if self.roles else [],
@@ -235,6 +235,7 @@ class CrawlerConfig:
         """Configuración guardada (``meta``), aunque traiga campos de versiones anteriores de la app."""
         known = {f.name for f in fields(cls)}
         data = dict(data or {})
+        data["save_details"] = True  # ya no es opcional: una configuración antigua con él apagado se reanuda con él
         return cls(**{k: v for k, v in data.items() if k in known}).validated()
 
     @property
@@ -1299,12 +1300,13 @@ class RegionWorker(threading.Thread):
 
     # ---------------------------------------------------------------- partidas
     def _crawl_player(self, player, platform: str) -> None:
-        """Modo normal: las partidas recientes de un jugador del ranking (hasta ``matches_per_player``)."""
+        """Modo normal: las partidas recientes de un jugador del ranking (hasta ``matches_per_player``, del periodo)."""
         svc, cfg = self.svc, self.config
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         newest_known = player["newest_match_at"] or 0
         newest = newest_known
-        start_time = newest_known // 1000 + 1 if newest_known else now_s() - cfg.days * 86400
+        # La primera vez, sus partidas del periodo elegido (las más recientes, hasta matches_per_player).
+        start_time = newest_known // 1000 + 1 if newest_known else (cfg.active_since() or None)
         stored_before = self.state["stored"]
         try:
             ids = svc.riot.match_ids(

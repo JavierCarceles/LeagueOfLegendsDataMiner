@@ -45,7 +45,7 @@ DOSSIER_VERSION = 2  # 2: contexto de draft (las 5 líneas, presencia de los jun
 LANE_MINUTES = (5, 10, 15, 20)
 EARLY_S = 15 * 60
 FILES_DIR = "otps"
-LAYOUT_VERSION = 2  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival)
+LAYOUT_VERSION = 3  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival; 3: resúmenes sin partidas con AFK)
 # Campeones que se curan mucho (los que justifican Heridas graves): para separar los objetos de los OTPs contra ellos.
 HEAVY_HEAL = {
     "Aatrox", "Soraka", "Yuumi", "Vladimir", "Sylas", "Warwick", "Dr. Mundo", "Swain", "Briar", "Illaoi", "Nami",
@@ -696,7 +696,15 @@ def _draft_block(role: str, rows: list[dict], name_champ=None) -> dict:
 
 def summarize(dossiers: list[dict], name_champ=None, name_item=None, champ_info=None) -> dict:
     """Lo agregado de un campeón por rol y, dentro de cada rol, por elo (lo que hacen sus OTPs y en qué se diferencian
-    sus victorias)."""
+    sus victorias).
+
+    Como en tus medias (``insights.reliable``), no cuentan las partidas con alguien AFK 3 minutos o más (o marcado AFK
+    por Riot): sus cifras no reflejan cómo juega (CS/min de 20 minutos, objetivos regalados…). Se dice cuántas son.
+    """
+    from app.coach.insights import reliable  # aquí: evita un import circular
+
+    total = len(dossiers)
+    dossiers = [d for d in dossiers if reliable(d.get("analysis") or {})]
     games = len(dossiers)
     wins = sum(1 for d in dossiers if d["win"])
     by_role: dict[str, list[dict]] = defaultdict(list)
@@ -718,6 +726,7 @@ def summarize(dossiers: list[dict], name_champ=None, name_item=None, champ_info=
     patches = Counter(d.get("patch") or "?" for d in dossiers)
     return {
         "games": games,
+        "excluded_afk": total - games,
         "wins": wins,
         "wr": round(100 * wins / games, 1) if games else None,
         "players": len({d.get("puuid") for d in dossiers}),

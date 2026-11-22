@@ -28,7 +28,6 @@ class CrawlerBody(BaseModel):
     platforms: list[str] = Field(default_factory=lambda: ["euw1", "kr", "na1"])
     tiers: list[str] = Field(default_factory=lambda: ["EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"])
     include_flex: bool = False
-    days: int = 14
     matches_per_player: int = 20
     recrawl_hours: float = 12.0
     champions: list[int | str] = Field(default_factory=list, description="Vacío (y sin líneas) = todo el ranking; con campeones, solo OTPs / maestría alta")
@@ -37,7 +36,6 @@ class CrawlerBody(BaseModel):
     min_mastery: int = 300_000
     only_target_games: bool = True
     otp_depth: str = Field("season", pattern="^(30|90|180|season|365|all)$", description="Periodo: cuenta quien jugó el campeón en él y se bajan sus partidas de ese periodo")
-    save_details: bool = Field(True, description="Guardar micro y macro (timeline) de cada partida de los OTPs")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
 

@@ -17,6 +17,11 @@ def _now():
     return now_s()
 
 
+def test_saved_config_always_resumes_with_the_minute_by_minute_analysis():
+    old = CrawlerConfig.from_saved({"champions": [AATROX], "save_details": False, "days": 14, "active_days": 90})
+    assert old.save_details and old.champions == [AATROX]
+
+
 def test_no_limit_of_ten_champions():
     cfg = CrawlerConfig(champions=list(range(1, 40))).validated()
     assert len(cfg.champions) == 39 and len(cfg.targets) == 39
@@ -147,8 +152,8 @@ def test_depth_goes_to_the_champion_with_fewest_games(keyed_svc):
 
 def test_champion_games_mode_keeps_any_game_with_the_champion_in_that_role():
     """«Partidas de un campeón»: vale cualquier partida en la que alguien lo juegue en esa línea, sea OTP o no."""
-    cfg = CrawlerConfig(champions=[LEE_SIN], champion_roles={LEE_SIN: ["JUNGLE"]}, focus="games", min_mastery=20_000, only_target_games=False, save_details=True).validated()
-    assert cfg.focus == "games" and cfg.only_target_games and not cfg.save_details
+    cfg = CrawlerConfig(champions=[LEE_SIN], champion_roles={LEE_SIN: ["JUNGLE"]}, focus="games", min_mastery=20_000, only_target_games=False).validated()
+    assert cfg.focus == "games" and cfg.only_target_games and cfg.save_details  # el análisis, siempre
     now = _now()
     assert cfg.qualifies([[AHRI, 900_000, now], [VIEGO, 500_000, now], [LEE_SIN, 30_000, now]], now)  # en su top 3
     db = SimpleNamespace(scalar=lambda *a: None, query=lambda *a: [])  # nadie es OTP
@@ -173,10 +178,12 @@ def test_endpoint_accepts_lines_and_champion_games(keyed_svc, monkeypatch):
     monkeypatch.setattr(crawler_mod, "role_pool", lambda svc, roles: [DARIUS, AATROX])
     monkeypatch.setattr(crawler_mod, "RegionWorker", _Worker)
     with _client(keyed_svc) as client:
-        res = client.post("/api/crawler/start", json={"platforms": ["euw1"], "tiers": ["EMERALD"], "roles": ["TOP"], "focus": "games", "otp_depth": "30"})
+        body = {"platforms": ["euw1"], "tiers": ["EMERALD"], "roles": ["TOP"], "focus": "games", "otp_depth": "30", "save_details": False}
+        res = client.post("/api/crawler/start", json=body)
         assert res.status_code == 200, res.text
         cfg = res.json()["config"]
         assert cfg["roles"] == ["TOP"] and cfg["role_champions"] == [DARIUS, AATROX] and cfg["focus"] == "games" and cfg["otp_depth"] == "30"
-        assert "active_days" not in cfg
+        assert "active_days" not in cfg and "days" not in cfg
+        assert cfg["save_details"] is True  # el análisis minuto a minuto no se puede apagar desde fuera
         preview = client.get("/api/crawler/role-pool", params={"roles": "TOP"}).json()
         assert preview["champions"] == [DARIUS, AATROX]

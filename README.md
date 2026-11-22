@@ -17,7 +17,7 @@ partidas y, si lo dejaste en marcha, el recolector sigue recogiendo partidas. Mi
 | **Jugador** / **Partida** | Perfil de cualquier jugador y detalle de cualquier partida (Riot API). |
 | **Regiones** | Meta por región y, con datos propios, objetivos, duración, lado azul/rojo y elo. |
 | **Guías** | Guías de matchup guardadas en tu carpeta de coachings, enfrentamientos frecuentes sin guía y amigos del cliente de LoL. |
-| **Datos y API** | API key, estado de la precarga y de cada fuente, recolector de partidas por servidores y elo (también **solo de OTPs o jugadores con muchísima maestría de los campeones que elijas**, p. ej. KR + Aspirante + Ahri), límites de la API, base de datos y calibración del modelo. |
+| **Datos y API** | API key, estado de la precarga y de cada fuente, recolector de partidas con filtros en una lista (campeones —líneas completas o sueltos—, jugadores —cualquiera, OTPs o mucha maestría—, servidores, elos, periodo y partidas; p. ej. KR + Aspirante + OTPs de Ahri), límites de la API, base de datos y calibración del modelo. |
 
 ## Puesta en marcha
 
@@ -194,22 +194,22 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 - **Recolector (key gratuita: 20 peticiones/s y 100 cada 2 min por región):** semillas de las ligas oficiales, un hilo
   por región, solo ranked, sin duplicados ni remakes (~1 llamada por partida nueva), y deja un 15 % libre para tus
   búsquedas. En *Datos y API* eliges servidores (agrupados por región, con *Todas* / *Ninguna*) y elos.
-- **Qué recoger** (*Datos y API*, tres modos; solo se ven las opciones del elegido):
-  - *OTPs*: jugadores cuyo campeón principal es uno de los elegidos (con el mínimo de puntos y 1,5 veces los del
-    segundo) o, si lo prefieres, que lo tienen entre sus 3 primeros, y sus partidas con él.
-  - *Partidas de un campeón*: cualquier partida de esos servidores y elos en la que alguien juegue ese campeón en esa
-    línea, sea OTP o no (más datos de sus builds y de todos sus matchups). Los jugadores salen de quienes lo tienen
-    entre sus 3 más jugados (20 K puntos por defecto) y se guarda toda partida suya en la que aparezca, lo juegue él o
-    cualquier otro.
-  - *Todo el ranking*: las últimas N partidas de los últimos D días de cada jugador.
-  En los dos primeros eliges **toda una línea** (p. ej. solo top: todos los campeones con ≥ 8 % de sus partidas en
-  ella según la tier list de OP.GG o Lolalytics, y solo cuentan sus partidas en esa línea) o **campeones concretos sin
-  límite** (con su rol, opcional). La API de Riot no ofrece un ranking de maestría por campeón, así que se mira la
-  maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada
-  campeón de OP.GG.
-- **Un solo periodo:** cuenta quien jugó el campeón en él y se bajan sus partidas de ese mismo periodo (30/90/180
-  días, *temporada actual* —desde el 1 de enero del año del parche, parando en la primera partida de un parche
-  anterior—, último año o todo lo que guarde Riot). Antes eran dos opciones que podían contradecirse.
+- **Recolector: una lista de filtros** (*Datos y API*). Cada fila muestra su valor y se abre al pulsarla:
+  - *Campeones*: ninguno = todo el ranking; o **líneas completas** (p. ej. solo top: todos los campeones con ≥ 8 % de
+    sus partidas en ella según la tier list de OP.GG o Lolalytics, y solo sus partidas en esa línea) y/o **campeones
+    sueltos sin límite** (con su rol, opcional). Se suman.
+  - *Jugadores* (con campeones): **cualquiera que lo juegue** (toda partida en la que aparezca en esa línea, sea quien
+    sea: más datos de builds y matchups), **solo OTPs** (su campeón principal, con 1,5 veces los puntos del segundo) o
+    **mucha maestría** (entre sus 3 primeros), con un mínimo de puntos. Riot no ofrece un ranking de maestría por
+    campeón: se mira la maestría de cada jugador del ranking (1 llamada, se recuerda 7 días) y la tabla de los mejores
+    de cada campeón de OP.GG.
+  - *Servidores*, *Elos*, *Periodo* y *Partidas* (cuántas de cada jugador, colas y cada cuánto se buscan las nuevas).
+  Debajo, una frase dice qué se va a recoger. Buscando por campeones, cada partida se analiza siempre minuto a minuto
+  (como las tuyas; 1 llamada más por partida) y se guarda en `data/otps`.
+- **Un solo periodo** (30/90/180 días, *temporada actual* —desde el 1 de enero del año del parche, parando en la
+  primera partida de un parche anterior—, último año o todo lo que guarde Riot): buscando por campeones, cuenta quien
+  jugó el campeón en él y se bajan sus partidas de ese periodo; en todo el ranking, la primera vez se bajan las más
+  recientes de cada jugador dentro de él.
 - **Variedad antes que cantidad:** 1) un OTP de cada campeón; 2) al menos 3 por campeón en cada elo; 3) más partidas,
   empezando por el campeón con menos. Mientras siguen apareciendo jugadores nuevos, de cada uno solo se bajan sus N
   partidas más recientes (30 por defecto). La búsqueda en el ranking va primero al elo con menos OTPs encontrados.
