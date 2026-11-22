@@ -373,6 +373,12 @@ function summaryView(s, data) {
     filtersBar(s),
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     weaknessesCard(s),
+    s.otp_compare?.length
+      ? collapsible("progreso.otps", [icon("crown"), "Tú frente a los OTPs de tu campeón"], () => otpCompareCard(s), {
+          open: true,
+          summary: s.otp_compare.map((c) => `${dd.name(c.champ)} vs ${fmt.int(c.ref.games)} partidas de OTPs ${TIER_LABEL[c.ref.tier] || c.ref.tier}`).join(" · "),
+        })
+      : null,
     gamesCard(s),
     habitsCard(s),
     collapsible("progreso.muertes", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { open: true, summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
@@ -383,6 +389,76 @@ function summaryView(s, data) {
     builds ? collapsible("progreso.builds", [icon("crown"), "Tus builds frente a OP.GG"], builds, { summary: `${(s.builds || []).length} campeones` }) : null,
     collapsible("progreso.metricas", [icon("activity"), "Todas tus estadísticas frente a la referencia"], () => metricsCard(s), { summary: `${metricsCount} métricas · ${worse} por debajo` }),
     champs ? collapsible("progreso.campeones", [icon("crown"), "Tus campeones"], champs, { summary: `${(s.champions || []).length} campeones` }) : null,
+  );
+}
+
+/** Por campeón: tus medias frente a las de sus OTPs (tu elo objetivo y el más alto con datos) y su build. */
+function otpCompareCard(s) {
+  const fmtVal = (r, v) => (v === null || v === undefined ? "—" : `${fmt.num(v, r.decimals ?? 1)}${r.unit ? ` ${r.unit}` : ""}`);
+  return h(
+    "div.col",
+    { style: { gap: "18px" } },
+    s.otp_compare.map((c) => {
+      const tierName = (t) => TIER_LABEL[t] || t;
+      const bad = c.metrics.filter((r) => r.status === "bad");
+      const good = c.metrics.filter((r) => r.status === "good");
+      const b = c.build || {};
+      const itemText = (x) => (x ? (typeof x.value === "string" ? x.value : `objeto ${x.key}`) : "—");
+      return h(
+        "div.col",
+        { style: { gap: "10px" } },
+        h(
+          "div.row",
+          { style: { gap: "10px" } },
+          champImg(c.champ, "lg"),
+          h(
+            "div",
+            h("div", { style: { fontWeight: 700 } }, `${dd.name(c.champ)} · ${ROLE_LABEL[c.role] || c.role}`),
+            h(
+              "div.tiny.muted",
+              `Tus ${fmt.int(c.my_games)} partidas (${fmt.pct(c.my_wr, 0)} WR) frente a ${fmt.int(c.ref.games)} de ${fmt.int(c.ref.players)} OTPs ${tierName(c.ref.tier)}` +
+                (c.ref_top ? ` y ${fmt.int(c.ref_top.games)} de ${fmt.int(c.ref_top.players)} OTPs ${tierName(c.ref_top.tier)}` : ""),
+            ),
+          ),
+        ),
+        c.ranked_share < 0.5
+          ? notice("La mayoría de tus partidas son normales y las de los OTPs clasificatorias: tus ventajas frente al rival saldrán algo infladas.", "info")
+          : null,
+        bad.length
+          ? h("div.small", h("b.bad", "Donde más te separas: "), bad.slice(0, 3).map((r) => r.label.toLowerCase()).join(", "), ".")
+          : h("div.small.good", "En nada estás claramente por debajo de ellos."),
+        good.length ? h("div.small", h("b.good", "Donde les ganas: "), good.slice(0, 4).map((r) => r.label.toLowerCase()).join(", "), ".") : null,
+        h(
+          "div.table-wrap",
+          h(
+            "table.table",
+            h("thead", h("tr", h("th", "Métrica"), h("th.num", "Tú"), h("th.num", `OTPs ${tierName(c.ref.tier)}`), c.ref_top ? h("th.num", `OTPs ${tierName(c.ref_top.tier)}`) : null)),
+            h(
+              "tbody",
+              c.metrics.map((r) =>
+                h(
+                  "tr",
+                  h("td", r.label, h("span.tiny.muted", r.better === "lower" ? " (menos es mejor)" : "")),
+                  h("td.num", h(`b.${r.status === "bad" ? "bad" : r.status === "good" ? "good" : ""}`, fmtVal(r, r.mine))),
+                  h("td.num", fmtVal(r, r.ref)),
+                  c.ref_top ? h("td.num.muted", fmtVal(r, r.ref_top)) : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+        b.otp_first_item || b.otp_skill_max
+          ? h(
+              "div.small",
+              h("b", "Build: "),
+              `los OTPs ${tierName(c.ref.tier)} empiezan con ${itemText(b.otp_first_item)} (${fmt.pct(b.otp_first_item?.pct, 0)}) y suben ${b.otp_skill_max?.value || "—"}`,
+              b.my_first_item ? ` · tú: ${b.my_first_item.value || `objeto ${b.my_first_item.key}`}${b.my_skill_max ? `, ${b.my_skill_max.key}` : ""}` : "",
+              ".",
+            )
+          : null,
+      );
+    }),
+    h("p.tiny.muted", { style: { margin: 0 } }, "Sale de data/otps (las partidas de OTPs que recoge el recolector, por rol y por elo). Se compara con tus últimas partidas de cada campeón con al menos 5 partidas; hace falta que haya al menos 40 partidas de 3 OTPs de ese elo."),
   );
 }
 

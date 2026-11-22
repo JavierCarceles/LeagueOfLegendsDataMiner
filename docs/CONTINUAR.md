@@ -508,6 +508,19 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   fase se pierden (¿pocos revisados/hora → velocidad? ¿muchos con el campeón pero pocos activos → filtro del mes?).
 - Mensaje de la terminal «Semillas … +205» → «Ranking … +205 jugadores por revisar (candidatos…)».
 
+## 3 sedecies. Sesión del 2026-11-22 (11.ª) — tus partidas frente a los OTPs de tu campeón
+
+- Llegaron `data/mis_partidas` (51 partidas del usuario, todas normales de reclutamiento; 47 jungla, 27 Hecarim; ya en
+  análisis versión 9) y más Hecarim (294 Esmeralda de 17 OTPs, 438 Aspirante). Aún no llegó `_busqueda.json`.
+- Sus Hecarim frente a OTPs Esmeralda/Aspirante: mejor en farm (CS10 77 vs 70/82), visión (1,03 vs 0,73/0,99; pinks
+  2,9 vs 0,7/2,4) y muertes (4,2 vs 5,8/4,6); peor en ganks con kill antes del 10 (1,3 vs 1,8), muertes aislado tras el
+  14 (0,41 vs 0,30/0,20), minutos vacíos desde el 15 (3,2 % vs ~0) y KP (50 vs 52/59). Build igual que los OTPs
+  (Lanza de Shojin, Q>W>E). Ojo: normales frente a clasificatorias.
+- `app/coach/otp_compare.py` + `otp_compare` en `/api/coach/summary` + sección «Tú frente a los OTPs de tu campeón» en
+  Mi progreso (abierta): por campeón y rol con ≥ 5 partidas tuyas, tus medias frente a los OTPs de tu elo objetivo
+  (≥ 40 partidas de ≥ 3 OTPs) y del más alto con datos, ordenado de peor a mejor, y su build más jugada. Lee
+  `data/otps/<Campeón>/resumen.json`. `tests/test_otp_compare.py`.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

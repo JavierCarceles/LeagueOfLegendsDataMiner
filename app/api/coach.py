@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app import lcu
 from app.api.deps import role_param, svc_from
-from app.coach import insights, learn, store
+from app.coach import insights, learn, otp_compare, store
 from app.coach.benchmarks import METRICS, TARGET_TIERS, References, next_target, normalize_tier, public_metrics
 from app.coach.tracker import ProfileNotFound, build_digest, resolve_account
 from app.logbus import get_logger
@@ -279,6 +279,8 @@ def summary(
             "calibration": svc.calibrator.status() if getattr(svc, "calibrator", None) else None,
             "filters": {"queue": _queue(queue), "role": _role(role) or "all", "last": last},
             "recent": [_row(g, refs) for g in games[:60]],
+            # Tus campeones frente a sus OTPs (data/otps) en tu elo objetivo y en el más alto que haya.
+            "otp_compare": otp_compare.compare(svc, games, profile["target_tier"]),
             "all_roles": sorted({p["role"] for p in store.champion_pool(svc.db, puuids) if p["role"]}),
         }
     )
