@@ -34,6 +34,7 @@ class CrawlerBody(BaseModel):
     only_target_games: bool = True
     otp_depth: str = Field("season", pattern="^(season|90|180|365|all)$", description="Historial de cada OTP: temporada, N días o todo")
     save_details: bool = Field(True, description="Guardar micro y macro (timeline) de cada partida de los OTPs")
+    games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
 
 
@@ -105,6 +106,7 @@ def otps(
     target_cond, target_params = target_sql(cfg)
     games_cond, games_params = target_sql(cfg, "pa")
     found = otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers)  # los de los servidores y elos elegidos (los que se visitan)
+    cap = int(cfg.games_per_otp or 0) if svc.crawler.running and svc.crawler.searching() else 0
     list_key = otp_list_key(cfg)
     depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
 
@@ -127,6 +129,8 @@ def otps(
     entries = []
     for row, top in found:
         history = otp_history_state(row, list_key, depth_start)
+        if history == "loading" and cap and int(row["hits"] or 0) >= cap:
+            history = "capped"  # ya tiene sus partidas; el resto de su historial, cuando acabe la búsqueda
         seen = int(row["seen"] or 0)
         points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}
         for c in _otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.champions), 0)]:
@@ -219,6 +223,8 @@ def otps(
         "focus": cfg.focus,
         "min_mastery": cfg.min_mastery,
         "otp_depth": cfg.otp_depth,
+        "games_per_otp": cfg.games_per_otp,
+        "searching": bool(cap),
         "found": len(found),
         "complete": sum(1 for row, _ in found if otp_history_state(row, list_key, depth_start) in ("done", "share")),
         "games": sum(e["total"] for e in entries),

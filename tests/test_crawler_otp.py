@@ -897,3 +897,67 @@ def test_leaderboard_gives_otps_without_scanning_the_ladder(keyed_svc):
         keyed_svc.crawler.config = cfg
         data = client.get("/api/crawler/otps").json()
     assert {p["game_name"] for p in data["players"]} == {"Uno", "Dos"} and data["by_champion"][0]["found"] == 2
+
+
+
+# ------------------------------------------------------------------ variedad antes que cantidad
+def _seed_otp(svc, puuid="otp-a"):
+    with svc.db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'CHALLENGER', 1, 900)", (puuid,))
+        conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, _now_s(), json.dumps([[AATROX, 900_000, _now_s()]])))
+
+
+def test_while_searching_each_otp_only_gets_its_most_recent_games(keyed_svc):
+    from types import SimpleNamespace
+
+    ids, payloads = history("otp-a", 80, prefix="1")
+    keyed_svc.riot = HistoryRiot({"otp-a": ids}, payloads, {})
+    _seed_otp(keyed_svc)
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX], games_per_otp=20, save_details=False).validated()
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    worker.scouts = [SimpleNamespace(status="running")]  # la búsqueda sigue encontrando OTPs
+    worker._visit_otp(worker._next_otp())
+    assert stored(keyed_svc) == set(ids[:20])  # sus 20 más recientes, no 80
+    assert worker._next_otp() is None  # con su tope: el resto, cuando acabe la búsqueda
+    worker.scouts = [SimpleNamespace(status="idle")]  # ya no queda nadie por revisar
+    row = worker._next_otp()
+    assert row is not None and row["puuid"] == "otp-a"
+    worker._visit_otp(row)
+    assert len(stored(keyed_svc)) == 80
+
+
+def test_otps_panel_says_when_an_otp_is_at_its_cap(keyed_svc, monkeypatch):
+    ids, payloads = history("otp-a", 30, prefix="1")
+    keyed_svc.riot = HistoryRiot({"otp-a": ids}, payloads, {})
+    _seed_otp(keyed_svc)
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX], games_per_otp=10, save_details=False).validated()
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    from types import SimpleNamespace
+
+    worker.scouts = [SimpleNamespace(status="running")]
+    worker._visit_otp(worker._next_otp())
+    keyed_svc.crawler.config = cfg
+    monkeypatch.setattr(type(keyed_svc.crawler), "running", property(lambda self: True))
+    monkeypatch.setattr(keyed_svc.crawler, "searching", lambda: True)
+    with _client(keyed_svc) as client:
+        data = client.get("/api/crawler/otps").json()
+    assert data["players"][0]["history"] == "capped" and data["players"][0]["total"] == 10 and data["searching"]
+
+
+def test_games_per_otp_is_validated():
+    assert CrawlerConfig(games_per_otp=0).validated().games_per_otp == 0
+    assert CrawlerConfig(games_per_otp=2).validated().games_per_otp == 5
+    assert CrawlerConfig().validated().games_per_otp == 30
+
+
+def test_leaderboard_only_adds_players_of_your_elos(keyed_svc):
+    opgg = FakeOpgg()
+    keyed_svc.opgg = opgg
+    keyed_svc.riot = LeaderboardRiot({}, {})
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["DIAMOND", "MASTER"], champions=[AATROX]).validated()
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    assert worker._seed_from_leaderboards("euw1") == 1  # «Dos» (Maestro) sí; «Uno» (Aspirante) no es de tus elos
+    assert [c[1] for c in keyed_svc.riot.calls_to("account_by_riot_id")] == ["Dos"]  # ni se gasta la llamada
+    low = CrawlerConfig(platforms=["euw1"], tiers=["PLATINUM", "EMERALD"], champions=[AATROX]).validated()
+    assert crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], low)._seed_from_leaderboards("euw1") == 0
+    assert len(opgg.calls) == 1  # en Platino–Esmeralda la tabla (Maestro+) ni se pide

@@ -687,7 +687,8 @@ def test_recurring_error_joins_its_weakness_instead_of_repeating():
     games = []
     for i in range(12):
         g = _game(i, [["death", "medium", 600, ["before_objective"], "Muerte"]] if i < 8 else [])
-        g["metrics"] = {"deaths_before_objective": 1.0 if i < 8 else 0.0}
+        # Muy por encima de la referencia (≈ 1 por partida en Platino: los junglas Aspirante hacen 0,85).
+        g["metrics"] = {"deaths_before_objective": 3.0 if i < 8 else 0.0}
         games.append(g)
     data = summarize(games, References(None, "PLATINUM"), [])
     weak = next(w for w in data["weaknesses"] if w["metric"] == "deaths_before_objective")

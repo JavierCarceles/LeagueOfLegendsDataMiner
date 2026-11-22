@@ -38,6 +38,7 @@ const HISTORY_LABEL = {
   loading: "bajando historial",
   done: "historial completo",
   share: "historial completo (más atrás no lo jugaba)",
+  capped: "tope alcanzado (más cuando acabe la búsqueda)",
 };
 const REGION_GROUPS = [
   { id: "europe", label: "Europa" },
@@ -474,6 +475,17 @@ function championSection(cfg) {
         "Historial de cada OTP",
         select(OTP_DEPTHS, String(cfg.otp_depth || "season"), (v) => (cfg.otp_depth = v), "select select-sm"),
       ),
+      h(
+        "label.row.small",
+        { title: "Variedad antes que cantidad: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones. Cuando ya no queda nadie por revisar, se sigue con el resto de su historial." },
+        "Partidas por OTP mientras busca",
+        select(
+          [{ value: 10, label: "10" }, { value: 20, label: "20" }, { value: 30, label: "30" }, { value: 50, label: "50" }, { value: 100, label: "100" }, { value: 0, label: "Sin tope" }],
+          cfg.games_per_otp ?? 30,
+          (v) => (cfg.games_per_otp = Number(v)),
+          "select select-sm",
+        ),
+      ),
       h("label.check", h("input", { type: "checkbox", checked: cfg.only_target_games !== false, onchange: (e) => (cfg.only_target_games = e.target.checked) }), "Solo sus partidas con esos campeones"),
       h(
         "label.check",
@@ -482,7 +494,7 @@ function championSection(cfg) {
         "Guardar micro y macro de cada partida (en data/otps)",
       ),
     ),
-    h("p.tiny.muted", { style: { margin: 0 } }, "Sin tope de partidas por jugador: de cada OTP se baja su historial entero hasta la fecha elegida, 100 partidas por petición. Primero lo reciente de todos los OTPs y luego lo más antiguo; sus partidas nuevas van siempre antes. Si más atrás ya casi no jugaba esos campeones, se deja de bajar para no gastar llamadas."),
+    h("p.tiny.muted", { style: { margin: 0 } }, "Variedad primero: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones (las de «Partidas por OTP mientras busca»). Cuando ya no queda nadie por revisar, se baja el resto de su historial hasta la fecha elegida. Sus partidas nuevas van siempre antes, y si más atrás ya casi no jugaba esos campeones, se deja de bajar."),
     h("p.tiny.muted", { style: { margin: 0 } }, "Buscando en Platino–Esmeralda baja el «Mínimo» a 100 K o 50 K: muchos OTPs de ese elo no llegan a 300 K puntos y no contarían."),
     h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) en paralelo a la descarga, porque Riot cuenta aparte el servidor y la región. OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
   );
@@ -510,7 +522,7 @@ function runningSummary(c) {
     h(
       "div.tiny.muted",
       cfg.champions?.length
-        ? `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · historial de cada OTP: ${depthLabel(cfg.otp_depth).toLowerCase()}, sin tope de partidas · partidas nuevas cada ${cfg.recrawl_hours} h`
+        ? `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.games_per_otp ? `${cfg.games_per_otp} partidas por OTP mientras busca, luego` : "historial"} hasta: ${depthLabel(cfg.otp_depth).toLowerCase()} · partidas nuevas cada ${cfg.recrawl_hours} h`
         : `${cfg.include_flex ? "SoloQ + Flex" : "Solo SoloQ"} · ${cfg.matches_per_player} partidas por jugador · revisita cada ${cfg.recrawl_hours} h`,
     ),
     h(
@@ -823,7 +835,11 @@ function otpPlayerRow(p, rank) {
         }),
       ),
     ),
-    h(`span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`, { title: historyText }, p.history === "done" || p.history === "share" ? "Completo" : p.history === "loading" ? "Bajando" : "En cola"),
+    h(
+      `span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`,
+      { title: historyText },
+      p.history === "done" || p.history === "share" ? "Completo" : p.history === "capped" ? "En su tope" : p.history === "loading" ? "Bajando" : "En cola",
+    ),
   );
 }
 

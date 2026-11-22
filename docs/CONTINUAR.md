@@ -436,6 +436,40 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - `RateLimiter`: si nadie usa la web en 10 min (ninguna petición HIGH), la reserva del recolector baja del 15 % al
   5 % (`IDLE_AFTER_S`, `IDLE_RESERVE`); vuelve al 15 % en cuanto hay una petición interactiva.
 
+## 3 undecies. Sesión del 2026-11-22 (6.ª) — «Mi progreso» calibrado con datos de OTPs (sin commitear)
+
+- El usuario subió `data/otps` (commit 05a2534): 704 partidas de jungla con timeline, casi todas de Aspirante
+  (Hecarim 492, Lee Sin 206, Viego 5, Sylas 1). Para leerlas: `gzip` + una línea JSON por partida
+  (`data/otps/<Campeón>/JUNGLE/<OTP>/partidas.jsonl.gz`); el `resumen.json` trae lo agregado.
+- Método: lo que el análisis marca a jugadores Aspirante en muchas partidas = umbral mal puesto. Se replicó la
+  puntuación de gravedad de `_classify_death` con los `tags` guardados (coincide en 3.179/3.179 muertes) para medir
+  cada cambio antes de hacerlo.
+- `analyzer.py` (ANALYSIS_VERSION 8 → tus partidas se reanalizan solas):
+  - Antes de un objetivo: +0,5 (no +1) si en esa pelea cayeron ≥ 2 aliados (el error es la pelea, no tu muerte).
+  - Jungla: la jungla rival no suma gravedad por sí sola, y si fue una pelea con ≥ 2 aliados caídos el título es
+    «Muerte en pelea» (antes «Muerte en la jungla rival»). Resultado en Aspirante: graves 0,23 → 0,11 por partida.
+  - La R solo se exige a nivel 6 (a 11/16 los Aspirante la retrasan a propósito en el 11 % de partidas; a 6, 1 de
+    704). Sin aviso de botas al jungla (32 % de Aspirante sin botas mejoradas al 20).
+- `benchmarks.py` BASE de JUNGLE revisada: nunca más exigente que Aspirante en lo que ellos hacen «peor»
+  (muertes antes del 14 → 2,0; antes de un objetivo → 1,0; tiempo muerto → 8,8 %; objetivos perdidos muerto → 0,4) y
+  más cerca de su nivel donde era muy blanda (CS/min 6,6, CS10 68, oro/min 415, impacto antes del 10 4,5, CS de
+  jungla 62, muertes sueltas/aislado/sin visión más bajas). `tests/test_coach_otp_calibration.py`.
+- Pendiente con más datos: otros roles (solo hay jungla), referencias por campeón (Hecarim y Lee difieren en visión
+  y farm), planes de partida por draft con `context` (líneas, presencia del jungla, objetivos).
+
+## 3 duodecies. Sesión del 2026-11-22 (7.ª) — variedad de OTPs antes que cantidad (sin commitear)
+
+- Petición: «al buscar OTPs de X elo y X servidores, el máximo de jugadores diferentes: variedad por encima de muchas
+  partidas de uno solo». Confusión previa: el log `OTPs de 120 en EUW…` era el **id de Hecarim**, no 120 OTPs; ahora
+  dice el nombre y cuántos de tus elos se añadieron.
+- `CrawlerConfig.games_per_otp` (30 por defecto, 0 = sin tope): mientras alguna búsqueda de la región revisa
+  jugadores (`RegionWorker.searching()`), el historial de cada OTP se para al llegar a N partidas con esos campeones
+  (`hits`); cuando ya no queda nadie por revisar, sigue con el resto. Las partidas nuevas siempre se bajan.
+  `/api/crawler/otps`: historial `capped` («En su tope»), `games_per_otp`, `searching`. Web: «Partidas por OTP
+  mientras busca».
+- Tabla de OP.GG: solo se añaden (y solo se gasta la llamada en) jugadores de los elos elegidos; si no hay ninguno de
+  Diamante o más, ni se pide. El usuario NO quiere OTPs fuera de los elos que marca.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

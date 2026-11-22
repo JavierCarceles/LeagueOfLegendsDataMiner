@@ -112,15 +112,19 @@ BASE: dict[str, dict[str, float | None]] = {
         "obj_participation": 40, "obj_lost_dead": 0.3, "obj_lost_far": 0.6, "deaths_before_objective": 0.3,
         "kp": 46, "dmg_share": 22, "first_item_min": 12.0, "r_late": 0.2,
     },
+    # Revisado con 704 partidas de junglas Aspirante (OTPs de Hecarim y Lee Sin, noviembre de 2026, ver data/otps):
+    # una referencia de Esmeralda nunca puede ser mejor que lo que hacen ellos (muertes antes del 14: 1,9; antes de un
+    # objetivo: 0,85; tiempo muerto: 8,2 %), y las que se quedaban muy por debajo de su nivel (farm, oro, jugadas antes
+    # del 10, muertes sueltas) se acercan sin llegar a su valor.
     "JUNGLE": {
-        "deaths_to_jungler_pre14": None, "deaths_ganked": None, "deaths_no_vision_pre14": 0.5, "deaths_overextended": None,
-        "deaths_pre14": 1.3, "deaths": 5.3, "deaths_solo": 0.8, "deaths_enemy_jungle": 0.9, "deaths_isolated_late": 1.0,
-        "deaths_unspent_gold": 0.35, "time_dead_pct": 7.5, "gold_hoard_min": 0.5, "idle_pct": 12,
-        "cs_min": 6.2, "cs10": 62, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 385,
-        "vision_min": 1.15, "wards_pre14": 6, "control_wards": 3.0,
-        "obj_participation": 78, "obj_lost_dead": 0.3, "obj_lost_far": 0.4, "deaths_before_objective": 0.3,
-        "kp": 60, "dmg_share": None, "first_item_min": 11.5, "r_late": 0.2,
-        "ganks_pre10": 1.2, "impact_pre10": 2.5, "jungle_cs10": 55, "enemy_ganks_far": 0.6,
+        "deaths_to_jungler_pre14": None, "deaths_ganked": None, "deaths_no_vision_pre14": 0.35, "deaths_overextended": None,
+        "deaths_pre14": 2.0, "deaths": 5.3, "deaths_solo": 0.4, "deaths_enemy_jungle": 0.8, "deaths_isolated_late": 0.5,
+        "deaths_unspent_gold": 0.3, "time_dead_pct": 8.8, "gold_hoard_min": 0.35, "idle_pct": 5,
+        "cs_min": 6.6, "cs10": 68, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 415,
+        "vision_min": 1.1, "wards_pre14": 5, "control_wards": 2.8,
+        "obj_participation": 78, "obj_lost_dead": 0.4, "obj_lost_far": 0.4, "deaths_before_objective": 1.0,
+        "kp": 58, "dmg_share": None, "first_item_min": 11.5, "r_late": 0.1,
+        "ganks_pre10": 1.4, "impact_pre10": 4.5, "jungle_cs10": 62, "enemy_ganks_far": 0.4,
     },
     "MID": {
         "deaths_to_jungler_pre14": 0.45, "deaths_ganked": 0.6, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.4,

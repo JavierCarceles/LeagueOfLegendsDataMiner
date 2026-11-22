@@ -53,7 +53,12 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #    destruidas asignadas con prudencia, una ganancia no paga dos objetivos, AFK de Riot, objetos que llegan sin compra;
 # 6: el resumen guarda cada error (para «Errores que repites»); 5: placas 2026 (120, sin doble conteo), las botas nunca
 #    «sobran», intercambios explicados por ambos lados
-ANALYSIS_VERSION = 7
+# 8: calibrado con 704 partidas de junglas Aspirante (OTPs de Hecarim y Lee Sin, noviembre de 2026): una muerte en una
+#    pelea perdida por varios no pesa como una muerte suelta antes de un objetivo; al jungla, estar en la jungla rival
+#    (su trabajo) no le suma gravedad ni le cambia el título si era una pelea; la R solo se exige a nivel 6 (a 11/16 los
+#    Aspirante la retrasan a propósito en el 11 % de partidas); sin aviso de botas al jungla (1 de cada 3 Aspirante
+#    no las tiene mejoradas al 20).
+ANALYSIS_VERSION = 8
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1006,7 +1011,7 @@ def _classify_death(g: _Game, k: dict) -> dict:
         title = f"Gank de {_champ_ref(g, g.enemy_jungler)} (jungla rival)" if "jungler" in tags else f"Gank ({', '.join(names)})"
     elif "fight_outnumbered" in tags:
         title = f"Muerte junto {_al(numbers['label'])} con uno menos ({numbers['allies']} contra {numbers['enemies']})"
-    elif "enemy_jungle" in tags:
+    elif "enemy_jungle" in tags and not (g.role == "JUNGLE" and fight["allies"] >= 2):
         title = "Muerte en la jungla rival"
     elif "solo" in tags:
         title = f"Muerte 1 contra 1 contra {killer_name}"
@@ -1055,12 +1060,15 @@ def _classify_death(g: _Game, k: dict) -> dict:
     score = 1.0
     score += 1.0 if ("gank" in tags and "no_ward" in tags) else 0
     score += 0.8 if "overextended" in tags else 0
-    score += 1.0 if "before_objective" in tags else 0
+    # Antes de un objetivo pesa más morir suelto (dejas al equipo con uno menos) que caer en una pelea que perdisteis
+    # varios: ahí el error es la pelea, no tu muerte.
+    score += (0.5 if fight["allies"] >= 2 else 1.0) if "before_objective" in tags else 0
     score += 0.5 if "unspent_gold" in tags else 0
     score += 0.6 if "enemy_jungle" in tags and "no_ward" in tags else 0
     # Que te cojan solo (o en su jungla a mitad de partida) regala ventaja numérica para el siguiente objetivo.
     score += 0.7 if "isolated" in tags and "fight_won" not in tags else 0
-    score += 0.5 if "enemy_jungle" in tags and not early and "no_ward" not in tags else 0
+    # Para el jungla, la jungla rival es su trabajo (invadir, contrajunglear, visión): no suma por sí sola.
+    score += 0.5 if "enemy_jungle" in tags and not early and "no_ward" not in tags and g.role != "JUNGLE" else 0
     score += 0.8 if "fight_outnumbered" in tags else 0
     score += 0.5 if "collapsed" in tags else 0
     score += 0.5 if "baron_buff" in tags else 0
@@ -2519,7 +2527,9 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
     if skills and g.me["champ"] not in NO_R_CHECK:
         reached = {lvl: t for t, lvl in g.levels[me]}
         r_ups = [t for t, slot in skills if slot == 4]
-        for lvl in (6, 11, 16):
+        # Solo nivel 6 (desbloquearla): a 11 y 16, los Aspirante la retrasan a propósito en el 11 % de partidas
+        # (subir antes otra habilidad clave), así que no es un error claro.
+        for lvl in (6,):
             if lvl not in reached:
                 continue
             tl = reached[lvl]
@@ -2533,7 +2543,7 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
     for d in r_delays:
         moments.append(
             _moment(d["t"] * 1000, "build", "medium" if d["level"] == 6 else "low", f"Subiste la R {d['delay']} s tarde (nivel {d['level']})",
-                    "Sube la R en cuanto llegues a 6, 11 y 16: es tu mayor pico de poder y el rival lo sabe.", tags=["build", "skills"])
+                    "Sube la R en cuanto llegues a nivel 6: es tu mayor pico de poder y el rival lo sabe.", tags=["build", "skills"])
         )
     letters = "".join(SKILL_KEYS[slot] for _t, slot in skills)
     rank: Counter = Counter()
@@ -2587,7 +2597,8 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         )
 
     # 6. Botas.
-    if reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS:
+    # Al jungla no: 1 de cada 3 junglas Aspirante no tiene botas mejoradas al 20 (van antes a por objetos).
+    if reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS and g.role != "JUNGLE":
         moments.append(
             _moment(20 * 60_000, "build", "low", "Sin botas mejoradas al minuto 20",
                     "Las botas de nivel 2 cuestan poco (900-1.250) y dan mucha movilidad y estadísticas: suelen ir entre el primer y el segundo objeto.", tags=["build", "boots"])

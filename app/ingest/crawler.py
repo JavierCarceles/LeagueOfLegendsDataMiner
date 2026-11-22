@@ -69,6 +69,7 @@ OTP_IDLE_WAIT_S = 30
 OTP_FAIL_COOLDOWN_S = 3600  # un OTP que falla 3 veces seguidas descansa una hora
 OTP_DEPTHS = ("season", "90", "180", "365", "all")
 LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
+LEADERBOARD_TIERS = {"DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"}  # elos que salen en esa tabla
 OPGG_REGION = {p: label for p, (_region, label, _name) in PLATFORMS.items()} | {"sg2": "SG"}
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
 OTP_DETAIL_BACKFILL = 25  # partidas ya guardadas a las que se les baja el micro/macro por visita (2 llamadas cada una)
@@ -178,6 +179,10 @@ class CrawlerConfig:
     champion_roles: dict[int, list[str]] = field(default_factory=dict)
     # Micro y macro de cada partida de los OTPs con esos campeones (timeline: 1 llamada más por partida).
     save_details: bool = True
+    # Variedad antes que cantidad: mientras la búsqueda sigue encontrando OTPs, de cada uno solo se bajan sus N
+    # partidas más recientes con esos campeones; el resto de su historial, cuando ya no quedan jugadores por revisar.
+    # 0 = sin tope.
+    games_per_otp: int = 30
 
     def validated(self) -> CrawlerConfig:
         platforms = [p for p in dict.fromkeys(p.lower() for p in self.platforms) if p in PLATFORMS]
@@ -200,6 +205,7 @@ class CrawlerConfig:
             otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
             champion_roles=self._clean_roles(),
             save_details=bool(self.save_details),
+            games_per_otp=0 if not int(self.games_per_otp or 0) else max(5, min(int(self.games_per_otp), 1000)),
         )
 
     def _clean_roles(self) -> dict[int, list[str]]:
@@ -514,9 +520,12 @@ class RegionWorker(threading.Thread):
         region = OPGG_REGION.get(platform)
         if opgg is None or not getattr(opgg, "enabled", False) or not region:
             return 0
+        if not set(self.config.tiers) & LEADERBOARD_TIERS:
+            return 0  # la tabla solo trae Diamante alto, Maestro o más: con elos más bajos no aporta nadie
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         added = 0
         for champ in self.config.champions:
+            champ_added = 0
             if self.stop_event.is_set():
                 break
             fresh = db.scalar(
@@ -551,6 +560,8 @@ class RegionWorker(threading.Thread):
                 if not name or not tag:
                     continue
                 solo = next((ls.get("tier_info") or {} for ls in summ.get("league_stats") or [] if ls.get("game_type") == "SOLORANKED"), {})
+                if str(solo.get("tier") or "").upper() not in self.config.tiers:
+                    continue  # no es de los elos que buscas: ni se gasta la llamada
                 puuid = db.scalar(
                     "SELECT puuid FROM players WHERE platform = ? AND lower(game_name) = lower(?) AND lower(tag_line) = lower(?)",
                     (platform, name, tag),
@@ -584,9 +595,14 @@ class RegionWorker(threading.Thread):
                 if not db.scalar("SELECT 1 FROM mastery_checks WHERE puuid = ? AND checked_at >= ?", (puuid, now_s() - MASTERY_TTL_S)):
                     self._check_mastery(platform, puuid)  # necesaria para su ficha (y si es OTP estricto)
                 added += 1
+                champ_added += 1
                 self.state["targets_found"] += 1
                 self.wake()
-            log.info("OTPs de %s en %s sacados de la tabla de OP.GG: %d.", champ, PLATFORMS[platform][1], added)
+            dd = getattr(svc, "dd", None)
+            champ_name = (dd.name(champ) if dd is not None and hasattr(dd, "name") else None) or f"campeón {champ}"
+            log.info(
+                "Tabla de los mejores de %s en %s (OP.GG): %d OTPs de tus elos añadidos.", champ_name, PLATFORMS[platform][1], champ_added
+            )
         return added
 
     def _check_mastery(self, platform: str, puuid: str) -> list:
@@ -664,6 +680,7 @@ class RegionWorker(threading.Thread):
         known = complete = 0
         rows = otp_rows(self.svc.db, cfg, self.platforms, cfg.tiers, now)
         lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details else set()
+        cap = self._games_cap()
         for row, _top in rows:
             known += 1
             state = otp_history_state(row, list_key, depth_start, otp_config_key(cfg))
@@ -676,8 +693,8 @@ class RegionWorker(threading.Thread):
                 key = (0, 0, *rank)
             elif row["fwd_more"] or (row["last_crawled_at"] or 0) < now - recrawl:
                 key = (1, row["last_crawled_at"] or 0, *rank)
-            elif state == "loading":
-                key = (2, row["back_offset"] or 0, *rank)
+            elif state == "loading" and not (cap and int(row["hits"] or 0) >= cap):
+                key = (2, row["back_offset"] or 0, *rank)  # sin pasar del tope mientras se buscan más OTPs
             elif row["id"] in lacking:
                 key = (3, 0, *rank)  # partidas guardadas sin micro/macro (de antes de activarlo o que fallaron)
             else:
@@ -686,6 +703,14 @@ class RegionWorker(threading.Thread):
                 best = (key, row)
         self.state.update(otps_known=known, otps_complete=complete)
         return best[1] if best else None
+
+    def searching(self) -> bool:
+        """¿Alguna búsqueda de OTPs de esta región sigue revisando jugadores?"""
+        return any(sc.status not in ("idle", "stopped") for sc in self.scouts)
+
+    def _games_cap(self) -> int:
+        """Partidas por OTP mientras se buscan más (0 = sin tope; también sin tope cuando ya no queda nadie por revisar)."""
+        return int(self.config.games_per_otp or 0) if self.searching() else 0
 
     def _lacking_details(self, player_ids: list[int]) -> set[int]:
         """OTPs con partidas suyas con los campeones elegidos (en su rol) guardadas pero sin micro/macro."""
@@ -851,7 +876,11 @@ class RegionWorker(threading.Thread):
             # 2) Historial hacia atrás con ``endTime`` fijo (el ancla): la lista no se mueve aunque juegue más
             #    partidas, así que ``start`` (cuántas se llevan recorridas) siempre apunta al mismo sitio.
             pages = 0
-            while prog["done_at"] is None and budget > 0 and pages < OTP_BACK_PAGES and not self.stop_event.is_set():
+            cap = self._games_cap()
+            while (
+                prog["done_at"] is None and budget > 0 and pages < OTP_BACK_PAGES and not self.stop_event.is_set()
+                and not (cap and prog["hits"] >= cap)  # variedad: el resto, cuando la búsqueda termine
+            ):
                 base = prog["offset"]
                 ids = svc.riot.match_ids(
                     platform, puuid, queue=queue, ranked_only=cfg.include_flex, start_time=depth_start or None,
@@ -874,7 +903,7 @@ class RegionWorker(threading.Thread):
                             old_season = True  # primera partida de la temporada anterior: hasta aquí
                     consumed += 1
                     prog["offset"] = base + consumed
-                    if old_season:
+                    if old_season or (cap and prog["hits"] >= cap):
                         break
                 if old_season or (consumed == len(ids) and len(ids) < OTP_PAGE):
                     prog.update(done_at=now_s(), done_start=depth_start, reason="end")
@@ -1215,6 +1244,9 @@ class Crawler:
     @property
     def running(self) -> bool:
         return any(w.is_alive() or any(sc.is_alive() for sc in w.scouts) for w in self.workers.values())
+
+    def searching(self) -> bool:
+        return any(w.searching() for w in self.workers.values())
 
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):
