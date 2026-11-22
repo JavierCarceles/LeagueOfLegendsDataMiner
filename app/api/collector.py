@@ -215,27 +215,19 @@ def otps(
         "matched": matched,
         "offset": offset,
         "players": page,
-        "details": otp_details.counts(svc.db) | {"enabled": cfg.save_details},
-        "export": _exporter(svc).state,
+        "details": otp_details.counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
     }
 
 
-def _exporter(svc) -> otp_details.Exporter:
-    exporter = getattr(svc, "otp_exporter", None)
-    if exporter is None:
-        exporter = otp_details.Exporter(svc)
-        svc.otp_exporter = exporter
-    return exporter
+def _files_state(svc) -> dict:
+    files = otp_details.Files.of(svc)
+    return {"path": str(files.base), "files": files.state} if files is not None else {"path": None, "files": None}
 
 
-@router.post("/otps/export")
-def otps_export(svc=Depends(svc_from)):
-    """Escribe ``data/otp_export`` (un fichero por OTP y un resumen por campeón) en segundo plano."""
-    if not otp_details.counts(svc.db)["games"]:
+@router.post("/otps/files/rebuild")
+def otps_files_rebuild(svc=Depends(svc_from)):
+    """Reescribe la carpeta ``otps`` desde la base de datos (normalmente no hace falta: se escribe sola)."""
+    files = otp_details.Files.of(svc)
+    if files is None or not otp_details.counts(svc.db)["games"]:
         raise HTTPException(409, "Aún no hay partidas de OTPs con micro y macro guardados")
-    return _exporter(svc).start()
-
-
-@router.get("/otps/export")
-def otps_export_status(svc=Depends(svc_from)):
-    return _exporter(svc).state | {"saved": otp_details.counts(svc.db)}
+    return files.rebuild_in_background()

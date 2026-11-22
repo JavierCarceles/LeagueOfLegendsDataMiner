@@ -473,7 +473,7 @@ function championSection(cfg) {
         "label.check",
         { title: "Baja el timeline de cada partida suya con esos campeones (1 llamada más por partida) y guarda su micro y macro: muertes, oro, build, jungla, objetivos, posiciones minuto a minuto…" },
         h("input", { type: "checkbox", checked: cfg.save_details !== false, onchange: (e) => (cfg.save_details = e.target.checked) }),
-        "Guardar micro y macro de cada partida",
+        "Guardar micro y macro de cada partida (en data/otps)",
       ),
     ),
     h("p.tiny.muted", { style: { margin: 0 } }, "Sin tope de partidas por jugador: de cada OTP se baja su historial entero hasta la fecha elegida, 100 partidas por petición. Primero lo reciente de todos los OTPs y luego lo más antiguo; sus partidas nuevas van siempre antes. Si más atrás ya casi no jugaba esos campeones, se deja de bajar para no gastar llamadas."),
@@ -613,7 +613,7 @@ async function loadOtps(c) {
   } catch (err) {
     return mount(box, errorBox(err));
   }
-  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details, data.export]);
+  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details]);
   if (sig === otpsSig) return;
   otpsSig = sig;
   mount(
@@ -623,44 +623,38 @@ async function loadOtps(c) {
       { style: { gap: "10px" } },
       h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}`),
       h("div.otp-champ-grid", (data.by_champion || []).map((ch) => otpChampCard(ch, data))),
-      otpExportBar(data),
+      otpFilesBar(data),
     ),
   );
 }
 
-/** Micro y macro guardado de las partidas de los OTPs y su exportación a data/otp_export. */
-function otpExportBar(data) {
-  const d = data.details || { games: 0, players: 0, timelines: 0 };
-  const ex = data.export || { status: "idle" };
-  const running = ex.status === "running";
-  const doExport = async (btn) => {
-    btn.disabled = true;
-    try {
-      await api.post("/api/crawler/otps/export");
-      toast("Exportando los datos de los OTPs…");
-      otpsAt = 0;
-      setTimeout(refresh, 1500);
-    } catch (err) {
-      toast(err.message, "error");
-      btn.disabled = false;
-    }
-  };
-  const btn = h("button.btn.btn-sm", { type: "button", disabled: running || !d.games || null, onclick: (e) => doExport(e.currentTarget) }, icon("download"), running ? "Exportando…" : "Exportar datos");
+/** Dónde y cuánto micro/macro se ha guardado (se escribe solo: una carpeta por campeón, rol y OTP). */
+function otpFilesBar(data) {
+  const d = data.details || { games: 0, players: 0, timelines: 0, tiers: {} };
+  const tiers = Object.entries(d.tiers || {});
+  const rebuilding = d.files?.status === "running";
   return h(
     "div.otp-export",
     h(
       "div",
       { style: { minWidth: 0 } },
-      h("div.small", h("b", "Micro y macro guardado: "), `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} OTPs`, d.games && d.timelines < d.games ? h("span.muted", ` (${fmt.int(d.games - d.timelines)} sin timeline)`) : null, !d.enabled ? h("span.warn", " · desactivado en el recolector") : null),
-      running
-        ? h("div.tiny.muted", `Exportando… ${fmt.int(ex.done || 0)} de ${fmt.int(ex.total || 0)} partidas`)
-        : ex.status === "done"
-          ? h("div.tiny.good", `Exportado: ${fmt.int(ex.games)} partidas en ${fmt.int(ex.files)} ficheros (${fmt.num((ex.bytes || 0) / 1e6, 1)} MB) → ${ex.path}`)
-          : ex.status === "error"
-            ? h("div.tiny.bad", `Error al exportar: ${ex.error}`)
-            : h("div.tiny.muted", "Exporta una carpeta por campeón en data/otp_export: un fichero por OTP con todas sus partidas a fondo y un resumen.json con lo agregado."),
+      h(
+        "div.small",
+        h("b", "Micro y macro: "),
+        d.games ? `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} OTPs` : "aún ninguna partida",
+        d.games && d.timelines < d.games ? h("span.muted", ` (${fmt.int(d.games - d.timelines)} sin timeline)`) : null,
+        !d.enabled ? h("span.warn", " · desactivado en el recolector") : null,
+      ),
+      tiers.length ? h("div.row-wrap.tiny", { style: { gap: "4px", marginTop: "4px" } }, tiers.map(([t, n]) => h("span.chip-muted", `${TIER_LABEL[t] || t}: ${fmt.int(n)}`))) : null,
+      h(
+        "div.tiny.muted",
+        { style: { marginTop: "4px" } },
+        rebuilding
+          ? `Reorganizando la carpeta… ${fmt.int(d.files.done || 0)} de ${fmt.int(d.files.total || 0)} partidas`
+          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → OTP (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo.",
+      ),
+      d.path ? h("div.tiny.muted.otp-path", h("b", "Carpeta: "), d.path) : null,
     ),
-    btn,
   );
 }
 

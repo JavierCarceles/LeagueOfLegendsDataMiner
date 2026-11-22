@@ -256,7 +256,9 @@ CREATE TABLE IF NOT EXISTS otp_games (
     game_start   INTEGER,
     patch        TEXT,
     platform     TEXT,
-    tier         TEXT,
+    tier         TEXT,                  -- elo del OTP al bajar la partida
+    division     TEXT,
+    lp           INTEGER,
     has_timeline INTEGER NOT NULL DEFAULT 0,
     version      INTEGER NOT NULL,      -- versión del dossier × 1000 + versión del análisis
     match_raw    BLOB,
@@ -381,6 +383,11 @@ class Database:
             # Rol de la partida descartada (búsqueda de OTPs por campeón y rol).
             if "role" not in {r[1] for r in conn.execute("PRAGMA table_info(otp_skips)")}:
                 conn.execute("ALTER TABLE otp_skips ADD COLUMN role TEXT")
+            # Elo completo de cada partida de OTP (antes solo el tier).
+            otp_cols = {r[1] for r in conn.execute("PRAGMA table_info(otp_games)")}
+            for col, kind in (("division", "TEXT"), ("lp", "INTEGER")):
+                if col not in otp_cols:
+                    conn.execute(f"ALTER TABLE otp_games ADD COLUMN {col} {kind}")
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES('schema_version', ?) ON CONFLICT(key) DO NOTHING",
                 (str(SCHEMA_VERSION),),

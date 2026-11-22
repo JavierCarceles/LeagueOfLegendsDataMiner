@@ -374,24 +374,33 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   servidor, orden y lista paginada de 25 en 25 («Ver más»). Estilos `.otp-card*`, `.otp-player`, `.otp-dot`…
   (`.otp-game` se mantiene: la usa Mi progreso).
 
-## 3 octies. Sesión del 2026-11-22 (3.ª) — micro y macro de los OTPs para aprender de ellos (sin commitear)
+## 3 octies. Sesión del 2026-11-22 (3.ª) — base de datos de OTPs para aprender de ellos (commit 639e13b + sin commitear)
 
-- Petición: de los OTPs que se recogen, guardar todo el micro/macro posible (y las builds) en un fichero por OTP; el
-  usuario recopila ~10 campeones de mucho elo, devuelve los datos dentro del proyecto y con ellos se ajusta el análisis
-  de «Mi progreso» (umbrales, falsos positivos) y la web.
-- `app/ingest/otp_details.py`: `build_dossier` (= `analyze_game` desde el OTP, sin el `replay` de los 10, + runas,
-  hechizos, `riot_stats`, `challenges`, frames minuto a minuto suyos y de su rival con zona, compras/ventas, habilidades,
-  wards, eventos del mapa), `save` (tabla `otp_games`: bruto de partida y timeline + dossier, zlib), `reanalyze` (rehace
-  dossiers desde el bruto cuando sube `ANALYSIS_VERSION`, sin llamar a Riot; aún sin botón), `summarize` y `export`.
-- Recolector: `CrawlerConfig.save_details` (por defecto sí): timeline de cada partida suya con el campeón y rol
-  buscados (cuenta como 2 descargas en el reparto por visita) y relleno de las ya guardadas (`OTP_DETAIL_BACKFILL`
-  por visita; prioridad 3 en `_next_otp` para OTPs con partidas sin micro/macro).
-- API: `/api/crawler/otps` trae `details` y `export`; `POST/GET /api/crawler/otps/export` (hilo aparte). Escribe
-  `<DATA_DIR>/otp_export/<Campeón>/resumen.json` + `<servidor>_<RiotID>_<puuid8>.json.gz` + `LEEME.md`.
-- Web: casilla «Guardar micro y macro de cada partida» y barra «Exportar datos» bajo los paneles de campeón.
-- **Siguiente paso** cuando el usuario devuelva `otp_export`: leer los `resumen.json` (métricas medias por rol,
-  ganadas vs perdidas, `analysis_flags` = avisos que el análisis marca a jugadores de mucho elo → candidatos a falso
-  positivo) y ajustar `app/coach` (benchmarks, umbrales) y «Mi progreso».
+- **Objetivo del usuario**: recopilar a fondo partidas de OTPs de mucho elo (~10 campeones) para que luego Claude pueda
+  dar planes de partida por draft/matchup (por dónde pathear, a qué objetivos jugar, invadir o no, qué build…) y
+  ajustar «Mi progreso» (umbrales, falsos positivos). Datos de alto nivel = menos errores.
+- `app/ingest/otp_details.py`:
+  - `build_dossier` = `analyze_game` desde el OTP (sin el `replay` de los 10) + runas, hechizos, `riot_stats`,
+    `challenges`, frames minuto a minuto suyos y del rival, compras/ventas/habilidades/wards, eventos del mapa, elo del
+    OTP en esa partida (`tier`, `division`, `lp`) y `context` (DOSSIER_VERSION 2): las 5 líneas (aliado, rival,
+    ventaja de oro/XP/CS a los 5/10/15/20, kills/muertes antes del 15), presencia de cada jungla (min 2-14 por zona,
+    takedowns antes del 15 por línea, primer takedown), todos los objetivos y la primera torre.
+  - `save` → tabla `otp_games` (bruto de partida y timeline + dossier, zlib; columnas `tier`, `division`, `lp`) y
+    **escritura automática** en `<DATA_DIR>/otps/<Campeón>/<ROL>/<servidor>_<RiotID>_<puuid8>/` (`perfil.json` +
+    `partidas.jsonl.gz`, una línea por partida, append). `Files` (por carpeta): resúmenes `<Campeón>/resumen.json`
+    por rol (`all`) y por elo (`by_tier`) en un hilo, como mucho cada 5 min por campeón y al parar el recolector;
+    `rebuild()` reescribe la carpeta desde la BD (al arrancar el recolector si falta o cambia `LAYOUT_VERSION`).
+  - Resumen por rol/elo: métricas (todas, y en victorias/derrotas), builds, habilidades, runas, hechizos, primer
+    campamento, rivales, `analysis_flags` (avisos de «Mi progreso» → posibles falsos positivos), `matchups` (rival de
+    línea: WR y ventaja a 10/15), `lanes_impact` (WR con cada línea por delante/igualada/detrás a los 15),
+    `objectives_first`, `first_tower_lane` y, en jungla, `jungle_presence` (también según qué línea gana a los 10).
+  - `reanalyze` rehace dossiers desde el bruto (sin Riot) y regenera la carpeta. Aún sin botón.
+- Recolector: `save_details` (sí por defecto), timeline de cada partida suya con el campeón y rol buscados (2 descargas
+  en el reparto), relleno de las ya guardadas (prioridad 3 en `_next_otp`).
+- API `/api/crawler/otps` → `details` (partidas, OTPs, por elo, carpeta). `POST /api/crawler/otps/files/rebuild`.
+- Web: casilla en el recolector y barra informativa (sin botón: se guarda solo).
+- **Siguiente paso** cuando el usuario devuelva `data/otps`: leer los `resumen.json` y usarlos para planes de partida
+  en el draft/matchups y para ajustar `app/coach` y «Mi progreso».
 
 ## 4 bis. Pendiente (por prioridad)
 

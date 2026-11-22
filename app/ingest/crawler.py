@@ -349,6 +349,8 @@ class RegionWorker(threading.Thread):
         else:
             self._run_ladder()
         self.state["status"] = "stopped"
+        if self.config.champions and self.config.save_details:
+            otp_details.flush(self.svc)  # los resúmenes de campeón pendientes, ya
         log.info("Recolector %s detenido. Guardadas %d partidas.", self.region, self.state["stored"])
 
     def _run_ladder(self) -> None:
@@ -616,8 +618,10 @@ class RegionWorker(threading.Thread):
             timeline = None  # Riot no tiene el timeline: se guarda lo que da la partida
             if payload is None:
                 return False
+        info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
+        elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
         try:
-            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], player.get("tier"))
+            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
         except Exception:
             log.exception("No se pudo analizar la partida %s del OTP", match_id)
             return False
@@ -1134,6 +1138,8 @@ class Crawler:
             self.total_stored = 0
             for worker in self.workers.values():
                 worker.start()
+            if config.champions and config.save_details:
+                otp_details.ensure_files(self.svc)  # carpeta de OTPs que falta o de otro formato: se regenera sola
         log.info("Recolector en marcha en %d regiones en paralelo.", len(self.workers))
         return self.status()
 

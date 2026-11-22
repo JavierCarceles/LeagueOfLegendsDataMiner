@@ -8,7 +8,7 @@ from collections import Counter
 import pytest
 
 from app.ingest.crawler import CrawlerConfig
-from tests.factories import AATROX, DARIUS, GAREN, FakeRiotClient, make_match
+from tests.factories import AATROX, DARIUS, GAREN, FakeRiotClient, make_match, make_timeline
 from tests.test_crawler import keyed_svc, wait_until  # noqa: F401  (fixture reutilizada)
 
 START = 1_763_000_000_000
@@ -678,37 +678,86 @@ def test_details_only_for_games_in_the_chosen_role(keyed_svc):
     assert {r["role"] for r in details(keyed_svc).values()} == {"JUNGLE"}
 
 
-def test_export_writes_a_file_per_otp_and_a_summary(keyed_svc, tmp_path):
-    ids, payloads = history("otp-a", 4, prefix="1")
+def otps_dir(svc):
+    return svc.settings.data_dir / otp_details.FILES_DIR
+
+
+def read_games(path):
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
+def test_each_game_is_written_to_its_otp_folder_automatically(keyed_svc):
+    ids, payloads = role_history("otp-a", 5, prefix="1", role_for=lambda i: "JUNGLE" if i < 3 else "TOP")
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
-    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
-    result = otp_details.export(keyed_svc, tmp_path / "out")
-    assert result["games"] == 4 and result["files"] == 1
-    folder = tmp_path / "out" / keyed_svc.dd.name(AATROX)
-    (gz,) = folder.glob("*.json.gz")
-    with gzip.open(gz, "rt", encoding="utf-8") as fh:
-        payload = json.load(fh)
-    assert payload["champ"] == AATROX and len(payload["games"]) == 4 and payload["player"]["platform"] == "euw1"
-    summary = json.loads((folder / "resumen.json").read_text(encoding="utf-8"))
-    top = summary["roles"]["TOP"]
-    assert summary["games"] == 4 and top["games"] == 4 and top["metrics"]["cs_min"]["n"] == 4
-    assert top["keystones"] and top["summoner_spells"] and "analysis_flags" in top
-    assert (tmp_path / "out" / "LEEME.md").exists()
+    run_history(keyed_svc, fake, champions=[AATROX], only_target_games=False, save_details=True)
+    champ_dir = otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX)
+    (jungle,) = (champ_dir / "JUNGLE").iterdir()
+    (top,) = (champ_dir / "TOP").iterdir()
+    assert jungle.name.endswith("_otp-a") and jungle.name.startswith("euw1_")  # su rol claro: una carpeta por rol
+    games = read_games(jungle / "partidas.jsonl.gz")
+    assert len(games) == 3 and {g["role"] for g in games} == {"JUNGLE"} and len(read_games(top / "partidas.jsonl.gz")) == 2
+    lp = keyed_svc.db.scalar("SELECT lp FROM players WHERE puuid = 'otp-a'")
+    assert games[0]["tier"] == "CHALLENGER" and games[0]["division"] == "I" and games[0]["lp"] == lp > 0  # elo de cada partida
+    assert games[0]["events"]["items"] and "skills" in games[0]["events"]  # la build entera, compra a compra
+    profile = json.loads((jungle / "perfil.json").read_text(encoding="utf-8"))
+    assert profile["role"] == "JUNGLE" and profile["games"] == 3 and profile["by_tier"]["CHALLENGER"]["games"] == 3
+    assert profile["elo_now"] == {"tier": "CHALLENGER", "division": "I", "lp": lp}
+    # El resumen del campeón se rehace solo al parar (y cada pocos minutos mientras entran partidas).
+    files = otp_details.Files.of(keyed_svc)
+    assert wait_until(lambda: files.thread is not None and not files.thread.is_alive() and not files.dirty, 15)
+    summary = json.loads((champ_dir / "resumen.json").read_text(encoding="utf-8"))
+    assert summary["games"] == 5 and set(summary["roles"]) == {"JUNGLE", "TOP"}
+    jg = summary["roles"]["JUNGLE"]
+    assert jg["all"]["games"] == 3 and jg["by_tier"]["CHALLENGER"]["games"] == 3 and jg["all"]["metrics"]["cs_min"]["n"] == 3
+    assert (otps_dir(keyed_svc) / "LEEME.md").exists()
 
 
-def test_export_keeps_players_with_the_same_name_apart(keyed_svc, tmp_path):
+def test_a_game_is_written_once_and_a_new_one_appends(keyed_svc):
     from types import SimpleNamespace
 
-    for puuid in ("same-1", "same-2"):
-        match = make_match(f"EUW1_{abs(hash(puuid)) % 10**6}", puuids={1: puuid})
-        assert otp_details.save(keyed_svc.db, SimpleNamespace(dd=None), match, None, puuid, "CHALLENGER")
-    result = otp_details.export(keyed_svc, tmp_path / "out")
-    assert result["files"] == 2 and len(list((tmp_path / "out").rglob("*.json.gz"))) == 2
+    svc = SimpleNamespace(db=keyed_svc.db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    elo = {"tier": "MASTER", "division": "I", "lp": 50}
+    m1, m2 = make_match("EUW1_501", puuids={1: "p-x"}), make_match("EUW1_502", puuids={1: "p-x"})
+    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo)
+    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo)  # repetida: se actualiza en la BD, no se duplica
+    assert otp_details.save(keyed_svc.db, svc, m2, None, "p-x", {"tier": "GRANDMASTER", "division": "I", "lp": 400})
+    (folder,) = (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX) / "TOP").iterdir()
+    games = read_games(folder / "partidas.jsonl.gz")
+    assert [g["match_id"] for g in games] == ["EUW1_501", "EUW1_502"] and [g["tier"] for g in games] == ["MASTER", "GRANDMASTER"]
+    profile = json.loads((folder / "perfil.json").read_text(encoding="utf-8"))
+    assert profile["by_tier"] == {"GRANDMASTER": {"games": 1, "wins": 1, "wr": 100.0}, "MASTER": {"games": 1, "wins": 1, "wr": 100.0}}
 
 
-def test_export_endpoint_and_reanalyze(keyed_svc):
+def test_players_with_the_same_name_get_their_own_folder(keyed_svc):
+    from types import SimpleNamespace
+
+    svc = SimpleNamespace(db=keyed_svc.db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    for i, puuid in enumerate(("same-aaaa1", "same-bbbb2")):
+        assert otp_details.save(keyed_svc.db, svc, make_match(f"EUW1_60{i}", puuids={1: puuid}), None, puuid)
+    assert len(list((otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX) / "TOP").iterdir())) == 2
+
+
+def test_folder_is_rebuilt_from_the_database_when_missing(keyed_svc):
+    import shutil
+
+    ids, payloads = history("otp-a", 3, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    files = otp_details.Files.of(keyed_svc)
+    if files.thread is not None:
+        files.thread.join(10)  # el resumen que se rehace al parar
+    shutil.rmtree(otps_dir(keyed_svc))
+    assert files.needs_rebuild()
+    assert files.rebuild()["games"] == 3
+    (folder,) = (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX) / "TOP").iterdir()
+    assert len(read_games(folder / "partidas.jsonl.gz")) == 3 and (folder.parent.parent / "resumen.json").exists()
+    assert not files.needs_rebuild()
+
+
+def test_reanalyze_and_api_state(keyed_svc):
     with _client(keyed_svc) as client:
-        assert client.post("/api/crawler/otps/export").status_code == 409  # nada que exportar aún
+        assert client.post("/api/crawler/otps/files/rebuild").status_code == 409  # nada guardado aún
     ids, payloads = history("otp-a", 2, prefix="1")
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
     run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
@@ -718,6 +767,27 @@ def test_export_endpoint_and_reanalyze(keyed_svc):
     assert all(unpack(r["dossier"]) for r in details(keyed_svc).values())
     with _client(keyed_svc) as client:
         data = client.get("/api/crawler/otps").json()
-        assert data["details"]["games"] == 2 and data["details"]["enabled"] is True
-        assert client.post("/api/crawler/otps/export").json()["status"] in ("running", "done")
-        assert wait_until(lambda: client.get("/api/crawler/otps/export").json()["status"] == "done", 20)
+    assert data["details"]["games"] == 2 and data["details"]["enabled"] is True
+    assert data["details"]["path"].endswith("otps") and "CHALLENGER" in data["details"]["tiers"]
+
+
+def test_each_game_keeps_the_draft_context(keyed_svc):
+    """Para planes de partida: las 5 líneas, por dónde anda cada jungla y quién coge cada objetivo."""
+    match = make_match("EUW1_700", puuids={2: "jg-otp"})  # pid 2 = jungla azul (Lee Sin)
+    d = otp_details.build_dossier(match, make_timeline(match), "jg-otp", None, elo={"tier": "CHALLENGER", "division": "I", "lp": 900})
+    ctx = d["context"]
+    assert set(ctx["lanes"]) == {"TOP", "JUNGLE", "MID", "ADC", "SUPPORT"}
+    top = ctx["lanes"]["TOP"]
+    assert top["ally"] == AATROX and top["enemy"] == DARIUS and set(top["diff"]) == {"5", "10", "15", "20"}
+    assert set(top["diff"]["10"]) == {"gold", "xp", "cs"}
+    jg = ctx["jungle"]["ally"]
+    assert sum(jg["positions"].values()) > 0 and jg["takedowns_pre15"]  # el gank azul en bot del escenario de pruebas
+    assert ctx["first"]["dragon"]["ally"] is True and ctx["objectives"]
+    assert d["tier"] == "CHALLENGER" and d["lp"] == 900
+
+    summary = otp_details.summarize([d | {"puuid": "jg-otp"}])
+    block = summary["roles"]["JUNGLE"]["all"]
+    assert block["matchups"][0]["enemy_id"] == make_match()["info"]["participants"][6]["championId"]  # su jungla rival
+    assert set(block["lanes_impact"]) >= {"TOP", "MID"} and block["objectives_first"]["dragon"]["ally_first_pct"] == 100.0
+    assert block["jungle_presence"]["minutes_at"] and "first_takedown_where" in block
+    assert summary["roles"]["JUNGLE"]["by_tier"]["CHALLENGER"]["games"] == 1
