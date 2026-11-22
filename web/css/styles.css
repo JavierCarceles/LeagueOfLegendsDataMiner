@@ -266,7 +266,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* tables */
 .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--line); }
 table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; letter-spacing: 0.7px; text-transform: uppercase; padding: 9px 10px; background: var(--bg-2); border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; }
+.table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; letter-spacing: 0.7px; text-transform: uppercase; padding: 9px 10px; background: var(--bg-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
 .table th.sortable { cursor: pointer; }
 .table th.sortable:hover { color: var(--text); }
 .table th.sorted { color: var(--gold); }
@@ -438,7 +438,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .form-dots span { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 10px; font-weight: 800; color: #10141b; }
 .form-dots .w { background: var(--good); }
 .form-dots .l { background: var(--bad); }
-.match-row { display: grid; grid-template-columns: 6px 220px 130px minmax(0, 1fr) 230px 20px; align-items: center; gap: 12px; padding: 8px 12px 8px 0; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; overflow: hidden; }
+.match-row { display: grid; grid-template-columns: 6px 220px 130px minmax(0, 1fr) 0 20px; align-items: center; gap: 12px; padding: 8px 12px 8px 0; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; overflow: hidden; }
 .match-row:hover { border-color: var(--line-2); }
 .match-row .bar { align-self: stretch; }
 .match-row.win .bar { background: var(--good); }
@@ -871,6 +871,39 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .funnel { display: flex; flex-wrap: wrap; gap: 4px 0; align-items: center; }
 .funnel-step { display: inline-flex; align-items: baseline; gap: 2px; }
 .funnel-step + .funnel-step::before { content: "→"; color: var(--faint); margin: 0 8px; }
+
+/* Límite de la API: una tarjeta por región */
+.limit-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.limit-region { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.limit-region:hover { border-color: var(--gold); }
+.limit-region:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.limit-region .track { height: 6px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+.limit-region .track span { display: block; height: 100%; background: var(--gold); }
+.limit-host { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.limit-host:last-of-type { border-bottom: 0; }
+
+/* Biblioteca de OTPs (#/otps) */
+.otp-rank-list { display: flex; flex-direction: column; gap: 4px; }
+.otp-rank { display: grid; grid-template-columns: 28px 28px minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.otp-rank:hover { background: var(--panel-2); border-color: var(--line); }
+.otp-rank.on { background: var(--gold-soft); border-color: rgba(214, 181, 109, 0.5); }
+.otp-rank:focus-visible, .otp-lib-row:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.otp-rank-n { color: var(--faint); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.otp-rank:nth-child(-n+3) .otp-rank-n { color: var(--gold-2); font-weight: 700; }
+.otp-rank-name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.otp-rank-stat { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.otp-dist { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.otp-bar { display: grid; grid-template-columns: 92px minmax(0, 1fr) 84px; align-items: center; gap: 8px; }
+.otp-bar .track { height: 6px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+.otp-bar .track span { display: block; height: 100%; background: var(--gold); }
+.otp-lib-row { display: grid; grid-template-columns: 28px minmax(0, 1.6fr) 90px minmax(0, 1fr) 90px 20px; gap: 12px; align-items: center; padding: 9px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.otp-lib-row:hover { background: var(--panel-2); }
+.otp-lib-row .replay-go .ico { transform: rotate(-90deg); }
+@media (max-width: 760px) {
+  .otp-rank { grid-template-columns: 22px 24px minmax(0, 1fr) auto; }
+  .otp-lib-row { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .otp-lib-row .otp-player-role, .otp-lib-row .replay-go, .otp-rank .hide-sm, .otp-lib-row .hide-sm { display: none; }
+}
 
 /* Campeones de la búsqueda de OTPs con su rol */
 .otp-champ { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); }

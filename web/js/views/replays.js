@@ -173,7 +173,19 @@ async function loadList(body, profile) {
         : ["No hay partidas con estos filtros", "Cambia la cola, el rol o el resultado."];
     return mount(body, h("div.stack", filters, h("section.card", empty(title, text, "film"))));
   }
-  mount(body, h("div.stack", filters, h("div.replay-list", games.map((g) => gameCard(g, local.has(g.match_id))))));
+  // 20 a la vista; el resto, de 20 en 20 al pulsar «Ver más».
+  const list = h("div.replay-list");
+  let shown = 0;
+  const more = h("button.btn.btn-sm", { type: "button" });
+  const showMore = () => {
+    games.slice(shown, shown + 20).forEach((g) => list.append(gameCard(g, local.has(g.match_id))));
+    shown = Math.min(games.length, shown + 20);
+    more.hidden = shown >= games.length;
+    more.textContent = `Ver más (${games.length - shown})`;
+  };
+  more.onclick = showMore;
+  showMore();
+  mount(body, h("div.stack", filters, list, h("div.row", { style: { justifyContent: "center" } }, more)));
 }
 
 function tabs(items, value, onChange) {
@@ -408,7 +420,7 @@ function viewer(a, startAt = null) {
     h("div.grid.replay-main", h("section.card.replay-card-main", h("h3.card-title", icon("play"), "Repetición 2D", h("span.spacer"), h("span.tiny.muted", "Reconstruida con el timeline de Riot")), player.el), panel),
     clientReplayCard(a),
     collapsible("rep.revision", [icon("edit"), "Revisión guiada: 3 momentos y 3 preguntas"], () => reviewCard(a, goTo), { summary: "método de Mauro Garih · se guarda solo" }),
-    a.jungle ? collapsible("rep.jungla", [icon("map"), "Tu ruta de jungla"], () => jungleGame(a), { open: true, summary: "campamentos y ganks" }) : null,
+    a.jungle ? collapsible("rep.jungla.v2", [icon("map"), "Tu ruta de jungla"], () => jungleGame(a), { summary: "campamentos y ganks" }) : null,
     collapsible("rep.build", [icon("crown"), "Tu build"], () => buildCard(a) || h("div.small.muted", "Sin datos de build."), { summary: "orden, compras y comparación con OP.GG" }),
     collapsible("rep.oro", [icon("activity"), "Oro y ventaja"], () => goldCharts(a), { summary: "frente a tu rival y oro sin gastar" }),
     collapsible("rep.metricas", [icon("chart"), `Todas las estadísticas frente a ${TIER_LABEL[a.target_tier] || a.target_tier}`], () => gameMetrics(a), { summary: "por categorías" }),
@@ -547,30 +559,40 @@ function momentDetail(a, m, player) {
     h("div.row-wrap", h(`span.sev.${m.severity}`, SEV_LABEL[m.severity] || ""), h("span.pill", KIND_LABEL[m.kind] || m.kind), h("span.mono.small", fmt.duration(Math.max(1, m.t)))),
     h("div", { style: { fontWeight: 700, marginTop: "6px" } }, champText(m.title)),
     m.detail ? h("div.small", { style: { marginTop: "4px" } }, champText(m.detail)) : null,
-    tags.length ? h("div.row-wrap", { style: { marginTop: "8px", gap: "4px" } }, tags.map((t) => h(`span.tag-chip.${TAG_LABEL[t][1] || "neutral"}`, TAG_LABEL[t][0]))) : null,
-    death
-      ? h(
-          "div.row-wrap.small",
-          { style: { marginTop: "8px" } },
-          h("span.muted", "Te mataron: "),
-          death.enemies?.length ? death.enemies.map((pid) => h("span.row", { style: { gap: "4px" } }, champImg(players[pid]?.champ, "xs"), dd.name(players[pid]?.champ))) : h("span", "torre o súbditos"),
-          death.fight?.size > 1 ? h("span.muted", ` · pelea: ${death.fight.enemies} rivales caídos, ${death.fight.allies} aliados caídos`) : null,
-        )
-      : null,
-    levelsLine(a, death, players),
-    near && (near.allies.length || near.enemies.length || m.kind === "death")
-      ? h(
-          "div.small.muted",
-          { style: { marginTop: "6px" } },
-          `Cerca en ese momento (≈2.500 u., posiciones aproximadas): ${near.allies.length} ${near.allies.length === 1 ? "aliado" : "aliados"}`,
-          near.allies.length ? ` (${near.allies.map((p) => dd.name(p.champ)).join(", ")})` : "",
-          ` y ${near.enemies.length} ${near.enemies.length === 1 ? "rival" : "rivales"}`,
-          near.enemies.length ? ` (${near.enemies.map((p) => dd.name(p.champ)).join(", ")})` : "",
-          ".",
-        )
-      : null,
     tip ? h("div.weak-tip", { style: { marginTop: "10px" } }, icon("spark"), h("span", tip)) : null,
-    m.severity !== "good" && m.kind !== "afk" ? learnBox(learnForTags(learnCat, m.tags || [])) : null,
+    // Lo esencial (qué pasó y qué hacer) a la vista; quién te mató, niveles, quién había cerca y vídeos, al pulsar.
+    h(
+      "details.more",
+      { style: { marginTop: "8px" } },
+      h("summary.btn.btn-ghost.btn-sm", "Más contexto"),
+      h(
+        "div.col",
+        { style: { gap: "6px", marginTop: "6px" } },
+          tags.length ? h("div.row-wrap", { style: { marginTop: "8px", gap: "4px" } }, tags.map((t) => h(`span.tag-chip.${TAG_LABEL[t][1] || "neutral"}`, TAG_LABEL[t][0]))) : null,
+          death
+            ? h(
+                "div.row-wrap.small",
+                { style: { marginTop: "8px" } },
+                h("span.muted", "Te mataron: "),
+                death.enemies?.length ? death.enemies.map((pid) => h("span.row", { style: { gap: "4px" } }, champImg(players[pid]?.champ, "xs"), dd.name(players[pid]?.champ))) : h("span", "torre o súbditos"),
+                death.fight?.size > 1 ? h("span.muted", ` · pelea: ${death.fight.enemies} rivales caídos, ${death.fight.allies} aliados caídos`) : null,
+              )
+            : null,
+          levelsLine(a, death, players),
+          near && (near.allies.length || near.enemies.length || m.kind === "death")
+            ? h(
+                "div.small.muted",
+                { style: { marginTop: "6px" } },
+                `Cerca en ese momento (≈2.500 u., posiciones aproximadas): ${near.allies.length} ${near.allies.length === 1 ? "aliado" : "aliados"}`,
+                near.allies.length ? ` (${near.allies.map((p) => dd.name(p.champ)).join(", ")})` : "",
+                ` y ${near.enemies.length} ${near.enemies.length === 1 ? "rival" : "rivales"}`,
+                near.enemies.length ? ` (${near.enemies.map((p) => dd.name(p.champ)).join(", ")})` : "",
+                ".",
+              )
+            : null,
+          m.severity !== "good" && m.kind !== "afk" ? learnBox(learnForTags(learnCat, m.tags || [])) : null,
+      ),
+    ),
     h(
       "div.row-wrap",
       { style: { marginTop: "10px" } },

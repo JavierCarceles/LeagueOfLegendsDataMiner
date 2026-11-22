@@ -97,6 +97,12 @@ async function load() {
   }
 }
 
+// Pone un tooltip (title) a un nodo ya creado; sin texto, lo deja igual.
+function withTip(el, tip) {
+  if (tip) el.title = tip;
+  return el;
+}
+
 function baseCard(data) {
   const b = data.base;
   const s = data.summary || {};
@@ -113,10 +119,23 @@ function baseCard(data) {
       h(
         "div.kpis",
         { style: { flex: "1 1 560px" } },
-        kpi("WR ajustado", h(`span.${wrClass(b.wr_adj)}`, fmt.pct(b.wr_adj)), `${fmt.compact(b.games)} partidas`),
-        b.opgg ? kpi("OP.GG", fmt.pct(b.opgg.wr), b.opgg.tier ? `Tier ${b.opgg.tier} · #${b.opgg.rank}` : "") : null,
-        b.opgg ? kpi("Pick / Ban", `${fmt.pct(b.opgg.pick)}`, `ban ${fmt.pct(b.opgg.ban)}`) : null,
-        b.own ? kpi("Tu BD", fmt.pct(b.own.wr), `${fmt.int(b.own.games)} partidas`) : null,
+        // OP.GG, pick/ban y tu BD van en la sub-línea y el tooltip del WR ajustado.
+        withTip(
+          kpi(
+            "WR ajustado",
+            h(`span.${wrClass(b.wr_adj)}`, fmt.pct(b.wr_adj)),
+            [
+              `${fmt.compact(b.games)} partidas`,
+              b.opgg?.tier ? `Tier ${b.opgg.tier}` : null,
+              b.own ? `tu BD ${fmt.pct(b.own.wr)}` : null,
+            ].filter(Boolean).join(" · ") + (b.opgg || b.own ? " ⓘ" : ""),
+          ),
+          [
+            b.opgg ? `OP.GG: ${fmt.pct(b.opgg.wr)}${b.opgg.tier ? ` · Tier ${b.opgg.tier} · #${b.opgg.rank}` : ""}` : null,
+            b.opgg ? `Pick ${fmt.pct(b.opgg.pick)} · ban ${fmt.pct(b.opgg.ban)}` : null,
+            b.own ? `Tu BD: ${fmt.pct(b.own.wr)} en ${fmt.int(b.own.games)} partidas` : null,
+          ].filter(Boolean).join("\n"),
+        ),
         kpi("Favorables", h("span.good", good), `de ${data.matchups.length}`),
         kpi("Desfavorables", h("span.bad", bad), `de ${data.matchups.length}`),
       ),
@@ -129,33 +148,35 @@ function renderList(data) {
     mount(listEl, baseCard(data), h("section.card", { style: { marginTop: "16px" } }, empty("Sin enfrentamientos con esos filtros", "Prueba con menos partidas mínimas, otro elo u otro parche.")));
     return;
   }
+  // Vista limpia: Rival, WR ajustado, Veredicto y Partidas. El resto (WR bruto, esperado, Δ, línea,
+  // fiabilidad) va en el tooltip de la fila y, completo, en el detalle al pulsarla.
+  const rowTip = (m) =>
+    [
+      `WR bruto ${fmt.pct(m.wr)}`,
+      `Esperado ${fmt.pct(m.expected)} (solo por la fuerza de cada campeón, log5)`,
+      `Δ propia ${fmt.signed(m.delta, 1)}`,
+      m.lane ? `Línea (tu BD): ${m.lane.verdict.label} · CS@10 ${fmt.signed(m.lane.cs10_diff, 1)} · ${fmt.int(m.lane.dgames)} part.` : null,
+      m.confidence ? `Fiabilidad: ${m.confidence.label}` : null,
+      "Pulsa para ver el detalle",
+    ].filter(Boolean).join("\n");
   const cols = [
-    { key: "opp", label: "Rival", sort: (m) => dd.name(m.opp), render: (m) => champ(m.opp, { sub: `WR general ${fmt.pct(m.opp_wr)}` }) },
+    { key: "opp", label: "Rival", sort: (m) => dd.name(m.opp), render: (m) => h("div", { title: rowTip(m) }, champ(m.opp, { sub: `WR general ${fmt.pct(m.opp_wr)}` })) },
     { key: "wr_adj", label: "WR ajustado", render: (m) => wrCell(m.wr_adj, null, m.ci) },
-    { key: "wr", label: "WR bruto", render: (m) => h(`span.num.${wrClass(m.wr)}`, fmt.pct(m.wr)) },
-    { key: "expected", label: "Esperado", render: (m) => h("span.num.muted", { title: "Solo por la fuerza de cada campeón (log5)" }, fmt.pct(m.expected)) },
-    { key: "delta", label: "Δ propia", render: (m) => h(`b.num.${m.delta > 0.5 ? "good" : m.delta < -0.5 ? "bad" : "muted"}`, fmt.signed(m.delta, 1)) },
-    { key: "verdict", label: "Veredicto", sort: (m) => m.wr_adj, render: (m) => h("div.col", { style: { gap: "2px" } }, verdictEl(m.verdict), m.counter === "counter" ? h("span.tiny.good", "Counter") : m.counter === "countered" ? h("span.tiny.bad", "Te counterea") : null) },
+    { key: "verdict", label: "Veredicto", sort: (m) => m.wr_adj, render: (m) => h("div.col", { style: { gap: "2px" }, title: rowTip(m) }, verdictEl(m.verdict), m.counter === "counter" ? h("span.tiny.good", "Counter") : m.counter === "countered" ? h("span.tiny.bad", "Te counterea") : null) },
     { key: "games", label: "Partidas", render: (m) => h("div.col", { style: { gap: "3px" } }, h("b.num", fmt.int(m.games)), sourceBadges(m.sources)) },
-    { key: "lane", label: "Línea (tu BD)", sort: (m) => m.lane?.score, render: (m) => laneCell(m.lane) },
-    { key: "confidence", label: "Fiabilidad", sort: (m) => m.confidence?.level, render: (m) => confidenceEl(m.confidence) },
   ];
+  // «Δ propia» y «CS a los 10» ya no son columnas: la API devuelve la lista ordenada y se respeta ese orden.
+  const sortKey = cols.some((c) => c.key === opts.sort) ? opts.sort : null;
   mount(
     listEl,
     baseCard(data),
     h("div", { style: { height: "16px" } }),
-    table(cols, data.matchups, { sortKey: opts.sort === "cs10" ? "lane" : opts.sort, onRow: (m) => openMatchup(data.role, data.champ, m.opp) }),
-    h("p.tiny.muted", { style: { marginTop: "10px" } }, `Prior: ${fmt.int(data.priors.matchup)} partidas virtuales hacia lo esperado. Pulsa una fila para ver el detalle, la build contra ese rival y la guía.`),
-  );
-}
-
-function laneCell(lane) {
-  if (!lane) return h("span.tiny.faint", "—");
-  return h(
-    "div.col",
-    { style: { gap: "2px" } },
-    h(`span.small.${lane.verdict.code === "gana" ? "good" : lane.verdict.code === "pierde" ? "bad" : "muted"}`, lane.verdict.label),
-    h("span.tiny.muted", `CS@10 ${fmt.signed(lane.cs10_diff, 1)} · ${fmt.int(lane.dgames)} part.`),
+    table(cols, data.matchups, { sortKey, onRow: (m) => openMatchup(data.role, data.champ, m.opp) }),
+    h(
+      "p.tiny.muted",
+      { style: { marginTop: "10px" }, title: `Prior: ${fmt.int(data.priors.matchup)} partidas virtuales hacia lo esperado. Pasa el ratón por un rival para ver WR bruto, esperado, Δ, línea y fiabilidad; pulsa una fila para ver el detalle, la build contra ese rival y la guía.` },
+      "Pulsa una fila para ver el detalle ⓘ",
+    ),
   );
 }
 
@@ -204,16 +225,28 @@ function detailView(d, m) {
         ),
       ),
       h(
-        "table.table",
+        "div",
         { style: { marginTop: "12px" } },
-        h("thead", h("tr", h("th", "Fuente"), h("th", "Partidas"), h("th", "WR"), h("th", "IC 95 %"))),
-        h(
-          "tbody",
-          web.opgg && web.lolalytics ? sourceRow("Webs (combinadas)", p.sources.opgg) : null,
-          sourceRow(web.opgg && web.lolalytics ? "· OP.GG" : "OP.GG", web.opgg || (!web.lolalytics ? p.sources.opgg : null)),
-          sourceRow(web.opgg && web.lolalytics ? "· Lolalytics" : "Lolalytics", web.lolalytics),
-          sourceRow("Tu base de datos", p.sources.own),
-          (d.breakdown.opgg_patch || []).map((r) => h("tr", h("td.muted", `   · ${r.source === "lolalytics" ? "Lolalytics" : "OP.GG"} parche ${r.patch}`), h("td.num.muted", fmt.int(r.games)), h("td.num.muted", fmt.pct(r.wr)), h("td"))),
+        collapsible(
+          "matchup.fuentes",
+          [icon("database"), "Por fuente y parche"],
+          () =>
+            h(
+              "table.table",
+              h("thead", h("tr", h("th", "Fuente"), h("th", "Partidas"), h("th", "WR"), h("th", "IC 95 %"))),
+              h(
+                "tbody",
+                web.opgg && web.lolalytics ? sourceRow("Webs (combinadas)", p.sources.opgg) : null,
+                sourceRow(web.opgg && web.lolalytics ? "· OP.GG" : "OP.GG", web.opgg || (!web.lolalytics ? p.sources.opgg : null)),
+                sourceRow(web.opgg && web.lolalytics ? "· Lolalytics" : "Lolalytics", web.lolalytics),
+                sourceRow("Tu base de datos", p.sources.own),
+                (d.breakdown.opgg_patch || []).map((r) => h("tr", h("td.muted", `   · ${r.source === "lolalytics" ? "Lolalytics" : "OP.GG"} parche ${r.patch}`), h("td.num.muted", fmt.int(r.games)), h("td.num.muted", fmt.pct(r.wr)), h("td"))),
+              ),
+            ),
+          {
+            cls: "flat",
+            summary: [web.opgg ? "OP.GG" : null, web.lolalytics ? "Lolalytics" : null, !web.opgg && !web.lolalytics && p.sources.opgg ? "OP.GG" : null, p.sources.own ? "tu BD" : null].filter(Boolean).join(" · ") || "partidas, WR e IC 95 %",
+          },
         ),
       ),
       h("div.row", { style: { marginTop: "10px" } }, h("span.small.muted", `WR general en el rol: ${dd.name(d.champ)} ${fmt.pct(d.a.wr_adj)} · ${dd.name(d.opp)} ${fmt.pct(d.b.wr_adj)}`), h("span.spacer"), h("button.btn.btn-sm", { onclick: () => { m.close(); openMatchup(d.role, d.opp, d.champ); } }, icon("swap"), "Ver desde el rival")),
@@ -231,10 +264,23 @@ function detailView(d, m) {
           kpi("Veredicto", h(`span.${lane.verdict.code === "gana" ? "good" : lane.verdict.code === "pierde" ? "bad" : ""}`, lane.verdict.label), `${fmt.int(lane.dgames)} partidas con detalle`),
           kpi("CS a los 10", fmt.signed(lane.cs10_diff, 1), "diferencia media"),
           kpi("Gana la línea", fmt.pct(lane.lane_win), "≥20 % oro y XP al 14'"),
-          kpi("Pierde la línea", fmt.pct(lane.lane_loss)),
-          kpi("Solo kills", `${fmt.num(lane.solo_kills_for, 2)} / ${fmt.num(lane.solo_kills_against, 2)}`, "a favor / en contra"),
-          kpi("Placas", `${fmt.num(lane.plates_for, 2)} / ${fmt.num(lane.plates_against, 2)}`, "a favor / en contra"),
-          kpi("Oro/min", fmt.signed(lane.gpm_diff, 0), "diferencia en la partida"),
+        ),
+        h(
+          "div",
+          { style: { marginTop: "12px" } },
+          collapsible(
+            "matchup.linea.mas",
+            [icon("activity"), "Más datos de la línea"],
+            () =>
+              h(
+                "div.kpis",
+                kpi("Pierde la línea", fmt.pct(lane.lane_loss)),
+                kpi("Solo kills", `${fmt.num(lane.solo_kills_for, 2)} / ${fmt.num(lane.solo_kills_against, 2)}`, "a favor / en contra"),
+                kpi("Placas", `${fmt.num(lane.plates_for, 2)} / ${fmt.num(lane.plates_against, 2)}`, "a favor / en contra"),
+                kpi("Oro/min", fmt.signed(lane.gpm_diff, 0), "diferencia en la partida"),
+              ),
+            { cls: "flat", summary: "pierde la línea, solo kills, placas y oro/min" },
+          ),
         ),
       )
     : null;
@@ -266,7 +312,15 @@ function detailView(d, m) {
   const changeBlocks = [d.champ, d.opp]
     .map((c) => (changes[String(c)]?.length ? h("div", h("div.row", champImg(c, "xs"), h("b.small", dd.name(c))), patchChanges(changes[String(c)])) : null))
     .filter(Boolean);
-  const patchCard = changeBlocks.length ? h("section.card", h("h3.card-title", icon("spark"), "Cambios recientes (notas de parche de Riot)"), h("div.grid.grid-2", changeBlocks)) : null;
+  const changedChamps = [d.champ, d.opp].filter((c) => changes[String(c)]?.length);
+  const patchCard = changeBlocks.length
+    ? collapsible(
+        "matchup.cambios",
+        [icon("spark"), "Cambios recientes (notas de parche de Riot)"],
+        h("section.card", h("h3.card-title", icon("spark"), "Cambios recientes (notas de parche de Riot)"), h("div.grid.grid-2", changeBlocks)),
+        { summary: `${changedChamps.map((c) => dd.name(c)).join(" y ")} ${changedChamps.length === 1 ? "tiene cambios" : "tienen cambios"}` },
+      )
+    : null;
   const disagreeNotice = disagree
     ? notice(`OP.GG (${fmt.pct(web.opgg.wr)}) y Lolalytics (${fmt.pct(web.lolalytics.wr)}) no coinciden en este enfrentamiento: el resultado combinado es más incierto de lo normal.`, "warn")
     : null;
@@ -307,11 +361,27 @@ function opggCard(d, g) {
       { style: { gap: "8px" } },
       build("Runas", g.runes, (r) => h("div.row", runeImg(r.keystone, 28), runeImg(r.secondary, 20), h("span.small", (r.names || []).slice(0, 4).join(" · ")), wrTxt(r))),
       build("Objetos clave", g.core_items, (e) => h("div.row", h("div.items", (e.ids || []).map(itemImg)), wrTxt(e))),
-      build("Botas", g.boots, (e) => h("div.row", h("div.items", (e.ids || []).map(itemImg)), h("span.small", (e.names || []).join(", ")), wrTxt(e))),
-      build("Inicio", g.starter_items, (e) => h("div.row", h("div.items", (e.ids || []).map(itemImg)), wrTxt(e))),
-      build("Hechizos", g.spells, (e) => h("div.row", h("div.items", (e.ids || []).map(spellImg)), h("span.small", (e.names || []).join(" + ")), wrTxt(e))),
-      build("Habilidades", g.skills, (e) => h("div.row-wrap", { style: { gap: "3px" } }, (e.order || []).map((k) => h("span.pill", { style: { padding: "0 6px" } }, k)))),
     ),
+    [g.boots, g.starter_items, g.spells, g.skills].some((x) => x && x.length)
+      ? h(
+          "div",
+          { style: { marginTop: "10px" } },
+          collapsible(
+            "matchup.build",
+            [icon("crown"), "Build completa"],
+            () =>
+              h(
+                "div.col",
+                { style: { gap: "8px" } },
+                build("Botas", g.boots, (e) => h("div.row", h("div.items", (e.ids || []).map(itemImg)), h("span.small", (e.names || []).join(", ")), wrTxt(e))),
+                build("Inicio", g.starter_items, (e) => h("div.row", h("div.items", (e.ids || []).map(itemImg)), wrTxt(e))),
+                build("Hechizos", g.spells, (e) => h("div.row", h("div.items", (e.ids || []).map(spellImg)), h("span.small", (e.names || []).join(" + ")), wrTxt(e))),
+                build("Habilidades", g.skills, (e) => h("div.row-wrap", { style: { gap: "3px" } }, (e.order || []).map((k) => h("span.pill", { style: { padding: "0 6px" } }, k)))),
+              ),
+            { cls: "flat", summary: "botas, inicio, hechizos y habilidades" },
+          ),
+        )
+      : null,
     h("p.tiny.faint", { style: { marginTop: "10px" } }, "Builds y consejo del parche en curso según OP.GG (muestras pequeñas al inicio del parche)."),
   );
 }

@@ -1,7 +1,7 @@
 // Guías de matchups: biblioteca de guías guardadas, enfrentamientos frecuentes sin guía y amigos del cliente.
 import { api, filterParams } from "../api.js";
 import { dd, ROLE_LABEL, ROLES, state } from "../state.js";
-import { champImg, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon } from "../ui.js";
+import { champImg, collapsible, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon } from "../ui.js";
 
 let root = null;
 
@@ -40,20 +40,26 @@ async function loadLibrary(box) {
       h(
         "section.card",
         h("h3.card-title", icon("book"), `Biblioteca · ${tree.count} guías`),
-        roles.map(([role, champs]) =>
-          h(
-            "div",
-            { style: { marginBottom: "12px" } },
-            h("div.row.small.muted", { style: { margin: "6px 0" } }, ROLES.includes(role) ? roleIcon(role) : null, ROLE_LABEL[role] || "General"),
-            h(
-              "div.chips",
-              champs.flatMap((c) =>
-                c.guides.map((g) =>
-                  h("span.chip", { onclick: () => openGuide(role, c.champ, g.opp) }, champImg(c.champ, "xs"), dd.name(c.champ), h("span.muted", "vs"), champImg(g.opp, "xs"), dd.name(g.opp), h(`span.tiny.${g.source === "IA" ? "gold" : "good"}`, g.source)),
+        h(
+          "div.col",
+          { style: { gap: "8px" } },
+          roles.map(([role, champs]) => {
+            const count = champs.reduce((n, c) => n + c.guides.length, 0);
+            return collapsible(
+              `guias.rol.${role}`,
+              [ROLES.includes(role) ? roleIcon(role) : null, ROLE_LABEL[role] || "General"],
+              () =>
+                h(
+                  "div.chips",
+                  champs.flatMap((c) =>
+                    c.guides.map((g) =>
+                      h("span.chip", { onclick: () => openGuide(role, c.champ, g.opp) }, champImg(c.champ, "xs"), dd.name(c.champ), h("span.muted", "vs"), champImg(g.opp, "xs"), dd.name(g.opp), h(`span.tiny.${g.source === "IA" ? "gold" : "good"}`, g.source)),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
+              { summary: `${count} ${count === 1 ? "guía" : "guías"}`, cls: "flat" },
+            );
+          }),
         ),
       ),
     );
@@ -72,6 +78,18 @@ async function openGuide(role, champ, opp) {
   }
 }
 
+function topRow(m) {
+  return h(
+    "div.row",
+    roleIcon(m.role),
+    champImg(m.champ, "sm"),
+    h("span.small", `${dd.name(m.champ)} vs ${dd.name(m.opp)}`),
+    champImg(m.opp, "sm"),
+    h("span.spacer"),
+    h("span.tiny.muted", `${fmt.compact(m.games)} partidas`),
+  );
+}
+
 async function loadTop(box) {
   mount(box, loading());
   try {
@@ -87,17 +105,10 @@ async function loadTop(box) {
           ? h(
               "div.col",
               { style: { gap: "6px" } },
-              rows.slice(0, 18).map((m) =>
-                h(
-                  "div.row",
-                  roleIcon(m.role),
-                  champImg(m.champ, "sm"),
-                  h("span.small", `${dd.name(m.champ)} vs ${dd.name(m.opp)}`),
-                  champImg(m.opp, "sm"),
-                  h("span.spacer"),
-                  h("span.tiny.muted", `${fmt.compact(m.games)} partidas`),
-                ),
-              ),
+              rows.slice(0, 6).map(topRow),
+              rows.length > 6
+                ? h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rows.slice(6, 18).length} más`), h("div.col", { style: { gap: "6px", marginTop: "6px" } }, rows.slice(6, 18).map(topRow)))
+                : null,
             )
           : h("div.small.muted", "Sin datos propios todavía."),
       ),

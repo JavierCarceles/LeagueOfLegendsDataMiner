@@ -13,6 +13,7 @@ const VIEWS = [
   { id: "jugador", label: "Jugador", icon: "user", section: "Estadísticas", load: () => import("./views/player.js") },
   { id: "partida", label: "Partida", icon: "match", section: "Estadísticas", load: () => import("./views/match.js") },
   { id: "regiones", label: "Regiones", icon: "globe", section: "Estadísticas", load: () => import("./views/regions.js") },
+  { id: "otps", label: "OTPs", icon: "crown", section: "Estadísticas", noFilters: true, load: () => import("./views/otps.js") },
   { id: "guias", label: "Guías", icon: "book", section: "Coaching", load: () => import("./views/guides.js") },
   { id: "datos", label: "Datos y API", icon: "database", section: "Sistema", noFilters: true, load: () => import("./views/data.js") },
 ];

@@ -1,7 +1,7 @@
 // Tier list por rol y ficha completa de campeón.
 import { api, filterParams } from "../api.js";
 import { dd, ROLE_LABEL, ROLES, state } from "../state.js";
-import { champ, champImg, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, patchChanges, roleIcon, roleTabs, sourceBadges, table, tierBadge, wrCell, wrClass } from "../ui.js";
+import { champ, champImg, collapsible, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, patchChanges, roleIcon, roleTabs, sourceBadges, table, tierBadge, wrCell, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
 let root = null;
@@ -37,7 +37,7 @@ async function load() {
   const body = h("div");
   mount(
     root,
-    h("div.section-head", h("div", h("h2", "Tier list"), h("p", "Fuerza de cada campeón por rol combinando OP.GG, Lolalytics y tu base de datos. El tier (S+…D) sale del WR ajustado por tamaño de muestra; también se muestra el tier oficial de OP.GG."))),
+    h("div.section-head", h("div", h("h2", "Tier list"), h("p", { title: "Fuerza de cada campeón por rol combinando OP.GG, Lolalytics y tu base de datos. El tier (S+…D) sale del WR ajustado por tamaño de muestra; también se muestra el tier oficial de OP.GG." }, "Fuerza de cada campeón por rol (OP.GG + Lolalytics + tu BD). ⓘ"))),
     h("div.row", { style: { marginBottom: "14px" } }, roleTabs(role, (r) => { role = r; history.replaceState(null, "", `#/campeones/${r}`); load(); })),
     body,
   );
@@ -51,23 +51,32 @@ async function load() {
       { key: "rank", label: "#", sort: false, class: "rank", render: (_, i) => i + 1 },
       { key: "champ", label: "Campeón", sort: (c) => dd.name(c.champ), render: (c) => champ(c.champ, { sub: c.source === "own" ? "solo tu BD" : c.opgg?.role_rate ? `${fmt.num(c.opgg.role_rate, 0)} % de sus partidas en ${ROLE_LABEL[role]}` : null }) },
       { key: "tier", label: "Tier", sort: (c) => c.wr_adj, render: (c) => h("div.row", tierBadge(c.tier), c.opgg?.tier ? h("span.opgg-tier", { title: "Tier de OP.GG (1 = mejor)" }, `T${c.opgg.tier}`) : null) },
-      { key: "wr_adj", label: "WR ajustado", render: (c) => wrCell(c.wr_adj) },
-      { key: "opgg_wr", label: "WR OP.GG", sort: (c) => c.opgg?.wr, render: (c) => h(`span.num.${wrClass(c.opgg?.wr)}`, fmt.pct(c.opgg?.wr, 2)) },
-      { key: "lola_wr", label: "WR Lolalytics", sort: (c) => c.opgg?.lola_wr, render: (c) => (c.opgg?.lola_wr != null ? h("div.col", { style: { gap: "1px" } }, h(`span.num.${wrClass(c.opgg.lola_wr)}`, fmt.pct(c.opgg.lola_wr, 2)), c.opgg.lola_games ? h("span.tiny.muted", `${fmt.compact(c.opgg.lola_games)} part.`) : null) : h("span.faint", "—")) },
-      { key: "pick", label: "Pick", sort: (c) => c.opgg?.pick, render: (c) => h("span.num", fmt.pct(c.opgg?.pick)) },
-      { key: "ban", label: "Ban", sort: (c) => c.opgg?.ban, render: (c) => h("span.num", fmt.pct(c.opgg?.ban)) },
-      { key: "own_wr", label: "Tu BD", sort: (c) => c.own?.games, render: (c) => (c.own ? h("div.col", { style: { gap: "1px" } }, h(`span.num.${wrClass(c.own.wr)}`, fmt.pct(c.own.wr)), h("span.tiny.muted", `${fmt.compact(c.own.games)} part.`)) : h("span.faint", "—")) },
-      { key: "kda", label: "KDA", sort: (c) => c.own?.kda, render: (c) => h("span.num", fmt.num(c.own?.kda, 2)) },
+      { key: "wr_adj", label: "WR ajustado", render: (c) => h("div", { title: wrDetail(c) }, wrCell(c.wr_adj)) },
+      { key: "pick", label: "Pick / Ban", sort: (c) => c.opgg?.pick, render: (c) => h("div.col", { style: { gap: "1px" } }, h("span.num", fmt.pct(c.opgg?.pick)), c.opgg?.ban != null ? h("span.tiny.muted", `ban ${fmt.pct(c.opgg.ban)}`) : null) },
       { key: "counters", label: "Le cuesta contra", sort: false, render: (c) => h("div.row", { style: { gap: "4px" } }, (c.opgg?.counters || []).slice(0, 3).map((x) => champImg(x.champ, "xs"))) },
     ];
     mount(
       body,
       table(cols, rows, { sortKey: "wr_adj", onRow: (c) => (location.hash = `#/campeon/${c.champ}/${role}`) }),
-      h("p.tiny.muted", { style: { marginTop: "10px" } }, `OP.GG: ${data.evidence?.opgg ? `${data.evidence.opgg.tier}, ${data.evidence.opgg.region}, parche de referencia ${data.evidence.ref_patches?.[role] || "—"}` : "no disponible"}. Prior de campeón: ${fmt.int(data.priors.champ)} partidas virtuales.`),
+      h(
+        "p.tiny.muted",
+        { style: { marginTop: "10px", cursor: "help" }, title: `OP.GG: ${data.evidence?.opgg ? `${data.evidence.opgg.tier}, ${data.evidence.opgg.region}, parche de referencia ${data.evidence.ref_patches?.[role] || "—"}` : "no disponible"}. Prior de campeón: ${fmt.int(data.priors.champ)} partidas virtuales.` },
+        "Fuentes y parámetros ⓘ · pasa el ratón por el WR para ver el desglose",
+      ),
     );
   } catch (err) {
     mount(body, errorBox(err));
   }
+}
+
+// Texto del tooltip del WR ajustado: el detalle por fuente que antes ocupaba columnas propias.
+function wrDetail(c) {
+  const parts = [];
+  if (c.opgg?.wr != null) parts.push(`OP.GG ${fmt.pct(c.opgg.wr, 2)}`);
+  if (c.opgg?.lola_wr != null) parts.push(`Lolalytics ${fmt.pct(c.opgg.lola_wr, 2)}${c.opgg.lola_games ? ` (${fmt.compact(c.opgg.lola_games)} part.)` : ""}`);
+  if (c.own) parts.push(`tu BD ${fmt.pct(c.own.wr)} (${fmt.compact(c.own.games)} part.)`);
+  if (c.own?.kda != null) parts.push(`KDA ${fmt.num(c.own.kda, 2)}`);
+  return parts.length ? parts.join(" · ") : "Sin desglose por fuente";
 }
 
 async function loadDetail() {
@@ -100,14 +109,11 @@ function detailView(d) {
       h("div.spacer"),
       h(
         "div.kpis",
-        { style: { flex: "1 1 520px" } },
+        { style: { flex: "1 1 420px" } },
         kpi("WR ajustado", h(`span.${wrClass(b.wr_adj)}`, fmt.pct(b.wr_adj)), `${fmt.compact(b.games)} partidas`),
         b.opgg && b.opgg.wr !== null ? kpi("OP.GG", fmt.pct(b.opgg.wr), b.opgg.tier ? `Tier ${b.opgg.tier} · #${b.opgg.rank}` : "") : null,
         b.opgg?.lola_wr != null ? kpi("Lolalytics", fmt.pct(b.opgg.lola_wr), b.opgg.lola_games ? `${fmt.compact(b.opgg.lola_games)} partidas` : "") : null,
         b.opgg ? kpi("Pick / Ban", fmt.pct(b.opgg.pick), `ban ${fmt.pct(b.opgg.ban)}`) : null,
-        d.own?.dgames ? kpi("KDA (tu BD)", fmt.num(d.own.kda, 2), `${fmt.num(d.own.kills)} / ${fmt.num(d.own.deaths)} / ${fmt.num(d.own.assists)}`) : null,
-        d.own?.dgames ? kpi("CS/min", fmt.num(d.own.cs_min, 1), `CS@10 ${fmt.num(d.own.cs10)}`) : null,
-        d.own?.dgames ? kpi("Daño/min", fmt.int(d.own.dmg_min), `${fmt.pct(d.own.dmg_share)} del equipo`) : null,
       ),
     ),
     h(
@@ -165,6 +171,12 @@ function detailView(d) {
     ),
   );
 
+  // Resumen de una línea para la sección de sinergias: la mejor pareja entre todos los roles.
+  const bestSyn = Object.values(d.synergies)
+    .flatMap((s) => s.best || [])
+    .reduce((acc, x) => (x.delta != null && (!acc || x.delta > acc.delta) ? x : acc), null);
+  const synergySummary = bestSyn ? `mejor: ${dd.name(bestSyn.champ)} (${fmt.signed(bestSyn.delta, 1, " pp")})` : "sin datos de sinergia";
+
   const own = d.own?.dgames ? d.own : null;
   const curve = own?.duration_curve;
   const breakdown = ["tier", "patch", "platform"].filter((k) => d.breakdown[k]?.length);
@@ -182,49 +194,65 @@ function detailView(d) {
     head,
     patchEl,
     h("div.grid.grid-3", muList(h("span.good", "Mejores enfrentamientos"), d.matchups.best), muList(h("span.bad", "Peores enfrentamientos"), d.matchups.worst), muList("Más jugados", d.matchups.common)),
-    h("h3.card-title", { style: { marginTop: "8px" } }, icon("link"), "Sinergias (Δ sobre lo esperado)"),
-    h("div.grid.grid-4", synergyCards),
+    synergyCards.length ? collapsible("campeon.sinergias", [icon("link"), "Sinergias (Δ sobre lo esperado)"], () => h("div.grid.grid-4", synergyCards), { summary: synergySummary }) : null,
     own
-      ? h(
-          "div.grid.grid-2",
-          h(
-            "section.card",
-            h("h3.card-title", icon("activity"), "WR según duración (tu BD)"),
-            curve ? h("div.col", curve.map((c) => h("div.hbar", h("span", c.label), h("div.track", h("span", { style: { width: `${Math.max(0, Math.min(100, ((c.wr_adj ?? 50) - 40) * 5))}%` } })), h(`b.right.${wrClass(c.wr_adj)}`, fmt.pct(c.wr_adj))))) : h("div.muted.small", "Sin datos."),
-          ),
-          h(
-            "section.card",
-            h("h3.card-title", icon("chart"), "Perfil (tu BD)"),
+      ? collapsible(
+          "campeon.tubd",
+          [icon("chart"), "Tus estadísticas (tu BD)"],
+          () =>
             h(
-              "div.kpis",
-              kpi("Oro/min", fmt.int(own.gold_min)),
-              kpi("Visión/min", fmt.num(own.vision_min, 2)),
-              kpi("Part. kills", fmt.pct(own.kp)),
-              kpi("Gana línea", fmt.pct(own.lane_win), `pierde ${fmt.pct(own.lane_loss)}`),
-              kpi("Solo kills", fmt.num(own.solo_kills, 2), "por partida"),
-              kpi("Duración", own.avg_minutes ? `${fmt.num(own.avg_minutes, 1)} min` : "—"),
+              "div.stack",
+              h(
+                "div.kpis",
+                kpi("KDA", fmt.num(own.kda, 2), `${fmt.num(own.kills)} / ${fmt.num(own.deaths)} / ${fmt.num(own.assists)}`),
+                kpi("CS/min", fmt.num(own.cs_min, 1), `CS@10 ${fmt.num(own.cs10)}`),
+                kpi("Daño/min", fmt.int(own.dmg_min), `${fmt.pct(own.dmg_share)} del equipo`),
+              ),
+              h(
+                "div.grid.grid-2",
+                h(
+                  "section.card",
+                  h("h3.card-title", icon("activity"), "WR según duración (tu BD)"),
+                  curve ? h("div.col", curve.map((c) => h("div.hbar", h("span", c.label), h("div.track", h("span", { style: { width: `${Math.max(0, Math.min(100, ((c.wr_adj ?? 50) - 40) * 5))}%` } })), h(`b.right.${wrClass(c.wr_adj)}`, fmt.pct(c.wr_adj))))) : h("div.muted.small", "Sin datos."),
+                ),
+                h(
+                  "section.card",
+                  h("h3.card-title", icon("chart"), "Perfil (tu BD)"),
+                  h(
+                    "div.kpis",
+                    kpi("Oro/min", fmt.int(own.gold_min)),
+                    kpi("Visión/min", fmt.num(own.vision_min, 2)),
+                    kpi("Part. kills", fmt.pct(own.kp)),
+                    kpi("Gana línea", fmt.pct(own.lane_win), `pierde ${fmt.pct(own.lane_loss)}`),
+                    kpi("Solo kills", fmt.num(own.solo_kills, 2), "por partida"),
+                    kpi("Duración", own.avg_minutes ? `${fmt.num(own.avg_minutes, 1)} min` : "—"),
+                  ),
+                ),
+              ),
             ),
-          ),
+          { summary: `${fmt.int(own.dgames)} partidas · KDA ${fmt.num(own.kda, 2)}` },
         )
       : notice("Las métricas detalladas (KDA, CS, daño, fase de líneas) aparecen cuando el recolector descarga partidas con tu API key."),
     breakdown.length
-      ? h(
-          "section.card",
-          h("h3.card-title", icon("database"), "Desglose de tu base de datos"),
-          h(
-            "div.grid.grid-3",
-            breakdown.map((k) =>
-              table(
-                [
-                  { key: "key", label: { tier: "Elo", patch: "Parche", platform: "Región" }[k], render: (r) => (r.key === "legacy" ? "Histórico" : k === "platform" ? r.key.toUpperCase() : r.key) },
-                  { key: "games", label: "Partidas", render: (r) => fmt.int(r.games) },
-                  { key: "wr", label: "WR", render: (r) => h(`b.${wrClass(r.wr)}`, fmt.pct(r.wr)) },
-                ],
-                d.breakdown[k].slice(0, 10),
-                { sortKey: "games" },
+      ? collapsible(
+          "campeon.desglose",
+          [icon("database"), "Desglose de tu base de datos"],
+          () =>
+            h(
+              "div.grid.grid-3",
+              breakdown.map((k) =>
+                table(
+                  [
+                    { key: "key", label: { tier: "Elo", patch: "Parche", platform: "Región" }[k], render: (r) => (r.key === "legacy" ? "Histórico" : k === "platform" ? r.key.toUpperCase() : r.key) },
+                    { key: "games", label: "Partidas", render: (r) => fmt.int(r.games) },
+                    { key: "wr", label: "WR", render: (r) => h(`b.${wrClass(r.wr)}`, fmt.pct(r.wr)) },
+                  ],
+                  d.breakdown[k].slice(0, 10),
+                  { sortKey: "games" },
+                ),
               ),
             ),
-          ),
+          { summary: `por ${breakdown.map((k) => ({ tier: "elo", patch: "parche", platform: "región" })[k]).join(", ")}` },
         )
       : null,
   );

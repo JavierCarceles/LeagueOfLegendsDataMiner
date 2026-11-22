@@ -374,15 +374,19 @@ function summaryView(s, data) {
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     weaknessesCard(s),
     s.otp_compare?.length
-      ? collapsible("progreso.otps", [icon("crown"), "Tú frente a los OTPs de tu campeón"], () => otpCompareCard(s), {
-          open: true,
-          summary: s.otp_compare.map((c) => `${dd.name(c.champ)} vs ${fmt.int(c.ref.games)} partidas de OTPs ${TIER_LABEL[c.ref.tier] || c.ref.tier}`).join(" · "),
+      ? collapsible("progreso.otps.v2", [icon("crown"), "Tú frente a los OTPs de tu campeón"], () => otpCompareCard(s), {
+          summary: s.otp_compare
+            .map((c) => {
+              const worst = c.metrics.find((r) => r.status === "bad");
+              return `${dd.name(c.champ)}: ${worst ? `te separa ${worst.label.toLowerCase()}` : "a su nivel"}`;
+            })
+            .join(" · "),
         })
       : null,
     gamesCard(s),
     habitsCard(s),
-    collapsible("progreso.muertes", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { open: true, summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
-    s.jungle ? collapsible("progreso.jungla", [icon("map"), "Tu pathing de jungla (minutos 1-8)"], () => jungleCard(s), { open: true, summary: `${s.jungle.games} ${s.jungle.games === 1 ? "partida" : "partidas"}` }) : null,
+    collapsible("progreso.muertes.v2", [icon("map"), "Dónde y cómo mueres"], () => deathsCard(s), { summary: `${d.total ?? 0} muertes · ${d.early_total ?? 0} antes del 14` }),
+    s.jungle ? collapsible("progreso.jungla.v2", [icon("map"), "Tu pathing de jungla (minutos 1-8)"], () => jungleCard(s), { summary: `${s.jungle.games} ${s.jungle.games === 1 ? "partida" : "partidas"}` }) : null,
     collapsible("progreso.tiempo", [icon("clock"), "En qué pierdes el tiempo"], () => timeCard(s), {
       summary: [idle?.value != null ? `${fmt.num(idle.value, 0)} % de minutos vacíos` : null, hoard?.value != null ? `${fmt.num(hoard.value, 1)} min/partida con oro útil` : null].filter(Boolean).join(" · ") || null,
     }),
@@ -428,7 +432,10 @@ function otpCompareCard(s) {
           ? h("div.small", h("b.bad", "Donde más te separas: "), bad.slice(0, 3).map((r) => r.label.toLowerCase()).join(", "), ".")
           : h("div.small.good", "En nada estás claramente por debajo de ellos."),
         good.length ? h("div.small", h("b.good", "Donde les ganas: "), good.slice(0, 4).map((r) => r.label.toLowerCase()).join(", "), ".") : null,
-        h(
+        collapsible(
+          `progreso.otps.tabla.${c.champ}.${c.role}`,
+          [icon("activity"), "Todas las métricas"],
+          () => h(
           "div.table-wrap",
           h(
             "table.table",
@@ -446,6 +453,8 @@ function otpCompareCard(s) {
               ),
             ),
           ),
+          ),
+          { cls: "flat", summary: `${c.metrics.length} métricas` },
         ),
         b.otp_first_item || b.otp_skill_max
           ? h(
@@ -458,7 +467,11 @@ function otpCompareCard(s) {
           : null,
       );
     }),
-    h("p.tiny.muted", { style: { margin: 0 } }, "Sale de data/otps (las partidas de OTPs que recoge el recolector, por rol y por elo). Se compara con tus últimas partidas de cada campeón con al menos 5 partidas; hace falta que haya al menos 40 partidas de 3 OTPs de ese elo."),
+    h(
+      "p.tiny.muted",
+      { style: { margin: 0 }, title: "Sale de data/otps (las partidas de OTPs que recoge el recolector, por rol y por elo). Se compara con tus últimas partidas de cada campeón con al menos 5 partidas; hace falta que haya al menos 40 partidas de 3 OTPs de ese elo." },
+      "De dónde sale esto ⓘ",
+    ),
   );
 }
 
@@ -690,11 +703,20 @@ function weaknessesCard(s) {
                   w.trend?.improving === true ? h("span.pill.pill-good", { title: `Últimas: ${w.trend.recent} · antes: ${w.trend.older}` }, "Mejorando") : null,
                   w.trend?.improving === false ? h("span.pill.pill-bad", { title: `Últimas: ${w.trend.recent} · antes: ${w.trend.older}` }, "Empeorando") : null,
                 ),
-                h("div.small", { style: { marginTop: "4px" } }, w.detail),
-                w.recurring ? recurringLine(w.recurring) : null,
                 h("div.weak-tip", icon("spark"), h("span", w.tip)),
-                w.recurring ? recurringExamples(w.recurring) : null,
-                learnBox(w.learn),
+                // Lo esencial (qué y qué hacer) a la vista; el porqué, los ejemplos y los vídeos, al pulsar.
+                h(
+                  "details.more",
+                  h("summary.btn.btn-ghost.btn-sm", "Ver detalle"),
+                  h(
+                    "div.col",
+                    { style: { gap: "8px", marginTop: "6px" } },
+                    h("div.small", w.detail),
+                    w.recurring ? recurringLine(w.recurring) : null,
+                    w.recurring ? recurringExamples(w.recurring) : null,
+                    learnBox(w.learn),
+                  ),
+                ),
               ),
               w.goal
                 ? active.has(`${w.goal.metric}|${w.goal.op}`)
@@ -710,14 +732,32 @@ function weaknessesCard(s) {
       ? h(
           "div",
           { style: { marginTop: "14px" } },
-          h("div.small", { style: { fontWeight: 650 } }, icon("film"), " Errores que repites en tus partidas"),
-          h("p.tiny.muted", { style: { margin: "4px 0 10px" } }, `Jugadas concretas que el análisis marca como error (no medias): se repiten en al menos el 20 % de tus ${s.recurring_sample} partidas con timeline. Pulsa un minuto para verlo en la repetición.`),
-          weakList(recurring, TOP, (r) =>
-            h(
-              `div.weak.${r.severity >= 2.5 ? "high" : r.severity >= 1.6 ? "medium" : "low"}`,
-              h("div.weak-sev", { title: `Frecuencia ${r.rate} %` }, h("span", { style: { height: `${Math.max(8, Math.min(100, r.rate))}%` } })),
-              h("div.weak-body", h("b", r.title), recurringLine(r), r.tip ? h("div.weak-tip", icon("spark"), h("span", r.tip)) : null, recurringExamples(r), learnBox(r.learn)),
-            ),
+          collapsible(
+            "progreso.repites",
+            [icon("film"), "Errores que repites en tus partidas"],
+            () =>
+              h(
+                "div.col",
+                { style: { gap: "10px" } },
+                h(
+                  "p.tiny.muted",
+                  { style: { margin: 0 }, title: `Jugadas concretas que el análisis marca como error (no medias): se repiten en al menos el 20 % de tus ${s.recurring_sample} partidas con timeline. Pulsa un minuto para verlo en la repetición.` },
+                  "Qué cuenta como error que repites ⓘ",
+                ),
+                weakList(recurring, TOP, (r) =>
+                  h(
+                    `div.weak.${r.severity >= 2.5 ? "high" : r.severity >= 1.6 ? "medium" : "low"}`,
+                    h("div.weak-sev", { title: `Frecuencia ${r.rate} %` }, h("span", { style: { height: `${Math.max(8, Math.min(100, r.rate))}%` } })),
+                    h(
+                      "div.weak-body",
+                      h("b", r.title),
+                      r.tip ? h("div.weak-tip", icon("spark"), h("span", r.tip)) : null,
+                      h("details.more", h("summary.btn.btn-ghost.btn-sm", "Ver detalle"), h("div.col", { style: { gap: "8px", marginTop: "6px" } }, recurringLine(r), recurringExamples(r), learnBox(r.learn))),
+                    ),
+                  ),
+                ),
+              ),
+            { cls: "flat", summary: `${recurring.length} ${recurring.length === 1 ? "error" : "errores"} · el más frecuente: ${recurring[0].title}` },
           ),
         )
       : null,
@@ -1020,10 +1060,13 @@ function gamesCard(s) {
   return h(
     "section.card",
     h("h3.card-title", icon("match"), "Tus partidas", h("span.spacer"), h("a.tiny", { href: "#/repeticiones" }, "Todas tus repeticiones →")),
-    h(
-      "div.col",
-      { style: { gap: "6px" } },
-      (s.recent || []).map((g) =>
+    gameRows(s.recent || []),
+  );
+}
+
+/** Las 5 más recientes a la vista; el resto, al pulsar «Ver más». */
+function gameRows(games) {
+  const row = (g) =>
         h(
           `a.game-row.${g.win ? "win" : "loss"}`,
           { href: `#/repeticiones/${g.match_id}` },
@@ -1033,9 +1076,15 @@ function gamesCard(s) {
           h("div.tiny.muted", `${fmt.num(g.cs_min, 1)} CS/min`, h("br"), `KP ${fmt.pct(g.kp, 0)}`),
           h("div.row-wrap.game-chips", chips(g)),
           h("div.right", scorePill(g.score), h("div.tiny.muted", fmt.ago(g.game_start))),
-        ),
-      ),
-    ),
+        );
+  const rest = games.slice(5);
+  return h(
+    "div.col",
+    { style: { gap: "6px" } },
+    games.slice(0, 5).map(row),
+    rest.length
+      ? h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rest.length} ${rest.length === 1 ? "partida más" : "partidas más"}`), h("div.col", { style: { gap: "6px", marginTop: "6px" } }, rest.map(row)))
+      : null,
   );
 }
 

@@ -65,10 +65,6 @@ function view(d, overview) {
             kpi("Duración media", `${fmt.num(d.avg_minutes, 1)} min`),
             kpi("WR lado azul", h(`span.${wrClass(d.blue_wr, 0.7)}`, fmt.pct(d.blue_wr)), d.blue_ci ? `IC ${fmt.pct(d.blue_ci[0])}–${fmt.pct(d.blue_ci[1])}` : null),
             kpi("Rendiciones", fmt.pct(d.surrender)),
-            kpi("Kills/partida", fmt.num(d.per_match.kills, 1)),
-            kpi("Dragones", fmt.num(d.per_match.dragons, 2), "por partida"),
-            kpi("Barones", fmt.num(d.per_match.barons, 2), "por partida"),
-            kpi("Torres", fmt.num(d.per_match.towers, 1), "por partida"),
           )
         : notice("Aún no hay partidas propias de esta región. La meta de abajo sale de OP.GG; para objetivos, duración y lado del mapa inicia el recolector en «Datos y API».", "info"),
     ),
@@ -88,20 +84,7 @@ function view(d, overview) {
             ? h(
                 "div.col",
                 { style: { gap: "6px" } },
-                d.meta[role].best.map((c) =>
-                  h(
-                    "div.row",
-                    { style: { cursor: "pointer" }, onclick: () => (location.hash = `#/campeon/${c.champ}/${role}`) },
-                    champImg(c.champ, "sm"),
-                    h("span.small", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, dd.name(c.champ)),
-                    h("span.spacer"),
-                    tierBadge(c.tier),
-                    h(`b.small.${wrClass(c.wr_adj)}`, fmt.pct(c.wr_adj)),
-                  ),
-                ),
-                h("div.divider"),
-                h("div.tiny.muted", "Más jugados"),
-                h("div.row", { style: { gap: "4px", flexWrap: "wrap" } }, (d.meta[role].popular || []).map((c) => champImg(c.champ, "xs"))),
+                metaBest(d.meta[role].best, d.meta[role].popular || [], role),
               )
             : h("div.small.muted", "Sin datos."),
         ),
@@ -111,35 +94,13 @@ function view(d, overview) {
 
   if (hasOwn) {
     parts.push(
-      h(
-        "div.grid.grid-3",
-        h(
-          "section.card",
-          h("h3.card-title", icon("chart"), "Valor de los objetivos"),
-          h("div.card-sub", "WR del equipo que consigue primero cada objetivo."),
-          d.objectives.map((o) => h("div.hbar", h("span.small", o.label), h("div.track", h("span", { style: { width: `${Math.max(0, Math.min(100, (o.win_rate - 40) * 2.5))}%` } })), h("b.right", fmt.pct(o.win_rate)))),
-        ),
-        h(
-          "section.card",
-          h("h3.card-title", icon("activity"), "Duración de las partidas"),
-          d.duration.map((b) => h("div.hbar", h("span.small", b.label), h("div.track", h("span", { style: { width: `${Math.min(100, (b.share || 0) * 3)}%` } })), h("span.right.small", fmt.pct(b.share, 0), h("span.tiny.muted", ` · azul ${fmt.pct(b.blue_wr, 0)}`)))),
-        ),
-        h(
-          "section.card",
-          h("h3.card-title", icon("crown"), "Elo de las partidas"),
-          d.tiers.map((t) => h("div.hbar", h("span.row.small", rankImg(t.tier, "item-img"), TIER_LABEL[t.tier] || t.tier), h("div.track", h("span", { style: { width: `${t.share || 0}%` } })), h("span.right.small", fmt.pct(t.share, 0)))),
-        ),
+      collapsible(
+        "regiones.detalle",
+        [icon("chart"), "Objetivos, duración y elo (tu BD)"],
+        () => ownDetail(d),
+        { summary: `objetivos por partida, duración, elo${d.bans.length ? " y baneos" : ""}` },
       ),
     );
-    if (d.bans.length) {
-      parts.push(
-        h(
-          "section.card",
-          h("h3.card-title", icon("close"), "Más baneados (tu BD)"),
-          h("div.row-wrap", { style: { gap: "14px" } }, d.bans.map((b) => h("div.col", { style: { alignItems: "center", gap: "4px" } }, champImg(b.champ), h("span.tiny", fmt.pct(b.rate, 1))))),
-        ),
-      );
-    }
   }
 
   if (overview.platforms.length) {
@@ -171,4 +132,79 @@ function view(d, overview) {
     parts.push(h("section.card", empty("Sin partidas propias todavía", "Inicia el recolector para comparar regiones con tus datos.", "database")));
   }
   return h("div.stack", parts);
+}
+
+function metaBest(best, popular, role) {
+  const row = (c) =>
+    h(
+      "div.row",
+      { style: { cursor: "pointer" }, onclick: () => (location.hash = `#/campeon/${c.champ}/${role}`) },
+      champImg(c.champ, "sm"),
+      h("span.small", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, dd.name(c.champ)),
+      h("span.spacer"),
+      tierBadge(c.tier),
+      h(`b.small.${wrClass(c.wr_adj)}`, fmt.pct(c.wr_adj)),
+    );
+  const rest = best.slice(4);
+  // Lo visible: los 4 mejores. El resto de la lista y los más jugados, tras «Ver más».
+  if (!rest.length && !popular.length) return best.map(row);
+  const label = rest.length ? `Ver ${rest.length} más${popular.length ? " y los más jugados" : ""}` : "Ver los más jugados";
+  return [
+    best.slice(0, 4).map(row),
+    h(
+      "details.more",
+      h("summary.btn.btn-ghost.btn-sm", label),
+      h(
+        "div.col",
+        { style: { gap: "6px", marginTop: "6px" } },
+        rest.map(row),
+        popular.length
+          ? [
+              rest.length ? h("div.divider") : null,
+              h("div.tiny.muted", "Más jugados"),
+              h("div.row", { style: { gap: "4px", flexWrap: "wrap" } }, popular.map((c) => champImg(c.champ, "xs"))),
+            ]
+          : null,
+      ),
+    ),
+  ];
+}
+
+function ownDetail(d) {
+  return h(
+    "div.stack",
+    h(
+      "div.kpis",
+      kpi("Kills/partida", fmt.num(d.per_match.kills, 1)),
+      kpi("Dragones", fmt.num(d.per_match.dragons, 2), "por partida"),
+      kpi("Barones", fmt.num(d.per_match.barons, 2), "por partida"),
+      kpi("Torres", fmt.num(d.per_match.towers, 1), "por partida"),
+    ),
+    h(
+      "div.grid.grid-3",
+      h(
+        "section.card",
+        h("h3.card-title", icon("chart"), "Valor de los objetivos"),
+        h("div.card-sub", "WR del equipo que consigue primero cada objetivo."),
+        d.objectives.map((o) => h("div.hbar", h("span.small", o.label), h("div.track", h("span", { style: { width: `${Math.max(0, Math.min(100, (o.win_rate - 40) * 2.5))}%` } })), h("b.right", fmt.pct(o.win_rate)))),
+      ),
+      h(
+        "section.card",
+        h("h3.card-title", icon("activity"), "Duración de las partidas"),
+        d.duration.map((b) => h("div.hbar", h("span.small", b.label), h("div.track", h("span", { style: { width: `${Math.min(100, (b.share || 0) * 3)}%` } })), h("span.right.small", fmt.pct(b.share, 0), h("span.tiny.muted", ` · azul ${fmt.pct(b.blue_wr, 0)}`)))),
+      ),
+      h(
+        "section.card",
+        h("h3.card-title", icon("crown"), "Elo de las partidas"),
+        d.tiers.map((t) => h("div.hbar", h("span.row.small", rankImg(t.tier, "item-img"), TIER_LABEL[t.tier] || t.tier), h("div.track", h("span", { style: { width: `${t.share || 0}%` } })), h("span.right.small", fmt.pct(t.share, 0)))),
+      ),
+    ),
+    d.bans.length
+      ? h(
+          "section.card",
+          h("h3.card-title", icon("close"), "Más baneados (tu BD)"),
+          h("div.row-wrap", { style: { gap: "14px" } }, d.bans.map((b) => h("div.col", { style: { alignItems: "center", gap: "4px" } }, champImg(b.champ), h("span.tiny", fmt.pct(b.rate, 1))))),
+        )
+      : null,
+  );
 }

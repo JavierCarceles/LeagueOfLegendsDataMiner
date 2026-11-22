@@ -2,7 +2,7 @@
 import { api } from "../api.js";
 import { lineChart } from "../charts.js";
 import { dd, ROLE_LABEL, TIER_LABEL } from "../state.js";
-import { champImg, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, mount, roleIcon, spellImg, wrClass } from "../ui.js";
+import { champImg, collapsible, empty, errorBox, fmt, h, icon, itemImg, kpi, loading, mount, roleIcon, spellImg, wrClass } from "../ui.js";
 
 let root = null;
 
@@ -42,12 +42,8 @@ function playerRow(p, maxDmg) {
   return h(
     "tr",
     h("td", h("div.row", champImg(p.champ), h("div", h("div", { style: { fontWeight: 650 } }, p.name ? h("a", { href: p.tag ? `#/jugador/${location.hash.split("/")[2]?.split("_")[0]?.toLowerCase() || "euw1"}/${encodeURIComponent(p.name)}/${encodeURIComponent(p.tag)}` : null }, p.name) : dd.name(p.champ)), h("div.tiny.muted", p.role ? ROLE_LABEL[p.role] : "—", ` · nivel ${p.level}`)))),
-    h("td", h("b", `${p.kills}/${p.deaths}/${p.assists}`), h("div.tiny.muted", `KDA ${fmt.num(p.kda, 2)}`)),
-    h("td.num", p.cs, h("div.tiny.muted", `${fmt.num(p.cs_min, 1)}/min`)),
-    h("td.num", fmt.int(p.gold)),
+    h("td", { title: `CS ${p.cs} (${fmt.num(p.cs_min, 1)}/min) · Oro ${fmt.int(p.gold)} · Visión ${p.vision} (${p.control_wards} pinks) · KP ${fmt.pct(p.kp, 0)}`, style: { cursor: "help" } }, h("b", `${p.kills}/${p.deaths}/${p.assists}`), h("div.tiny.muted", `KDA ${fmt.num(p.kda, 2)}`)),
     h("td", h("div.row", h("div.wrbar", { style: { width: "90px" } }, h("div.fill", { style: { width: `${(p.dmg / maxDmg) * 100}%`, background: "var(--gold)" } })), h("span.small", fmt.compact(p.dmg))), h("div.tiny.muted", `${fmt.pct(p.dmg_share, 0)} del equipo`)),
-    h("td.num", p.vision, h("div.tiny.muted", `${p.control_wards} pinks`)),
-    h("td.num", fmt.pct(p.kp, 0)),
     h("td", h("div.row", { style: { gap: "4px" } }, h("div.items", p.spells.map(spellImg)), h("div.items", p.items.map(itemImg)))),
     h("td", p.score !== null && p.score !== undefined ? h(`span.score.${p.score >= 6.5 ? "hi" : p.score <= 3.5 ? "lo" : ""}`, { title: "Nota 0-10 frente a la media de su rol (5 = media)" }, fmt.num(p.score, 1)) : h("span.faint", "—")),
   );
@@ -62,13 +58,13 @@ function teamTable(team, players, maxDmg) {
       h(`span.pill.pill-dot.${side === "blue" ? "pill-blue" : "pill-red"}`, side === "blue" ? "Equipo azul" : "Equipo rojo"),
       team.win ? h("span.pill.pill-good", "Victoria") : h("span.pill.pill-bad", "Derrota"),
       h("span.spacer"),
-      h("span.small.muted", `${team.kills} kills · ${fmt.compact(team.gold)} oro · ${team.towers} torres · ${team.dragons} dragones · ${team.barons} barones · ${team.grubs} larvas`),
+      h("span.small.muted", { title: `${team.kills} kills · ${fmt.compact(team.gold)} oro · ${team.towers} torres · ${team.dragons} dragones · ${team.barons} barones · ${team.grubs} larvas`, style: { cursor: "help" } }, `${team.kills} kills · ${team.towers} torres · ${team.dragons} dragones`),
     ),
     h(
       "div.table-wrap",
       h(
         `table.table.team-table.${side}`,
-        h("thead", h("tr", ["Jugador", "KDA", "CS", "Oro", "Daño", "Visión", "KP", "Build", "Nota"].map((c) => h("th", c)))),
+        h("thead", h("tr", ["Jugador", "KDA", "Daño", "Build", "Nota"].map((c) => h("th", c)))),
         h("tbody", players.map((p) => playerRow(p, maxDmg))),
       ),
     ),
@@ -93,23 +89,27 @@ function matchView(m) {
       })
       .catch(() => predBox.remove());
   }
+  const tierLabel = TIER_LABEL[m.tier] || m.tier;
   const head = h(
     "section.card",
+    h("div.small.muted", { style: { marginBottom: "10px" } }, [m.queue_label, `Parche ${m.patch}${tierLabel ? ` · ${tierLabel}` : ""}`, fmt.date(m.game_start)].filter(Boolean).join(" · ")),
     h(
       "div.kpis",
       kpi("Ganador", m.winner === 100 ? h("span", { style: { color: "#8fcaf2" } }, "Azul") : h("span", { style: { color: "#ff9aa6" } }, "Rojo"), m.surrender ? "por rendición" : ""),
       kpi("Duración", fmt.duration(m.duration)),
-      kpi("Cola", m.queue_label),
-      kpi("Parche", m.patch, TIER_LABEL[m.tier] || m.tier),
-      kpi("Fecha", fmt.date(m.game_start)),
       m.can_predict ? predBox : null,
     ),
   );
-  const lanes = h(
-    "section.card",
-    h("h3.card-title", icon("swords"), "Línea a línea"),
-    h(
+  const laneCount = m.lanes.length;
+  const blueLanes = m.lanes.filter((l) => l.lane_winner === 100).length;
+  const redLanes = m.lanes.filter((l) => l.lane_winner === 200).length;
+  const lanesSummary = blueLanes > redLanes ? `Azul gana ${blueLanes}/${laneCount} líneas` : redLanes > blueLanes ? `Rojo gana ${redLanes}/${laneCount} líneas` : `Líneas igualadas (${blueLanes}-${redLanes})`;
+  const lanes = collapsible(
+    "partida.lineas",
+    [icon("swords"), "Línea a línea"],
+    () => h(
       "div.table-wrap",
+      { title: "Diferencias desde el punto de vista del equipo azul. La fase de líneas la gana quien acaba el minuto 14 con ≥20 % más oro y experiencia." },
       h(
         "table.table",
         h("thead", h("tr", ["Rol", "Azul", "Rojo", "Δ CS@10", "Δ Oro", "Δ Daño", "Δ Kills", "Fase de líneas"].map((c) => h("th", c)))),
@@ -131,7 +131,7 @@ function matchView(m) {
         ),
       ),
     ),
-    h("p.tiny.muted", { style: { marginTop: "8px" } }, "Diferencias desde el punto de vista del equipo azul. La fase de líneas la gana quien acaba el minuto 14 con ≥20 % más oro y experiencia."),
+    { summary: lanesSummary },
   );
   const timelineBox = h("div", h("button.btn", { onclick: () => loadTimeline(m, timelineBox) }, icon("activity"), m.has_timeline ? "Ver timeline" : "Cargar timeline (1 llamada a la API)"));
   return h(

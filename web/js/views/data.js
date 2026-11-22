@@ -58,6 +58,7 @@ export async function render(container) {
   crawlerFormFor = null;
   keyRendered = null;
   sourcesSig = null;
+  limitsSig = null;
   otpsSig = null;
   otpsAt = 0;
   sections = {
@@ -227,9 +228,15 @@ function renderWarmer(w) {
       "div.col",
       { style: { marginTop: "12px", gap: "6px" } },
       bar("Esencial", w.essential_pct, `${fmt.int(plan.essential_done || 0)}/${fmt.int(plan.essential_total || 0)}`),
-      bar("Todo", w.all_pct, `${fmt.int(plan.done || 0)}/${fmt.int(plan.total || 0)}`),
     ),
     plan.phase ? h("div.tiny.muted", { style: { marginTop: "6px" } }, plan.phase) : null,
+    h("div", { style: { marginTop: "10px" } }, collapsible(
+      "datos.precarga.detalle",
+      [icon("activity"), "Detalle por web"],
+      h(
+        "div.col",
+        { style: { gap: "8px" } },
+        bar("Todo", w.all_pct, `${fmt.int(plan.done || 0)}/${fmt.int(plan.total || 0)}`),
     h(
       "div.lanes",
       lanes.map(([name, l]) =>
@@ -249,6 +256,9 @@ function renderWarmer(w) {
     w.scopes?.length
       ? h("div.tiny.faint", "Filtros que se mantienen al día: ", w.scopes.map((s) => `${s.tier.replace("_plus", "+")} · ${s.platform === "all" ? "global" : platformLabel(s.platform)} · ${s.patch === "all" ? "actual + anterior" : s.patch}`).join(" | "))
       : null,
+      ),
+      { cls: "flat", summary: `${fmt.int(plan.done || 0)} de ${fmt.int(plan.total || 0)} descargas · ${lanes.length} webs` },
+    )),
   );
 }
 
@@ -438,10 +448,19 @@ function championSection(cfg) {
   return h(
     "div.col",
     h("div.small", { style: { fontWeight: 650 } }, "Buscar por campeones (OTPs)"),
-    h("div.tiny.muted", "Elige campeones y solo se recogen partidas de jugadores del ranking (servidores y elos de arriba) que sean OTPs de ellos o tengan muchísima maestría. Ejemplo: KR + Aspirante/Gran Maestro + Ahri."),
+    h(
+      "div.tiny.muted",
+      { title: "Elige campeones y solo se recogen partidas de jugadores del ranking (servidores y elos de arriba) que sean OTPs de ellos o tengan muchísima maestría. Marca en qué rol lo buscas (por ejemplo Sylas: jungla y mid): solo cuentan sus partidas en esos roles; sin marcar, cualquier rol." },
+      "Solo partidas de OTPs de estos campeones, en el rol que marques ⓘ",
+    ),
     h("div.row-wrap", h("div", { style: { width: "220px" } }, picker), h("span.tiny.muted", "hasta 10")),
     chipsEl,
-    h("p.tiny.muted", { style: { margin: 0 } }, "Marca en qué rol lo buscas (por ejemplo Sylas: jungla y mid). Solo cuentan y se guardan sus partidas con ese campeón en esos roles; sin marcar, cualquier rol."),
+    collapsible(
+      "datos.recolector.otp-opciones",
+      [icon("edit"), "Opciones de la búsqueda"],
+      h(
+      "div.col",
+      { style: { gap: "10px" } },
     h(
       "div.row-wrap",
       { style: { gap: "10px 16px" } },
@@ -500,9 +519,23 @@ function championSection(cfg) {
         "Guardar micro y macro de cada partida (en data/otps)",
       ),
     ),
-    h("p.tiny.muted", { style: { margin: 0 } }, "Variedad primero: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones (las de «Partidas por OTP mientras busca»). Cuando ya no queda nadie por revisar, se baja el resto de su historial hasta la fecha elegida. Sus partidas nuevas van siempre antes, y si más atrás ya casi no jugaba esos campeones, se deja de bajar."),
-    h("p.tiny.muted", { style: { margin: 0 } }, "Buscando en Platino–Esmeralda baja el «Mínimo» a 100 K o 50 K: muchos OTPs de ese elo no llegan a 300 K puntos y no contarían."),
-    h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) en paralelo a la descarga, porque Riot cuenta aparte el servidor y la región. OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
+    h(
+      "p.tiny.muted",
+      {
+        style: { margin: 0 },
+        title:
+          "Variedad primero: mientras se siguen encontrando OTPs, de cada uno solo se bajan sus partidas más recientes con esos campeones; cuando ya no queda nadie por revisar, el resto de su historial. " +
+          "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días). " +
+          "OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo. En Platino–Esmeralda baja el «Mínimo» a 100 K o 50 K.",
+      },
+      "Cómo funciona la búsqueda ⓘ",
+    ),
+      ),
+      {
+        cls: "flat",
+        summary: `${cfg.focus === "mastery" ? "mucha maestría" : "OTPs"} · ≥ ${fmt.compact(cfg.min_mastery || 300_000)} · ${cfg.active_days || 30} días · ${cfg.games_per_otp ? `${cfg.games_per_otp} por OTP` : "sin tope"}${cfg.save_details !== false ? " · micro y macro" : ""}`,
+      },
+    ),
   );
 }
 
@@ -558,22 +591,37 @@ function renderCrawlerStatus(c, key) {
             h(
               "div.worker",
               h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${w.status === "running" ? "pill-good" : w.status === "waiting_key" || w.status === "paused_game" ? "pill-warn" : ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "")),
-              h("div.tiny.muted", { style: { marginTop: "4px" } }, `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} semillas`),
-              w.search
-                ? h("div.tiny.muted", `OTPs: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con el historial completo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
-                : null,
-              w.mastery_checked || w.search
-                ? h(
-                    "div.tiny.muted",
-                    `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores${searchRate(w)} · ${fmt.int(w.targets_found)} OTPs nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`,
-                  )
-                : null,
+              // Lo esencial a la vista; el resto, en «Detalle».
+              h(
+                "div.small",
+                { style: { marginTop: "4px" } },
+                w.search
+                  ? `${fmt.int(w.otps_known)} OTPs · ${fmt.int(w.stored)} partidas nuevas · ${fmt.int(w.mastery_checked)} jugadores revisados${searchRate(w)}`
+                  : `${fmt.int(w.stored)} partidas guardadas · ${fmt.int(w.players)} jugadores`,
+              ),
               sharedKeyLine(w),
               w.last_error ? h("div.tiny.warn", w.last_error) : null,
+              collapsible(
+                `datos.recolector.detalle.${w.region}`,
+                "Detalle",
+                h(
+                  "div.col",
+                  { style: { gap: "2px" } },
+                  h("div.tiny.muted", `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} jugadores del ranking`),
+                  w.search
+                    ? h("div.tiny.muted", `OTPs: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con el historial completo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
+                    : null,
+                  w.mastery_checked || w.search
+                    ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} OTPs nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+                    : null,
+                  w.details ? h("div.tiny.muted", `${fmt.int(w.details)} partidas con micro y macro`) : null,
+                ),
+                { cls: "flat" },
+              ),
             ),
           )
         : h("div.small.muted", key.configured ? "Sin actividad todavía: elige servidores y elos y pulsa «Iniciar recolector»." : "Sin actividad."),
-      h("p.tiny.muted", "Coste con la key gratuita: ~1 llamada por partida nueva. Las semillas salen de las ligas oficiales (205 jugadores por llamada) y se descartan partidas repetidas, remakes y colas que no son ranked. Se pausa solo mientras juegas."),
+      h("p.tiny.muted", { title: "Coste con la key gratuita: ~1 llamada por partida nueva (2 con micro y macro). Los jugadores salen de las ligas oficiales (205 por llamada) y se descartan partidas repetidas, remakes y colas que no son ranked. Se pausa solo mientras juegas." }, "Cuánto cuesta y cuándo se pausa ⓘ"),
     ),
   );
 }
@@ -655,7 +703,11 @@ async function loadOtps(c) {
     h(
       "div.col",
       { style: { gap: "10px" } },
-      h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}`),
+      h(
+        "div.row-wrap",
+        h("div.tiny.muted", { style: { flex: "1 1 auto" } }, `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo`),
+        h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todos los OTPs analizados"),
+      ),
       otpFunnel(data),
       h("div.otp-champ-grid", (data.by_champion || []).map((ch) => otpChampCard(ch, data))),
       otpFilesBar(data),
@@ -976,29 +1028,78 @@ function sharedKeyLine(w) {
   return h("div.tiny.warn", `Otra app está usando tu misma API key (~${fmt.int(info.foreign)} peticiones en 2 min en ${host}): os repartís el cupo de Riot y el recolector va más lento.`);
 }
 
+const REGION_NAME = { europe: "Europa", americas: "América", asia: "Asia", sea: "SEA / Oceanía" };
+const regionOfHost = (host) => (REGION_NAME[host] ? host : state.meta?.platforms?.find((p) => p.id === host)?.region || "otros");
+/** Uso de la ventana larga (2 min) de un servidor, de 0 a 1. */
+const hostLoad = (info) => {
+  const w = [...(info.windows || [])].sort((x, y) => y.seconds - x.seconds)[0];
+  return w ? w.used / Math.max(1, w.limit) : 0;
+};
+let limitsSig = null;
+
+/** Una tarjeta por región con lo justo (uso y estado); el detalle de cada servidor, al pulsarla. */
 function renderLimits(limits) {
   const hosts = Object.entries(limits || {});
+  const sig = JSON.stringify(hosts.map(([k, i]) => [k, Math.round(hostLoad(i) * 20), i.blocked_for > 0, (i.foreign || 0) >= FOREIGN_MIN]));
+  if (sig === limitsSig) return;
+  limitsSig = sig;
   if (!hosts.length) return mount(sections.limits, h("div.small.muted", "Sin peticiones a Riot todavía en esta sesión."));
+  const regions = {};
+  for (const [host, info] of hosts) (regions[regionOfHost(host)] ||= []).push([host, info]);
   const shared = hosts.filter(([, i]) => (i.foreign || 0) >= FOREIGN_MIN);
   mount(
     sections.limits,
     shared.length
       ? notice(
-          `Otra app está usando tu misma API key ahora mismo (${shared.map(([host, i]) => `${host}: ~${fmt.int(i.foreign)}`).join(" · ")} peticiones en 2 min). Riot da un solo cupo por key: si tienes Tempu Drafter abierto en otro ordenador, ciérralo o usa una key distinta en cada uno.`,
+          `Otra app está usando tu misma API key (${shared.map(([host]) => host).join(", ")}). Riot da un solo cupo por key: si tienes Tempu Drafter abierto en otro ordenador, ciérralo o usa una key distinta en cada uno.`,
           "warn",
         )
       : null,
     h(
-      "div.grid.grid-auto",
-      hosts.map(([host, info]) =>
-        h(
-          "div",
-          h("div.row", h("b.small", host), h("span.spacer"), h("span.tiny.muted", `${fmt.int(info.requests)} ${info.requests === 1 ? "petición" : "peticiones"}${info.foreign ? ` · ${fmt.int(info.foreign)} de otra app` : ""}${info.rate_limited ? ` · ${info.rate_limited} × 429` : ""}`), info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null),
-          info.windows.map((w) => h("div.usage", h("span.tiny.muted", `${w.limit} / ${w.seconds}s`), h("div.track", h("span", { style: { width: `${Math.min(100, (w.used / w.limit) * 100)}%` } })), h("span.tiny.right", `${w.used}`))),
-        ),
-      ),
+      "div.limit-regions",
+      Object.entries(regions)
+        .sort((x, y) => Object.keys(REGION_NAME).indexOf(x[0]) - Object.keys(REGION_NAME).indexOf(y[0]))
+        .map(([region, list]) => {
+          const load = Math.max(...list.map(([, i]) => hostLoad(i)));
+          const waiting = list.some(([, i]) => i.blocked_for > 0);
+          const requests = list.reduce((n, [, i]) => n + (i.requests || 0), 0);
+          const [label, tone] = waiting ? ["Esperando a Riot", "warn"] : load >= 0.9 ? ["Al límite", "warn"] : load >= 0.5 ? ["Con uso", "good"] : ["Libre", ""];
+          return h(
+            "button.limit-region",
+            { type: "button", onclick: () => limitsDetail(region, list) },
+            h("div.row", h("b", REGION_NAME[region] || region), h("span.spacer"), h(`span.pill${tone ? `.pill-${tone}` : ""}`, label)),
+            h("div.track", h("span", { style: { width: `${Math.round(load * 100)}%` } })),
+            h("div.tiny.muted", `${fmt.int(requests)} ${requests === 1 ? "petición" : "peticiones"} · ${list.length} ${list.length === 1 ? "servidor" : "servidores"}`),
+          );
+        }),
     ),
-    h("p.tiny.muted", { style: { marginTop: "8px" } }, "Límites leídos de las cabeceras de Riot. El recolector deja libre un 15 % para tus búsquedas."),
+    h("p.tiny.muted", { style: { marginTop: "8px", marginBottom: 0 } }, "La barra es el servidor más ocupado de cada región en los últimos 2 minutos. Pulsa una región para ver cada servidor."),
+  );
+}
+
+function limitsDetail(region, list) {
+  modal(
+    `Límite de la API · ${REGION_NAME[region] || region}`,
+    h(
+      "div.col",
+      { style: { gap: "12px" } },
+      list
+        .sort((x, y) => hostLoad(y[1]) - hostLoad(x[1]))
+        .map(([host, info]) =>
+          h(
+            "div.limit-host",
+            h(
+              "div.row",
+              h("b.small", REGION_NAME[host] ? `${REGION_NAME[host]} (partidas y cuentas)` : `${platformLabel(host)} (${host})`),
+              h("span.spacer"),
+              h("span.tiny.muted", `${fmt.int(info.requests)} ${info.requests === 1 ? "petición" : "peticiones"}${info.foreign ? ` · ${fmt.int(info.foreign)} de otra app` : ""}${info.rate_limited ? ` · ${info.rate_limited} × 429` : ""}`),
+              info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null,
+            ),
+            info.windows.map((w) => h("div.usage", h("span.tiny.muted", `${w.limit} / ${w.seconds}s`), h("div.track", h("span", { style: { width: `${Math.min(100, (w.used / w.limit) * 100)}%` } })), h("span.tiny.right", `${w.used}`))),
+          ),
+        ),
+      h("p.tiny.muted", { style: { margin: 0 } }, "Límites leídos de las cabeceras de Riot. Cada servidor (euw1, kr…) y cada región (europe, asia…) tienen su propio cupo. El recolector deja libre parte del cupo para tus búsquedas (más si estás usando la web)."),
+    ),
   );
 }
 

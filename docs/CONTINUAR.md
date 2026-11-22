@@ -529,6 +529,37 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - El filtro de actividad dejaba fuera al 58 % de los candidatos: `CrawlerConfig.active_days` (14/30/60/90/180/365,
   30 por defecto) + «Jugado en los últimos» en la web; el embudo lo usa y lo guarda en la configuración.
 
+## 3 duodevicies. Sesión del 2026-11-22 (13.ª) — biblioteca de OTPs y «limpio de primeras» (sin commitear)
+
+- **Regla general del usuario para todo el proyecto**: de primeras, lo justo (resumen, pocas cifras); el detalle, al
+  pulsar (desplegable cerrado, ventana o «ver más»). Todo visible, configurable, filtrable y bonito. Ejemplo que dio:
+  «Límite de la API» → una tarjeta por región y el detalle al entrar.
+- Nueva página **#/otps** (menú «OTPs», `web/js/views/otps.js`, API `app/api/otps.py`): cifras clave, ranking de
+  campeones (más OTPs; a igualdad, mejor elo y más partidas), reparto por elo/servidor/rol (cerrado), lista de OTPs
+  con filtros (campeón, rol, elo, servidor, nombre, orden; de 30 en 30) y detalle de cada OTP en ventana (medias frente
+  a los OTPs de su elo, build, partidas). Un OTP = jugador + campeón + rol con partidas en `otp_games`; su elo y
+  servidor, los de su partida más reciente. `tests/test_otps_library.py`.
+- «Límite de la API»: tarjetas por región (uso de la ventana de 2 min del servidor más ocupado y estado); detalle por
+  servidor en ventana.
+- Primera tanda de limpieza: Mi progreso (5 partidas + «ver más»; muertes, pathing y OTPs cerrados con resumen; tabla
+  de métricas de OTPs en un desplegable), Repeticiones (20 + «ver más»; ruta de jungla cerrada), Datos y API (detalle
+  de la precarga, del recolector y opciones de la búsqueda de OTPs en desplegables; párrafos → ⓘ con `title`).
+  Ojo: `collapsible` recuerda el estado en localStorage (también el abierto por defecto): para cambiar el valor por
+  defecto de un panel que ya existía hay que cambiarle el id (se usó `.v2`).
+- Cabecera de las tablas: quitado `position: sticky` de `.table th` (se quedaba flotando al bajar la página).
+- **Segunda tanda, hecha** (misma regla; 4 agentes en paralelo, uno por vista, revisado en el navegador):
+  Matchups (lista a 4 columnas, resto en `title` y en la ventana; 3 KPIs; fuentes, más datos de la línea, cambios y
+  build completa en desplegables `matchup.*`), Campeones (tier list a 6 columnas, desglose de WR en `title`;
+  sinergias, tus estadísticas y desglose en desplegables `campeon.*`), Jugador (4 KPIs + «Más estadísticas»; tabla de
+  campeones 4 columnas × 8 + ventana con la tabla completa; equipos de cada partida en su detalle), Partida (tablas de
+  equipo a 5 columnas; líneas en `partida.lineas`; cola/parche/fecha en una línea), Regiones (4 KPIs; objetivos,
+  duración, elo y baneos en `regiones.detalle`; meta por rol 4 + «ver más»), Draft («Cómo se calcula» en
+  `draft.modelo`; 2 sinergias por lado + «ver más»; detalle de cada línea en `title`), Guías (un desplegable por rol
+  `guias.rol.*`; top 6 + «ver más»), Mi progreso (debilidades: título + consejo, «Ver detalle»; errores que repites
+  en `progreso.repites`), Repeticiones («Más contexto» en cada momento).
+- Comprobar sintaxis JS sin Node: quitar `import`/`export` y parsear con JavaScriptCore
+  (`osascript -l JavaScript`, `new Function(texto)`); detecta errores de sintaxis.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

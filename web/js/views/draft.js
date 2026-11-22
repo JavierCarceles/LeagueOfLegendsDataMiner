@@ -3,7 +3,7 @@ import { api, filterParams, isPending } from "../api.js";
 import { curveChart, gauge } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, loadJSON, ROLE_LABEL, ROLES, save, state } from "../state.js";
-import { patchBadge, champImg, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
+import { patchBadge, champImg, collapsible, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
 const STORE = "tempu.draft.v2";
@@ -53,7 +53,15 @@ export async function render(container) {
     container,
     h(
       "div.section-head",
-      h("div", h("h2", "Analizador de draft"), h("p", "Probabilidad de victoria estimada con los enfrentamientos de línea (OP.GG + Lolalytics + tu base de datos + fuerza de cada campeón) y las sinergias entre aliados. Funciona también con el draft a medias. ↑/↓: mejorado o debilitado en el último parche.")),
+      h(
+        "div",
+        h("h2", "Analizador de draft"),
+        h(
+          "p",
+          { title: "Probabilidad de victoria estimada con los enfrentamientos de línea (OP.GG + Lolalytics + tu base de datos + fuerza de cada campeón) y las sinergias entre aliados. Funciona también con el draft a medias. ↑/↓: mejorado o debilitado en el último parche." },
+          "Probabilidad de victoria según líneas y sinergias; funciona también con el draft a medias. ⓘ",
+        ),
+      ),
       h("div.spacer"),
       h("button.btn", { onclick: swapTeams, title: "Intercambiar equipos" }, icon("swap"), "Intercambiar"),
       h("button.btn.btn-ghost", { onclick: clearDraft }, icon("trash"), "Limpiar"),
@@ -312,7 +320,7 @@ function renderSummary(r) {
     "section.card",
     h("h3.card-title", icon("crown"), "Calificación por equipo"),
     h("div.col", team("ally", r.teams.ally, "Tu equipo"), team("enemy", r.teams.enemy, "Rival")),
-    h("div.tiny.muted", { style: { marginTop: "8px" } }, "Fuerza de los picks por sí solos (WR de cada campeón en su rol + sinergias), sin contar contra quién juegan."),
+    h("div.tiny.muted", { style: { marginTop: "8px", cursor: "help" }, title: "Fuerza de los picks por sí solos (WR de cada campeón en su rol + sinergias), sin contar contra quién juegan." }, "Qué mide ⓘ"),
   );
 
   const compCard = h("section.card", h("h3.card-title", icon("spark"), "Composición"), compositionBlock(r.composition));
@@ -338,7 +346,11 @@ function compositionBlock(comp) {
           h("div.row", h(`span.small.${cls}`, label), h("span.spacer"), h("span.tiny.muted", `${fmt.pct(c.damage_profile?.phys, 0)} AD · ${fmt.pct(c.damage_profile?.magic, 0)} AP`)),
           damageBar(c.damage_profile),
           c.frontline !== null || c.cc !== null
-            ? h("div.tiny.muted", c.frontline !== null ? `Primera línea ×${fmt.num(c.frontline, 2)}` : "", c.cc !== null ? ` · Control ×${fmt.num(c.cc, 2)}` : "")
+            ? h(
+                "div.tiny.muted",
+                { style: { cursor: "help" }, title: [c.frontline !== null ? `Primera línea ×${fmt.num(c.frontline, 2)}` : null, c.cc !== null ? `Control ×${fmt.num(c.cc, 2)}` : null].filter(Boolean).join(" · ") },
+                [c.frontline !== null ? "Primera línea" : null, c.cc !== null ? "control" : null].filter(Boolean).join(" y ") + " ⓘ",
+              )
             : null,
           ...(c.warnings || []).map((w) => h("div.tiny.warn", "⚠ ", w)),
         )
@@ -349,7 +361,7 @@ function compositionBlock(comp) {
     row("Tu equipo", comp.ally, "gold"),
     row("Rival", comp.enemy, "bad"),
     h("div.legend", h("span", h("i.dmg-phys"), "Físico"), h("span", h("i.dmg-magic"), "Mágico"), h("span", h("i.dmg-true", { style: { background: "#e7eaf0" } }), "Verdadero")),
-    h("div.tiny.faint", sourceNote),
+    h("div.tiny.faint", { style: { cursor: "help" }, title: sourceNote }, "Fuente del daño ⓘ"),
   );
 }
 
@@ -380,11 +392,23 @@ function renderLane(role, lane) {
   const opgg = lane.opgg || {};
   const laneWinner = opgg.lane_advantage ? (opgg.lane_advantage === lane.ally ? "good" : opgg.lane_advantage === lane.enemy ? "bad" : "") : "";
   const playStyle = { aggressive: "agresivo", defensive: "defensivo", even: "igualado" }[opgg.play_style] || opgg.play_style;
+  const src = lane.sources || {};
+  const detail = [
+    lane.ci ? `IC 95 %: ${fmt.pct(lane.ci[0])} – ${fmt.pct(lane.ci[1])}` : null,
+    `Esperado solo por la fuerza de cada campeón (log5): ${fmt.pct(lane.expected)}`,
+    lane.delta !== undefined ? `Δ ventaja propia del enfrentamiento: ${fmt.signed(lane.delta, 1)}` : null,
+    src.opgg ? `OP.GG: ${fmt.pct(src.opgg.wr)} en ${fmt.int(src.opgg.games)} partidas` : null,
+    src.own ? `Tu base de datos: ${fmt.pct(src.own.wr)} en ${fmt.int(src.own.games)} partidas` : null,
+    !src.opgg && !src.own ? "Fuentes: estimado (sin partidas del enfrentamiento)" : null,
+    playStyle ? `Estilo de línea: ${playStyle}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
   mount(
     el,
     h(
       "div.lane-top",
-      h(`span.lane-wr.${wrClass(lane.wr_adj)}`, { title: lane.ci ? `IC 95 %: ${fmt.pct(lane.ci[0])} – ${fmt.pct(lane.ci[1])}` : "" }, fmt.pct(lane.wr_adj)),
+      h(`span.lane-wr.${wrClass(lane.wr_adj)}`, { title: detail }, fmt.pct(lane.wr_adj)),
       verdictEl(lane.verdict),
       lane.counter === "counter" ? h("span.pill.pill-good", { title: "Ventaja propia del matchup por encima de lo esperado" }, "Counter") : lane.counter === "countered" ? h("span.pill.pill-bad", "Te counterea") : null,
       h("span.spacer"),
@@ -392,18 +416,10 @@ function renderLane(role, lane) {
     ),
     h(
       "div.lane-meta",
-      sourceBadges(lane.sources),
-      h("span", { title: "WR esperado solo por la fuerza de cada campeón (log5)" }, `esperado ${fmt.pct(lane.expected)}`),
-      lane.delta !== undefined ? h(`span.${lane.delta > 0.5 ? "good" : lane.delta < -0.5 ? "bad" : ""}`, { title: "Ventaja propia del enfrentamiento" }, `Δ ${fmt.signed(lane.delta, 1)}`) : null,
+      opgg.lane_advantage ? h("span", "Línea: ", h(`b.${laneWinner}`, dd.name(opgg.lane_advantage))) : null,
+      h("span", { title: detail, style: { cursor: "help" } }, "Detalle ⓘ"),
+      h("a", { href: "javascript:void 0", onclick: () => openMatchup(role, lane.ally, lane.enemy) }, "Ver matchup →"),
     ),
-    opgg.lane_advantage || opgg.play_style
-      ? h(
-          "div.lane-meta",
-          opgg.lane_advantage ? h("span", "Línea: ", h(`b.${laneWinner}`, dd.name(opgg.lane_advantage))) : null,
-          playStyle ? h("span", `· estilo ${playStyle}`) : null,
-          h("a", { href: "javascript:void 0", onclick: () => openMatchup(role, lane.ally, lane.enemy) }, "Ver matchup →"),
-        )
-      : h("div.lane-meta", h("a", { href: "javascript:void 0", onclick: () => openMatchup(role, lane.ally, lane.enemy) }, "Ver matchup →")),
   );
 }
 
@@ -412,20 +428,22 @@ function renderBottom(r) {
   const synList = (terms, perspective) => {
     const items = terms.filter((t) => t.games > 0).map((t) => ({ ...t, own: (t.wr_adj ?? 0) - (t.expected ?? 0) })).sort((a, b) => Math.abs(b.own) - Math.abs(a.own));
     if (!items.length) return h("div.small.muted", "Sin datos de sinergia todavía.");
+    const row = (t) =>
+      h(
+        "div.row",
+        champImg(t.champs[0], "sm"),
+        champImg(t.champs[1], "sm"),
+        h("span.small", `${dd.name(t.champs[0])} + ${dd.name(t.champs[1])}`),
+        h("span.spacer"),
+        sourceBadges(t.sources),
+        h(`b.small.${t.own >= 0 ? "good" : "bad"}`, { title: `${perspective}: WR de la pareja ${fmt.pct(t.wr_adj)} vs ${fmt.pct(t.expected)} esperado` }, fmt.signed(t.own, 1, " pp")),
+      );
+    const rest = items.slice(2, 5);
     return h(
       "div.col",
       { style: { gap: "6px" } },
-      items.slice(0, 5).map((t) =>
-        h(
-          "div.row",
-          champImg(t.champs[0], "sm"),
-          champImg(t.champs[1], "sm"),
-          h("span.small", `${dd.name(t.champs[0])} + ${dd.name(t.champs[1])}`),
-          h("span.spacer"),
-          sourceBadges(t.sources),
-          h(`b.small.${t.own >= 0 ? "good" : "bad"}`, { title: `${perspective}: WR de la pareja ${fmt.pct(t.wr_adj)} vs ${fmt.pct(t.expected)} esperado` }, fmt.signed(t.own, 1, " pp")),
-        ),
-      ),
+      items.slice(0, 2).map(row),
+      rest.length ? h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rest.length} más`), h("div.col", { style: { gap: "6px", marginTop: "6px" } }, rest.map(row))) : null,
     );
   };
   const synCard = h(
@@ -445,21 +463,25 @@ function renderBottom(r) {
       : h("div.small.muted", "Completa al menos 4 picks para ver si tu composición es de early o de late."),
   );
   const ev = r.evidence || {};
-  const modelCard = h(
-    "section.card",
-    h("h3.card-title", icon("info"), "Cómo se calcula"),
+  const modelCard = collapsible(
+    "draft.modelo",
+    [icon("info"), "Cómo se calcula"],
     h(
-      "dl.kv",
-      h("dt", "Fuentes"),
-      h("dd", ev.opgg ? `OP.GG (${ev.opgg.tier.replace("_plus", "+")}, ${ev.opgg.region}, parches ${ev.opgg.patches.join(" + ")})` : "Sin OP.GG", ev.own ? " + tu BD" : ""),
-      h("dt", "Prior matchups"),
-      h("dd", `${fmt.int(r.priors.matchup)} partidas virtuales`),
-      h("dt", "Prior sinergias"),
-      h("dd", `${fmt.int(r.priors.synergy)} partidas virtuales`),
-      h("dt", "Calibración α"),
-      h("dd", fmt.num(r.alpha, 3), r.alpha === 1 ? h("span.tiny.muted", " (sin calibrar: haz un backtest en Datos)") : null),
+      "div",
+      h(
+        "dl.kv",
+        h("dt", "Fuentes"),
+        h("dd", ev.opgg ? `OP.GG (${ev.opgg.tier.replace("_plus", "+")}, ${ev.opgg.region}, parches ${ev.opgg.patches.join(" + ")})` : "Sin OP.GG", ev.own ? " + tu BD" : ""),
+        h("dt", "Prior matchups"),
+        h("dd", `${fmt.int(r.priors.matchup)} partidas virtuales`),
+        h("dt", "Prior sinergias"),
+        h("dd", `${fmt.int(r.priors.synergy)} partidas virtuales`),
+        h("dt", "Calibración α"),
+        h("dd", fmt.num(r.alpha, 3), r.alpha === 1 ? h("span.tiny.muted", " (sin calibrar: haz un backtest en Datos)") : null),
+      ),
+      h("p.tiny.muted", { style: { marginTop: "10px" } }, "Cada línea usa el WR del enfrentamiento encogido hacia lo esperado por la fuerza de ambos campeones (log5). Con muchas partidas mandan los datos; con pocas, la estimación por estadísticas de campeón."),
     ),
-    h("p.tiny.muted", { style: { marginTop: "10px" } }, "Cada línea usa el WR del enfrentamiento encogido hacia lo esperado por la fuerza de ambos campeones (log5). Con muchas partidas mandan los datos; con pocas, la estimación por estadísticas de campeón."),
+    { summary: "fuentes, priors y calibración" },
   );
   mount(bottomEl, synCard, curveCard, modelCard);
 }

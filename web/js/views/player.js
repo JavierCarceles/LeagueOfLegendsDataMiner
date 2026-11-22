@@ -1,7 +1,7 @@
 // Perfil de jugador: rango, resumen, campeones, comparativa con la media y partidas.
 import { api } from "../api.js";
 import { dd, loadJSON, platformLabel, ROLE_LABEL, save, state, TIER_LABEL as TIER } from "../state.js";
-import { champ, champImg, collapsible, debounce, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, mount, rankImg, roleIcon, runeImg, select, spellImg, table, wrClass } from "../ui.js";
+import { champ, champImg, collapsible, debounce, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, modal, mount, rankImg, roleIcon, runeImg, select, spellImg, table, wrClass } from "../ui.js";
 
 const RECENT = "tempu.players.recent";
 let root = null;
@@ -138,7 +138,7 @@ function profileView(p) {
       h(
         "div",
         h("div", { style: { fontSize: "24px", fontWeight: 800 } }, p.account.game_name, h("span.muted", ` #${p.account.tag_line}`)),
-        h("div.row-wrap.muted", h("span.pill", platformLabel(p.platform)), p.summoner.level ? h("span", `Nivel ${p.summoner.level}`) : null, h("span.tiny", `${p.fetch.downloaded} partidas descargadas ahora · ${p.fetch.from_cache} ya estaban guardadas`)),
+        h("div.row-wrap.muted", h("span.pill", platformLabel(p.platform)), p.summoner.level ? h("span", `Nivel ${p.summoner.level}`) : null, h("span.tiny", { title: `${p.fetch.downloaded} partidas descargadas ahora · ${p.fetch.from_cache} ya estaban guardadas`, style: { cursor: "help" } }, `${(p.fetch.downloaded || 0) + (p.fetch.from_cache || 0)} partidas`)),
         p.note ? h("div.small.warn", { style: { marginTop: "4px" } }, p.note) : null,
       ),
       h("div.spacer"),
@@ -157,15 +157,24 @@ function profileView(p) {
       kpi("Winrate", h(`span.${wrClass(s.wr)}`, fmt.pct(s.wr)), `${s.wins}V ${s.losses}D`),
       kpi("KDA", fmt.num(s.kda, 2), `${fmt.num(s.kills)} / ${fmt.num(s.deaths)} / ${fmt.num(s.assists)}`),
       kpi("CS/min", fmt.num(s.cs_min, 1), s.cs10 !== null ? `CS@10 ${fmt.num(s.cs10)}` : null),
-      kpi("Δ CS@10", h(`span.${(s.cs10_diff ?? 0) >= 0 ? "good" : "bad"}`, fmt.signed(s.cs10_diff, 1)), "vs su rival de línea"),
-      kpi("Gana la línea", fmt.pct(s.lane_win), `la pierde ${fmt.pct(s.lane_loss)}`),
-      kpi("Oro/min", fmt.int(s.gold_min)),
-      kpi("Daño/min", fmt.int(s.dmg_min), s.dmg_share !== null ? `${fmt.pct(s.dmg_share)} del equipo` : null),
-      kpi("Part. kills", fmt.pct(s.kp)),
       kpi("Visión/min", fmt.num(s.vision_min, 2), `${fmt.num(s.control_wards, 1)} pinks/partida`),
-      kpi("Solo kills", fmt.num(s.solo_kills, 2), `placas ${fmt.num(s.plates, 2)}`),
-      kpi("Primera sangre", fmt.pct(s.first_blood)),
-      kpi("Duración", `${fmt.num(s.avg_minutes, 1)} min`),
+    ),
+    h(
+      "details.more",
+      { style: { marginTop: "10px" } },
+      h("summary.btn.btn-ghost.btn-sm", "Más estadísticas (8)"),
+      h(
+        "div.kpis",
+        { style: { marginTop: "10px" } },
+        kpi("Δ CS@10", h(`span.${(s.cs10_diff ?? 0) >= 0 ? "good" : "bad"}`, fmt.signed(s.cs10_diff, 1)), "vs su rival de línea"),
+        kpi("Gana la línea", fmt.pct(s.lane_win), `la pierde ${fmt.pct(s.lane_loss)}`),
+        kpi("Oro/min", fmt.int(s.gold_min)),
+        kpi("Daño/min", fmt.int(s.dmg_min), s.dmg_share !== null ? `${fmt.pct(s.dmg_share)} del equipo` : null),
+        kpi("Part. kills", fmt.pct(s.kp)),
+        kpi("Solo kills", fmt.num(s.solo_kills, 2), `placas ${fmt.num(s.plates, 2)}`),
+        kpi("Primera sangre", fmt.pct(s.first_blood)),
+        kpi("Duración", `${fmt.num(s.avg_minutes, 1)} min`),
+      ),
     ),
   );
 
@@ -175,21 +184,31 @@ function profileView(p) {
     h("div.col", p.roles.map((r) => h("div.hbar", h("span.row", roleIcon(r.role), ROLE_LABEL[r.role] || "Sin rol"), h("div.track", h("span", { style: { width: `${(r.games / s.games) * 100}%` } })), h("span.right", `${r.games} · `, h(`b.${wrClass(r.wr)}`, fmt.pct(r.wr, 0)))))),
   );
 
+  const champCol = { key: "champ", label: "Campeón", sort: (c) => dd.name(c.champ), render: (c) => champ(c.champ, { size: "sm", sub: ROLE_LABEL[c.main_role] || "" }) };
+  const baseCols = [
+    { key: "games", label: "Part.", render: (c) => c.games },
+    { key: "wr", label: "WR", render: (c) => h(`b.${wrClass(c.wr)}`, fmt.pct(c.wr, 0)) },
+    { key: "kda", label: "KDA", render: (c) => fmt.num(c.kda, 2) },
+  ];
+  const extraCols = [
+    { key: "cs_min", label: "CS/min", render: (c) => fmt.num(c.cs_min, 1) },
+    { key: "dmg_min", label: "Daño/min", render: (c) => fmt.int(c.dmg_min) },
+    { key: "cs10_diff", label: "Δ CS@10", render: (c) => h(`span.${(c.cs10_diff ?? 0) >= 0 ? "good" : "bad"}`, fmt.signed(c.cs10_diff, 1)) },
+  ];
+  const champTip = (c) => `CS/min ${fmt.num(c.cs_min, 1)} · Daño/min ${fmt.int(c.dmg_min)} · Δ CS@10 ${fmt.signed(c.cs10_diff, 1)}`;
+  const topChamps = [...p.champions].sort((a, b) => (b.games || 0) - (a.games || 0)).slice(0, 8);
   const pool = h(
     "section.card",
     h("h3.card-title", icon("crown"), "Campeones"),
     table(
-      [
-        { key: "champ", label: "Campeón", sort: (c) => dd.name(c.champ), render: (c) => champ(c.champ, { size: "sm", sub: ROLE_LABEL[c.main_role] || "" }) },
-        { key: "games", label: "Part.", render: (c) => c.games },
-        { key: "wr", label: "WR", render: (c) => h(`b.${wrClass(c.wr)}`, fmt.pct(c.wr, 0)) },
-        { key: "kda", label: "KDA", render: (c) => fmt.num(c.kda, 2) },
-        { key: "cs_min", label: "CS/min", render: (c) => fmt.num(c.cs_min, 1) },
-        { key: "dmg_min", label: "Daño/min", render: (c) => fmt.int(c.dmg_min) },
-        { key: "cs10_diff", label: "Δ CS@10", render: (c) => h(`span.${(c.cs10_diff ?? 0) >= 0 ? "good" : "bad"}`, fmt.signed(c.cs10_diff, 1)) },
-      ],
-      p.champions,
+      [{ ...champCol, render: (c) => h("div", { title: champTip(c) }, champCol.render(c)) }, ...baseCols],
+      topChamps,
       { sortKey: "games" },
+    ),
+    h(
+      "button.btn.btn-ghost.btn-sm",
+      { style: { marginTop: "8px" }, onclick: () => modal(`Campeones (${p.champions.length})`, table([champCol, ...baseCols, ...extraCols], p.champions, { sortKey: "games" }), { wide: true }) },
+      p.champions.length > topChamps.length ? `Ver todos (${p.champions.length})` : "Ver tabla completa",
     ),
   );
 
@@ -235,23 +254,22 @@ function matchRow(m) {
       champImg(m.champ, "lg"),
       h(
         "div",
+        { title: `${m.role ? ROLE_LABEL[m.role] : "—"} · ${m.queue_label} · ${fmt.duration(m.duration)}` },
         h("div", { style: { fontWeight: 700 } }, dd.name(m.champ)),
-        h("div.tiny.muted", m.role ? ROLE_LABEL[m.role] : "—", " · ", m.queue_label),
-        h("div.tiny", { class: m.remake ? "muted" : m.win ? "good" : "bad" }, m.remake ? "Remake" : m.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.duration(m.duration)} · ${fmt.ago(m.game_start)}`)),
+        h("div.tiny", { class: m.remake ? "muted" : m.win ? "good" : "bad" }, m.remake ? "Remake" : m.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.ago(m.game_start)}`)),
       ),
     ),
-    h("div", h("div.kda", `${m.kills} / ${m.deaths} / ${m.assists}`), h("div.tiny.muted", `KDA ${fmt.num(m.kda, 2)} · KP ${fmt.pct(m.kp, 0)}`), h("div.tiny.muted", `${m.cs} CS (${fmt.num(m.cs_min, 1)}/min)`)),
+    h("div", { title: `KDA ${fmt.num(m.kda, 2)} · KP ${fmt.pct(m.kp, 0)} · ${m.cs} CS (${fmt.num(m.cs_min, 1)}/min)` }, h("div.kda", `${m.kills} / ${m.deaths} / ${m.assists}`)),
     h("div.row", h("div.items", m.items.map(itemImg)), m.opponent ? h("span.tiny.muted", { style: { marginLeft: "8px" } }, "vs ", champImg(m.opponent.champ, "xs")) : null),
-    h(
-      "div.mini-teams",
-      [0, 1, 2, 3, 4].map((i) => [m.team[i], m.enemies[i]]).flat().map((t) => (t ? h(`div${t.puuid && t.name === m.team.find((x) => x.champ === m.champ)?.name ? ".me" : ""}`, champImg(t.champ, "xs"), h("span", t.name || "—")) : h("div"))),
-    ),
+    h("div"), // hueco de la antigua columna de mini-equipos (ahora en el detalle) para no descuadrar la rejilla
     h("div.muted", "⌄"),
   );
   mount(
     detail,
     h(
       "div.kpis",
+      kpi("KDA", fmt.num(m.kda, 2), `KP ${fmt.pct(m.kp, 0)}`),
+      kpi("CS", m.cs, `${fmt.num(m.cs_min, 1)}/min`),
       kpi("Oro", fmt.int(m.gold), `${fmt.int(m.gold_min)}/min`),
       kpi("Daño", fmt.int(m.dmg), `${fmt.pct(m.dmg_share)} del equipo`),
       kpi("Visión", m.vision, `${m.wards} wards · ${m.control_wards} pinks`),
@@ -260,11 +278,16 @@ function matchRow(m) {
       kpi("Solo kills", m.solo_kills ?? "—", `placas ${m.plates ?? "—"}`),
     ),
     h(
+      "div.mini-teams",
+      { style: { marginTop: "10px", maxWidth: "460px" } },
+      [0, 1, 2, 3, 4].map((i) => [m.team[i], m.enemies[i]]).flat().map((t) => (t ? h(`div${t.puuid && t.name === m.team.find((x) => x.champ === m.champ)?.name ? ".me" : ""}`, champImg(t.champ, "xs"), h("span", t.name || "—")) : h("div"))),
+    ),
+    h(
       "div.row-wrap",
       { style: { marginTop: "10px", gap: "14px" } },
       h("div.row", h("span.tiny.muted", "Hechizos"), h("div.items", m.spells.map(spellImg))),
       m.runes?.length ? h("div.row", h("span.tiny.muted", "Runas"), runeImg(m.runes[0], 26), runeImg(m.runes[2], 18)) : null,
-      h("span.tiny.muted", `Parche ${m.patch} · ${m.tier}`),
+      h("span.tiny.muted", `${m.role ? ROLE_LABEL[m.role] : "—"} · ${m.queue_label} · ${fmt.duration(m.duration)} · Parche ${m.patch} · ${m.tier}`),
       h("span.spacer"),
       h("a.btn.btn-sm", { href: `#/partida/${m.match_id}`, onclick: (e) => e.stopPropagation() }, icon("eye"), "Analizar partida"),
     ),
