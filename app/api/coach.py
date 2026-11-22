@@ -257,7 +257,20 @@ def summary(
     if not profile:
         return {"profile": None, "games": 0}
     puuids = store.known_puuids(profile)
-    games = store.list_games(svc.db, puuids, queue=_queue(queue), role=_role(role), limit=last)
+    queue, role_f = _queue(queue), _role(role)
+    games = store.list_games(svc.db, puuids, queue=queue, role=role_f, limit=last)
+    # Tus datos siempre a la vista: si el filtro no tiene partidas pero otro sí (casi no juegas clasificatorias, o ese rol
+    # no lo juegas), se enseñan las que hay y se dice qué filtro se ha usado.
+    fallback = None
+    if not games:
+        for alt_queue, alt_role in ((queue, None), ("normal", role_f), ("normal", None), ("all", role_f), ("all", None)):
+            if (alt_queue, alt_role) == (queue, role_f):
+                continue
+            alt = store.list_games(svc.db, puuids, queue=alt_queue, role=alt_role, limit=last)
+            if alt:
+                fallback = {"wanted": {"queue": queue, "role": role_f or "all"}, "shown": {"queue": alt_queue, "role": alt_role or "all"}}
+                games, queue, role_f = alt, alt_queue, alt_role
+                break
     refs = _references(svc, profile)
     counts: dict = {}
     for g in games:
@@ -286,7 +299,8 @@ def summary(
                 if (info := refs.champion(c, r))
             ],
             "calibration": svc.calibrator.status() if getattr(svc, "calibrator", None) else None,
-            "filters": {"queue": _queue(queue), "role": _role(role) or "all", "last": last},
+            "filters": {"queue": queue, "role": role_f or "all", "last": last},
+            "fallback": fallback,
             "recent": [_row(g, refs) for g in games[:60]],
             # Tus campeones frente a sus OTPs (data/otps) en tu elo objetivo y en el más alto que haya.
             "otp_compare": otp_compare.compare(svc, games, profile["target_tier"]),

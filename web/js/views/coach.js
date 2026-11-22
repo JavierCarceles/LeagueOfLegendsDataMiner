@@ -7,8 +7,9 @@ import { DEATH_KINDS, deathMap, pathMap } from "../components/minimap.js";
 import { dd, loadJSON, ROLE_LABEL, save, state, TIER_LABEL } from "../state.js";
 import { champImg, champText, collapsible, empty, errorBox, fmt, h, icon, itemImg, kpi, latest, loading, modal, mount, notice, roleIcon, select, toast, wrClass } from "../ui.js";
 
-const PREFS = "tempu.progreso.v1";
-let prefs = loadJSON(PREFS, { queue: "all", role: "all", last: 30 });
+// v2: por defecto, partidas normales (casi no juegas clasificatorias); la elección de antes («Clasificatorias») se olvida.
+const PREFS = "tempu.progreso.v2";
+let prefs = loadJSON(PREFS, { queue: "normal", role: "all", last: 30 });
 let root = null;
 let timer = null;
 let headEl = null;
@@ -339,12 +340,25 @@ function refsLabel(s, sources) {
   return h("span.tiny.muted", { title: title + champTitle }, `Comparado con ${target} · referencia ${kind}${champs.length ? ` · farm de ${champs.map((c) => c.split(" (")[0]).join(", ")} según sus OTPs` : ""}${progress}`);
 }
 
+const QUEUE_LABEL = { all: "todas", normal: "normales", ranked: "clasificatorias" };
+
+function fallbackNotice(s) {
+  const f = s.fallback;
+  if (!f) return null;
+  const parts = [];
+  if (f.wanted.queue !== f.shown.queue) parts.push(`no tienes partidas ${QUEUE_LABEL[f.wanted.queue]}: te enseño ${f.shown.queue === "all" ? "todas" : `las ${QUEUE_LABEL[f.shown.queue]}`}`);
+  if (f.wanted.role !== f.shown.role) parts.push(`no tienes partidas de ${ROLE_LABEL[f.wanted.role] || f.wanted.role}: te enseño todos los roles`);
+  const text = parts.join("; ");
+  return h("div", { style: { margin: "6px 0 12px" } }, notice(text.charAt(0).toUpperCase() + text.slice(1) + ".", "info"));
+}
+
 function filtersBar(s) {
   const sources = Object.values(s.refs_source || {});
+  const shown = s.filters || prefs; // con el filtro sin partidas, se marca el que se está enseñando
   return h(
     "div.row-wrap.coach-filters",
-    tabs([{ value: "all", label: "Todas" }, { value: "normal", label: "Normales" }, { value: "ranked", label: "Clasificatorias" }], prefs.queue, (v) => setPrefs({ queue: v })),
-    tabs([{ value: "all", label: "Todos los roles" }, ...(s.all_roles || []).map((r) => ({ value: r, label: ROLE_LABEL[r], icon: roleIcon(r) }))], prefs.role, (v) => setPrefs({ role: v })),
+    tabs([{ value: "all", label: "Todas" }, { value: "normal", label: "Normales" }, { value: "ranked", label: "Clasificatorias" }], shown.queue, (v) => setPrefs({ queue: v })),
+    tabs([{ value: "all", label: "Todos los roles" }, ...(s.all_roles || []).map((r) => ({ value: r, label: ROLE_LABEL[r], icon: roleIcon(r) }))], shown.role, (v) => setPrefs({ role: v })),
     select([10, 20, 30, 50, 100, 200].map((n) => ({ value: n, label: `Últimas ${n}` })), prefs.last, (v) => setPrefs({ last: Number(v) }), "select select-sm"),
     h("span.spacer"),
     refsLabel(s, sources),
@@ -373,6 +387,7 @@ function summaryView(s, data) {
   return h(
     "div.stack",
     filtersBar(s),
+    fallbackNotice(s),
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     weaknessesCard(s),
     s.otp_compare?.length

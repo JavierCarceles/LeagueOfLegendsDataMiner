@@ -644,9 +644,15 @@ def test_full_flow(api, monkeypatch):
     assert summary["builds"][0]["compare"] is None  # sin OP.GG
     assert [r["has_timeline"] for r in summary["recent"]].count(False) == 1
     assert summary["refs_source"] == {"TOP": "static"}
-    assert ok(client.get("/api/coach/summary", params={"queue": "ranked"}))["games"] == 3
+    ranked = ok(client.get("/api/coach/summary", params={"queue": "ranked"}))
+    assert ranked["games"] == 3 and ranked["fallback"] is None and ranked["filters"]["queue"] == "ranked"
     assert ok(client.get("/api/coach/summary", params={"queue": "normal"}))["games"] == 2
-    assert ok(client.get("/api/coach/summary", params={"role": "JUNGLE"}))["games"] == 0
+    # Un filtro sin partidas no deja Mi progreso vacío: se enseñan las que hay y se dice qué filtro se ha usado.
+    jungle = ok(client.get("/api/coach/summary", params={"role": "JUNGLE"}))
+    assert jungle["games"] == 5 and jungle["filters"]["role"] == "all"
+    assert jungle["fallback"] == {"wanted": {"queue": "all", "role": "JUNGLE"}, "shown": {"queue": "all", "role": "all"}}
+    normal_jungle = ok(client.get("/api/coach/summary", params={"queue": "normal", "role": "JUNGLE"}))
+    assert normal_jungle["games"] == 2 and normal_jungle["fallback"]["shown"] == {"queue": "normal", "role": "all"}
 
     detail = ok(client.get("/api/coach/games/euw1_9300000001"))
     assert detail["replay"]["tracks"] and detail["refs"]["cs_min"] > 0 and detail["score"] is not None
