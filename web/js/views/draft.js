@@ -86,7 +86,10 @@ export async function render(container) {
 // ------------------------------------------------------------ draft en vivo (cliente de LoL)
 // En la selección de campeones el cliente manda: cada 1,5 s se lee su draft y, si cambia, se rellena y se analiza.
 // Al elegirse los 10, el servidor importa al cliente la build de tu campeón (runas, hechizos y objetos).
-const SPELL_NAME = { 1: "Limpiar", 3: "Agotar", 4: "Destello", 6: "Fantasmal", 7: "Curar", 11: "Castigo", 12: "Teleportar", 14: "Prender", 21: "Barrera", 32: "Marca" };
+// Nombres de los hechizos de Data Dragon, en el idioma de la app: los mismos que en tu cliente (el 11 es «Aplastar» en
+// español de España). Al cliente se le mandan siempre por número, nunca por nombre.
+const SMITE = 11;
+const spellName = (id) => dd.spellName(id) || `hechizo ${id}`;
 const PHASE_LABEL = { PLANNING: "planificación", BAN_PICK: "baneos y elecciones", FINALIZATION: "fase final", GAME_STARTING: "empezando la partida" };
 const live = { timer: null, panel: null, status: null, lastKey: null, prefs: null, busy: false, last: null };
 
@@ -140,7 +143,7 @@ function savePrefs(changes) {
     .put("/api/draft/live/prefs", changes)
     .then((p) => {
       live.prefs = p;
-      // Si ya se importó en esta selección, cambiar la tecla del Castigo la vuelve a aplicar.
+      // Si ya se importó en esta selección, cambiar la tecla de Aplastar la vuelve a aplicar.
       if ("smite_key" in changes && live.last?.active && live.last?.import && live.last?.draft?.me?.locked) importNow();
     })
     .catch((err) => toast(err.message || "No se pudo guardar la preferencia", "bad"));
@@ -160,8 +163,8 @@ function renderLivePanel() {
   live.status = h("div.col", { style: { gap: "6px" } });
   const smite = h(
     "select.select",
-    { title: "En qué tecla quieres el Castigo cuando se importan los hechizos (el otro hechizo va en la otra)", onchange: (e) => savePrefs({ smite_key: e.target.value }) },
-    ["D", "F"].map((k) => h("option", { value: k, selected: live.prefs.smite_key === k }, `Castigo en la ${k}`)),
+    { title: `En qué tecla quieres ${spellName(SMITE)} cuando se importan los hechizos (el otro hechizo va en la otra)`, onchange: (e) => savePrefs({ smite_key: e.target.value }) },
+    ["D", "F"].map((k) => h("option", { value: k, selected: live.prefs.smite_key === k }, `${spellName(SMITE)} en la ${k}`)),
   );
   mount(
     live.panel,
@@ -186,7 +189,10 @@ function renderLivePanel() {
 function importText(imp) {
   const parts = [];
   if (imp.runes) parts.push(imp.rune_page === "created" ? "runas (página «TD» nueva en un hueco libre)" : "runas (en tu página «TD»)");
-  if (imp.spells) parts.push(`hechizos (D: ${SPELL_NAME[imp.spells[0]] || imp.spells[0]}, F: ${SPELL_NAME[imp.spells[1]] || imp.spells[1]})`);
+  if (imp.spells) {
+    const from = imp.spells_source === "tuyos" ? `, tus hechizos de siempre con ${dd.name(imp.champ)}` : "";
+    parts.push(`hechizos (D: ${spellName(imp.spells[0])}, F: ${spellName(imp.spells[1])}${from})`);
+  }
   if (imp.items) parts.push(`${imp.items} objetos en el conjunto «${dd.name(imp.champ)} TD»`);
   return parts.join(", ");
 }
@@ -210,7 +216,7 @@ function renderLiveStatus(s) {
       ),
     );
     if (s.draft.blind) rows.push(h("div.tiny.muted", "Elección a ciegas: el rival no se ve hasta la pantalla de carga; la build se ajusta solo a tu equipo."));
-    else if (Object.keys(s.draft.enemy || {}).length) rows.push(h("div.tiny.muted", "Los roles del rival se deducen de dónde se juega cada campeón (y de quién lleva Castigo)."));
+    else if (Object.keys(s.draft.enemy || {}).length) rows.push(h("div.tiny.muted", `Los roles del rival se deducen de dónde se juega cada campeón (y de quién lleva ${spellName(SMITE)}).`));
   } else {
     rows.push(
       h(

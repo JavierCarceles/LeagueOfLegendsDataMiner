@@ -10,7 +10,7 @@ de la línea de comandos del proceso del cliente.
 * Fase de la partida (``InProgress``, ``EndOfGame``…) para descargar tus
   partidas en cuanto terminan.
 * Selección de campeones en tiempo real y, al terminar, la build del Draft al cliente: página de runas, hechizos
-  (con el Castigo en la tecla que prefieras) y un conjunto de objetos para ese campeón.
+  (con Aplastar —Castigo, en inglés Smite— en la tecla que prefieras) y un conjunto de objetos para ese campeón.
 * Repeticiones reales (.rofl): estado, descarga y abrirlas en el cliente. Con
   ``EnableReplayApi=1`` en ``Config/game.cfg``, la *Replay API* del juego
   (``https://127.0.0.1:2999``) permite saltar al segundo exacto de un error.
@@ -262,6 +262,16 @@ def create_rune_page(page: dict) -> dict:
 def set_summoner_spells(spell1: int, spell2: int) -> None:
     """Hechizos de la selección actual (``spell1`` va en la D y ``spell2`` en la F)."""
     _request("PATCH", "/lol-champ-select/v1/session/my-selection", {"spell1Id": int(spell1), "spell2Id": int(spell2)})
+
+
+def my_spells() -> list[int] | None:
+    """Los hechizos que tiene ahora tu jugador en la selección (para comprobar que se aplicaron)."""
+    session = champ_select_session()
+    if not session:
+        return None
+    cell = session.get("localPlayerCellId")
+    me = next((m for m in session.get("myTeam") or [] if m.get("cellId") == cell), None)
+    return [int(me.get("spell1Id") or 0), int(me.get("spell2Id") or 0)] if me else None
 
 
 def item_sets(sid: int) -> dict:

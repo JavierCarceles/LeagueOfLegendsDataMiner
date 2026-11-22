@@ -264,3 +264,55 @@ def test_profile_is_detected_from_the_client_without_clicking(api):
     # Si lo borras tú, no se vuelve a crear solo.
     assert client.delete("/api/profile").status_code == 200
     assert dl.ensure_profile(svc, FakeAccountClient()) is None and store.get_profile(svc.db) is None
+
+
+class StubbornClient(FakeClient):
+    """El cliente tarda en aplicar los hechizos (o no los aplica nunca)."""
+
+    def __init__(self, applies_after=1):
+        super().__init__()
+        self.applies_after = applies_after
+        self.calls = 0
+
+    def set_summoner_spells(self, a, b):
+        self.calls += 1
+        if self.calls >= self.applies_after:
+            self.spells = [a, b]
+
+    def my_spells(self):
+        return self.spells or [4, 14]
+
+
+def test_spells_are_checked_in_the_client_and_retried(monkeypatch):
+    monkeypatch.setattr(dl.time, "sleep", lambda s: None)
+    late = StubbornClient(applies_after=2)
+    assert dl.set_spells_checked(late, [6, 11]) == [6, 11] and late.calls == 2
+    never = StubbornClient(applies_after=99)
+    assert dl.set_spells_checked(never, [6, 11]) is None and never.calls == dl.SPELL_TRIES
+    done = dl.apply_import(never, REC, "Hecarim", None, dl.DEFAULT_PREFS, None)
+    assert done["spells"] is None and any("no los aceptó" in e for e in done["errors"])
+
+
+def test_spells_never_stay_empty_when_opgg_was_late(api, monkeypatch):
+    """Caso real: OP.GG aún no había respondido al acabar la selección y no se puso el Fantasmal."""
+    _client, svc = api
+    from app.coach import store
+
+    assert dl.spells_for(svc, {"spells": [6, 11]}, HECARIM, "JUNGLE") == ([6, 11], "build")
+    assert dl.spells_for(svc, {"spells": []}, HECARIM, "JUNGLE") == ([], None)  # sin OP.GG ni partidas tuyas
+    match = {"info": {"participants": [{"participantId": 7, "summoner1Id": 6, "summoner2Id": 11}]}}
+    with svc.db.write() as conn:
+        for i in range(3):
+            conn.execute("INSERT INTO my_games (match_id, pid, champ, role, game_start, status, match_raw, fetched_at) VALUES (?, 7, ?, 'JUNGLE', ?, 'ready', ?, 0)",
+                         (f"EUW1_{i}", HECARIM, i, store.pack(match)))
+    assert store.usual_spells(svc.db, HECARIM) == [6, 11]
+    assert dl.spells_for(svc, {"spells": []}, HECARIM, "JUNGLE") == ([6, 11], "tuyos")
+
+    class LateOpgg:
+        enabled = True
+
+        def champion_build(self, champ, role, allow_fetch=True):
+            return {"spells": [4, 11]} if allow_fetch else None
+
+    svc.opgg = LateOpgg()
+    assert dl.spells_for(svc, {"spells": []}, HECARIM, "JUNGLE") == ([4, 11], "opgg")

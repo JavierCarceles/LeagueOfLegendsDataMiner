@@ -255,3 +255,17 @@ Las 1.818 partidas de OTPs y las 51 del usuario llegaron ya analizadas con la ve
   Esmeralda 75 / 55 / 41 %. Sustituyen a las cifras aproximadas del apartado F en la tarjeta de Mi progreso.
 - **Objetivos regalados** con la nueva definición: Challenger 0,28 por partida y Esmeralda 0,44. La referencia de
   jungla (0,4) sigue valiendo.
+
+## H) Top: primeras partidas de OTPs (23-11-2026)
+
+120 partidas de OTPs de top, todas de Aspirante (11 jugadores y 20 campeones; sobre todo Fiora, Urgot, Warwick e
+Irelia). Sin partidas de top de Esmeralda aún no se puede ver qué distingue a un elo de otro, pero sí que las
+referencias de top eran demasiado exigentes: Aspirante muere antes del 14 2,45 veces por partida (la referencia era
+1,3), por el jungla rival 0,93 (0,5), por gank 0,97 (0,6), adelantado 0,78 (0,45), justo antes de un objetivo 0,75 (0,3)
+y pasa muerto el 10,4 % de la partida (7,5 %). Un Esmeralda no muere menos que un Aspirante: esas referencias suben al
+menos a lo de Aspirante (`benchmarks.BASE["TOP"]`). El duelo en desventaja en top es 0,20 por partida en Aspirante (en
+jungla, 0,05): sigue siendo un punto débil solo de jungla hasta que haya top de Esmeralda para compararlo.
+
+Los 500 casos de los 50 drafts, repetidos con los resúmenes de `data/otps` (antes no se usaban en la auditoría), siguen
+sin ningún problema; los OTPs cambian 1 build de 500 (Hecarim con plan de bola de nieve: Cuchilla negra en vez de
+Rencor de Serylda, que no van juntas, porque sus OTPs la compran más contra ese tipo de equipo).

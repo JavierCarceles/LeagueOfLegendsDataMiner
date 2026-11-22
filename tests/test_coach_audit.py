@@ -419,11 +419,12 @@ def test_trends_need_enough_games_of_one_role_and_a_clear_change():
 
 
 def test_weaknesses_need_enough_games_and_evidence():
-    three = [row(i, "TOP", deaths_before_objective=v) for i, v in enumerate([1, 1, 0])]
+    # Referencia de top: 0,75 muertes antes de un objetivo por partida (lo que hacen los OTPs de top de Aspirante).
+    three = [row(i, "TOP", deaths_before_objective=v) for i, v in enumerate([3, 3, 0])]
     assert not insights.weaknesses(insights.metric_table(three, REFS), {})
-    noisy = [row(i, "TOP", deaths_before_objective=v) for i, v in enumerate([1, 1, 0, 0, 0])]
+    noisy = [row(i, "TOP", deaths_before_objective=v) for i, v in enumerate([3, 2, 0, 0, 0])]
     assert not insights.weaknesses(insights.metric_table(noisy, REFS), {})
-    clear = [row(i, "TOP", deaths_before_objective=1) for i in range(5)]
+    clear = [row(i, "TOP", deaths_before_objective=3) for i in range(5)]
     assert [w["id"] for w in insights.weaknesses(insights.metric_table(clear, REFS), {})] == ["deaths_before_objective"]
     one_bad_game = [row(i, "TOP", gold_diff15=v) for i, v in enumerate([-3000, 100, 0, 50, 20])]
     assert not insights.weaknesses(insights.metric_table(one_bad_game, REFS), {})

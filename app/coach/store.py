@@ -25,6 +25,24 @@ def unpack(blob):
     return json.loads(zlib.decompress(blob).decode("utf-8"))
 
 
+def usual_spells(db: Database, champ: int, limit: int = 20) -> list[int] | None:
+    """Tus hechizos de siempre con ese campeón (en tu orden D, F), de tus últimas partidas con él."""
+    rows = db.query("SELECT match_raw, pid FROM my_games WHERE champ = ? AND match_raw IS NOT NULL ORDER BY game_start DESC LIMIT ?", (champ, limit))
+    pairs: dict[tuple[int, int], int] = {}
+    for r in rows:
+        try:
+            match = unpack(r["match_raw"]) or {}
+        except (ValueError, zlib.error):
+            continue
+        me = next((x for x in (match.get("info") or {}).get("participants") or [] if x.get("participantId") == r["pid"]), None)
+        if me and me.get("summoner1Id") and me.get("summoner2Id"):
+            key = (int(me["summoner1Id"]), int(me["summoner2Id"]))
+            pairs[key] = pairs.get(key, 0) + 1
+    if not pairs:
+        return None
+    return list(max(pairs.items(), key=lambda kv: kv[1])[0])
+
+
 def _riot_id(name: str | None, tag: str | None) -> str:
     return f"{(name or '').strip().casefold()}#{(tag or '').strip().casefold()}"
 

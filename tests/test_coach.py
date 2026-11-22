@@ -379,6 +379,8 @@ def _rows(n: int) -> list[dict]:
 
 def test_summary_finds_weaknesses_with_tips_and_goals():
     games = _rows(8)  # con menos de 5 partidas no se declara ningún punto débil (ver test_coach_audit)
+    for g in games:  # 2 muertes por el jungla rival por partida: claramente por encima de lo de top (Aspirante, 0,93)
+        g["metrics"]["deaths_to_jungler_pre14"] = 2
     refs = References(None, "PLATINUM")
     goal = {"id": 1, "metric": "deaths_pre14", "op": "<=", "target": 1, "label": "x", "role": None, "active": True}
     out = insights.summarize(games, refs, [goal])

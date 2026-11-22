@@ -3,10 +3,10 @@
 Mientras estás en la selección de campeones, cada segundo se lee la sesión del cliente (LCU) y se convierte en un
 draft ``{rol: campeón}`` para los dos equipos. La web lo pinta y lo analiza en cuanto cambia. Los roles de tu equipo
 vienen del cliente (en las colas con posiciones); los del rival, y los tuyos en las colas sin posiciones, se deducen
-con el reparto de roles más probable según en qué línea se juega cada campeón (y quién lleva Castigo).
+con el reparto de roles más probable según en qué línea se juega cada campeón (y quién lleva Aplastar).
 
 Cuando están elegidos los 10 (o, en las colas a ciegas, cuando llega la fase final con tu campeón fijado) se importa
-la build del Draft para tu campeón: runas, hechizos (con el Castigo en la tecla que prefieras) y un conjunto de
+la build del Draft para tu campeón: runas, hechizos (con Aplastar —Castigo, en inglés Smite— en la tecla que prefieras) y un conjunto de
 objetos. Una vez por partida y campeón: si cambias de campeón en la fase final, se vuelve a importar.
 
 Runas: siempre en **la página con «TD» en el nombre** (TempuDrafter), que se sobrescribe en su mismo hueco y se renombra
@@ -112,7 +112,7 @@ def save_prefs(db, changes: dict) -> dict:
 
 
 def order_spells(spells: list[int], smite_key: str) -> list[int] | None:
-    """Los dos hechizos en el orden D, F con el Castigo en la tecla elegida (el otro, en la contraria)."""
+    """Los dos hechizos en el orden D, F con Aplastar (el 11) en la tecla elegida (el otro, en la contraria)."""
     spells = [int(s) for s in spells if s][:2]
     if len(spells) != 2 or spells[0] == spells[1]:
         return None
@@ -127,7 +127,7 @@ def assign_roles(champs: list[int], share, fixed: dict[int, str] | None = None, 
     """Reparto de roles más probable para unos campeones (≤ 5) del mismo equipo.
 
     ``share(champ, role)``: fracción de las partidas del campeón que se juegan en ese rol (``None`` si no se sabe).
-    ``fixed``: roles ya conocidos (los del cliente). Quien lleva Castigo va a la jungla.
+    ``fixed``: roles ya conocidos (los del cliente). Quien lleva Aplastar va a la jungla.
     """
     fixed = dict(fixed or {})
     smite = smite or set()
@@ -261,6 +261,50 @@ def _rune_page(rec_runes: dict | None, fallback: dict | None, name: str) -> dict
             "selectedPerkIds": [int(i) for i in runes["ids"]] + [int(s) for s in shards], "current": True}
 
 
+SPELL_TRIES = 3
+
+
+def set_spells_checked(client, spells: list[int]) -> list[int] | None:
+    """Pone los hechizos y comprueba en la selección que se han aplicado (si no, lo reintenta). ``None`` si no entran."""
+    for attempt in range(SPELL_TRIES):
+        client.set_summoner_spells(*spells)
+        reader = getattr(client, "my_spells", None)
+        if reader is None:
+            return spells  # sin forma de leerlos: se da por bueno
+        try:
+            current = reader()
+        except lcu.LCUError:
+            return spells
+        if current is None or list(current) == list(spells):
+            return spells
+        log.info("El cliente no aplicó los hechizos %s (tiene %s): reintento %d", spells, current, attempt + 1)
+        time.sleep(0.4)
+    return None
+
+
+def spells_for(svc, rec: dict, champ: int, role: str) -> tuple[list[int], str | None]:
+    """Hechizos para importar: los de la build; si faltan (OP.GG aún no había respondido), OP.GG sin límite de tiempo;
+    si tampoco, tus hechizos de siempre con ese campeón. Devuelve ``(hechizos, fuente)``."""
+    spells = [int(x) for x in rec.get("spells") or [] if x]
+    if len(spells) == 2:
+        return spells, "build"
+    opgg = getattr(svc, "opgg", None)
+    if opgg is not None and getattr(opgg, "enabled", False):
+        try:
+            general = opgg.champion_build(champ, role, allow_fetch=True) or {}
+        except Exception:
+            log.debug("Hechizos de OP.GG", exc_info=True)
+            general = {}
+        if len(general.get("spells") or []) == 2:
+            return [int(x) for x in general["spells"]], "opgg"
+    from app.coach import store
+
+    mine = store.usual_spells(svc.db, champ)
+    if mine:
+        return mine, "tuyos"
+    return [], None
+
+
 def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, prefs: dict, extra_runes: dict | None = None) -> dict:
     """Escribe en el cliente lo que toque según ``prefs``. ``client``: el módulo ``lcu`` (o un doble en los tests)."""
     done: dict = {"runes": None, "spells": None, "items": None, "errors": []}
@@ -284,8 +328,9 @@ def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, 
             done["errors"].append("Sin hechizos recomendados para este campeón")
         else:
             try:
-                client.set_summoner_spells(*spells)
-                done["spells"] = spells
+                done["spells"] = set_spells_checked(client, spells)
+                if done["spells"] is None:
+                    done["errors"].append("Hechizos: el cliente no los aceptó (pruébalo con «Importar build ya»)")
             except lcu.LCUError as exc:
                 done["errors"].append(f"Hechizos: {exc}")
     if prefs.get("items"):
@@ -456,14 +501,18 @@ class DraftLive:
                 except Exception:
                     log.debug("Página de runas de OP.GG", exc_info=True)
                     extra = None
+            spells, source = spells_for(svc, rec, me["champ"], me["role"])
+            rec = {**rec, "spells": spells}
             name = svc.dd.name(me["champ"])
             opp = rec.get("opponent")
             done = apply_import(lcu, rec, name, svc.dd.name(opp) if opp else None, get_prefs(svc.db), extra)
             ok = any(done[k] is not None for k in ("runes", "spells", "items"))
             result = {"status": "ok" if ok and not done["errors"] else "partial" if ok else "error", "champ": me["champ"], "role": me["role"],
-                      "opponent": opp, **done, "at": time.time()}
+                      "opponent": opp, "spells_source": source, **done, "at": time.time()}
             self.state["import"] = result
-            log.info("Build de %s importada al cliente (%s).", name, result["status"])
+            log.info("Build de %s importada al cliente (%s): runas %s, hechizos %s (%s), %s objetos%s.", name, result["status"],
+                     "sí" if done["runes"] else "no", done["spells"], source, done["items"],
+                     f"; avisos: {' · '.join(done['errors'])}" if done["errors"] else "")
             return result
 
 

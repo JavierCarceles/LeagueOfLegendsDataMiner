@@ -109,13 +109,18 @@ METRICS: dict[str, Metric] = {
 
 # Referencia base (≈ Esmeralda). None = no aplica al rol.
 BASE: dict[str, dict[str, float | None]] = {
+    # Revisado con 119 partidas de 11 OTPs de top de Aspirante (data/otps, noviembre de 2026; sobre todo Fiora, Urgot,
+    # Warwick e Irelia): mueren antes del 14 2,45 veces (la referencia era 1,3), por el jungla rival 0,93 (0,5), por gank
+    # 0,97 (0,6), adelantados 0,78 (0,45), justo antes de un objetivo 0,75 (0,3) y pasan muertos el 10,4 % (7,5 %). Un
+    # Esmeralda no muere menos que un Aspirante: en esas métricas la referencia sube al menos a lo de Aspirante. Sin
+    # partidas de top de Esmeralda aún, no se toca nada más.
     "TOP": {
-        "deaths_to_jungler_pre14": 0.5, "deaths_ganked": 0.6, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.45,
-        "deaths_pre14": 1.3, "deaths": 5.2, "deaths_solo": 1.1, "deaths_enemy_jungle": 0.5, "deaths_isolated_late": 1.3,
-        "deaths_unspent_gold": 0.35, "time_dead_pct": 7.5, "gold_hoard_min": 0.6, "idle_pct": 15,
+        "deaths_to_jungler_pre14": 0.95, "deaths_ganked": 1.0, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.8,
+        "deaths_pre14": 2.45, "deaths": 5.4, "deaths_solo": 1.1, "deaths_enemy_jungle": 0.5, "deaths_isolated_late": 1.3,
+        "deaths_unspent_gold": 0.35, "time_dead_pct": 10.5, "gold_hoard_min": 0.6, "idle_pct": 15,
         "cs_min": 7.1, "cs10": 71, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 400,
         "vision_min": 0.65, "wards_pre14": 4, "control_wards": 1.8,
-        "obj_participation": 40, "obj_lost_dead": 0.3, "obj_lost_far": 0.6, "deaths_before_objective": 0.3,
+        "obj_participation": 40, "obj_lost_dead": 0.3, "obj_lost_far": 0.6, "deaths_before_objective": 0.75,
         "kp": 46, "dmg_share": 22, "first_item_min": 12.0, "r_late": 0.2,
     },
     # Revisado con partidas de OTPs de jungla (data/otps, noviembre de 2026): 704 de Aspirante y 240 de Esmeralda
