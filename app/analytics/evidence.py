@@ -29,6 +29,21 @@ SOURCES = ("all", "web", "opgg", "lolalytics", "own")
 TIERLIST_PSEUDO_GAMES = 2000  # peso de un WR de tier list sin nº de partidas conocido
 LIGHT_PRIOR = 50.0  # encogimiento mínimo para el "esperado" de las sinergias
 LOLA_MIN_ROLE_RATE = 0.08  # sin OP.GG: campeones con ≥ 8 % de sus partidas en ese rol
+# Qué campeones «se juegan» en una línea (recomendaciones del draft y su desplegable): su línea principal (≥ 50 % de
+# sus partidas: Ivern jungla aunque casi nadie lo coja), o que se vea en ella (≥ 0,5 % de las partidas de la línea) y
+# la juegue de verdad (≥ 5 % de sus partidas). Esmeralda+: Warwick top 32 %/1,4 %, Sylas top 7,6 %/1,2 %, Maestro Yi
+# top 8,3 %/0,55 % y Teemo jungla 10,5 %/0,52 % entran; Fiddlesticks top 9,5 %/0,25 % y Zilean top 6 %/0,2 %, no.
+# Y una muestra fiable de partidas reales en esa línea.
+ROLE_MAIN_SHARE = 0.5
+ROLE_MIN_SHARE = 0.05
+ROLE_MIN_PICK = 0.5  # % de las partidas de la línea
+MIN_ROLE_GAMES = 300
+# «Recomendados» del draft: solo los habituales de la línea (su línea principal o ≥ 2 % de pick). Los que la juegan de
+# forma secundaria tienen el WR inflado porque solo los sacan quienes los dominan (Esmeralda+: Vel'Koz, Karthus, Swain,
+# Hwei y Aurelion Sol ADC con 16-24 % de sus partidas ahí, 53-54 % WR; Riven mid, Lissandra top, Sion jungla igual),
+# frente a 49-52 % de los habituales. Siguen en el desplegable, con su puntuación, pero no encabezan las recomendaciones.
+STAPLE_MAIN_SHARE = 0.5
+STAPLE_MIN_PICK = 2.0  # %
 
 
 @dataclass(frozen=True)
@@ -135,6 +150,8 @@ class Evidence:
         self._counters: dict[tuple[str, int], dict | None] = {}
         self._counter_sources: dict[tuple[str, int], dict] = {}
         self._ref_patch: dict[str, str | None] = {}
+        self._lola_tier: dict[str, dict] = {}
+        self._own_totals: dict[int, float] | None = None
 
     # ------------------------------------------------------------ fuentes
     def own_role(self, role: str) -> dict:
@@ -390,10 +407,71 @@ class Evidence:
             "var": posterior_logit_var(wins, games, expected, self.ks) if games else 0.0,
         }
 
-    def champions_in_role(self, role: str, min_games: int = 0) -> list[int]:
-        champs = set(self.tier_list(role))
-        champs |= {c for c, row in self.own_role(role).items() if (row.get("games") or 0) >= min_games}
-        return sorted(champs)
+    def _lola_role(self, role: str) -> dict:
+        """Tier list de Lolalytics tal cual (también los campeones que casi no van a esa línea, con su reparto)."""
+        if role not in self._lola_tier:
+            data: dict = {}
+            if self.use_lola and self.scope:
+                patch = self.ref_patch(role) or self.scope.patches[0]
+                try:
+                    data = self.svc.lolalytics.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=False) or {}
+                except Exception:  # noqa: BLE001  (Lolalytics es un extra para saber el reparto por líneas)
+                    data = {}
+            self._lola_tier[role] = data
+        return self._lola_tier[role]
+
+    def presence(self, role: str, champ: int) -> dict:
+        """Cuánto se juega ese campeón en esa línea: parte de sus partidas (``share``), pick (% de las partidas de la
+        línea) y partidas reales en ella (tu BD + las webs; sin el mínimo de 200 que usa ``base`` para estimar)."""
+        row = self.tier_list(role).get(champ) or {}
+        lola = self._lola_role(role).get(champ) or {}
+        share = row.get("role_rate") if row.get("role_rate") is not None else lola.get("role_rate")
+        pick = row.get("pick") if row.get("pick") is not None else lola.get("pick")
+        own_games = float((self.own_role(role).get(champ) or {}).get("games") or 0)
+        if share is None:
+            if self._own_totals is None:
+                totals: dict[int, float] = {}
+                for r in ROLES:
+                    for c, data in self.own_role(r).items():
+                        totals[c] = totals.get(c, 0.0) + float(data.get("games") or 0)
+                self._own_totals = totals
+            total = self._own_totals.get(champ, 0.0)
+            share = own_games / total if total else None  # la fiabilidad la pone el mínimo de partidas
+        if pick is None and own_games:
+            # Sin webs: el pick en tu BD (cada partida tiene dos de esa línea, una por equipo).
+            slots = sum(float(d.get("games") or 0) for d in self.own_role(role).values())
+            pick = 100 * own_games / (slots / 2) if slots else None
+        counters = self.counters(role, champ, fetch=False)
+        known = True
+        if counters:
+            ext = float(sum(g for g, _ in counters.values()))
+        elif row.get("lola_games") or lola.get("games"):
+            ext = float(row.get("lola_games") or lola.get("games") or 0)
+        else:
+            total_role = self.ext_role_matches(role) if row.get("pick") else None
+            ext = float(total_role * row["pick"] / 100) if total_role else 0.0
+            # En la tier list de OP.GG (que solo lista campeones con presencia real en una muestra enorme) pero sin
+            # recuento descargado todavía: no se sabe cuántas, pero no se descarta por eso.
+            known = bool(total_role) or not row.get("pick")
+        return {"share": share, "pick": pick, "games": own_games + ext, "games_known": known}
+
+    def plays_role(self, role: str, champ: int, min_games: int = MIN_ROLE_GAMES) -> bool:
+        """¿Se juega de verdad en esa línea y con muestra suficiente? (Un Yuumi top suelto no.)"""
+        p = self.presence(role, champ)
+        share, pick = p["share"], p["pick"]
+        main = share is not None and share >= ROLE_MAIN_SHARE
+        seen = pick is not None and pick >= ROLE_MIN_PICK and (share is None or share >= ROLE_MIN_SHARE)
+        return (main or seen) and (p["games"] >= min_games or not p["games_known"])
+
+    def staple(self, role: str, champ: int) -> bool:
+        """¿Es un habitual de esa línea (para recomendarlo)? Su línea principal o ≥ 2 % de las partidas de la línea."""
+        p = self.presence(role, champ)
+        return (p["share"] is not None and p["share"] >= STAPLE_MAIN_SHARE) or (p["pick"] is not None and p["pick"] >= STAPLE_MIN_PICK)
+
+    def champions_in_role(self, role: str, min_games: int = MIN_ROLE_GAMES) -> list[int]:
+        """Campeones que se juegan en esa línea con al menos ``min_games`` partidas reales en ella."""
+        champs = set(self.tier_list(role)) | set(self.own_role(role)) | set(self._lola_role(role))
+        return sorted(c for c in champs if self.plays_role(role, c, min_games))
 
     def public(self) -> dict:
         return {

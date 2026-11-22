@@ -28,7 +28,7 @@ import math
 import time
 from collections import defaultdict
 
-from app.analytics.evidence import LIGHT_PRIOR, Evidence
+from app.analytics.evidence import LIGHT_PRIOR, MIN_ROLE_GAMES, Evidence
 from app.analytics.filters import Filters
 from app.analytics.matchups import _source, pair_view
 from app.analytics.stats import clamp, log5, logit, pct, safe_div, sample_confidence, shrink, sigmoid
@@ -356,12 +356,11 @@ def _suggest_slot(
 ) -> dict:
     opponent = theirs.get(role)
     results = []
+    # Solo campeones que se juegan en esa línea con muestra real suficiente (un Zilean top suelto no se recomienda).
     for champ in ev.champions_in_role(role, min_games):
         if champ in taken:
             continue
         p_c, _, games_c = ev.base(role, champ)
-        if games_c < min_games:
-            continue
         if opponent:
             p = ev.pair(role, champ, opponent, fetch=False)
             lane_p, lane_games = p["adjusted"], p["games"]
@@ -380,6 +379,7 @@ def _suggest_slot(
         results.append(
             {
                 "champ": champ,
+                "staple": ev.staple(role, champ),
                 "score_pp": round((sigmoid(alpha * score) - 0.5) * 100, 2),
                 "lane_wr": pct(lane_p),
                 "lane_games": int(lane_games),
@@ -390,12 +390,14 @@ def _suggest_slot(
             }
         )
     results.sort(key=lambda r: r["score_pp"], reverse=True)
+    # Recomendados: solo los habituales de la línea (los secundarios, con el WR inflado, solo en el desplegable).
+    staples = [r for r in results if r["staple"]]
     return {
         "role": role,
         "side": side,
         "opponent": opponent,
-        "best": results[:limit],
-        "worst": list(reversed(results[-min(5, len(results)) :])) if len(results) > limit else [],
+        "best": staples[:limit],
+        "worst": list(reversed(staples[-min(5, len(staples)) :])) if len(staples) > limit else [],
         "evaluated": len(results),
         "scores": {r["champ"]: r["score_pp"] for r in results},
     }
@@ -409,7 +411,7 @@ def suggest(
     role: str,
     side: str = "ally",
     limit: int = 12,
-    min_games: int = 200,
+    min_games: int = MIN_ROLE_GAMES,
     sources: str = "all",
     min_lane_games: int = 100,
 ) -> dict:
@@ -437,7 +439,7 @@ def suggest_many(
     enemy: dict,
     slots: list[tuple[str, str]],
     limit: int = 8,
-    min_games: int = 200,
+    min_games: int = MIN_ROLE_GAMES,
     sources: str = "all",
     min_lane_games: int = 100,
 ) -> dict:

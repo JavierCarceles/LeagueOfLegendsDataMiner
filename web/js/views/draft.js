@@ -111,6 +111,7 @@ function slot(side, role) {
     placeholder: `${ROLE_LABEL[role]} ${side === "ally" ? "aliado" : "rival"}`,
     exclude: taken,
     recommend: () => slotRecs(side, role).then((res) => pickerRecs(res, side, role)),
+    pool: () => rolePool(role),
     onChange: (id) => {
       if (id) draft[side][role] = id;
       else delete draft[side][role];
@@ -140,6 +141,21 @@ function fetchRecs(key, slots) {
     while (recsCache.size > 30) recsCache.delete(recsCache.keys().next().value);
   }
   return recsCache.get(key);
+}
+
+/** Campeones que se juegan en cada línea (con los filtros actuales): lo que ofrece el desplegable de cada hueco. */
+const poolCache = new Map();
+function rolePool(role) {
+  const key = JSON.stringify(state.filters);
+  if (!poolCache.has(key)) {
+    const promise = api.get("/api/draft/roles", filterParams()).then((res) => {
+      if (isPending(res)) poolCache.delete(key); // faltaban tier lists: se vuelve a pedir la próxima vez
+      return res.roles || {};
+    });
+    promise.catch(() => poolCache.delete(key));
+    poolCache.set(key, promise);
+  }
+  return poolCache.get(key).then((roles) => new Set(roles[role] || []));
 }
 
 /** Recomendaciones del hueco: del lote de huecos vacíos o, si está ocupado, de una petición propia. */

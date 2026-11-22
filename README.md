@@ -191,6 +191,10 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   líneas** se mide aparte (oro y experiencia al 14, CS a los 10, placas y solo kills).
 - **Draft:** modelo logístico aditivo (5 líneas + sinergias), `P = σ(α·L)` con intervalo del 90 %. Con ≥ 200 partidas
   propias, *Backtest* calibra `α` (leave-one-out).
+- **Picks del draft por línea:** el desplegable de cada hueco solo ofrece campeones que se juegan en esa línea (su línea
+  principal, o ≥ 0,5 % de pick y ≥ 5 % de sus partidas ahí) con ≥ 300 partidas reales; uno raro (un Yuumi top) solo
+  aparece al buscarlo por nombre, aparte. *Recomendados* solo propone los habituales de la línea (su línea principal o
+  ≥ 2 % de pick): los secundarios tienen el WR inflado porque solo los juegan quienes los dominan.
 - **Recolector (key gratuita: 20 peticiones/s y 100 cada 2 min por región):** semillas de las ligas oficiales, un hilo
   por región, solo ranked, sin duplicados ni remakes (~1 llamada por partida nueva), y deja un 15 % libre para tus
   búsquedas. En *Datos y API* eliges servidores (agrupados por región, con *Todas* / *Ninguna*) y elos.

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.analytics import builds, draft
+from app.analytics.evidence import MIN_ROLE_GAMES, Evidence
 from app.analytics.filters import Filters
 from app.api.deps import filters_dep, role_param, sources_dep, svc_from
 from app.riot.routing import ROLES
@@ -30,6 +31,14 @@ def _resolve_team(svc, team: dict) -> dict[str, int]:
     return out
 
 
+@router.get("/roles")
+def role_pools(f: Filters = Depends(filters_dep), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
+    """Campeones que se juegan en cada línea (su línea principal, o ≥ 0,5 % de pick y ≥ 5 % de sus partidas ahí; y
+    ≥ 300 partidas reales): lo que ofrece el desplegable de cada hueco del draft. Sin descargar: con lo que hay en caché."""
+    ev = Evidence(svc, f, sources, fetch=False)
+    return {"roles": {role: ev.champions_in_role(role) for role in ROLES}, "min_games": MIN_ROLE_GAMES}
+
+
 @router.post("/analyze")
 def analyze(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
     ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
@@ -51,7 +60,7 @@ def suggest(
     role: str = Query(...),
     side: str = Query("ally", pattern="^(ally|enemy)$"),
     limit: int = Query(12, ge=1, le=40),
-    min_games: int = Query(200, ge=0),
+    min_games: int = Query(MIN_ROLE_GAMES, ge=0, description="Partidas reales mínimas del campeón en esa línea (300 por defecto)"),
     f: Filters = Depends(filters_dep),
     sources: str = Depends(sources_dep),
     svc=Depends(svc_from),
@@ -73,7 +82,7 @@ class BatchBody(DraftBody):
 def suggest_batch(
     body: BatchBody,
     limit: int = Query(8, ge=1, le=40),
-    min_games: int = Query(200, ge=0),
+    min_games: int = Query(MIN_ROLE_GAMES, ge=0, description="Partidas reales mínimas del campeón en esa línea (300 por defecto)"),
     f: Filters = Depends(filters_dep),
     sources: str = Depends(sources_dep),
     svc=Depends(svc_from),

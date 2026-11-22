@@ -28,8 +28,10 @@ export const closePickers = () => closePop();
  * champPicker({ value, onChange, placeholder, exclude: () => Set<int>, hint: (id) => string, recommend })
  *
  * recommend: () => Promise<{ sections: [{ title, items: [{ champ, meta, cls, title }] }], scores: Map<id, {text, cls}> }> | null
+ * pool: () => Promise<Set<id>> | Set<id> | null — campeones que se juegan en esa línea: la lista solo muestra esos; al
+ *       buscar por nombre, los demás salen aparte («Poco jugados en esta línea») por si un rival elige algo raro.
  */
-export function champPicker({ value = null, onChange, placeholder = "Elegir campeón", exclude = () => new Set(), hint = null, compact = false, recommend = null } = {}) {
+export function champPicker({ value = null, onChange, placeholder = "Elegir campeón", exclude = () => new Set(), hint = null, compact = false, recommend = null, pool = null } = {}) {
   let current = value;
   const btn = h("button.picker-btn", { type: "button" });
   const root = h("div.picker", btn);
@@ -54,6 +56,7 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
     let options = [];
     let recs = null; // {sections, scores}
     let recsLoading = !!recommend;
+    let poolSet = null; // Set de la línea (null: sin datos → todos)
     const taken = exclude();
 
     // Mismo ancho que el botón; debajo si cabe, si no encima. Sigue al botón al hacer scroll.
@@ -106,11 +109,22 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
             options.push(it.champ);
           }
         }
-        nodes.push(h("div.picker-section", "Todos"));
+        nodes.push(h("div.picker-section", poolSet && poolSet.size ? "Campeones de esta línea" : "Todos"));
       }
-      for (const c of all.slice(0, q ? 80 : 200)) {
+      // Con los campeones de la línea: solo esos; buscando, el resto aparte (para anotar un pick raro del rival).
+      const inPool = poolSet && poolSet.size ? all.filter((c) => poolSet.has(c)) : all;
+      const others = poolSet && poolSet.size && q ? all.filter((c) => !poolSet.has(c)) : [];
+      if (poolSet && poolSet.size && !recs && !q) nodes.push(h("div.picker-section", "Campeones de esta línea"));
+      for (const c of inPool.slice(0, q ? 80 : 200)) {
         nodes.push(option(c, options.length, scoreOf(c)));
         options.push(c);
+      }
+      if (others.length) {
+        nodes.push(h("div.picker-section", { title: "Casi nunca se juegan en esta línea: no se recomiendan" }, "Poco jugados en esta línea"));
+        for (const c of others.slice(0, 40)) {
+          nodes.push(option(c, options.length, null, ".picker-offrole"));
+          options.push(c);
+        }
       }
       active = Math.min(active, Math.max(0, options.length - 1));
       list.replaceChildren(...nodes);
@@ -140,6 +154,12 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
     pop.cleanup = () => document.removeEventListener("scroll", onScroll, true);
     input.focus();
 
+    if (pool) {
+      Promise.resolve(pool())
+        .then((set) => { poolSet = set instanceof Set ? set : null; })
+        .catch(() => { poolSet = null; })
+        .finally(() => { if (openPop === pop) { draw(); place(); } });
+    }
     if (recommend) {
       Promise.resolve(recommend())
         .then((data) => { recs = data; })
