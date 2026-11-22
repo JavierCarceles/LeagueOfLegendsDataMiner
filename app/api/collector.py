@@ -13,6 +13,7 @@ from app.ingest.crawler import (
     otp_history_state,
     otp_list_key,
     otp_rows,
+    search_funnel,
     sourced_champs,
     target_sql,
 )
@@ -233,6 +234,7 @@ def otps(
         "offset": offset,
         "players": page,
         "details": otp_details.counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
+        "funnel": search_funnel(svc.db, cfg),
     }
 
 

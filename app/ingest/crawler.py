@@ -35,6 +35,7 @@ import json
 import threading
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from app.data.db import now_s
 from app.data.repository import known_match_ids, mark_skipped, store_match, upsert_seed_players
@@ -68,6 +69,7 @@ OTP_ANCHOR_LAG_S = 2 * 3600  # el ancla va 2 h atrás: la partida en curso o rec
 OTP_IDLE_WAIT_S = 30
 OTP_FAIL_COOLDOWN_S = 3600  # un OTP que falla 3 veces seguidas descansa una hora
 OTP_DEPTHS = ("season", "90", "180", "365", "all")
+FUNNEL_EVERY_S = 300  # cada cuánto se escribe data/otps/_busqueda.json
 LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
 LEADERBOARD_TIERS = {"DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"}  # elos que salen en esa tabla
 OPGG_REGION = {p: label for p, (_region, label, _name) in PLATFORMS.items()} | {"sg2": "SG"}
@@ -249,6 +251,64 @@ class CrawlerConfig:
         champ, points = int(top[0][0]), int(top[0][1])
         second = int(top[1][1]) if len(top) > 1 else 0
         return champ in targets and points >= self.min_mastery and points >= OTP_RATIO * second and active(top[0])
+
+
+def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
+    """Dónde se quedan los jugadores revisados (por plataforma y en total): para ver por qué salen pocos OTPs.
+
+    Fases (las de tu configuración): revisados → con el campeón entre sus 3 primeros (o de principal, buscando OTPs)
+    → con el mínimo de puntos → OTP estricto (1,5 veces el segundo; solo buscando OTPs) → jugado en el último mes.
+    """
+    now = now or now_s()
+    targets = set(cfg.champions or [])
+    platforms, tiers = list(cfg.platforms), list(cfg.tiers)
+    if not targets or not platforms or not tiers:
+        return {"stages": [], "platforms": {}}
+    pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
+    cutoff = now - ACTIVE_DAYS * 86400
+    stages = ["checked", "champ", "points", "ratio", "active"] if cfg.focus == "otp" else ["checked", "champ", "points", "active"]
+    per: dict[str, dict] = {}
+
+    def bucket(platform: str) -> dict:
+        return per.setdefault(platform, {k: 0 for k in (*stages, "seeds", "last_hour")})
+
+    for r in db.query(
+        f"SELECT platform, COUNT(*) AS n FROM players WHERE is_seed = 1 AND platform IN ({pm}) AND tier IN ({tm}) GROUP BY platform",
+        (*platforms, *tiers),
+    ):
+        bucket(r["platform"])["seeds"] = int(r["n"])
+    for r in db.query(
+        f"SELECT p.platform, m.top, m.checked_at FROM mastery_checks m JOIN players p ON p.puuid = m.puuid "
+        f"WHERE p.is_seed = 1 AND p.platform IN ({pm}) AND p.tier IN ({tm})",
+        (*platforms, *tiers),
+    ):
+        b = bucket(r["platform"])
+        b["checked"] += 1
+        b["last_hour"] += int((r["checked_at"] or 0) >= now - 3600)
+        try:
+            top = [e for e in json.loads(r["top"]) if len(e) >= 2]
+        except (TypeError, ValueError):
+            continue
+        if cfg.focus == "otp":
+            entry = top[0] if top and int(top[0][0]) in targets else None
+        else:
+            entry = next((e for e in top if int(e[0]) in targets), None)
+        if entry is None:
+            continue
+        b["champ"] += 1
+        if int(entry[1]) < cfg.min_mastery:
+            continue
+        b["points"] += 1
+        if cfg.focus == "otp":
+            second = int(top[1][1]) if len(top) > 1 else 0
+            if int(entry[1]) < OTP_RATIO * second:
+                continue
+            b["ratio"] += 1
+        last = int(entry[2]) if len(entry) > 2 and entry[2] else None
+        if last is None or last >= cutoff:
+            b["active"] += 1
+    total = {k: sum(b[k] for b in per.values()) for k in (*stages, "seeds", "last_hour")}
+    return {"stages": stages, "total": total, "platforms": dict(sorted(per.items(), key=lambda kv: -kv[1]["checked"])), "at": now}
 
 
 def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: list[str] | None = None, now: int | None = None) -> list:
@@ -434,6 +494,7 @@ class RegionWorker(threading.Thread):
             scout.start()
         try:
             while not self.stop_event.is_set():
+                self.crawler.write_funnel()
                 try:
                     if not self.svc.keys.get() or self.svc.keys.status == "invalid":
                         self._wait_for_key()
@@ -1088,7 +1149,13 @@ class RegionWorker(threading.Thread):
             self._save_page(platform, tier, division, page + 1, None, now)
         self.state["seeds_added"] += added
         if added:
-            log.info("Semillas %s %s: +%d jugadores.", PLATFORMS[platform][1], tier, added)
+            if self.config.champions:
+                log.info(
+                    "Ranking %s %s: +%d jugadores por revisar (candidatos; solo cuentan los que resulten OTPs al mirar su maestría).",
+                    PLATFORMS[platform][1], tier, added,
+                )
+            else:
+                log.info("Ranking %s %s: +%d jugadores para recoger sus partidas.", PLATFORMS[platform][1], tier, added)
         return added
 
     def _save_page(self, platform, tier, division, next_page, exhausted_at, refreshed_at) -> None:
@@ -1234,6 +1301,7 @@ class Crawler:
         self.started_at: float | None = None
         self.total_stored = 0
         self._lock = threading.Lock()
+        self._funnel_at = 0.0
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1247,6 +1315,32 @@ class Crawler:
 
     def searching(self) -> bool:
         return any(w.searching() for w in self.workers.values())
+
+    def write_funnel(self, force: bool = False) -> None:
+        """Cada 5 min (lo llama cualquier región): el embudo de la búsqueda en ``data/otps/_busqueda.json``."""
+        cfg = self.config
+        if cfg is None or not cfg.champions:
+            return
+        with self._lock:
+            if not force and time.time() - self._funnel_at < FUNNEL_EVERY_S:
+                return
+            self._funnel_at = time.time()
+        try:
+            funnel = search_funnel(self.svc.db, cfg)
+            dd = getattr(self.svc, "dd", None)
+            funnel["config"] = {
+                "champions": [dd.name(c) if dd is not None and hasattr(dd, "name") else c for c in cfg.champions],
+                "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
+                "focus": cfg.focus, "min_mastery": cfg.min_mastery, "platforms": cfg.platforms, "tiers": cfg.tiers,
+            }
+            funnel["workers"] = {r: {k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error")} for r, w in self.workers.items()}
+            base = Path(self.svc.settings.data_dir) / "otps"
+            base.mkdir(parents=True, exist_ok=True)
+            tmp = base / "_busqueda.json.tmp"
+            tmp.write_text(json.dumps(funnel, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(base / "_busqueda.json")
+        except Exception:  # es un informe: nunca debe parar la búsqueda
+            log.exception("No se pudo escribir el estado de la búsqueda de OTPs")
 
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):
@@ -1303,6 +1397,7 @@ class Crawler:
     def stop(self) -> dict:
         """Parada pedida por el usuario: tampoco arrancará solo la próxima vez."""
         self.svc.db.meta_set("crawler_autostart", "0")
+        self.write_funnel(force=True)
         self.stop_event.set()
         for worker in list(self.workers.values()):
             worker.wake()

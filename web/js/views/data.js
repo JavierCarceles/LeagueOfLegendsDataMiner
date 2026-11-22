@@ -636,7 +636,7 @@ async function loadOtps(c) {
   } catch (err) {
     return mount(box, errorBox(err));
   }
-  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details]);
+  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details, data.funnel?.total]);
   if (sig === otpsSig) return;
   otpsSig = sig;
   mount(
@@ -645,8 +645,50 @@ async function loadOtps(c) {
       "div.col",
       { style: { gap: "10px" } },
       h("div.tiny.muted", `${fmt.int(data.found)} OTPs encontrados · ${fmt.int(data.games || 0)} partidas suyas con tus campeones · ${fmt.int(data.complete)} con el historial completo · historial: ${depthLabel(data.otp_depth).toLowerCase()}`),
+      otpFunnel(data),
       h("div.otp-champ-grid", (data.by_champion || []).map((ch) => otpChampCard(ch, data))),
       otpFilesBar(data),
+    ),
+  );
+}
+
+/** Embudo de la búsqueda: de los jugadores revisados, cuántos pasan cada filtro (para ver por qué salen pocos OTPs). */
+function otpFunnel(data) {
+  const f = data.funnel;
+  if (!f?.total || !f.total.checked) return null;
+  const champs = (data.champions || []).map((c) => dd.name(c)).join(" / ");
+  const label = {
+    checked: "revisados",
+    champ: data.focus === "mastery" ? `con ${champs} en su top 3` : `con ${champs} de principal`,
+    points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
+    ratio: "OTP estricto (1,5× su 2.º campeón)",
+    active: "jugado en el último mes = OTPs",
+  };
+  const t = f.total;
+  const steps = f.stages.map((k, i) => {
+    const prev = i ? t[f.stages[i - 1]] : null;
+    const pct = prev ? ` (${fmt.pct((100 * t[k]) / prev, prev && t[k] / prev < 0.1 ? 1 : 0)})` : "";
+    return h("div.funnel-step", h("b", fmt.int(t[k])), h("span.tiny.muted", ` ${label[k]}${pct}`));
+  });
+  const rows = Object.entries(f.platforms || {}).map(([p, b]) =>
+    h("tr", h("td", platformLabel(p)), h("td.num", fmt.int(b.seeds)), h("td.num", fmt.int(b.checked)), h("td.num", fmt.int(b.last_hour)), h("td.num", fmt.int(b.champ)), h("td.num", h("b", fmt.int(b.active)))),
+  );
+  return h(
+    "div.otp-export",
+    h(
+      "div.col",
+      { style: { gap: "6px", minWidth: 0, flex: "1 1 auto" } },
+      h("div.small", h("b", "Búsqueda: "), `${fmt.int(t.last_hour)} jugadores revisados en la última hora`),
+      h("div.funnel", steps),
+      collapsible(
+        "datos.otps.embudo",
+        [icon("chart"), "Por servidor"],
+        h(
+          "div.table-wrap",
+          h("table.table.tiny", h("thead", h("tr", h("th", "Servidor"), h("th.num", "En ranking"), h("th.num", "Revisados"), h("th.num", "Última hora"), h("th.num", "Con el campeón"), h("th.num", "OTPs"))), h("tbody", rows)),
+        ),
+        { cls: "flat" },
+      ),
     ),
   );
 }

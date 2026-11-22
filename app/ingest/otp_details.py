@@ -753,7 +753,8 @@ class Files:
 
     def _ensure_layout_locked(self) -> None:
         marker = self.base / ".formato"
-        if not self.base.is_dir():
+        # Por la marca, no por la carpeta: el informe de la búsqueda (_busqueda.json) puede haberla creado antes.
+        if not marker.exists():
             self.base.mkdir(parents=True, exist_ok=True)
             (self.base / "LEEME.md").write_text(README, encoding="utf-8")
             marker.write_text(str(LAYOUT_VERSION), encoding="utf-8")

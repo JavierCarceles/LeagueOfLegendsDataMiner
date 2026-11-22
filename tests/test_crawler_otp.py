@@ -961,3 +961,40 @@ def test_leaderboard_only_adds_players_of_your_elos(keyed_svc):
     low = CrawlerConfig(platforms=["euw1"], tiers=["PLATINUM", "EMERALD"], champions=[AATROX]).validated()
     assert crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], low)._seed_from_leaderboards("euw1") == 0
     assert len(opgg.calls) == 1  # en Platino–Esmeralda la tabla (Maestro+) ni se pide
+
+
+# ------------------------------------------------------------------ embudo de la búsqueda
+from app.ingest.crawler import search_funnel
+
+
+def test_search_funnel_shows_where_players_are_dropped(keyed_svc):
+    now = _now_s()
+    old = now - 90 * 86400
+    rows = [
+        ("f-1", [[AATROX, 900_000, now], [GAREN, 100_000, now]]),  # OTP
+        ("f-2", [[GAREN, 900_000, now], [AATROX, 400_000, now]]),  # top 3, no principal
+        ("f-3", [[AATROX, 50_000, now]]),  # pocos puntos
+        ("f-4", [[AATROX, 900_000, old]]),  # no lo juega desde hace meses
+        ("f-5", [[24, 900_000, now]]),  # nada que ver
+    ]
+    with keyed_svc.db.write() as conn:
+        for puuid, top in rows:
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'EMERALD', 1, 50)", (puuid,))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('f-6', 'euw1', 'EMERALD', 1, 50)")  # sin revisar
+    mastery = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="mastery", min_mastery=100_000).validated()
+    f = search_funnel(keyed_svc.db, mastery, now)
+    assert f["stages"] == ["checked", "champ", "points", "active"]
+    assert f["total"] == {"checked": 5, "champ": 4, "points": 3, "active": 2, "seeds": 6, "last_hour": 5}
+    otp = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="otp", min_mastery=100_000).validated()
+    t = search_funnel(keyed_svc.db, otp, now)["total"]
+    assert (t["champ"], t["points"], t["ratio"], t["active"]) == (3, 2, 2, 1)
+    # Coincide con los OTPs que cuenta el recolector.
+    assert t["active"] == len(otp_rows(keyed_svc.db, otp, ["euw1"], ["EMERALD"], now))
+
+
+def test_funnel_is_written_for_review(keyed_svc):
+    keyed_svc.crawler.config = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX]).validated()
+    keyed_svc.crawler.write_funnel(force=True)
+    data = json.loads((keyed_svc.settings.data_dir / "otps" / "_busqueda.json").read_text(encoding="utf-8"))
+    assert data["config"]["focus"] == "otp" and "total" in data and data["config"]["champions"]

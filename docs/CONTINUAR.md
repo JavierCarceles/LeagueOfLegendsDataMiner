@@ -496,6 +496,18 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - Para revisar las partidas del usuario: `data/mis_partidas/resumen.json` y luego los `.json.gz` (se pueden
   reanalizar con `analyze_game(match, timeline, puuid=…)`).
 
+## 3 quindecies. Sesión del 2026-11-22 (10.ª) — embudo de la búsqueda de OTPs (sin commitear)
+
+- Queja: con Hecarim, Platino–Esmeralda, todos los servidores, «Mucha maestría» y mínimo 100 K solo salen 34 OTPs
+  «en todo este rato». No se vio ningún fallo en el código; faltan los números reales (están en su Windows).
+- `search_funnel(db, cfg)` (crawler.py): por plataforma y en total, revisados → con el campeón (top 3 o principal)
+  → con el mínimo → OTP estricto (solo en modo OTP) → jugado en el último mes (= OTPs, coincide con `otp_rows`),
+  más jugadores del ranking y revisados en la última hora. En `/api/crawler/otps` (`funnel`), en el panel («Búsqueda:»
+  y tabla por servidor) y en `data/otps/_busqueda.json` (cada 5 min y al parar; `Crawler.write_funnel`) con la
+  configuración y el estado de cada región. **Siguiente paso**: cuando el usuario suba `_busqueda.json`, ver en qué
+  fase se pierden (¿pocos revisados/hora → velocidad? ¿muchos con el campeón pero pocos activos → filtro del mes?).
+- Mensaje de la terminal «Semillas … +205» → «Ranking … +205 jugadores por revisar (candidatos…)».
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la
