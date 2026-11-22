@@ -1,4 +1,4 @@
-"""Biblioteca de OTPs analizados (los que tienen partidas con micro y macro en ``otp_games``).
+"""Biblioteca de OTPs analizados (sus partidas con micro y macro en ``otp_games``, solo las marcadas como de OTP).
 
 * ``/api/otps/library``: totales, ranking de campeones (más OTPs primero; a igualdad, más elo y más partidas) y reparto
   por elo, servidor y rol.
@@ -33,7 +33,7 @@ def _entries(db) -> list[dict]:
     groups: dict[tuple, dict] = {}
     for r in db.query(
         "SELECT o.puuid, o.champ, o.role, o.tier, o.division, o.lp, o.platform, o.win, o.game_start, "
-        "p.game_name, p.tag_line FROM otp_games o LEFT JOIN players p ON p.puuid = o.puuid"
+        "p.game_name, p.tag_line FROM otp_games o LEFT JOIN players p ON p.puuid = o.puuid WHERE o.kind = 'otp'"
     ):
         key = (r["puuid"], int(r["champ"]), r["role"] or "SIN_ROL")
         g = groups.get(key)
@@ -158,7 +158,7 @@ def player(puuid: str, champ: int = Query(...), role: str | None = None, svc=Dep
         role_sql = " AND role = ?"
         params.append(role.upper())
     rows = db.query(
-        f"SELECT match_id, dossier, tier FROM otp_games WHERE puuid = ? AND champ = ?{role_sql} ORDER BY game_start DESC", params
+        f"SELECT match_id, dossier, tier FROM otp_games WHERE puuid = ? AND champ = ? AND kind = 'otp'{role_sql} ORDER BY game_start DESC", params
     )
     if not rows:
         raise HTTPException(404, "No hay partidas analizadas de ese OTP con ese campeón")

@@ -205,7 +205,10 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
     de cada campeón de OP.GG.
   - *Servidores*, *Elos*, *Periodo* y *Partidas* (cuántas de cada jugador, colas y cada cuánto se buscan las nuevas).
   Debajo, una frase dice qué se va a recoger. Buscando por campeones, cada partida se analiza siempre minuto a minuto
-  (como las tuyas; 1 llamada más por partida) y se guarda en `data/otps`.
+  (como las tuyas; 1 llamada más por partida). Las de **OTPs** (su campeón principal con ≥ 100 K puntos y 1,5 veces
+  los del segundo, o en la tabla de los mejores de OP.GG) van a `data/otps`; las de **cualquier otro jugador**, a
+  `data/partidas_campeon`. Las comparaciones con OTPs («Tú frente a los OTPs», la página de OTPs, las referencias de
+  farm por campeón y las builds del draft) solo usan las de OTPs.
 - **Un solo periodo** (30/90/180 días, *temporada actual* —desde el 1 de enero del año del parche, parando en la
   primera partida de un parche anterior—, último año o todo lo que guarde Riot): buscando por campeones, cuenta quien
   jugó el campeón en él y se bajan sus partidas de ese periodo; en todo el ranking, la primera vez se bajan las más

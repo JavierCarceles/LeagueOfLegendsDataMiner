@@ -44,8 +44,14 @@ log = get_logger("otp-details")
 DOSSIER_VERSION = 2  # 2: contexto de draft (las 5 líneas, presencia de los junglas y objetivos)
 LANE_MINUTES = (5, 10, 15, 20)
 EARLY_S = 15 * 60
-FILES_DIR = "otps"
-LAYOUT_VERSION = 3  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival; 3: resúmenes sin partidas con AFK)
+FILES_DIR = "otps"  # solo OTPs: lo que usan «Tú frente a los OTPs», sus resúmenes, la página de OTPs y el draft
+PLAYERS_DIR = "partidas_campeon"  # cualquier otro jugador («Cualquiera que lo juegue»): no son datos de OTPs
+KIND_DIRS = {"otp": FILES_DIR, "player": PLAYERS_DIR}
+# Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, con al menos estos puntos y
+# 1,5 veces los del segundo; o estar en la tabla de los mejores de ese campeón (OP.GG).
+OTP_RATIO = 1.5
+OTP_MIN_POINTS = 100_000
+LAYOUT_VERSION = 4  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival; 3: resúmenes sin partidas con AFK; 4: los que no son OTP, a otra carpeta)
 # Campeones que se curan mucho (los que justifican Heridas graves): para separar los objetos de los OTPs contra ellos.
 HEAVY_HEAL = {
     "Aatrox", "Soraka", "Yuumi", "Vladimir", "Sylas", "Warwick", "Dr. Mundo", "Swain", "Briar", "Illaoi", "Nami",
@@ -338,32 +344,65 @@ def player_info(db, puuid: str) -> dict:
     return dict(row) if row else {"puuid": puuid}
 
 
-def save(db, svc, match: dict, timeline: dict | None, puuid: str, elo: dict | None = None, *, write_files: bool = True) -> bool:
-    """Analiza y guarda la partida (con su bruto) y la escribe en la carpeta del OTP. ``False`` si no está en ella."""
+def classify(db, puuid: str, champ: int) -> str:
+    """``otp`` si ese jugador es OTP de ese campeón (por su maestría guardada o la tabla de los mejores de OP.GG);
+    si no, ``player``. Sin maestría guardada, ``player``: ante la duda, no ensucia los datos de OTPs."""
+    if db.scalar("SELECT 1 FROM otp_sources WHERE puuid = ? AND champ = ? LIMIT 1", (puuid, champ)):
+        return "otp"
+    raw = db.scalar("SELECT top FROM mastery_checks WHERE puuid = ?", (puuid,))
+    try:
+        top = [e for e in json.loads(raw or "[]") if len(e) >= 2]
+    except (TypeError, ValueError):
+        top = []
+    if not top or int(top[0][0]) != int(champ):
+        return "player"
+    points, second = int(top[0][1]), int(top[1][1]) if len(top) > 1 else 0
+    return "otp" if points >= OTP_MIN_POINTS and points >= OTP_RATIO * second else "player"
+
+
+def classify_pending(db) -> int:
+    """Marca como OTP o jugador las partidas guardadas sin marca (de antes de separarlas). Sin llamadas a Riot."""
+    pairs = db.query("SELECT DISTINCT puuid, champ FROM otp_games WHERE kind IS NULL")
+    if not pairs:
+        return 0
+    kinds = [(classify(db, r["puuid"], int(r["champ"])), r["puuid"], int(r["champ"])) for r in pairs]
+    with db.write() as conn:
+        conn.executemany("UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ? AND kind IS NULL", kinds)
+    moved = sum(1 for k, _p, _c in kinds if k == "player")
+    log.info("Partidas analizadas clasificadas: %d jugadores (%d OTPs, %d jugadores normales).", len(kinds), len(kinds) - moved, moved)
+    return len(kinds)
+
+
+def save(
+    db, svc, match: dict, timeline: dict | None, puuid: str, elo: dict | None = None, *, write_files: bool = True, kind: str | None = None
+) -> bool:
+    """Analiza y guarda la partida (con su bruto) y la escribe en su carpeta: ``otps`` si el jugador es OTP de ese
+    campeón (``kind="otp"``, o lo dice ``classify``), ``partidas_campeon`` si no. ``False`` si no está en ella."""
     try:
         dossier = build_dossier(match, timeline, puuid, catalog_for(svc, match), elo=elo)
     except NotInMatch:
         return False
+    kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
     is_new = not db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
     with db.write() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO otp_games (match_id, puuid, champ, role, win, game_start, patch, platform, tier, "
-            "division, lp, has_timeline, version, match_raw, timeline_raw, dossier, fetched_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "division, lp, has_timeline, version, match_raw, timeline_raw, dossier, fetched_at, kind) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 dossier["match_id"], puuid, dossier["champ"], dossier["role"], int(bool(dossier["win"])),
                 dossier["game_start"], dossier["patch"], dossier["platform"], dossier["tier"], dossier["division"],
                 dossier["lp"], int(timeline is not None), DOSSIER_VERSION * 1000 + ANALYSIS_VERSION, pack(match),
-                pack(timeline), pack(dossier), now_s(),
+                pack(timeline), pack(dossier), now_s(), kind,
             ),
         )
     if is_new and write_files:
-        files = Files.of(svc)
+        files = Files.of(svc, kind)
         if files is not None:
             try:
                 files.append(dossier, player_info(db, puuid))
             except OSError:
-                log.exception("No se pudo escribir la partida %s en la carpeta de OTPs", dossier["match_id"])
+                log.exception("No se pudo escribir la partida %s en su carpeta", dossier["match_id"])
     return True
 
 
@@ -373,11 +412,15 @@ def counts(db) -> dict:
         r["tier"] or "?": int(r["n"])
         for r in db.query("SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier")
     }
+    otp = db.one("SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'")
     return {
         "games": int(row["games"] or 0),
         "players": int(row["players"] or 0),
         "timelines": int(row["timelines"] or 0),
         "tiers": {t: tiers[t] for t in sorted(tiers, key=lambda t: TIER_ORDER.index(t) if t in TIER_ORDER else 99)},
+        # De ellas, de OTPs (data/otps); el resto, de otros jugadores (data/partidas_campeon).
+        "otp_games": int(otp["games"] or 0),
+        "otp_players": int(otp["players"] or 0),
     }
 
 
@@ -394,7 +437,7 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
     """
     current = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
     rows = db.query(
-        "SELECT match_id, puuid, tier, division, lp FROM otp_games WHERE version != ? ORDER BY match_id " + ("LIMIT ?" if limit else ""),
+        "SELECT match_id, puuid, tier, division, lp, kind FROM otp_games WHERE version != ? ORDER BY match_id " + ("LIMIT ?" if limit else ""),
         (current, limit) if limit else (current,),
     )
     done = 0
@@ -414,17 +457,23 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
         match, timeline = unpack(raw["match_raw"]), unpack(raw["timeline_raw"])
         elo = {"tier": r["tier"], "division": r["division"], "lp": r["lp"]}
         try:
-            if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False):
+            if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False, kind=r["kind"]):
                 done += 1
         except Exception:
             log.exception("No se pudo re-analizar la partida %s del OTP", r["match_id"])
         if stop is not None:
             stop.wait(0.01)  # suelta el GIL: la web sigue respondiendo mientras tanto
     if done:
-        files = Files.of(svc)
+        rebuild_all(svc)
+    return done
+
+
+def rebuild_all(svc) -> None:
+    """Regenera las dos carpetas (OTPs y otros jugadores) desde la base de datos."""
+    for kind in KIND_DIRS:
+        files = Files.of(svc, kind)
         if files is not None:
             files.rebuild()
-    return done
 
 
 def start_reanalysis(svc) -> threading.Thread | None:
@@ -433,7 +482,8 @@ def start_reanalysis(svc) -> threading.Thread | None:
     resúmenes y las builds del draft comparan con las mismas reglas que tus partidas."""
     db = svc.db
     pending = outdated(db)
-    if not pending:
+    unclassified = int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind IS NULL") or 0)
+    if not pending and not unclassified:
         return None
     stop = getattr(svc, "shutdown_event", None)
 
@@ -442,13 +492,16 @@ def start_reanalysis(svc) -> threading.Thread | None:
         return bool(tracker is not None and tracker.state.get("in_game"))
 
     def run() -> None:
-        log.info("Re-analizando %d partidas de OTPs con la versión %d del análisis…", pending, ANALYSIS_VERSION)
         try:
-            done = reanalyze(db, svc, stop=stop, pause=in_game)
+            # Primero, separar OTPs de otros jugadores en lo guardado antes de la marca (solo SQL).
+            if unclassified and classify_pending(db) and not pending:
+                rebuild_all(svc)
+            if pending:
+                log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
+                done = reanalyze(db, svc, stop=stop, pause=in_game)
+                log.info("Partidas re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
         except Exception:
-            log.exception("Fallo re-analizando las partidas de OTPs")
-            return
-        log.info("Partidas de OTPs re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
+            log.exception("Fallo re-analizando o clasificando las partidas guardadas")
 
     thread = threading.Thread(target=run, name="otp-reanalyze", daemon=True)
     thread.start()
@@ -760,14 +813,16 @@ están en la base de datos (`otp_games`): si esta carpeta se borra o cambia de f
 
 
 class Files:
-    """La carpeta ``otps``: escribe cada partida al guardarla y mantiene los resúmenes al día (en segundo plano)."""
+    """Una carpeta de partidas analizadas (``otps`` para OTPs, ``partidas_campeon`` para cualquier otro jugador):
+    escribe cada partida al guardarla y mantiene los resúmenes al día (en segundo plano)."""
 
     _instances: ClassVar[dict[str, Files]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
-    def __init__(self, svc, base: Path) -> None:
+    def __init__(self, svc, base: Path, kind: str = "otp") -> None:
         self.svc = svc
         self.base = base
+        self.kind = kind
         self.lock = threading.RLock()  # escrituras de varios hilos (una región cada uno) y regeneración
         self.dirty: set[int] = set()
         self.last_summary: dict[int, float] = {}
@@ -776,16 +831,27 @@ class Files:
         self.state: dict = {"status": "idle"}
 
     @classmethod
-    def of(cls, svc) -> Files | None:
+    def of(cls, svc, kind: str = "otp") -> Files | None:
         settings = getattr(svc, "settings", None)
-        if settings is None or getattr(settings, "data_dir", None) is None:
+        if settings is None or getattr(settings, "data_dir", None) is None or kind not in KIND_DIRS:
             return None
-        base = Path(settings.data_dir) / FILES_DIR
+        base = Path(settings.data_dir) / KIND_DIRS[kind]
         with cls._lock:
             inst = cls._instances.get(str(base))
             if inst is None or inst.svc is not svc:
-                inst = cls._instances[str(base)] = cls(svc, base)
+                inst = cls._instances[str(base)] = cls(svc, base, kind)
             return inst
+
+    def _readme(self) -> str:
+        if self.kind == "otp":
+            return README
+        return README.replace(
+            "# Partidas de OTPs", "# Partidas de otros jugadores (no OTPs)", 1
+        ) + (
+            "\n**Aquí no hay OTPs**: son jugadores que tienen el campeón entre sus 3 más jugados (búsqueda «Cualquiera que "
+            "lo juegue»). Sirven para builds y matchups de ese campeón; las comparaciones con OTPs usan solo la carpeta "
+            "`otps`.\n"
+        )
 
     # ---------------------------------------------------------- nombres
     def _names(self):
@@ -825,8 +891,8 @@ class Files:
         db = self.svc.db
         rows = db.query(
             "SELECT tier, COUNT(*) AS games, SUM(win) AS wins, MIN(game_start) AS first, MAX(game_start) AS last "
-            "FROM otp_games WHERE puuid = ? AND champ = ? AND role IS ? GROUP BY tier",
-            (info.get("puuid"), champ, role),
+            "FROM otp_games WHERE puuid = ? AND champ = ? AND role IS ? AND kind = ? GROUP BY tier",
+            (info.get("puuid"), champ, role, self.kind),
         )
         by_tier = {
             r["tier"] or "?": {"games": int(r["games"]), "wins": int(r["wins"] or 0), "wr": round(100 * int(r["wins"] or 0) / int(r["games"]), 1)}
@@ -874,12 +940,12 @@ class Files:
         # Por la marca, no por la carpeta: el informe de la búsqueda (_busqueda.json) puede haberla creado antes.
         if not marker.exists():
             self.base.mkdir(parents=True, exist_ok=True)
-            (self.base / "LEEME.md").write_text(README, encoding="utf-8")
+            (self.base / "LEEME.md").write_text(self._readme(), encoding="utf-8")
             marker.write_text(str(LAYOUT_VERSION), encoding="utf-8")
 
     def needs_rebuild(self) -> bool:
         """La carpeta falta, es de otro formato o tiene menos partidas que la base de datos."""
-        if not self.svc.db.scalar("SELECT 1 FROM otp_games LIMIT 1"):
+        if not self.svc.db.scalar("SELECT 1 FROM otp_games WHERE kind = ? LIMIT 1", (self.kind,)):
             return False
         marker = self.base / ".formato"
         try:
@@ -913,13 +979,13 @@ class Files:
             try:
                 self.write_summary(champ)
             except Exception:
-                log.exception("No se pudo rehacer el resumen de OTPs del campeón %s", champ)
+                log.exception("No se pudo rehacer el resumen del campeón %s (%s)", champ, self.base.name)
 
     def write_summary(self, champ: int, root: Path | None = None) -> dict:
         self.dirty.discard(champ)
         self.last_summary[champ] = time.time()
         dossiers = []
-        for r in self.svc.db.query("SELECT puuid, dossier FROM otp_games WHERE champ = ?", (champ,)):
+        for r in self.svc.db.query("SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ?", (champ, self.kind)):
             d = unpack(r["dossier"])
             if d:
                 d["puuid"] = r["puuid"]
@@ -957,6 +1023,8 @@ class Files:
     def rebuild(self) -> dict:
         """Reescribe la carpeta entera desde ``otp_games`` (las escrituras nuevas esperan a que termine)."""
         db = self.svc.db
+        if not db.scalar("SELECT 1 FROM otp_games WHERE kind = ? LIMIT 1", (self.kind,)) and not self.base.exists():
+            return {"path": str(self.base), "games": 0, "folders": 0, "champions": 0}  # nada que escribir
         with self.lock:
             tmp = self.base.with_name(self.base.name + ".tmp")
             shutil.rmtree(tmp, ignore_errors=True)
@@ -965,10 +1033,11 @@ class Files:
                 r["puuid"]: dict(r)
                 for r in db.query(
                     "SELECT puuid, platform, tier, division, lp, game_name, tag_line FROM players "
-                    "WHERE puuid IN (SELECT DISTINCT puuid FROM otp_games)"
+                    "WHERE puuid IN (SELECT DISTINCT puuid FROM otp_games WHERE kind = ?)",
+                    (self.kind,),
                 )
             }
-            groups = db.query("SELECT champ, role, puuid, COUNT(*) AS n FROM otp_games GROUP BY champ, role, puuid")
+            groups = db.query("SELECT champ, role, puuid, COUNT(*) AS n FROM otp_games WHERE kind = ? GROUP BY champ, role, puuid", (self.kind,))
             total = sum(int(g["n"]) for g in groups)
             done = 0
             for g in groups:
@@ -977,8 +1046,8 @@ class Files:
                 folder.mkdir(parents=True, exist_ok=True)
                 with gzip.open(folder / "partidas.jsonl.gz", "wt", encoding="utf-8") as fh:
                     for r in db.query(
-                        "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? ORDER BY game_start",
-                        (g["champ"], g["role"], g["puuid"]),
+                        "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
+                        (g["champ"], g["role"], g["puuid"], self.kind),
                     ):
                         d = unpack(r["dossier"])
                         if d:
@@ -990,7 +1059,7 @@ class Files:
             champs = sorted({int(g["champ"]) for g in groups})
             for champ in champs:
                 self.write_summary(champ, tmp)
-            (tmp / "LEEME.md").write_text(README, encoding="utf-8")
+            (tmp / "LEEME.md").write_text(self._readme(), encoding="utf-8")
             (tmp / ".formato").write_text(str(LAYOUT_VERSION), encoding="utf-8")
             old = self.base.with_name(self.base.name + ".old")
             shutil.rmtree(old, ignore_errors=True)
@@ -999,7 +1068,7 @@ class Files:
             tmp.rename(self.base)
             shutil.rmtree(old, ignore_errors=True)
             self.dirty.clear()
-        log.info("Carpeta de OTPs regenerada (%s): %d partidas de %d campeones.", self.base, total, len(champs))
+        log.info("Carpeta regenerada (%s): %d partidas de %d campeones.", self.base, total, len(champs))
         return {"path": str(self.base), "games": total, "folders": len(groups), "champions": len(champs)}
 
 
@@ -1020,14 +1089,18 @@ def champ_info_from(dd):
 
 
 def ensure_files(svc) -> None:
-    """Al arrancar el recolector: si la carpeta falta o es de otro formato y hay partidas, se regenera sola."""
-    files = Files.of(svc)
-    if files is not None and files.needs_rebuild():
-        files.rebuild_in_background()
+    """Al arrancar el recolector: si una carpeta falta o es de otro formato y hay partidas, se regenera sola."""
+    if svc.db.scalar("SELECT 1 FROM otp_games WHERE kind IS NULL LIMIT 1"):
+        classify_pending(svc.db)  # antes de escribir nada: cada partida a su carpeta
+    for kind in KIND_DIRS:
+        files = Files.of(svc, kind)
+        if files is not None and files.needs_rebuild():
+            files.rebuild_in_background()
 
 
 def flush(svc) -> None:
     """Al parar el recolector: los resúmenes pendientes se rehacen ya."""
-    files = Files.of(svc)
-    if files is not None:
-        files.maybe_summarize(force=True)
+    for kind in KIND_DIRS:
+        files = Files.of(svc, kind)
+        if files is not None:
+            files.maybe_summarize(force=True)

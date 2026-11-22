@@ -20,7 +20,7 @@ def _add(svc, puuid, *, pid, n, tier, platform="euw1", lp=100, name=None, win_ev
         )
     for i in range(n):
         match = make_match(f"{platform.upper()}_{abs(hash(puuid)) % 10**6}{i:03d}", puuids={pid: puuid}, blue_win=i % win_every == 0, game_start=start + i * 3_600_000)
-        assert otp_details.save(svc.db, plain, match, None, puuid, {"tier": tier, "division": "I", "lp": lp}, write_files=False)
+        assert otp_details.save(svc.db, plain, match, None, puuid, {"tier": tier, "division": "I", "lp": lp}, write_files=False, kind="otp")
 
 
 def test_library_ranks_champions_by_otps_then_elo(keyed_svc):

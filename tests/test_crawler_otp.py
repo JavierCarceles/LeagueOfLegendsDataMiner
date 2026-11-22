@@ -663,6 +663,56 @@ def test_otp_summaries_leave_out_games_with_an_afk(keyed_svc):
     assert summary["games"] == 2 and summary["excluded_afk"] == 1
 
 
+def test_who_counts_as_an_otp_when_classifying_a_game(keyed_svc):
+    now = _now_s()
+    db = keyed_svc.db
+    tops = {
+        "main": [[AATROX, 300_000, now], [GAREN, 100_000, now]],  # principal, ≥ 100 K y ≥ 1,5× el segundo
+        "close": [[AATROX, 300_000, now], [GAREN, 250_000, now]],  # no llega a 1,5×
+        "low": [[AATROX, 60_000, now], [GAREN, 10_000, now]],  # pocos puntos
+        "second": [[GAREN, 900_000, now], [AATROX, 400_000, now]],  # lo juega, pero no es su principal
+    }
+    with db.write() as conn:
+        for puuid, top in tops.items():
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
+        conn.execute("INSERT INTO otp_sources (puuid, champ, platform, source, fetched_at) VALUES ('board', ?, 'euw1', 'opgg', ?)", (AATROX, now))
+    kinds = {p: otp_details.classify(db, p, AATROX) for p in [*tops, "board", "unknown"]}
+    assert kinds == {"main": "otp", "close": "player", "low": "player", "second": "player", "board": "otp", "unknown": "player"}
+
+
+def test_champion_games_of_non_otps_go_to_their_own_folder(keyed_svc):
+    """«Cualquiera que lo juegue»: un jugador con Aatrox de segundo no es OTP; sus partidas analizadas van a
+    data/partidas_campeon y no a data/otps (ni a la página de OTPs, ni a los resúmenes de OTPs)."""
+    ids, payloads = history("otp-a", 4, prefix="1", champ_for=lambda i: AATROX if i % 2 else GAREN)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(GAREN, 900_000), (AATROX, 400_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], focus="games", save_details=True)
+    assert {r["kind"] for r in details(keyed_svc).values()} == {"player"}
+    otp_details.rebuild_all(keyed_svc)
+    players_dir = keyed_svc.settings.data_dir / "partidas_campeon" / keyed_svc.dd.name(AATROX)
+    assert len(read_games(next((players_dir / "TOP").iterdir()) / "partidas.jsonl.gz")) == 2
+    assert not (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX)).exists()
+    assert otp_details.counts(keyed_svc.db)["otp_games"] == 0
+    with _client(keyed_svc) as client:
+        assert client.get("/api/otps/library").json()["totals"]["games"] == 0
+
+
+def test_saved_games_without_a_mark_are_classified_on_startup(keyed_svc):
+    """Lo guardado antes de separar (sin marca) se reparte solo al arrancar, sin descargar nada."""
+    ids, payloads = history("otp-a", 3, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    now = _now_s()
+    with keyed_svc.db.write() as conn:
+        conn.execute("UPDATE otp_games SET kind = NULL")
+        conn.execute("UPDATE mastery_checks SET top = ? WHERE puuid = 'otp-a'", (json.dumps([[GAREN, 900_000, now], [AATROX, 400_000, now]]),))
+    calls = len(fake.calls)
+    thread = otp_details.start_reanalysis(keyed_svc)
+    thread.join(20)
+    assert {r["kind"] for r in details(keyed_svc).values()} == {"player"} and len(fake.calls) == calls
+    assert (keyed_svc.settings.data_dir / "partidas_campeon" / keyed_svc.dd.name(AATROX)).is_dir()
+    assert not (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX)).exists()
+
+
 def test_otp_games_get_their_micro_and_macro(keyed_svc):
     ids, payloads = history("otp-a", 6, prefix="1", champ_for=lambda i: AATROX if i % 3 else GAREN)
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
@@ -741,9 +791,9 @@ def test_a_game_is_written_once_and_a_new_one_appends(keyed_svc):
     svc = SimpleNamespace(db=keyed_svc.db, dd=keyed_svc.dd, settings=keyed_svc.settings)
     elo = {"tier": "MASTER", "division": "I", "lp": 50}
     m1, m2 = make_match("EUW1_501", puuids={1: "p-x"}), make_match("EUW1_502", puuids={1: "p-x"})
-    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo)
-    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo)  # repetida: se actualiza en la BD, no se duplica
-    assert otp_details.save(keyed_svc.db, svc, m2, None, "p-x", {"tier": "GRANDMASTER", "division": "I", "lp": 400})
+    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo, kind="otp")
+    assert otp_details.save(keyed_svc.db, svc, m1, None, "p-x", elo, kind="otp")  # repetida: se actualiza en la BD, no se duplica
+    assert otp_details.save(keyed_svc.db, svc, m2, None, "p-x", {"tier": "GRANDMASTER", "division": "I", "lp": 400}, kind="otp")
     (folder,) = (otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX) / "TOP").iterdir()
     games = read_games(folder / "partidas.jsonl.gz")
     assert [g["match_id"] for g in games] == ["EUW1_501", "EUW1_502"] and [g["tier"] for g in games] == ["MASTER", "GRANDMASTER"]
@@ -756,7 +806,7 @@ def test_players_with_the_same_name_get_their_own_folder(keyed_svc):
 
     svc = SimpleNamespace(db=keyed_svc.db, dd=keyed_svc.dd, settings=keyed_svc.settings)
     for i, puuid in enumerate(("same-aaaa1", "same-bbbb2")):
-        assert otp_details.save(keyed_svc.db, svc, make_match(f"EUW1_60{i}", puuids={1: puuid}), None, puuid)
+        assert otp_details.save(keyed_svc.db, svc, make_match(f"EUW1_60{i}", puuids={1: puuid}), None, puuid, kind="otp")
     assert len(list((otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX) / "TOP").iterdir())) == 2
 
 

@@ -1011,7 +1011,7 @@ function otpFilesBar(data) {
       h(
         "div.small",
         h("b", "Analizadas minuto a minuto: "),
-        d.games ? `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} jugadores` : "aún ninguna partida",
+        d.games ? `${fmt.int(d.games)} partidas de ${fmt.int(d.players)} jugadores (${fmt.int(d.otp_games || 0)} de OTPs)` : "aún ninguna partida",
         d.games && d.timelines < d.games ? h("span.muted", ` (${fmt.int(d.games - d.timelines)} sin timeline)`) : null,
       ),
       tiers.length ? h("div.row-wrap.tiny", { style: { gap: "4px", marginTop: "4px" } }, tiers.map(([t, n]) => h("span.chip-muted", `${TIER_LABEL[t] || t}: ${fmt.int(n)}`))) : null,
@@ -1020,9 +1020,10 @@ function otpFilesBar(data) {
         { style: { marginTop: "4px" } },
         rebuilding
           ? `Reorganizando la carpeta… ${fmt.int(d.files.done || 0)} de ${fmt.int(d.files.total || 0)} partidas`
-          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → jugador (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo.",
+          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → jugador (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo. Las de OTPs y las de otros jugadores van por separado: las comparaciones con OTPs solo usan las de OTPs.",
       ),
-      d.path ? h("div.tiny.muted.otp-path", h("b", "Carpeta: "), d.path) : null,
+      d.path ? h("div.tiny.muted.otp-path", h("b", "OTPs: "), d.path) : null,
+      d.players_path ? h("div.tiny.muted.otp-path", h("b", "Otros jugadores: "), d.players_path) : null,
     ),
   );
 }

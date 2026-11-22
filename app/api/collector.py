@@ -238,13 +238,19 @@ def otps(
 
 def _files_state(svc) -> dict:
     files = otp_details.Files.of(svc)
-    return {"path": str(files.base), "files": files.state} if files is not None else {"path": None, "files": None}
+    players = otp_details.Files.of(svc, "player")
+    if files is None:
+        return {"path": None, "files": None, "players_path": None}
+    return {"path": str(files.base), "files": files.state, "players_path": str(players.base) if players is not None else None}
 
 
 @router.post("/otps/files/rebuild")
 def otps_files_rebuild(svc=Depends(svc_from)):
-    """Reescribe la carpeta ``otps`` desde la base de datos (normalmente no hace falta: se escribe sola)."""
+    """Reescribe las carpetas ``otps`` y ``partidas_campeon`` desde la base de datos (normalmente se escriben solas)."""
     files = otp_details.Files.of(svc)
     if files is None or not otp_details.counts(svc.db)["games"]:
-        raise HTTPException(409, "Aún no hay partidas de OTPs con micro y macro guardados")
+        raise HTTPException(409, "Aún no hay partidas analizadas minuto a minuto")
+    players = otp_details.Files.of(svc, "player")
+    if players is not None:
+        players.rebuild_in_background()
     return files.rebuild_in_background()

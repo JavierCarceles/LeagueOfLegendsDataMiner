@@ -53,7 +53,7 @@ LADDER_RESET_S = 24 * 3600
 EXHAUSTED_COOLDOWN_S = 20 * 60
 MASTERY_TTL_S = 7 * 86400
 MASTERY_BATCH = 25
-OTP_RATIO = 1.5  # el campeón principal debe tener ≥ 1,5× los puntos del segundo
+OTP_RATIO = otp_details.OTP_RATIO  # el campeón principal debe tener ≥ 1,5× los puntos del segundo
 FOCUSES = ("otp", "mastery", "games")
 GAMES_MIN_MASTERY = 10_000  # «partidas de un campeón»: basta con tenerlo entre sus 3 más jugados (no es una opción)
 FOCUS_NOUN = {"otp": "OTPs", "mastery": "jugadores con mucha maestría", "games": "jugadores"}
@@ -958,7 +958,9 @@ class RegionWorker(threading.Thread):
         info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
         elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
         try:
-            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
+            # Buscando OTPs, el jugador ya cumplió la regla de OTP de tu búsqueda; si no, se clasifica (OTP o no).
+            kind = "otp" if self.config.focus == "otp" else None
+            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo, kind=kind)
         except Exception:
             log.exception("No se pudo analizar la partida %s del jugador", match_id)
             return False

@@ -280,6 +280,7 @@ CREATE TABLE IF NOT EXISTS otp_games (
     timeline_raw BLOB,
     dossier      BLOB,
     fetched_at   INTEGER NOT NULL,
+    kind         TEXT,                  -- otp (OTP de ese campeón) | player (cualquier otro jugador); NULL = por clasificar
     PRIMARY KEY (match_id, puuid)
 );
 CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
@@ -414,7 +415,8 @@ class Database:
                 conn.execute("ALTER TABLE otp_skips ADD COLUMN role TEXT")
             # Elo completo de cada partida de OTP (antes solo el tier).
             otp_cols = {r[1] for r in conn.execute("PRAGMA table_info(otp_games)")}
-            for col, kind in (("division", "TEXT"), ("lp", "INTEGER")):
+            # kind: OTP o cualquier otro jugador (las de jugadores normales no cuentan como datos de OTPs).
+            for col, kind in (("division", "TEXT"), ("lp", "INTEGER"), ("kind", "TEXT")):
                 if col not in otp_cols:
                     conn.execute(f"ALTER TABLE otp_games ADD COLUMN {col} {kind}")
             conn.execute(
