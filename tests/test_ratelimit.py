@@ -155,8 +155,15 @@ def test_two_minute_window_blocks_after_100_requests():
     assert clock.now == pytest.approx(1000.0 + 120 + MARGIN, abs=1e-3)
 
 
+def using_the_web(limiter: RateLimiter) -> RateLimiter:
+    """El usuario está usando la web: el recolector deja libre la reserva entera."""
+    limiter._last_high = 1e18
+    return limiter
+
+
 def test_low_priority_keeps_a_reserve_of_the_long_window():
     limiter, clock = make_limiter()  # reserve_frac = 0.15 -> 15 de 100 reservadas
+    using_the_web(limiter)
     for _ in range(85):
         limiter._low_next.clear()  # aquí solo se prueba la reserva (el espaciado tiene su propio test)
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
@@ -174,6 +181,7 @@ def test_low_priority_keeps_a_reserve_of_the_long_window():
 def test_my_games_go_ahead_of_the_crawler():
     """Con el recolector (LOW) a tope, el seguimiento de tus partidas (NORMAL) sigue teniendo cupo."""
     limiter, clock = make_limiter()  # 100/120 s: LOW hasta 85, NORMAL hasta 95, HIGH hasta 100
+    using_the_web(limiter)
     for _ in range(85):
         limiter._low_next.clear()  # solo la reserva (el espaciado tiene su propio test)
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
@@ -193,6 +201,7 @@ def test_my_games_go_ahead_of_the_crawler():
 def _search_after_crawler(paced: bool, phases: int = 40) -> list[float]:
     """Segundos que tarda una búsqueda tuya de 22 peticiones llegando en distintos momentos con el recolector a tope."""
     limiter, clock = make_limiter()  # 100/120 s y 20/1 s
+    using_the_web(limiter)
     if not paced:
         limiter._app_bucket(HOST).pace = lambda reserve: 0.0
     start = clock()
@@ -216,6 +225,7 @@ def _search_after_crawler(paced: bool, phases: int = 40) -> list[float]:
 
 def test_low_priority_is_spread_over_the_window_so_your_searches_do_not_wait():
     limiter, clock = make_limiter()
+    using_the_web(limiter)
     gap = limiter._app_bucket(HOST).pace(0.15)
     assert gap == pytest.approx(120 / 85)
     times = []
@@ -226,6 +236,28 @@ def test_low_priority_is_spread_over_the_window_so_your_searches_do_not_wait():
     paced, bursty = _search_after_crawler(True), _search_after_crawler(False)
     assert max(paced) < 15  # repartida: tu búsqueda encuentra hueco enseguida
     assert sorted(bursty)[len(bursty) // 2] > 30  # en ráfaga: hasta que caducaba toda (se midieron 92 s en la app)
+
+
+def test_crawler_uses_almost_all_the_quota_while_nobody_uses_the_web():
+    """Sin usar la web la reserva baja al 5 %; en cuanto haces una búsqueda vuelve al 15 %."""
+    limiter, clock = make_limiter()
+    for _ in range(95):
+        limiter._low_next.clear()
+        assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
+        clock.advance(0.2)
+    limiter._low_next.clear()
+    assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)
+    assert limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=0)  # usas la web
+    assert limiter.interactive()
+    clock.advance(130)  # se vacía la ventana
+    for _ in range(85):
+        limiter._low_next.clear()
+        assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
+        clock.advance(0.2)
+    limiter._low_next.clear()
+    assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)  # vuelve a dejarte tu 15 %
+    clock.advance(700)
+    assert not limiter.interactive()
 
 
 def test_acquire_returns_false_when_stopped_while_waiting():

@@ -402,6 +402,40 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - **Siguiente paso** cuando el usuario devuelva `data/otps`: leer los `resumen.json` y usarlos para planes de partida
   en el draft/matchups y para ajustar `app/coach` y «Mi progreso».
 
+## 3 nonies. Sesión del 2026-11-22 (4.ª) — repeticiones .rofl de este ordenador (sin commitear)
+
+- Petición: buscar la carpeta de los `.rofl` (por defecto en Windows o, si no, por todo el disco), revisarla cada vez
+  que se arranca con `run.py` y recordarla por sistema operativo.
+- `app/replays_local.py` (`svc.local_replays`, arranca en `Services.startup`): `locate()` = guardada
+  (`meta replays_dir:<os>`) → la del cliente abierto (`/lol-replays/v1/rofls/path`, si cambia se actualiza) → por
+  defecto (`Documentos/League of Legends/Replays`, también OneDrive y Documentos movido vía registro; Wine en Linux)
+  → búsqueda por todo el disco en anchura (casa primero, luego unidades; salta carpetas de sistema `SKIP_NAMES`). Si
+  no hay ningún .rofl, se usa la carpeta por defecto vacía y no se repite la búsqueda hasta 12 h. Reindexa cada 3 min.
+- Tabla `local_replays` (cabecera: parche, duración, estadísticas finales de los 10; formatos clásico y nuevo).
+  **Los paquetes de la partida van cifrados y cambian cada parche: no se decodifican** (no dan posiciones).
+- API: `GET /api/replay/local`, `POST /api/replay/local/rescan` (`{path}` = carpeta manual). Web: desplegable
+  «Repeticiones de este ordenador (.rofl)» en Datos y API.
+- Ideas: marcar en «Repeticiones»/«Mi progreso» qué partidas tienen ya su .rofl (abrir sin descargar).
+
+## 3 decies. Sesión del 2026-11-22 (5.ª) — búsqueda de OTPs más rápida (sin commitear)
+
+- Petición: aprovechar al máximo las llamadas en la búsqueda de OTPs («aunque busque 1 solo campeón tarda mucho»).
+  El cuello de botella era **encontrar** OTPs (1 llamada de maestría por jugador del ranking, ~85 cada 2 min por
+  plataforma), no descargarlos.
+- `OtpScout` ahora es **uno por plataforma** (antes uno por región: EUW y EUNE se turnaban un mismo hilo aunque Riot
+  les da cupos separados) y recorre el ranking **de más a menos elo** (antes alternaba elos en rueda).
+- `_discover` revisa primero a quien ya se ha visto jugando esos campeones en partidas guardadas.
+- `_seed_from_leaderboards`: al empezar, la tabla de los 10 mejores de cada campeón por servidor del MCP de OP.GG
+  (`lol_list_champion_leaderboard`, una vez al día por campeón y plataforma; tabla `otp_sources`). Cada uno cuesta
+  1 llamada de account-v1 (el PUUID de OP.GG no vale para nuestra key) + 1 de maestría. Cuentan como OTPs de ese
+  campeón aunque su maestría no sea la de un OTP estricto (`otp_rows` columna `sourced`, `sourced_champs`).
+- Buscar (maestría, ligas: host de plataforma) y descargar (partidas, timeline: host de región) **no comparten cupo**:
+  bajar partidas no frena la búsqueda. Con «todos los servidores» la versión anterior tenía 1 búsqueda por región
+  (Europa: 5 plataformas en un solo hilo); ahora 1 por plataforma. La web muestra jugadores revisados/min por región.
+  Mínimo de maestría con pasos de 50 K y 200 K (en Platino–Esmeralda muchos OTPs no llegan a 300 K).
+- `RateLimiter`: si nadie usa la web en 10 min (ninguna petición HIGH), la reserva del recolector baja del 15 % al
+  5 % (`IDLE_AFTER_S`, `IDLE_RESERVE`); vuelve al 15 % en cuanto hay una petición interactiva.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

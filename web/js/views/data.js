@@ -59,12 +59,15 @@ export async function render(container) {
   sourcesSig = null;
   otpsSig = null;
   otpsAt = 0;
+  roflSig = null;
+  roflAt = 0;
   sections = {
     key: h("div"),
     warmer: h("div"),
     crawlerForm: h("div"),
     crawlerStatus: h("div"),
     otps: h("div"),
+    rofl: h("div"),
     sources: h("div"),
     limits: h("div"),
     db: h("div"),
@@ -89,6 +92,7 @@ export async function render(container) {
       "div.stack",
       { style: { marginTop: "16px" } },
       collapsible("datos.fuentes", [icon("globe"), "Fuentes de datos (OP.GG, Lolalytics, Riot)"], sections.sources, { summary: "estado y caché de cada web" }),
+      collapsible("datos.rofl", [icon("film"), "Repeticiones de este ordenador (.rofl)"], sections.rofl, { summary: "carpeta encontrada sola y repeticiones que tienes" }),
       collapsible("datos.limites", [icon("activity"), "Límite de la API de Riot"], sections.limits, { summary: "uso en tiempo real" }),
       collapsible("datos.bd", [icon("database"), "Base de datos"], sections.db, { summary: "partidas, jugadores y tamaño" }),
       collapsible("datos.modelo", [icon("chart"), "Modelo de draft"], sections.model, { summary: "calibración y backtest" }),
@@ -121,6 +125,7 @@ async function refresh() {
     if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
     loadOtps(status.crawler);
+    loadRofl();
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
   } catch (err) {
@@ -368,7 +373,7 @@ function crawlerFormView(key) {
   );
 }
 
-const MASTERY_STEPS = [100_000, 300_000, 500_000, 1_000_000, 2_000_000];
+const MASTERY_STEPS = [50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
 const OTP_DEPTHS = [
   { value: "season", label: "Temporada actual" },
   { value: "90", label: "Últimos 90 días" },
@@ -459,6 +464,7 @@ function championSection(cfg) {
       ),
       h(
         "label.row.small",
+        { title: "Puntos de maestría mínimos con el campeón. En Platino–Esmeralda muchos OTPs no llegan a 300 K: con 100 K o 50 K salen bastantes más." },
         "Mínimo",
         select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || 300_000, (v) => (cfg.min_mastery = Number(v)), "select select-sm"),
       ),
@@ -477,6 +483,7 @@ function championSection(cfg) {
       ),
     ),
     h("p.tiny.muted", { style: { margin: 0 } }, "Sin tope de partidas por jugador: de cada OTP se baja su historial entero hasta la fecha elegida, 100 partidas por petición. Primero lo reciente de todos los OTPs y luego lo más antiguo; sus partidas nuevas van siempre antes. Si más atrás ya casi no jugaba esos campeones, se deja de bajar para no gastar llamadas."),
+    h("p.tiny.muted", { style: { margin: 0 } }, "Buscando en Platino–Esmeralda baja el «Mínimo» a 100 K o 50 K: muchos OTPs de ese elo no llegan a 300 K puntos y no contarían."),
     h("p.tiny.muted", { style: { margin: 0 } }, "La API de Riot no tiene un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) en paralelo a la descarga, porque Riot cuenta aparte el servidor y la región. OTP = su campeón con más puntos es uno de los elegidos y tiene al menos 1,5 veces los del segundo."),
   );
 }
@@ -516,6 +523,12 @@ function runningSummary(c) {
   );
 }
 
+/** « (N/min)»: jugadores revisados por minuto en esa región (todas sus plataformas a la vez). */
+function searchRate(w) {
+  const minutes = w.started_at ? (Date.now() / 1000 - w.started_at) / 60 : 0;
+  return minutes >= 1 && w.mastery_checked ? ` (${fmt.num(w.mastery_checked / minutes, 0)}/min)` : "";
+}
+
 function renderCrawlerStatus(c, key) {
   const workers = Object.values(c.workers || {});
   mount(
@@ -532,7 +545,10 @@ function renderCrawlerStatus(c, key) {
                 ? h("div.tiny.muted", `OTPs: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con el historial completo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
                 : null,
               w.mastery_checked || w.search
-                ? h("div.tiny.muted", `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores · ${fmt.int(w.targets_found)} nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
+                ? h(
+                    "div.tiny.muted",
+                    `Maestría revisada: ${fmt.int(w.mastery_checked)} jugadores${searchRate(w)} · ${fmt.int(w.targets_found)} OTPs nuevos · ${fmt.int(w.target_games)} partidas con tus campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`,
+                  )
                 : null,
               sharedKeyLine(w),
               w.last_error ? h("div.tiny.warn", w.last_error) : null,
@@ -808,6 +824,79 @@ function otpPlayerRow(p, rank) {
       ),
     ),
     h(`span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`, { title: historyText }, p.history === "done" || p.history === "share" ? "Completo" : p.history === "loading" ? "Bajando" : "En cola"),
+  );
+}
+
+// ------------------------------------------------------------------ repeticiones (.rofl)
+const ROFL_FOUND_BY = { client: "la dice el cliente de LoL", default: "carpeta por defecto", scan: "encontrada buscando en el disco", manual: "elegida por ti" };
+let roflAt = 0;
+let roflSig = null;
+async function loadRofl() {
+  const box = sections.rofl;
+  if (!box.closest("details")?.open || Date.now() - roflAt < 4000) return;
+  roflAt = Date.now();
+  let data;
+  try {
+    data = await api.get("/api/replay/local", { limit: 12 });
+  } catch (err) {
+    return mount(box, errorBox(err));
+  }
+  const sig = JSON.stringify([data.status, data.path, data.files, data.scanned, data.recent?.map((r) => r.path)]);
+  if (sig === roflSig || box.contains(document.activeElement)) return;
+  roflSig = sig;
+  const pathInput = h("input.input.input-sm", { type: "text", placeholder: "Otra carpeta (opcional)", "aria-label": "Carpeta de repeticiones", style: { flex: "1 1 220px", minWidth: 0 } });
+  const rescan = async (btn, path) => {
+    btn.disabled = true;
+    try {
+      await api.post("/api/replay/local/rescan", { path: path || null });
+      toast(path ? "Carpeta guardada" : "Buscando la carpeta de repeticiones…");
+      roflAt = 0;
+      roflSig = null;
+      setTimeout(loadRofl, 800);
+    } catch (err) {
+      toast(err.message, "error");
+    }
+    btn.disabled = false;
+  };
+  const statusLine =
+    data.status === "scanning"
+      ? h("div.small", h("span.pill.pill-warn.pill-dot", "Buscando en el disco"), h("span.tiny.muted", ` ${fmt.int(data.scanned || 0)} carpetas revisadas${data.at ? ` · ${data.at}` : ""}`))
+      : data.path
+        ? h("div.small.otp-path", h("b", "Carpeta: "), data.path, h("span.tiny.muted", ` · ${ROFL_FOUND_BY[data.found_by] || data.found_by || ""}`))
+        : h("div.small.muted", data.status === "starting" ? "Buscando…" : "No hay ninguna repetición (.rofl) en este ordenador. Descarga una desde el historial del cliente y aparecerá aquí.");
+  mount(
+    box,
+    h(
+      "div.col",
+      { style: { gap: "10px" } },
+      statusLine,
+      h("div.small", h("b", fmt.int(data.files || 0)), ` ${data.files === 1 ? "repetición" : "repeticiones"} en la carpeta`),
+      data.recent?.length
+        ? h(
+            "div.row-wrap",
+            { style: { gap: "6px" } },
+            data.recent.map((r) =>
+              h(
+                r.match_id ? "a.chip" : "span.chip",
+                r.match_id ? { href: `#/partida/${r.match_id}`, title: r.path } : { title: r.path },
+                r.match_id || r.path.split(/[\\/]/).pop(),
+                h("span.tiny.muted", ` · ${r.game_version ? r.game_version.split(".").slice(0, 2).join(".") : "?"}${r.game_length ? ` · ${fmt.duration(r.game_length / 1000)}` : ""}`),
+              ),
+            ),
+          )
+        : null,
+      h(
+        "div.row-wrap",
+        { style: { gap: "8px" } },
+        pathInput,
+        h("button.btn.btn-sm", { type: "button", onclick: (e) => rescan(e.currentTarget, pathInput.value.trim()) }, pathInput.value ? "Usar esta carpeta" : "Usar carpeta / buscar de nuevo"),
+      ),
+      h(
+        "p.tiny.muted",
+        { style: { margin: 0 } },
+        "Se busca sola al abrir la app (la del cliente de LoL, la de por defecto en Documentos o, si no, por todo el disco) y se recuerda para este sistema operativo; luego se revisa cada 3 minutos. De cada .rofl se lee la cabecera (parche, duración y estadísticas finales de los 10). El resto de la repetición va cifrado y cambia cada parche: solo el cliente del juego la reproduce.",
+      ),
+    ),
   );
 }
 

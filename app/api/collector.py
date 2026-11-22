@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import svc_from
 from app.ingest import otp_details
-from app.ingest.crawler import CrawlerConfig, otp_depth_start, otp_history_state, otp_list_key, otp_rows, target_sql
+from app.ingest.crawler import (
+    CrawlerConfig,
+    otp_depth_start,
+    otp_history_state,
+    otp_list_key,
+    otp_rows,
+    sourced_champs,
+    target_sql,
+)
 from app.riot.routing import TIER_INDEX
 
 router = APIRouter(prefix="/api/crawler", tags=["recolector"])
@@ -67,13 +75,16 @@ def stop(svc=Depends(svc_from)):
 OTP_SORTS = ("games", "winrate", "elo", "points", "name")
 
 
-def _otp_champs(cfg: CrawlerConfig, top: list) -> list[int]:
-    """Campeones elegidos por los que cuenta este jugador: su principal (OTP) o los de su top 3 con maestría alta."""
+def _otp_champs(cfg: CrawlerConfig, top: list, sourced: set[int] | None = None) -> list[int]:
+    """Campeones elegidos por los que cuenta este jugador: su principal (OTP), los de su top 3 con maestría alta o
+    los de la tabla de los mejores de cada campeón (OP.GG)."""
     targets = set(cfg.champions)
     entries = [(int(e[0]), int(e[1])) for e in top if len(e) >= 2]
     if cfg.focus == "otp":
-        return [entries[0][0]] if entries and entries[0][0] in targets else []
-    return list(dict.fromkeys(c for c, pts in entries if c in targets and pts >= cfg.min_mastery))
+        found = [entries[0][0]] if entries and entries[0][0] in targets else []
+    else:
+        found = [c for c, pts in entries if c in targets and pts >= cfg.min_mastery]
+    return list(dict.fromkeys([*found, *sorted((sourced or set()) & targets)]))
 
 
 @router.get("/otps")
@@ -118,7 +129,7 @@ def otps(
         history = otp_history_state(row, list_key, depth_start)
         seen = int(row["seen"] or 0)
         points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}
-        for c in _otp_champs(cfg, top) or [next((int(e[0]) for e in top if int(e[0]) in cfg.champions), 0)]:
+        for c in _otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.champions), 0)]:
             st = stats.get((row["id"], c), {"games": 0, "wins": 0, "roles": {}})
             entries.append(
                 {

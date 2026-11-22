@@ -245,6 +245,21 @@ CREATE TABLE IF NOT EXISTS otp_skips (
     PRIMARY KEY (puuid, match_id)
 ) WITHOUT ROWID;
 
+-- Jugadores de un campeón sacados de otras fuentes (tabla de los mejores de cada campeón de OP.GG): cuentan como
+-- OTPs de ese campeón aunque su maestría no sea la de un OTP estricto (juegan muchísimo con él en alto elo).
+CREATE TABLE IF NOT EXISTS otp_sources (
+    puuid      TEXT NOT NULL,
+    champ      INTEGER NOT NULL,
+    platform   TEXT NOT NULL,
+    source     TEXT NOT NULL,          -- opgg
+    rank       INTEGER,
+    games      INTEGER,                -- partidas con ese campeón según la fuente
+    wins       INTEGER,
+    fetched_at INTEGER NOT NULL,
+    PRIMARY KEY (puuid, champ, source)
+);
+CREATE INDEX IF NOT EXISTS idx_otp_sources_champ ON otp_sources(champ, platform);
+
 -- Micro y macro de las partidas de los OTPs con los campeones elegidos (para aprender de jugadores de mucho elo):
 -- el bruto (partida + timeline, zlib) para volver a analizarlas y el dossier ya analizado (zlib JSON).
 CREATE TABLE IF NOT EXISTS otp_games (
@@ -268,6 +283,20 @@ CREATE TABLE IF NOT EXISTS otp_games (
     PRIMARY KEY (match_id, puuid)
 );
 CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
+
+-- Repeticiones (.rofl) que hay en la carpeta de repeticiones de este ordenador (solo su cabecera).
+CREATE TABLE IF NOT EXISTS local_replays (
+    path         TEXT PRIMARY KEY,
+    match_id     TEXT,                  -- EUW1_7412345678 (del nombre del fichero)
+    size         INTEGER,
+    mtime        INTEGER,
+    game_version TEXT,
+    game_length  INTEGER,               -- ms
+    players      BLOB,                  -- estadísticas finales de los 10 (zlib JSON de la cabecera)
+    readable     INTEGER NOT NULL DEFAULT 0,
+    indexed_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_local_replays_match ON local_replays(match_id);
 
 CREATE TABLE IF NOT EXISTS my_profile (
     id             INTEGER PRIMARY KEY CHECK (id = 1),

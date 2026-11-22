@@ -167,8 +167,8 @@ def test_otps_endpoint_lists_found_players_with_both_mastery_formats(keyed_svc):
 
 
 # ------------------------------------------------------------------ historial completo de los OTPs
-from app.data.db import now_s as _now_s  # noqa: E402
-from app.ingest.crawler import RegionWorker, otp_history_state, otp_list_key, season_start  # noqa: E402
+from app.data.db import now_s as _now_s
+from app.ingest.crawler import RegionWorker, otp_history_state, otp_list_key, season_start
 
 
 class HistoryRiot(FakeRiotClient):
@@ -631,10 +631,10 @@ def test_mastery_focus_lists_a_player_under_each_champion(keyed_svc):
 
 
 # ------------------------------------------------------------------ micro y macro de los OTPs
-import gzip  # noqa: E402
+import gzip
 
-from app.coach.store import unpack  # noqa: E402
-from app.ingest import otp_details  # noqa: E402
+from app.coach.store import unpack
+from app.ingest import otp_details
 
 
 def details(svc):
@@ -791,3 +791,109 @@ def test_each_game_keeps_the_draft_context(keyed_svc):
     assert set(block["lanes_impact"]) >= {"TOP", "MID"} and block["objectives_first"]["dragon"]["ally_first_pct"] == 100.0
     assert block["jungle_presence"]["minutes_at"] and "first_takedown_where" in block
     assert summary["roles"]["JUNGLE"]["by_tier"]["CHALLENGER"]["games"] == 1
+
+
+# ------------------------------------------------------------------ búsqueda de OTPs más rápida
+from app.ingest import crawler as crawler_mod
+from app.ingest.crawler import OtpScout, otp_rows
+
+
+def test_one_search_per_platform_in_the_same_region(keyed_svc):
+    keyed_svc.riot = MasteryRiot(*world())
+    keyed_svc.crawler.start(CrawlerConfig(platforms=["euw1", "eun1"], tiers=["CHALLENGER"], champions=[AATROX], save_details=False))
+    worker = keyed_svc.crawler.workers["europe"]
+    assert wait_until(lambda: len(worker.scouts) == 2)
+    assert {sc.platform for sc in worker.scouts} == {"euw1", "eun1"}  # cada plataforma tiene su propio cupo
+    keyed_svc.crawler.stop()
+    worker.join(timeout=5)
+
+
+def test_search_goes_from_the_top_elo_down(keyed_svc):
+    from types import SimpleNamespace
+
+    order = []
+    stop = __import__("threading").Event()
+    worker = SimpleNamespace(
+        config=CrawlerConfig(tiers=["DIAMOND", "MASTER", "CHALLENGER"], champions=[AATROX]).validated(),
+        stop_event=stop,
+        svc=keyed_svc,
+        crawler=SimpleNamespace(paused_reason=lambda: None),
+        state={"errors": 0},
+        scouts=[],
+        wake=lambda: None,
+        _seed_from_leaderboards=lambda platform: 0,
+        _discover=lambda platform, tier: order.append(tier) or 0,
+        _refill_seeds=lambda platform, tier: 0,
+    )
+    scout = OtpScout(worker, "euw1")
+    worker.scouts.append(scout)
+    real_set = scout._set
+    scout._set = lambda status: (real_set(status), status == "idle" and stop.set())
+    scout.run()
+    assert order == ["CHALLENGER", "MASTER", "DIAMOND"]  # no baja de elo hasta acabar el anterior
+
+
+def test_players_seen_with_the_champion_are_checked_first(keyed_svc, monkeypatch):
+    with keyed_svc.db.write() as conn:
+        for puuid, lp in (("seed-a", 1500), ("seed-b", 100)):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'CHALLENGER', 1, ?)", (puuid, lp))
+        b = conn.execute("SELECT id FROM players WHERE puuid = 'seed-b'").fetchone()[0]
+        conn.execute("INSERT INTO participants (match_id, pid, player_id, team, champ, win) VALUES ('EUW1_1', 1, ?, 100, ?, 1)", (b, AATROX))
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], CrawlerConfig(champions=[AATROX]).validated())
+    checked = []
+    monkeypatch.setattr(worker, "_check_mastery", lambda platform, puuid: checked.append(puuid))
+    monkeypatch.setattr(crawler_mod, "MASTERY_BATCH", 1)
+    worker._discover("euw1", "CHALLENGER")
+    assert checked == ["seed-b"]  # aunque tenga menos LP: ya se le ha visto jugando Aatrox
+
+
+class FakeOpgg:
+    enabled = True
+
+    def __init__(self):
+        self.calls = []
+
+    def mcp_name(self, champ):
+        return "AATROX"
+
+    def mcp_call(self, tool, arguments):
+        self.calls.append((tool, arguments["region"], arguments["champion"]))
+        stat = lambda tier, div, lp: [{"game_type": "SOLORANKED", "tier_info": {"tier": tier, "division": div, "lp": lp}}]
+        return {
+            "leaderboard": [
+                {"rank": 1, "summoner": {"game_name": "Uno", "tagline": "EUW", "league_stats": stat("CHALLENGER", 1, 1500)}, "most_champion_stat": {"play": 900, "win": 500}},
+                {"rank": 2, "summoner": {"game_name": "Dos", "tagline": "EUW", "league_stats": stat("MASTER", 1, 200)}, "most_champion_stat": {"play": 400, "win": 210}},
+            ]
+        }
+
+
+class LeaderboardRiot(MasteryRiot):
+    def account_by_riot_id(self, game_name, tag_line, platform, **kw):
+        self._record("account_by_riot_id", game_name)
+        return {"puuid": f"lb-{game_name}", "gameName": game_name, "tagLine": tag_line}
+
+    def top_masteries(self, platform, puuid, count=3, **kw):
+        self._record("top_masteries", platform, puuid)
+        if puuid == "lb-Dos":  # juega mucho Aatrox pero su principal es otro: cuenta igual por la tabla
+            return [{"championId": GAREN, "championPoints": 2_000_000}, {"championId": AATROX, "championPoints": 600_000}]
+        return [{"championId": AATROX, "championPoints": 900_000}]
+
+
+def test_leaderboard_gives_otps_without_scanning_the_ladder(keyed_svc):
+    opgg = FakeOpgg()
+    keyed_svc.opgg = opgg
+    keyed_svc.riot = LeaderboardRiot({}, {})
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["MASTER", "CHALLENGER"], champions=[AATROX]).validated()
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    assert worker._seed_from_leaderboards("euw1") == 2
+    assert opgg.calls == [("lol_list_champion_leaderboard", "EUW", "AATROX")]
+    rows = {row["puuid"]: row for row, _ in otp_rows(keyed_svc.db, cfg, ["euw1"], cfg.tiers)}
+    assert set(rows) == {"lb-Uno", "lb-Dos"}  # «Dos» no es OTP estricto por maestría, pero sale en la tabla
+    assert rows["lb-Uno"]["tier"] == "CHALLENGER" and rows["lb-Uno"]["lp"] == 1500 and rows["lb-Uno"]["game_name"] == "Uno"
+    assert len(keyed_svc.riot.calls_to("account_by_riot_id")) == 2 and len(keyed_svc.riot.calls_to("top_masteries")) == 2
+    # Al día siguiente sí; hoy no se vuelve a pedir.
+    assert worker._seed_from_leaderboards("euw1") == 0 and len(opgg.calls) == 1
+    with _client(keyed_svc) as client:
+        keyed_svc.crawler.config = cfg
+        data = client.get("/api/crawler/otps").json()
+    assert {p["game_name"] for p in data["players"]} == {"Uno", "Dos"} and data["by_champion"][0]["found"] == 2

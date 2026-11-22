@@ -68,6 +68,9 @@ OTP_ANCHOR_LAG_S = 2 * 3600  # el ancla va 2 h atrás: la partida en curso o rec
 OTP_IDLE_WAIT_S = 30
 OTP_FAIL_COOLDOWN_S = 3600  # un OTP que falla 3 veces seguidas descansa una hora
 OTP_DEPTHS = ("season", "90", "180", "365", "all")
+LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
+OPGG_REGION = {p: label for p, (_region, label, _name) in PLATFORMS.items()} | {"sg2": "SG"}
+ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
 OTP_DETAIL_BACKFILL = 25  # partidas ya guardadas a las que se les baja el micro/macro por visita (2 llamadas cada una)
 
 
@@ -263,26 +266,38 @@ def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: 
         where.append(f"p.tier IN ({','.join('?' * len(tiers))})")
         params.extend(tiers)
     champ_sql = " OR ".join(f"json_extract(m.top, '{slot}') IN ({marks})" for slot in slots)
-    where.append(f"(CASE WHEN json_valid(m.top) THEN ({champ_sql}) ELSE 0 END)")
-    params.extend(targets * len(slots))
+    # OTP por su maestría o porque sale en la tabla de los mejores de ese campeón (OP.GG).
+    where.append(
+        f"((CASE WHEN json_valid(m.top) THEN ({champ_sql}) ELSE 0 END) "
+        f"OR p.puuid IN (SELECT puuid FROM otp_sources WHERE champ IN ({marks})))"
+    )
+    params.extend(targets * len(slots) + targets)
     rows = db.query(
         "SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_name, p.tag_line, p.newest_match_at, "
         "p.last_crawled_at, m.top, m.checked_at, o.list_key, o.anchor, o.back_offset, o.back_done_at, "
-        "o.back_done_start, o.back_done_reason, o.fwd_more, o.fwd_newest, o.low_pages, o.config_key, o.seen, o.hits "
+        "o.back_done_start, o.back_done_reason, o.fwd_more, o.fwd_newest, o.low_pages, o.config_key, o.seen, o.hits, "
+        "(SELECT group_concat(s.champ) FROM otp_sources s WHERE s.puuid = p.puuid) AS sourced "
         "FROM mastery_checks m JOIN players p ON p.puuid = m.puuid LEFT JOIN otp_progress o ON o.puuid = p.puuid "
         f"WHERE {' AND '.join(where)}",
         params,
     )
     now = now or now_s()
+    wanted = set(targets)
     out = []
     for row in rows:
         try:
             top = json.loads(row["top"])
         except (TypeError, ValueError):
             continue
-        if cfg.qualifies(top, now):
+        if cfg.qualifies(top, now) or sourced_champs(row) & wanted:
             out.append((row, top))
     return out
+
+
+def sourced_champs(row) -> set[int]:
+    """Campeones por los que ese jugador sale en la tabla de los mejores (columna ``sourced`` de ``otp_rows``)."""
+    raw = row["sourced"] if "sourced" in row.keys() else None  # noqa: SIM118  (sqlite3.Row no admite «in»)
+    return {int(x) for x in str(raw or "").split(",") if x.strip().isdigit()}
 
 
 @dataclass
@@ -309,7 +324,7 @@ class RegionWorker(threading.Thread):
         self._cooldown: dict[tuple[str, str], float] = {}
         self._wake = threading.Event()
         self._otp_fails: dict[str, tuple[int, float]] = {}  # puuid -> (fallos seguidos, descansa hasta)
-        self.scout: OtpScout | None = None
+        self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.state = {
             "region": region,
             "platforms": platforms,
@@ -408,8 +423,9 @@ class RegionWorker(threading.Thread):
             ", ".join(PLATFORMS[p][1] for p in self.platforms),
             self.config.otp_depth,
         )
-        self.scout = OtpScout(self)
-        self.scout.start()
+        self.scouts = [OtpScout(self, platform) for platform in self.platforms]
+        for scout in self.scouts:
+            scout.start()
         try:
             while not self.stop_event.is_set():
                 try:
@@ -422,7 +438,7 @@ class RegionWorker(threading.Thread):
                         continue
                     # Se lee el estado de la búsqueda ANTES de buscar trabajo: si ya había terminado, todo lo que
                     # encontró está guardado y «no hay nada pendiente» es cierto.
-                    search_done = self.scout.status in ("idle", "stopped")
+                    search_done = all(sc.status in ("idle", "stopped") for sc in self.scouts)
                     self._wake.clear()
                     target = self._next_otp()
                     if target is None:
@@ -448,7 +464,8 @@ class RegionWorker(threading.Thread):
                     log.exception("Error inesperado en el recolector %s", self.region)
                     self.stop_event.wait(5)
         finally:
-            self.scout.join(timeout=5)
+            for scout in self.scouts:
+                scout.join(timeout=5)
 
     def _wait_for_key(self) -> None:
         self.state["status"] = "waiting_key"
@@ -467,11 +484,16 @@ class RegionWorker(threading.Thread):
     # ------------------------------------------------------ por campeones
     def _discover(self, platform: str, tier: str) -> int:
         """Mira la maestría de una tanda de jugadores del ranking (primero los que más LP tienen). Devuelve cuántos."""
+        # Primero quien ya se ha visto jugando esos campeones en partidas guardadas (lo más probable es que sea OTP),
+        # luego los nunca revisados y, a igualdad, los de más LP.
+        champs = list(self.config.champions) or [0]
+        marks = ",".join("?" * len(champs))
         rows = self.svc.db.query(
             "SELECT p.puuid FROM players p LEFT JOIN mastery_checks m ON m.puuid = p.puuid "
             "WHERE p.is_seed = 1 AND p.platform = ? AND p.tier = ? AND (m.puuid IS NULL OR m.checked_at < ?) "
-            "ORDER BY (m.puuid IS NOT NULL), p.lp DESC LIMIT ?",
-            (platform, tier, now_s() - MASTERY_TTL_S, MASTERY_BATCH),
+            f"ORDER BY (SELECT COUNT(*) FROM participants pa WHERE pa.player_id = p.id AND pa.champ IN ({marks})) DESC, "
+            "(m.puuid IS NOT NULL), p.lp DESC LIMIT ?",
+            (platform, tier, now_s() - MASTERY_TTL_S, *champs, MASTERY_BATCH),
         )
         checked = 0
         for row in rows:
@@ -480,6 +502,92 @@ class RegionWorker(threading.Thread):
             self._check_mastery(platform, row["puuid"])
             checked += 1
         return checked
+
+    def _seed_from_leaderboards(self, platform: str) -> int:
+        """OTPs al instante: los mejores de cada campeón elegido en esa plataforma según OP.GG (una vez al día).
+
+        Cada uno cuesta 1 llamada de account-v1 (su PUUID para tu key) y 1 de maestría, frente a revisar la maestría
+        de cientos de jugadores del ranking hasta dar con ellos. Devuelve cuántos se añadieron.
+        """
+        svc, db = self.svc, self.svc.db
+        opgg = getattr(svc, "opgg", None)
+        region = OPGG_REGION.get(platform)
+        if opgg is None or not getattr(opgg, "enabled", False) or not region:
+            return 0
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        added = 0
+        for champ in self.config.champions:
+            if self.stop_event.is_set():
+                break
+            fresh = db.scalar(
+                "SELECT MAX(fetched_at) FROM otp_sources WHERE champ = ? AND platform = ? AND source = 'opgg'", (champ, platform)
+            )
+            if fresh and now_s() - int(fresh) < LEADERBOARD_TTL_S:
+                continue
+            try:
+                data = opgg.mcp_call(
+                    "lol_list_champion_leaderboard",
+                    {
+                        "region": region,
+                        "champion": opgg.mcp_name(champ),
+                        "desired_output_fields": [
+                            "leaderboard[].rank",
+                            "leaderboard[].summoner.{game_name,tagline}",
+                            "leaderboard[].summoner.league_stats[].{game_type}",
+                            "leaderboard[].summoner.league_stats[].tier_info.{tier,division,lp}",
+                            "leaderboard[].most_champion_stat.{play,win}",
+                        ],
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001  (OP.GG caído o sin ese campeón: se sigue con el ranking de Riot)
+                log.warning("Tabla de los mejores de %s en %s (OP.GG): %s", champ, platform, exc)
+                continue
+            entries = (data.get("leaderboard") or []) if isinstance(data, dict) else []
+            for entry in entries:
+                if self.stop_event.is_set():
+                    break
+                summ = entry.get("summoner") or {}
+                name, tag = summ.get("game_name"), summ.get("tagline")
+                if not name or not tag:
+                    continue
+                solo = next((ls.get("tier_info") or {} for ls in summ.get("league_stats") or [] if ls.get("game_type") == "SOLORANKED"), {})
+                puuid = db.scalar(
+                    "SELECT puuid FROM players WHERE platform = ? AND lower(game_name) = lower(?) AND lower(tag_line) = lower(?)",
+                    (platform, name, tag),
+                )
+                if not puuid:
+                    try:
+                        account = svc.riot.account_by_riot_id(name, tag, platform, **kw) or {}
+                    except RiotKeyError:
+                        raise
+                    except RiotAPIError:
+                        continue  # cambió de nombre: ya aparecerá por el ranking
+                    puuid = account.get("puuid")
+                    if not puuid:
+                        continue
+                tier = str(solo.get("tier") or "").upper()
+                if tier in TIER_INDEX:
+                    upsert_seed_players(
+                        db, platform, [{"puuid": puuid, "tier": tier, "rank": ROMAN.get(int(solo.get("division") or 1), "I"), "leaguePoints": solo.get("lp") or 0}], tier
+                    )
+                stat = entry.get("most_champion_stat") or {}
+                with db.write() as conn:
+                    conn.execute(
+                        "UPDATE players SET game_name = COALESCE(game_name, ?), tag_line = COALESCE(tag_line, ?) WHERE puuid = ?",
+                        (name, tag, puuid),
+                    )
+                    conn.execute(
+                        "INSERT OR REPLACE INTO otp_sources (puuid, champ, platform, source, rank, games, wins, fetched_at) "
+                        "VALUES (?, ?, ?, 'opgg', ?, ?, ?, ?)",
+                        (puuid, champ, platform, entry.get("rank"), stat.get("play"), stat.get("win"), now_s()),
+                    )
+                if not db.scalar("SELECT 1 FROM mastery_checks WHERE puuid = ? AND checked_at >= ?", (puuid, now_s() - MASTERY_TTL_S)):
+                    self._check_mastery(platform, puuid)  # necesaria para su ficha (y si es OTP estricto)
+                added += 1
+                self.state["targets_found"] += 1
+                self.wake()
+            log.info("OTPs de %s en %s sacados de la tabla de OP.GG: %d.", champ, PLATFORMS[platform][1], added)
+        return added
 
     def _check_mastery(self, platform: str, puuid: str) -> list:
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
@@ -839,6 +947,11 @@ class RegionWorker(threading.Thread):
         if not others:
             return False
         marks = ",".join("?" * len(others))
+        champs = list(cfg.champions)
+        if self.svc.db.scalar(
+            f"SELECT 1 FROM otp_sources WHERE puuid IN ({marks}) AND champ IN ({','.join('?' * len(champs))}) LIMIT 1", (*others, *champs)
+        ):
+            return True  # uno de los mejores de ese campeón (OP.GG)
         for r in self.svc.db.query(f"SELECT top FROM mastery_checks WHERE puuid IN ({marks})", others):
             try:
                 if self.config.qualifies(json.loads(r["top"])):
@@ -1009,28 +1122,38 @@ class RegionWorker(threading.Thread):
 
 
 class OtpScout(threading.Thread):
-    """Busca OTPs en el ranking mientras ``RegionWorker`` descarga sus partidas.
+    """Busca OTPs en el ranking de una plataforma mientras ``RegionWorker`` descarga sus partidas.
 
     La maestría y las ligas van al host de cada plataforma (kr, euw1…) y las partidas al de la región (asia,
-    europe…). Riot cuenta cada host por separado, así que buscar en paralelo no le quita ritmo a la descarga.
+    europe…). Riot cuenta cada host por separado, así que hay una búsqueda por plataforma (EUW y EUNE buscan a la
+    vez) y ninguna le quita ritmo a la descarga.
+
+    Orden: primero la tabla de los mejores de cada campeón de OP.GG (OTPs al instante, sin revisar maestrías) y
+    después el ranking **de más a menos elo**: no se pasa al siguiente elo hasta revisar entero el anterior.
     """
 
-    def __init__(self, worker: RegionWorker) -> None:
-        super().__init__(name=f"crawler-{worker.region}-otps", daemon=True)
+    def __init__(self, worker: RegionWorker, platform: str) -> None:
+        super().__init__(name=f"crawler-{platform}-otps", daemon=True)
         self.worker = worker
+        self.platform = platform
         self.status = "starting"
 
     def _set(self, status: str) -> None:
         if status != self.status:
             self.status = status
-            self.worker.state["search"] = status
+            statuses = {sc.status for sc in self.worker.scouts} or {status}
+            # Estado conjunto para la web: buscando si alguna busca; en pausa/esperando key si todas lo están.
+            for state in ("running", "starting", "waiting_key", "paused_game", "idle", "stopped"):
+                if state in statuses:
+                    self.worker.state["search"] = state
+                    break
             self.worker.wake()  # el hilo de descarga decide si queda algo pendiente
 
     def run(self) -> None:
         w = self.worker
-        combos = [(p, t) for t in reversed(w.config.tiers) for p in w.platforms]
-        cooldown: dict[tuple[str, str], float] = {}
-        index = 0
+        tiers = list(reversed(w.config.tiers))  # de más a menos elo
+        cooldown: dict[str, float] = {}
+        leaderboard_done = False
         while not w.stop_event.is_set():
             try:
                 if not w.svc.keys.get() or w.svc.keys.status == "invalid":
@@ -1041,17 +1164,19 @@ class OtpScout(threading.Thread):
                     self._set("paused_game")
                     w.stop_event.wait(5)
                     continue
+                self._set("running")
+                if not leaderboard_done:
+                    leaderboard_done = True
+                    w._seed_from_leaderboards(self.platform)
+                    continue
                 now = time.time()
-                available = [c for c in combos if cooldown.get(c, 0) <= now]
-                if not available:
+                tier = next((t for t in tiers if cooldown.get(t, 0) <= now), None)
+                if tier is None:
                     self._set("idle")  # todo el ranking revisado: se vuelve a mirar al refrescarse las ligas
                     w.stop_event.wait(30)
                     continue
-                platform, tier = available[index % len(available)]
-                index += 1
-                self._set("running")
-                if w._discover(platform, tier) == 0 and w._refill_seeds(platform, tier) == 0:
-                    cooldown[(platform, tier)] = time.time() + EXHAUSTED_COOLDOWN_S
+                if w._discover(self.platform, tier) == 0 and w._refill_seeds(self.platform, tier) == 0:
+                    cooldown[tier] = time.time() + EXHAUSTED_COOLDOWN_S
             except Cancelled:
                 break
             except RiotKeyError as exc:
@@ -1061,12 +1186,12 @@ class OtpScout(threading.Thread):
             except RiotAPIError as exc:
                 w.state["errors"] += 1
                 w.state["last_error"] = exc.message
-                log.warning("Búsqueda de OTPs %s: %s", w.region, exc.message)
+                log.warning("Búsqueda de OTPs %s: %s", self.platform, exc.message)
                 w.stop_event.wait(3)
             except Exception as exc:
                 w.state["errors"] += 1
                 w.state["last_error"] = str(exc)
-                log.exception("Error inesperado buscando OTPs en %s", w.region)
+                log.exception("Error inesperado buscando OTPs en %s", self.platform)
                 w.stop_event.wait(5)
         self._set("stopped")
 
@@ -1089,7 +1214,7 @@ class Crawler:
 
     @property
     def running(self) -> bool:
-        return any(w.is_alive() or (w.scout is not None and w.scout.is_alive()) for w in self.workers.values())
+        return any(w.is_alive() or any(sc.is_alive() for sc in w.scouts) for w in self.workers.values())
 
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):

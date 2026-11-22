@@ -29,6 +29,10 @@ DEV_KEY_LIMITS: list[tuple[int, int]] = [(20, 1), (100, 120)]
 MARGIN = 0.12  # segundos extra por jitter de red / reloj
 FOREIGN_GRACE_S = 130  # al arrancar, lo que Riot recuerda de la ejecución anterior no es «otra app»
 FOREIGN_WINDOW_S = 120
+# Si llevas un rato sin usar la web (ninguna petición de prioridad alta), el recolector puede usar casi todo el cupo:
+# la reserva para tus búsquedas baja de ``reserve_frac`` a ``IDLE_RESERVE``; vuelve en cuanto haces algo.
+IDLE_AFTER_S = 600
+IDLE_RESERVE = 0.05
 
 
 class Priority:
@@ -152,6 +156,17 @@ class RateLimiter:
         self._low_next: dict[str, float] = {}  # host -> desde cuándo puede salir la siguiente de prioridad baja
         self._born: float | None = None
         self._clock = time.monotonic
+        self._last_high: float | None = None  # última petición de prioridad alta (el usuario usando la web)
+
+    def _reserve_now(self, priority: int, now: float) -> float:
+        """Reserva según la prioridad; menor mientras nadie usa la web (más cupo para el recolector)."""
+        idle = self._last_high is None or now - self._last_high >= IDLE_AFTER_S
+        base = min(self.reserve_frac, IDLE_RESERVE) if idle else self.reserve_frac
+        return _reserve_for(priority, base)
+
+    def interactive(self) -> bool:
+        with self._cond:
+            return self._last_high is not None and self._clock() - self._last_high < IDLE_AFTER_S
 
     def _app_bucket(self, host: str) -> _Bucket:
         bucket = self._app.get(host)
@@ -168,15 +183,17 @@ class RateLimiter:
         timeout: float | None = None,
     ) -> bool:
         """Bloquea hasta poder lanzar la petición. False si se cancela/expira."""
-        reserve = _reserve_for(priority, self.reserve_frac)
         paced = priority == Priority.LOW
         deadline = None if timeout is None else self._clock() + timeout
         method_key = f"{host}|{method}"
         with self._cond:
+            if priority == Priority.HIGH:
+                self._last_high = self._clock()
             while True:
                 if stop is not None and stop.is_set():
                     return False
                 now = self._clock()
+                reserve = self._reserve_now(priority, now)
                 app = self._app_bucket(host)
                 meth = self._method.get((host, method))
                 wait = max(

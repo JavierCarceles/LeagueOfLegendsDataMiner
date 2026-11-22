@@ -48,3 +48,19 @@ def client_seek(body: SeekBody, svc=Depends(svc_from)):
 def client_enable_api():
     path = _guard(lcu.enable_replay_api)
     return {"message": "Salto automático activado (EnableReplayApi=1). Se aplica al abrir la siguiente repetición.", "path": str(path)}
+
+
+# ------------------------------------------------------------------ repeticiones en este ordenador (.rofl)
+class LocalPathBody(BaseModel):
+    path: str | None = Field(None, max_length=500, description="Carpeta de repeticiones; vacío = buscarla de nuevo")
+
+
+@router.get("/local")
+def local_replays(limit: int = 20, svc=Depends(svc_from)):
+    """Carpeta de repeticiones de este ordenador (recordada por sistema operativo) y las que hay en ella."""
+    return svc.local_replays.summary(max(1, min(limit, 200)))
+
+
+@router.post("/local/rescan")
+def local_rescan(body: LocalPathBody | None = None, svc=Depends(svc_from)):
+    return _guard(svc.local_replays.rescan, (body.path or "").strip() if body else None)
