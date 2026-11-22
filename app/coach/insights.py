@@ -323,6 +323,7 @@ TAG_LABELS = {
     "collapsed": "Cazado en su mitad",
     "baron_buff": "Con la mejora del barón",
     "bounty": "Recompensa regalada",
+    "duel_behind": "Duelo en desventaja",
 }
 
 
@@ -575,6 +576,9 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "Te ganquean sin visión"},
     {"id": "death_overextended", "kind": "death", "need": ("overextended",), "metric": "deaths_overextended",
      "title": "Mueres adelantado en la línea"},
+    {"id": "death_duel_behind", "kind": "death", "need": ("duel_behind",), "metric": None,
+     "title": "Aceptas duelos con niveles u objetos de menos",
+     "tip": "Antes de un 1 contra 1 mira el nivel y los objetos del rival (pulsa Tab): con 2 niveles menos, un legendario menos o sin tu R contra la suya, retrocede y farmea bajo torre o espera a tu jungla. Pelea cuando subas tú antes de nivel o cierres tu objeto."},
     {"id": "death_enemy_jungle", "kind": "death", "need": ("enemy_jungle",), "metric": "deaths_enemy_jungle",
      "title": "Mueres en la jungla rival"},
     {"id": "death_unspent_gold", "kind": "death", "need": ("unspent_gold",), "metric": "deaths_unspent_gold",

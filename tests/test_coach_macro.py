@@ -274,3 +274,70 @@ def test_analysis_without_timeline_keeps_working():
 
     a = analyze_game(base_match(), None, pid=1)
     assert a["clocks"] is False and a["has_timeline"] is False
+
+
+# ------------------------------------------------------- duelo en desventaja
+def level(t: int, pid: int, lvl: int) -> dict:
+    return ev(t, "LEVEL_UP", participantId=pid, level=lvl)
+
+
+def test_duel_with_two_levels_less_is_flagged():
+    # En la factoría los dos van a nivel 8 en la muerte 1 contra 1 del 11:30; su rival sube a 10 antes.
+    a = run([level(640_000, 6, 10)])
+    d = next(x for x in a["deaths"] if x["t"] == 690.0)
+    assert "duel_behind" in d["tags"]
+    m = next(x for x in a["moments"] if x["t"] == 690.0 and x["kind"] == "death")
+    assert m["title"].startswith("Duelo perdido en desventaja")
+    assert "2 niveles menos (8 contra 10)" in m["detail"]
+    assert a["metrics"]["deaths_duel_behind"] == 1
+    # Sin esa diferencia es un 1 contra 1 normal.
+    b = run()
+    assert "duel_behind" not in next(x for x in b["deaths"] if x["t"] == 690.0)["tags"]
+    assert b["metrics"]["deaths_duel_behind"] == 0
+
+
+def test_levels_are_read_before_the_kill_xp():
+    # Sube a 10 con la experiencia de tu muerte (mismo instante): al empezar el duelo tenía 9, solo uno más.
+    a = run([level(640_000, 6, 9), level(690_000, 6, 10)])
+    assert "duel_behind" not in next(x for x in a["deaths"] if x["t"] == 690.0)["tags"]
+
+
+def test_duel_is_not_blamed_when_you_had_more_items():
+    a = run([level(640_000, 6, 10), buy(600_000, 1, 3071)])
+    assert "duel_behind" not in next(x for x in a["deaths"] if x["t"] == 690.0)["tags"]
+
+
+def test_duel_with_one_legendary_less_needs_a_real_gold_gap():
+    legendary = buy(600_000, 6, 3071)
+    close = run([legendary])  # 880 de oro de diferencia: el objeto acababa de cerrarse
+    assert "duel_behind" not in next(x for x in close["deaths"] if x["t"] == 690.0)["tags"]
+    far = run([legendary], {(6, 11): {"totalGold": 5500}})
+    m = next(x for x in far["moments"] if x["t"] == 690.0 and x["kind"] == "death")
+    assert "duel_behind" in m["tags"] and "un legendario menos y 1.700 de oro menos" in m["detail"]
+
+
+def test_duel_without_ultimate_early_and_champions_without_a_normal_r():
+    solo = kill(400_000, 6, 1, (1300, 11000))
+    a = run([solo, level(380_000, 6, 6)])
+    m = next(x for x in a["moments"] if x["t"] == 400.0 and x["kind"] == "death")
+    assert "duel_behind" in m["tags"] and "sin la definitiva (nivel 5 contra su nivel 6)" in m["detail"]
+    udyr = run([solo, level(380_000, 6, 6)], overrides={6: {"championId": 77}})
+    assert "duel_behind" not in next(x for x in udyr["deaths"] if x["t"] == 400.0)["tags"]
+
+
+def test_ganks_and_mutual_kills_are_not_duels():
+    gank = run([level(250_000, 7, 6)])  # el gank del 5:10 (jungla con asistencia): cuenta el gank
+    assert "duel_behind" not in next(x for x in gank["deaths"] if x["t"] == 310.0)["tags"]
+    mutual = run([level(640_000, 6, 10), kill(690_500, 1, 6, (1200, 9000))])
+    assert "duel_behind" not in next(x for x in mutual["deaths"] if x["t"] == 690.0)["tags"]
+
+
+def test_duel_behind_groups_in_recurring_mistakes():
+    games = [
+        {"match_id": f"EUW1_{i}", "queue": 420, "role": "TOP", "champ": 64, "win": False, "has_timeline": True,
+         "metrics": {}, "mistakes": [["death", "medium", 300.0, ["solo", "duel_behind"], "x"]]}
+        for i in range(3)
+    ]
+    out = insights.recurring_mistakes(games)
+    assert [x["id"] for x in out["items"]] == ["death_duel_behind"]
+    assert out["items"][0]["learn"]["topic"] == "trades"

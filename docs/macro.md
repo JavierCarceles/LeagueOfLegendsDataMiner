@@ -131,3 +131,60 @@ Investigación del 19-11-2026 para `app/coach/analyzer.py` (robots.txt revisado 
 - **Decisiones de equipo:** prioridad de líneas, split o agruparse, uso del TP (solo cuántas veces), condición de victoria y objetivos cedidos a propósito.
 - **Entre frames:** con 60 s interpolados no cabe «llegaste 10 s tarde».
 - **Rotar tras una torre:** con placas en las interiores, quedarse puede ser correcto.
+
+## E) Cobertura de la carpeta `macro/` (22-11-2026, `ANALYSIS_VERSION = 11`)
+
+Revisión de las 38 reglas de `macro/macro_general.txt`, las 81 de `macro/macro_por_rol.txt` y las 207 de
+`macro/macro_composiciones.txt` frente a lo que analiza `app/coach/analyzer.py`. Las cifras salen de volver a analizar
+las 51 partidas de `data/mis_partidas` (47 de jungla, 4 de support) con el código actual.
+
+**Ya se detecta**
+
+| Reglas | Detección (etiqueta) |
+|---|---|
+| General 1, 2, 4, 8, 28, 37; compos 33, 57, 94, 139, 145 | Pelea ganada sin aprovechar y volver a base tras ganarla (`unconverted`) |
+| General 16; jungla 11; ADC 7, 14; support 9; compos 8, 21, 28 | Vuelta a base a destiempo (`late_recall`), llegada tarde (`late`), pink sin usar (`pink`) |
+| General 19, 24; compos 84, 99, 108, 169, 198 | Pelear junto a un objetivo con uno menos (`fight_outnumbered`), morir antes de un objetivo (`before_objective`) |
+| General 20, 158 | Alma, barón y ancestral cedidos pesan como graves |
+| General 21; jungla 7, 13; general 26 | Buen cambio o cambio justo al otro lado (`trade`), ganks rivales en la otra mitad (`tracking`) |
+| General 22 | Barón sin aprovechar (`baron_wasted`) y morir solo con la mejora (`baron_buff`) |
+| General 25, 27; TOP 7, 12; ADC 9; support 8; compos 40, 63, 173 | Aislado (`isolated`), cazado en su mitad (`collapsed`), en su jungla (`enemy_jungle`), sin ward (`no_ward`), adelantado (`overextended`), ganks |
+| General 33; ADC 6 | Oro sin gastar (`gold`) y morir con él (`unspent_gold`) |
+| General 34; compos 143 | Recompensa regalada (`bounty`) |
+| **TOP 5, 6; MID 13; ADC 3; compos 13, 152, 155** | **Nuevo: duelo en desventaja (`duel_behind`)** |
+| Jungla 2-5, 14 | Impacto antes del 10, ganks, CS de jungla, primer gank, cangrejos e invasión |
+| ADC 1; compos 150 | CS por minuto, CS a los 10 y diferencia con tu rival a los 10 y 15 |
+| Support 1, 2; compos 52 | Visión por minuto, wards antes del 14, pinks compradas y puestas |
+| Compos 117, 146, 157 | Minutos vacíos (`idle`) y ventajas que se escapan (*Hábitos*) |
+
+**Nuevo: duelo en desventaja.** Mueres 1 contra 1 (un rival, sin muerte mutua ni gank) y él te sacaba ≥ 2 niveles,
+o un legendario más con ≥ 1.000 de oro total de diferencia, o antes del 14 tú no tenías la R y él sí. Los niveles se
+miden 3 s antes de la muerte, porque la experiencia de matarte ya le sube de nivel (sin ese margen salían 2 casos de
+más). Si tú llevabas más legendarios, no salta, y la R no cuenta con Karma, Elise, Nidalee, Udyr, Jayce ni Hwei. Suma
++0,5 de gravedad y en *Errores que repites* sale como «Aceptas duelos con niveles u objetos de menos» (tema
+*Intercambios*). Salen 8 de 25 muertes en duelo, revisadas a mano (p. ej. Quinn 9 contra 12 en el río y Nidalee 15
+contra 17 antes del barón): todas correctas.
+
+**Probado con tus partidas y descartado (no es fiable)**
+
+- **Matar al jungla rival y no hacer el objetivo** (general 5, jungla 18). Salieron 8 candidatas en 47 partidas de
+  jungla y las 8 tenían explicación: barón hecho 10 s después de la ventana, defender una torre del split rival, vida al
+  17 %, el equipo a 9.000 unidades del foso o una pelea igualada que dejó 2 vivos. Lo que sí es error ya lo cubre la
+  pelea ganada sin aprovechar.
+- **Llegar al objetivo con oro sin gastar** (general 33, compos 204). Pasa 1 vez en 70 objetivos disputados contigo
+  cerca: casi siempre vuelves a base antes. Ese caso ya sale como oro sin gastar.
+
+**No detectable con los datos de Riot** (ver también D)
+
+- **Oleadas** (general 9, 10, 13; TOP 1-4; MID 1, 2, 10; ADC 5; compos 29, 39, 41, 50, 51, 124): no hay súbditos.
+- **Enfriamientos, definitivas, Flash y TP** (general 32; TOP 9, 10; support 12; compos 9, 10, 25, 27, 203): no
+  vienen; del TP solo se sabe cuántas veces se usó.
+- **Dónde se ponen los wards** (support 1, 10, 11; compos 42, 202): `WARD_PLACED` no trae posición.
+- **Cómo se pelea** (compos 15-120: formación, peel, dive, poke, quién inicia y a quién se ataca): solo se sabe dónde
+  y cuándo muere cada uno.
+- **Perseguir** (general 3, 7; jungla 15): con una posición por minuto no se ve una persecución.
+- **Decisiones de equipo** (general 11-15, 31, 36; compos 1-14, 121-135, 196-207): agruparse, split, asignación de
+  líneas o condición de victoria. La composición se analiza en *Draft*, pero no se puede comprobar si se jugó según
+  su plan.
+- **Propósito de un roam y comunicación** (MID 3-6, 14; support 5-7; jungla 16): se mide el tiempo fuera de la línea y
+  sus kills, no qué se buscaba ni los pings.

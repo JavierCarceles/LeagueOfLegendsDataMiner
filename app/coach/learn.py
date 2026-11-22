@@ -130,6 +130,7 @@ MISTAKE_TOPIC = {
     "death_gank_no_ward": "ganks",
     "death_overextended": "ganks",
     "death_enemy_jungle": "vision",
+    "death_duel_behind": "trades",
     "death_unspent_gold": "backs",
     "death_collapsed": "macro",
     "death_isolated": "macro",
@@ -148,7 +149,7 @@ MISTAKE_TOPIC = {
 # Etiquetas de un momento de la repetición -> tema (la primera que encaje).
 TAG_TOPIC = [
     ("fight_outnumbered", "objectives"), ("before_objective", "objectives"), ("late_recall", "objectives"), ("late", "objectives"),
-    ("far", "objectives"), ("unconverted", "macro"), ("baron_wasted", "macro"), ("collapsed", "macro"), ("isolated", "macro"),
+    ("far", "objectives"), ("duel_behind", "trades"), ("unconverted", "macro"), ("baron_wasted", "macro"), ("collapsed", "macro"), ("isolated", "macro"),
     ("no_ward", "vision"), ("pink", "vision"), ("enemy_jungle", "vision"), ("gank", "ganks"), ("jungler", "ganks"),
     ("overextended", "ganks"), ("solo", "trades"), ("unspent_gold", "backs"), ("gold", "backs"), ("tracking", "jungle"),
     ("jungle", "jungle"), ("lane", "waves"), ("idle", "macro"),

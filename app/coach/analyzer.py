@@ -66,7 +66,10 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #     antes de un objetivo pasa casi igual en los dos elos (0,48 y 0,40 por partida) y era la mayor parte de las muertes
 #     «a mejorar»: pesa 0,3 (leve) en vez de 0,5; morir aislado o en 1 contra 1 sí distingue (2-3 veces más en
 #     Esmeralda) y se queda igual. «El jungla rival ganqueó en la otra mitad» salía más en Aspirante: leve.
-ANALYSIS_VERSION = 10
+# 11: duelo en desventaja (reglas de macro/macro_por_rol.txt: «compara nivel, objetos y definitivas antes de pelear»):
+#     morir 1 contra 1 con 2 niveles menos, con un legendario menos (y ≥ 1.000 de oro de diferencia) o sin la R contra
+#     un rival que ya la tiene, sin ir tú por delante en lo otro. 8 de 25 muertes en duelo en 51 partidas del usuario.
+ANALYSIS_VERSION = 11
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -129,6 +132,10 @@ COLLAPSED_RADIUS = 3000
 GANK_LANE_RADIUS = 2500  # morir en el río junto a tu línea también es un gank
 FAR_GANK = 5000  # ganks del jungla rival «en la otra mitad»: además, a más de esta distancia de ti
 BOUNTY_GIFT = 500  # recompensa (shutdown) que regalas muriendo solo; Riot la limita a 700
+DUEL_LEVEL_GAP = 2  # duelo en desventaja: el rival te sacaba al menos 2 niveles…
+DUEL_GOLD_GAP = 1000  # …o un legendario más y al menos este oro total de diferencia (no un objeto recién cerrado)
+ULT_LEVEL = 6
+DUEL_BEFORE_MS = 3_000  # nivel y objetos de cada uno al empezar el duelo, no tras tu muerte
 
 # Tiempo base de reaparición por nivel (s) y factor por minuto de partida.
 BRW = [10, 10, 12, 12, 14, 16, 20, 25, 28, 32.5, 35, 37.5, 40, 42.5, 45, 47.5, 50, 52.5]
@@ -344,6 +351,21 @@ class _Game:
         self.items_reliable = self.inv is not None and not self.inv.unknown and _same_season(self.catalog, info)
         self.gold_rows: dict[int, dict] = {}
         self.hoard_frames: set[int] = set()
+        self._invs: dict[int, Inventory | None] = {me_pid: self.inv}
+
+    def inventory(self, pid: int) -> Inventory | None:
+        """Inventario reconstruido de cualquier jugador (``None`` sin catálogo o con objetos que no conoce)."""
+        if pid not in self._invs:
+            ok = self.catalog and self.has_timeline and _same_season(self.catalog, self.info)
+            self._invs[pid] = Inventory(self.catalog, self.item_events.get(pid) or []) if ok else None
+        inv = self._invs[pid]
+        return inv if inv is not None and not inv.unknown else None
+
+    def legendaries_at(self, pid: int, t: int) -> int | None:
+        inv = self.inventory(pid)
+        if inv is None:
+            return None
+        return sum(1 for i in inv.completed(inv.at(t)) if self.catalog.is_legendary(i))
 
     # ----------------------------------------------------------- jugadores
     def _by_role(self, team: int, role: str | None) -> int | None:
@@ -799,6 +821,7 @@ def analyze_game(
             "deaths_collapsed": count("collapsed", unless=CONTEXT_OK),
             "deaths_outnumbered_obj": count("fight_outnumbered", unless=CONTEXT_OK) if g.clocks_ok else None,
             "deaths_fight_won": count("fight_won"),
+            "deaths_duel_behind": count("duel_behind"),
             "wards_pre14": sum(1 for t in g.wards[me] if t < EARLY_MS),
             "control_wards_placed": g.control_wards_placed[me],
             "afk_min": round(g.afk_ms(me) / 60_000, 1),
@@ -1003,6 +1026,10 @@ def _classify_death(g: _Game, k: dict) -> dict:
         tags.append("collapsed")
     if "isolated" in tags and _baron_buff(g, t):
         tags.append("baron_buff")
+    # Duelo en desventaja: si te ganqueaban, lo que cuenta es el gank, no el nivel.
+    duel = _duel_gap(g, k, enemies, fight) if g.has_timeline and not excused and "gank" not in tags else None
+    if duel:
+        tags.append("duel_behind")
     shutdown = _num(k.get("shutdown"))
     if not excused and shutdown >= BOUNTY_GIFT and any(x in tags for x in ("isolated", "collapsed", "enemy_jungle")):
         tags.append("bounty")
@@ -1022,7 +1049,7 @@ def _classify_death(g: _Game, k: dict) -> dict:
     elif "enemy_jungle" in tags and not (g.role == "JUNGLE" and fight["allies"] >= 2):
         title = "Muerte en la jungla rival"
     elif "solo" in tags:
-        title = f"Muerte 1 contra 1 contra {killer_name}"
+        title = f"Duelo perdido en desventaja contra {killer_name}" if duel else f"Muerte 1 contra 1 contra {killer_name}"
     elif "collapsed" in tags:
         title = f"Te cazaron solo en su mitad del mapa ({_plural(len(enemies), 'rival', 'rivales')})"
     elif "isolated" in tags:
@@ -1054,6 +1081,8 @@ def _classify_death(g: _Game, k: dict) -> dict:
         details.append(f"te cazaron {len(enemies)} rivales al otro lado del río: en su mitad del mapa, entra solo con visión y sabiendo dónde están")
     if "baron_buff" in tags:
         details.append("con la mejora del barón, que se aprovecha asediando en grupo o por dos líneas, no farmeando solo")
+    if duel:
+        details.append(_duel_text(g, duel))
     if "bounty" in tags:
         details.append(f"y regalaste {_int(shutdown)} de oro de recompensa")
     if numbers:
@@ -1081,6 +1110,7 @@ def _classify_death(g: _Game, k: dict) -> dict:
     score += 0.5 if "collapsed" in tags else 0
     score += 0.5 if "baron_buff" in tags else 0
     score += 0.3 if "bounty" in tags else 0
+    score += 0.5 if "duel_behind" in tags else 0
     score -= 1.0 if "fight_won" in tags else 0.5 if "fight_even" in tags else 0
     score -= 0.7 if "traded" in tags else 0
     severity = "high" if score >= 2.5 else "medium" if score >= 1.5 else "low"
@@ -1252,6 +1282,53 @@ def _numbers_down(g: _Game, k: dict, cluster: list[dict], pos) -> dict | None:
         return None
     label = _obj_label(g, taken) if taken else OBJ_LABEL[kind]
     return {"kind": kind, "label": label, "allies": allies_up, "enemies": enemies_up, "dead": dead}
+
+
+def _duel_gap(g: _Game, k: dict, enemies: set[int], fight: dict) -> dict | None:
+    """¿Perdiste un duelo (1 contra 1, sin muerte mutua) peleando con desventaja de nivel, objetos o definitiva?
+
+    Niveles exactos (eventos LEVEL_UP). Salta si el rival te sacaba ≥ 2 niveles, si tenía un legendario más y ≥ 1.000
+    de oro total más, o si tú no tenías la R (nivel < 6) y él sí. Nunca si en lo otro ibas tú por delante (más
+    legendarios o más nivel): ahí la pelea tenía sentido. Los campeones cuya R no sigue la regla 6/11/16 no cuentan
+    para lo de la definitiva.
+    """
+    if len(enemies) != 1 or fight["allies"] != 1 or fight["enemies"]:
+        return None
+    me, e = g.me["pid"], next(iter(enemies))
+    t = k["t"] - DUEL_BEFORE_MS  # antes del golpe final: la experiencia de tu muerte ya le sube de nivel
+    lv, elv = g.level_at(me, t), g.level_at(e, t)
+    leg, eleg = g.legendaries_at(me, t), g.legendaries_at(e, t)
+    items_known = leg is not None and eleg is not None
+    i = g.frame_before(t)
+    gold, egold = g.fval(me, i, "totalGold"), g.fval(e, i, "totalGold")
+    gold_gap = egold - gold if gold is not None and egold is not None else None
+    if items_known and leg > eleg:
+        return None
+    reasons = []
+    if elv - lv >= DUEL_LEVEL_GAP:
+        reasons.append("levels")
+    if items_known and eleg > leg and gold_gap is not None and gold_gap >= DUEL_GOLD_GAP and lv <= elv:
+        reasons.append("items")
+    no_r = {g.me["champ"], g.players[e]["champ"]} & NO_R_CHECK
+    if lv < ULT_LEVEL <= elv and not no_r and t < EARLY_MS:
+        reasons.append("ult")
+    if not reasons:
+        return None
+    return {"reasons": reasons, "level": lv, "enemy_level": elv, "items": leg, "enemy_items": eleg, "gold_gap": gold_gap, "enemy": e}
+
+
+def _duel_text(g: _Game, gap: dict) -> str:
+    who = _champ_ref(g, gap["enemy"])
+    parts = []
+    if "levels" in gap["reasons"]:
+        diff = gap["enemy_level"] - gap["level"]
+        parts.append(f"con {diff} niveles menos ({gap['level']} contra {gap['enemy_level']})")
+    elif "ult" in gap["reasons"]:
+        parts.append(f"sin la definitiva (nivel {gap['level']} contra su nivel {gap['enemy_level']})")
+    if "items" in gap["reasons"]:
+        n = gap["enemy_items"] - gap["items"]
+        parts.append(f"con {'un legendario' if n == 1 else f'{n} legendarios'} menos y {_int(gap['gold_gap'])} de oro menos")
+    return f"peleaste contra {who} {' y '.join(parts)}: compara nivel, objetos y definitivas antes de aceptar un 1 contra 1"
 
 
 def _baron_buff(g: _Game, t: int) -> dict | None:
