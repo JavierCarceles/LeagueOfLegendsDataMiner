@@ -560,6 +560,25 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
 - Comprobar sintaxis JS sin Node: quitar `import`/`export` y parsear con JavaScriptCore
   (`osascript -l JavaScript`, `new Function(texto)`); detecta errores de sintaxis.
 
+## 3 undevicesimum. Sesión del 2026-11-22 (14.ª) — análisis v10 y builds recomendadas en el Draft
+
+- Datos nuevos (6aac621): Hecarim 1.045 (560 Esmeralda, 481 Aspirante, 70 OTPs), Lee Sin 225, Sylas 31 y 7 junglas con
+  pocas partidas; `_busqueda.json`: 10 junglas, Platino–Aspirante, OTP ≥ 500 K, 180 días → 50.789 revisados, 1.695 OTPs
+  (19.233/hora). Las partidas de OTPs llegan con análisis v7 y v9: la gravedad de las muertes se recalcula con la
+  fórmula actual a partir de sus `tags` (coincide siempre) para usar todas.
+- `analyzer.py` versión 10: muerte en pelea perdida por varios antes de un objetivo +0,3 (leve; 0,48 Esmeralda vs 0,40
+  Maestro+ por partida, era la mayoría de «a mejorar»); medias/graves por partida 0,99→0,51 (Maestro+) y 1,34→0,77
+  (Esmeralda), discrimina mejor (1,35→1,5). «El jungla rival ganqueó en la otra mitad» → leve (más en Aspirante).
+- **Builds recomendadas en el Draft** (`app/analytics/builds.py`, `POST /api/draft/builds`, tarjeta en `draft.js`):
+  por jugador, base de OP.GG contra su rival de línea (`matchup_guide`: objetos clave, botas, inicio, runas,
+  habilidades) o su build general (`champion_build`); ajustes por el draft rival con su porqué (Heridas graves contra
+  `HEAVY_HEAL`, como mucho 2 por equipo por orden ADC/top/mid/jungla; botas y armadura/RM según el perfil de daño de
+  `_composition` y el control; penetración contra primera línea; Zhonya/Ángel/Maw contra ≥ 2 asesinos para carries
+  blandos), sacados de los objetos que ese campeón compra según OP.GG o, si no, del catálogo; lo que hacen sus OTPs
+  (`data/otps`) y objetos con WR en tu BD. Tarjeta: una fila por jugador (cambios en dorado), «Builds del rival»
+  plegado, detalle y porqué en ventana. `tests/test_draft_builds.py`.
+- Ideas: usar más tu BD (objetos con WR según el perfil del equipo rival), runas según el draft, hechizos.
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

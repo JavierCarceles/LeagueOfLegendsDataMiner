@@ -872,6 +872,16 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .funnel-step { display: inline-flex; align-items: baseline; gap: 2px; }
 .funnel-step + .funnel-step::before { content: "→"; color: var(--faint); margin: 0 8px; }
 
+/* Draft: builds recomendadas */
+.build-rows { display: flex; flex-direction: column; gap: 4px; }
+.build-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) 28px auto auto; align-items: center; gap: 12px; padding: 7px 8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.build-row:hover { background: var(--panel-2); border-color: var(--line); }
+.build-row:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.build-items { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.build-swap { display: inline-flex; border-radius: 7px; box-shadow: 0 0 0 2px var(--gold); }
+.build-plus { color: var(--faint); font-weight: 700; margin: 0 2px; }
+@media (max-width: 760px) { .build-row { grid-template-columns: minmax(0, 1fr) auto; } .build-row > .build-items { grid-column: 1 / -1; grid-row: 2; } .build-row .hide-sm { display: none; } }
+
 /* Límite de la API: una tarjeta por región */
 .limit-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .limit-region { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }

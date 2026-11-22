@@ -8,7 +8,7 @@ from tests.test_coach import RED_JUNGLE_TOP, _analyze, _event, _kill
 
 
 def test_analysis_version_bumped_so_your_games_are_reanalysed():
-    assert ANALYSIS_VERSION >= 9
+    assert ANALYSIS_VERSION >= 10
 
 
 def test_r_is_only_required_at_level_6():
@@ -34,7 +34,8 @@ def test_jungler_dying_in_a_lost_fight_in_their_jungle_is_a_fight_not_a_lone_mis
     assert {"enemy_jungle", "before_objective"} <= set(death["tags"]) and death["fight"]["allies"] == 2
     moment = next(mo for mo in a["moments"] if mo["t"] == 1200.0)
     assert moment["title"].startswith("Muerte en pelea")  # antes: «Muerte en la jungla rival», grave
-    assert death["severity"] == "medium"  # 1 + 0,5 (objetivo tras una pelea perdida por varios); antes 2,5 = grave
+    # 1 + 0,3 (objetivo tras una pelea perdida por varios: pasa casi igual en Esmeralda y en Aspirante); antes 2,5 = grave.
+    assert death["severity"] == "low"
 
 
 def test_jungle_references_are_never_better_than_challenger():

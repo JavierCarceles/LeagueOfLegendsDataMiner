@@ -3,13 +3,14 @@ import { api, filterParams, isPending } from "../api.js";
 import { curveChart, gauge } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, loadJSON, ROLE_LABEL, ROLES, save, state } from "../state.js";
-import { patchBadge, champImg, collapsible, confidenceEl, debounce, empty, errorBox, fmt, h, icon, loading, modal, mount, notice, roleIcon, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
+import { patchBadge, champImg, collapsible, confidenceEl, debounce, empty, errorBox, fmt, h, icon, itemImg, loading, modal, mount, notice, roleIcon, runeImg, sourceBadges, toast, verdictEl, wrClass } from "../ui.js";
 import { openMatchup } from "./matchups.js";
 
 const STORE = "tempu.draft.v2";
 let draft = loadJSON(STORE, { ally: {}, enemy: {} });
 let root = null;
 let summaryEl = null;
+let buildsEl = null;
 let laneEls = {};
 let bottomEl = null;
 let pickers = { ally: {}, enemy: {} };
@@ -35,6 +36,7 @@ export async function render(container) {
   laneEls = {};
   summaryEl = h("div.draft-summary");
   bottomEl = h("div.grid.grid-3", { style: { marginTop: "16px" } });
+  buildsEl = h("div", { style: { marginTop: "16px" } });
 
   const board = h("div.draft-board");
   board.append(
@@ -68,6 +70,7 @@ export async function render(container) {
     ),
     summaryEl,
     board,
+    buildsEl,
     bottomEl,
   );
   analyze();
@@ -264,6 +267,7 @@ async function analyze() {
     mount(summaryEl, h("div.card", { style: { gridColumn: "1 / -1" } }, empty("Empieza el draft", "Elige campeones en cualquier orden: el análisis se actualiza solo. Los mejores picks de cada hueco salen en el centro de cada línea y arriba de cada selector.", "draft")));
     ROLES.forEach((r) => renderLane(r, null));
     mount(bottomEl);
+    mount(buildsEl);
     refreshRecs();
     return;
   }
@@ -279,6 +283,7 @@ async function analyze() {
     renderSummary(result);
     result.lanes.forEach((lane) => renderLane(lane.role, lane));
     renderBottom(result);
+    loadBuilds(mine);
   } catch (err) {
     if (mine === seq) mount(summaryEl, h("div", { style: { gridColumn: "1 / -1" } }, errorBox(err)));
   } finally {
@@ -286,6 +291,111 @@ async function analyze() {
     summaryEl.style.opacity = "1";
   }
 }
+
+// ------------------------------------------------------------------ builds recomendadas
+async function loadBuilds(mine) {
+  if (!buildsEl) return;
+  if (!buildsEl.firstChild) mount(buildsEl, h("section.card", h("h3.card-title", icon("crown"), "Builds recomendadas"), loading("Preparando la build de cada jugador…")));
+  let res;
+  try {
+    res = await api.post("/api/draft/builds", { ally: draft.ally, enemy: draft.enemy }, filterParams());
+  } catch (err) {
+    if (mine === seq) mount(buildsEl, errorBox(err));
+    return;
+  }
+  if (mine !== seq || !root) return;
+  if (!res.ally.length && !res.enemy.length) return mount(buildsEl);
+  mount(
+    buildsEl,
+    h(
+      "section.card",
+      h("h3.card-title", icon("crown"), "Builds recomendadas", h("span.spacer"), h("span.tiny.muted.hide-sm", "contra su rival de línea y ajustadas al equipo rival · pulsa una para ver el porqué")),
+      res.ally.length ? h("div.build-rows", res.ally.map(buildRow)) : h("div.small.muted", "Elige campeones de tu equipo para ver su build."),
+      res.enemy.length
+        ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.builds.rival", [icon("crown"), "Builds del rival"], () => h("div.build-rows", res.enemy.map(buildRow)), { cls: "flat", summary: `${res.enemy.length} ${res.enemy.length === 1 ? "campeón" : "campeones"} · para saber qué van a construir` }))
+        : null,
+    ),
+  );
+}
+
+function buildRow(p) {
+  const b = p.base || {};
+  const swaps = p.situational || [];
+  const bootsSwap = swaps.find((s) => s.kind === "boots");
+  const boots = bootsSwap?.item || (b.boots || [])[0];
+  const extra = swaps.filter((s) => s.kind !== "boots");
+  return h(
+    "button.build-row",
+    { type: "button", onclick: () => openBuild(p) },
+    h("span.row", { style: { gap: "6px", minWidth: 0 } }, roleIcon(p.role), champImg(p.champ, "sm"), h("b.small.ellipsis", dd.name(p.champ))),
+    h(
+      "span.build-items",
+      (b.core || []).map((i) => itemImg(i)),
+      boots ? h(`span${bootsSwap ? ".build-swap" : ""}`, { title: bootsSwap ? bootsSwap.reason : "Botas" }, itemImg(boots)) : null,
+      extra.length ? h("span.build-plus", "+") : null,
+      extra.map((s) => h("span.build-swap", { title: s.reason }, itemImg(s.item))),
+      !b.core?.length && !extra.length ? h("span.tiny.muted", "sin datos de build todavía") : null,
+    ),
+    b.runes?.keystone ? runeImg(b.runes.keystone, 24) : h("span"),
+    h("span.tiny.muted.hide-sm", b.source === "matchup" ? `vs ${dd.name(b.opponent)}` : b.source === "general" ? "build general" : ""),
+    swaps.length ? h("span.pill.pill-gold", { title: swaps.map((s) => s.reason).join("\n") }, `${swaps.length} por el draft`) : h("span"),
+  );
+}
+
+function openBuild(p) {
+  const b = p.base || {};
+  const itemLine = (ids) => h("span.build-items", ids.map((i) => itemImg(i)));
+  const wr = b.games ? (100 * (b.wins || 0)) / b.games : null;
+  modal(
+    h("div.row", { style: { gap: "10px" } }, champImg(p.champ, "lg"), h("div", h("h3", `Build de ${dd.name(p.champ)}`), h("div.tiny.muted", `${ROLE_LABEL[p.role]}${p.opponent ? ` · contra ${dd.name(p.opponent)}` : ""}`))),
+    h(
+      "div.col",
+      { style: { gap: "16px" } },
+      b.core?.length
+        ? h(
+            "div.col",
+            { style: { gap: "8px" } },
+            h("div.small", h("b", b.source === "matchup" ? `Contra ${dd.name(b.opponent)} (OP.GG)` : "Build más jugada (OP.GG)"), b.games ? h("span.muted", ` · ${fmt.int(b.games)} partidas${wr !== null ? ` · ${fmt.pct(wr, 1)} WR` : ""}`) : null),
+            h("div.row-wrap", { style: { gap: "14px" } }, h("span.row", h("span.tiny.muted", "Objetos clave"), itemLine(b.core)), b.boots?.length ? h("span.row", h("span.tiny.muted", "Botas"), itemLine(b.boots)) : null, b.starter?.length ? h("span.row", h("span.tiny.muted", "Inicio"), itemLine(b.starter)) : null),
+            b.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(b.runes.keystone, 22), h("span", b.runes.names.join(" · ")))) : null,
+            b.skill_order || b.skill_max?.length ? h("div.small.muted", `Habilidades: ${b.skill_order || b.skill_max.join(" > ")}`) : null,
+          )
+        : h("div.small.muted", "Aún no hay build de OP.GG para este campeón en este rol (se descarga en segundo plano: vuelve a mirar en un momento)."),
+      p.situational?.length
+        ? h(
+            "div.col",
+            { style: { gap: "8px" } },
+            h("div.small", h("b", "Cambios por el draft rival")),
+            p.situational.map((s) =>
+              h(
+                "div.row",
+                { style: { gap: "10px", alignItems: "flex-start" } },
+                itemImg(s.item),
+                h("div", h("div.small", h("b", dd.itemName(s.item) || `Objeto ${s.item}`), s.replaces ? h("span.muted", ` en vez de ${dd.itemName(s.replaces) || s.replaces}`) : null), h("div.tiny.muted", s.reason)),
+              ),
+            ),
+          )
+        : h("div.small.muted", "Nada que cambiar por el equipo rival (o aún faltan campeones rivales por elegir)."),
+      p.otp
+        ? h(
+            "div.small",
+            h("b", `Sus OTPs (${TIER_NAMES[p.otp.tier] || p.otp.tier}, ${fmt.int(p.otp.games)} partidas): `),
+            [p.otp.first_item ? `primer objeto ${p.otp.first_item.value} (${fmt.pct(p.otp.first_item.pct, 0)})` : null, p.otp.skill_max ? `suben ${p.otp.skill_max.value}` : null, p.otp.path ? `build más jugada: ${p.otp.path.value}` : null].filter(Boolean).join(" · "),
+          )
+        : null,
+      p.own?.items?.length
+        ? h(
+            "div.col",
+            { style: { gap: "6px" } },
+            h("div.small", h("b", `En tu base de datos (${fmt.int(p.own.games)} partidas)`)),
+            h("div.row-wrap", { style: { gap: "10px" } }, p.own.items.map((o) => h("span.row", { style: { gap: "4px" }, title: dd.itemName(o.id) }, itemImg(o.id), h(`span.tiny.${wrClass(o.wr)}`, `${fmt.pct(o.wr, 0)}`), h("span.tiny.muted", `· ${fmt.int(o.games)}`)))),
+          )
+        : null,
+    ),
+  );
+}
+
+const TIER_NAMES = { CHALLENGER: "Aspirante", GRANDMASTER: "Gran Maestro", MASTER: "Maestro", DIAMOND: "Diamante", EMERALD: "Esmeralda", PLATINUM: "Platino" };
 
 // ------------------------------------------------------------------ resumen
 function gradeLetter(grade, cls = "grade-letter") {

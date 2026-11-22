@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.analytics import draft
+from app.analytics import builds, draft
 from app.analytics.filters import Filters
 from app.api.deps import filters_dep, role_param, sources_dep, svc_from
 from app.riot.routing import ROLES
@@ -36,6 +36,13 @@ def analyze(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = D
     if len(set(ally.values()) | set(enemy.values())) < len(ally) + len(enemy):
         raise HTTPException(400, "Un campeón no puede aparecer dos veces en el draft")
     return draft.analyze(svc, f, ally, enemy, sources)
+
+
+@router.post("/builds")
+def draft_builds(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
+    """Build recomendada para cada campeón elegido: contra su rival de línea y ajustada al equipo rival."""
+    ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
+    return builds.recommend(svc, f, ally, enemy, sources)
 
 
 @router.post("/suggest")

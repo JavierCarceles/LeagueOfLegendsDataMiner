@@ -62,7 +62,11 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #    igual en los dos elos (10 % y 11 % de partidas), así que bajan a leve (heraldo, larvas y barón sí distinguen: 1,6-2,8
 #    veces más en Esmeralda); «inventario lleno de componentes» salía más en Aspirante (6 % frente a 2,5 %): solo si se
 #    repite.
-ANALYSIS_VERSION = 9
+# 10: con 1.315 partidas de junglas OTP (560 Esmeralda, 755 Maestro+): morir en una pelea perdida por varios justo
+#     antes de un objetivo pasa casi igual en los dos elos (0,48 y 0,40 por partida) y era la mayor parte de las muertes
+#     «a mejorar»: pesa 0,3 (leve) en vez de 0,5; morir aislado o en 1 contra 1 sí distingue (2-3 veces más en
+#     Esmeralda) y se queda igual. «El jungla rival ganqueó en la otra mitad» salía más en Aspirante: leve.
+ANALYSIS_VERSION = 10
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1066,7 +1070,7 @@ def _classify_death(g: _Game, k: dict) -> dict:
     score += 0.8 if "overextended" in tags else 0
     # Antes de un objetivo pesa más morir suelto (dejas al equipo con uno menos) que caer en una pelea que perdisteis
     # varios: ahí el error es la pelea, no tu muerte.
-    score += (0.5 if fight["allies"] >= 2 else 1.0) if "before_objective" in tags else 0
+    score += (0.3 if fight["allies"] >= 2 else 1.0) if "before_objective" in tags else 0
     score += 0.5 if "unspent_gold" in tags else 0
     score += 0.6 if "enemy_jungle" in tags and "no_ward" in tags else 0
     # Que te cojan solo (o en su jungla a mitad de partida) regala ventaja numérica para el siguiente objetivo.
@@ -2333,7 +2337,7 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
             {
                 "t": 840.0,
                 "kind": "jungle",
-                "severity": "medium",
+                "severity": "low",
                 "title": f"El jungla rival ganqueó {far} veces en la otra mitad del mapa",
                 "detail": "Si sabes dónde está el jungla rival, juega en espejo: contragank en su lado o invade/objetivo en el contrario.",
                 "x": None,
