@@ -484,6 +484,18 @@ pruebas con `store.save_profile` + `store.save_game` (así la app no vuelve a de
   del 10: 6,0; ganks 1,7…). Visión sin tocar (los OTPs de Hecarim Esmeralda casi no ponen pinks: no es la norma).
 - Falta: Esmeralda de otros campeones (solo Hecarim) y otros roles.
 
+## 3 quattuordecies. Sesión del 2026-11-22 (9.ª) — tus partidas en el proyecto (sin commitear)
+
+- Petición: «que las partidas se incorporen al proyecto organizadas» para subirlas a GitHub y que Claude las revise
+  (se entendió: las del usuario, las de «Mi progreso»; las de OTPs ya estaban en `data/otps`).
+- `app/coach/files.py` (`svc.my_games_files`, arranca en `Services.startup`): cada minuto escribe las partidas de
+  `my_games` (estado ready/no_timeline/pending_timeline) nuevas o reanalizadas en
+  `<DATA_DIR>/mis_partidas/<ROL>/<Campeón>/<AAAA-MM-DD>_<partida>_<V|D>.json.gz` con `analysis` completo + `match`
+  y `timeline` en bruto; `resumen.json` (perfil, por rol/campeón/cola, medias de métricas por rol todas y últimas 20,
+  índice) y `LEEME.md`. `.indice.json` guarda (versión, analyzed_at, estado) de lo escrito; si cambia el rol se mueve.
+- Para revisar las partidas del usuario: `data/mis_partidas/resumen.json` y luego los `.json.gz` (se pueden
+  reanalizar con `analyze_game(match, timeline, puuid=…)`).
+
 ## 4 bis. Pendiente (por prioridad)
 
 0. **PRIMERO (petición del usuario, 2026-11-19): runas, objetos, orden y componentes de cada partida según la

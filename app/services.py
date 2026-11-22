@@ -53,6 +53,9 @@ class Services:
         from app.replays_local import LocalReplays
 
         self.local_replays = LocalReplays(self)
+        from app.coach.files import MyGamesFiles
+
+        self.my_games_files = MyGamesFiles(self)
         self.crawler = Crawler(self)
         self.tracker = GameTracker(self)
         from app.coach.calibrate import TierCalibrator
@@ -88,6 +91,8 @@ class Services:
         self.warmer.start()
         # Referencias de tu elo objetivo con partidas reales (tandas pequeñas, prioridad baja).
         self.calibrator.start()
+        # Tus partidas escritas en data/mis_partidas (para subirlas y revisarlas), al día cada minuto.
+        self.my_games_files.start()
         # Repeticiones (.rofl) de este ordenador: carpeta recordada por sistema operativo, se indexa al arrancar.
         self.local_replays.start()
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.
@@ -178,6 +183,7 @@ class Services:
         self.tracker.shutdown()
         self.calibrator.shutdown()
         self.local_replays.stop()
+        self.my_games_files.stop()
         from app.external.base import shutdown_fetches
 
         shutdown_fetches()
