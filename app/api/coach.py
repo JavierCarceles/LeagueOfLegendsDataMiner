@@ -407,6 +407,24 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
         extra = champ_checks.check(rec, champ_ref, _catalog(svc), _champ_name(svc, analysis.get("champ")))
         if extra:
             analysis["moments"] = sorted((analysis.get("moments") or []) + extra, key=lambda m: m.get("t") or 0)
+    # Cada error con su frecuencia en cada elo (tu campeón si hay varios elos; si no, tu rol): ¿lo hace todo el mundo o
+    # es de lo que separa elos?
+    data = prof.get(refresh=False) if prof else None
+    tiers, scope = insights.elo_tiers(data, analysis.get("role"), analysis.get("champ"))
+    if tiers:
+        for m in analysis.get("moments") or []:
+            if m.get("severity") not in ("high", "medium", "low"):
+                continue
+            mt = insights.mistake_type(m.get("kind"), set(m.get("tags") or []), analysis.get("role"))
+            if mt is None:
+                continue
+            sep = insights.separation(tiers, mt["id"])
+            m["elo"] = {
+                "type": mt["title"],
+                "scope": scope,
+                "tiers": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in insights.ELO_GROUPS if g in tiers},
+                "separates": (not sep["flat"]) if sep else None,
+            }
     return analysis
 
 

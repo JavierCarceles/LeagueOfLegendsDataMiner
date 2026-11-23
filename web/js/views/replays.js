@@ -547,6 +547,25 @@ function levelsLine(a, death, players) {
   );
 }
 
+const ELO_NAMES = { PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
+
+/** «Partidas con este error: Platino 60 % · … · Aspirante 47 %» y si es de lo que separa elos. */
+function eloLine(m) {
+  const e = m.elo;
+  const tiers = Object.entries(e?.tiers || {});
+  if (!tiers.length) return null;
+  return h(
+    "div.tiny.muted.elo-moment",
+    h("span", `Partidas ${e.scope === "champ" ? "de los OTPs de tu campeón" : "de tu rol"} con este error: `),
+    tiers.map(([t, pct], i) => [i ? " · " : "", h("b", `${ELO_NAMES[t] || t} ${Math.round(pct)} %`)]),
+    e.separates === false
+      ? h("div", "Lo cometen igual en todos los elos: cuenta, pero no es lo que te separa de subir.")
+      : e.separates
+        ? h("div.bad", "Los mejores lo cometen mucho menos: es de lo que separa elos.")
+        : null,
+  );
+}
+
 function tipFor(m) {
   if (m.severity === "good") return "Bien hecho: repite esta decisión.";
   if (m.kind === "afk") return "No cuenta como error de juego: es tiempo sin moverte (desconexión o AFK).";
@@ -571,6 +590,7 @@ function momentDetail(a, m, player) {
     h("div", { style: { fontWeight: 700, marginTop: "6px" } }, champText(m.title)),
     m.detail ? h("div.small", { style: { marginTop: "4px" } }, champText(m.detail)) : null,
     tip ? h("div.weak-tip", { style: { marginTop: "10px" } }, icon("spark"), h("span", tip)) : null,
+    eloLine(m),
     // Lo esencial (qué pasó y qué hacer) a la vista; quién te mató, niveles, quién había cerca y vídeos, al pulsar.
     h(
       "details.more",

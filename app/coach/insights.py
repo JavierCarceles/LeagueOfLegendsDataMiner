@@ -627,7 +627,7 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "Tu primera vuelta no compra lo que compran los OTPs",
      "tip": "En la primera vuelta compra piezas de tu primer objeto (o botas si es lo habitual en tu campeón). Los componentes sueltos de otros objetos retrasan tu primer pico de poder."},
     {"id": "item_tempo", "kind": "build", "need": ("item_tempo",), "metric": "first_item_min",
-     "title": "Terminas el primer objeto más tarde que los OTPs de tu campeón",
+     "title": "Terminas tus objetos más tarde que los OTPs de tu campeón",
      "tip": "Entre jugada y jugada limpia campamentos u oleadas y vuelve a base en cuanto te llegue para una pieza grande: un minuto de retraso en el primer objeto es un minuto peleando más débil."},
     {"id": "r_late", "kind": "build", "need": ("skills",), "metric": "r_late", "title": "Subes la R tarde"},
     # En top no: los Aspirante lo hacen el doble que los Diamante (0,079 frente a 0,035 por partida; en jungla, igual).
