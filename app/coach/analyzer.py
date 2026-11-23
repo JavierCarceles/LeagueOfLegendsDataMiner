@@ -76,7 +76,10 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #     NO se juzga: los junglas de todos los elos pasan el 47 % del early arriba sea cual sea el estado de las líneas.
 # 13: relojes: el heraldo (y las larvas) que alguien está pegando a su hora de irse aguanta hasta morir. 6 de 1.818
 #     partidas con el heraldo muerto entre 19:51 y 19:55 se quedaban sin relojes (sin juzgar la preparación de objetivos).
-ANALYSIS_VERSION = 13
+# 14: posiciones reconstruidas (vuelta a base con su canalización en vez de cruzar el mapa andando, saltos imposibles
+#     andando = teletransporte, quien hizo o recibió daño en cada muerte y las kills especiales) y movimiento de los 10
+#     jugadores cada 5 s (línea, río, junglas, base; agrupado o solo en una línea lateral pasado el 14).
+ANALYSIS_VERSION = 14
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -401,6 +404,7 @@ class _Game:
     def _index_events(self) -> None:
         self.levels: dict[int, list[tuple[int, int]]] = {pid: [] for pid in self.players}
         self.kills: list[dict] = []
+        self.special_kills: list[tuple[int, int, tuple[int, int]]] = []
         self.objectives: list[dict] = []
         self.buildings: list[dict] = []
         self.wards: dict[int, list[int]] = {pid: [] for pid in self.players}
@@ -428,17 +432,28 @@ class _Game:
                 if victim not in self.players:
                     continue
                 bounty = _num(e.get("bounty")) + _num(e.get("shutdownBounty"))
+                # Quien le hizo daño (o recibió el suyo) en sus últimos segundos estaba a distancia de combate, aunque no
+                # figure como asistencia: un punto más para reconstruir dónde estaba cada uno.
+                damagers = {
+                    _num(d.get("participantId")) for d in (e.get("victimDamageReceived") or []) + (e.get("victimDamageDealt") or [])
+                    if (d.get("type") or "OTHER") == "OTHER" and _num(d.get("participantId")) in self.players
+                }
                 self.kills.append(
                     {
                         "t": t,
                         "killer": _num(e.get("killerId")),
                         "victim": victim,
+                        "damagers": damagers - {victim},
                         "assists": [_num(a) for a in e.get("assistingParticipantIds") or []],
                         "pos": _pos(e),
                         "value": max(300, min(1000, bounty)) if bounty else 300,
                         "shutdown": _num(e.get("shutdownBounty")),  # recompensa extra por la racha de la víctima
                     }
                 )
+            elif kind == "CHAMPION_SPECIAL_KILL":
+                killer = _num(e.get("killerId"))
+                if killer in self.players and _pos(e):
+                    self.special_kills.append((t, killer, _pos(e)))
             elif kind == "ELITE_MONSTER_KILL":
                 monster = MONSTERS.get((e.get("monsterType") or "").upper())
                 if not monster:
@@ -628,6 +643,12 @@ class _Game:
             for pid in (k["killer"], *k["assists"]):
                 if pid in self.players and not self.is_dead(pid, k["t"]):
                     add(pid, k["t"], k["pos"], 1)
+            for pid in k.get("damagers") or ():
+                if pid not in (k["killer"], *k["assists"]) and not self.is_dead(pid, k["t"]):
+                    add(pid, k["t"], k["pos"], 5)
+        for t, pid, pos in self.special_kills:
+            if not self.is_dead(pid, t):
+                add(pid, t, pos, 1)
         for o in self.objectives:
             if o["assists_known"]:
                 for pid in o["takers"]:
@@ -637,28 +658,17 @@ class _Game:
             for pid in b["takers"]:
                 if pid in self.players and not self.is_dead(pid, b["t"]):
                     add(pid, b["t"], b["pos"], 1)
-        self.anchors = {pid: sorted(a) for pid, a in anchors.items()}
+        self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
+        self.anchors = {
+            pid: _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"])) for pid, items in self.raw_anchors.items()
+        }
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
 
     def pos_at(self, pid: int, t: int) -> tuple[float, float] | None:
         """Posición estimada (interpolada) o ``None`` si estaba muerto o no se sabe."""
         if self.is_dead(pid, t):
             return None
-        items = self.anchors.get(pid) or []
-        if not items:
-            return None
-        times = self._anchor_t[pid]
-        i = bisect.bisect_right(times, t)
-        prev = items[i - 1] if i > 0 else None
-        nxt = items[i] if i < len(items) else None
-        if prev is not None and prev[3] == 3:  # justo antes de morir
-            return prev[1], prev[2]
-        if prev is None:
-            return (nxt[1], nxt[2]) if nxt else None
-        if nxt is None or nxt[0] == prev[0]:
-            return prev[1], prev[2]
-        f = (t - prev[0]) / (nxt[0] - prev[0])
-        return prev[1] + (nxt[1] - prev[1]) * f, prev[2] + (nxt[2] - prev[2]) * f
+        return interpolate(self.anchors.get(pid) or [], t, self._anchor_t[pid])
 
     # -------------------------------------------------------------- frames
     def frame_before(self, t: int) -> int | None:
@@ -708,6 +718,120 @@ class _Game:
 
 
 # ====================================================================== análisis
+# Puntos de paso: 0 frame (exacto, cada minuto) · 1 evento propio (kill, objetivo, torre) · 2 en la fuente (compra o
+# reaparición) · 3 muerte · 4 «se queda aquí y salta» (vuelta a base o teletransporte) · 5 a distancia de combate de una
+# muerte (hizo o recibió daño; aproximado).
+ANCHOR_BASE, ANCHOR_DEATH, ANCHOR_HOLD, ANCHOR_NEAR = 2, 3, 4, 5
+RECALL_MS = 8_000 + 1_000  # canalización de la vuelta a base y un segundo hasta comprar
+MAX_SPEED = 0.65  # unidades por ms: ni con fantasmal y arrastres se va más rápido de media; más, teletransporte
+NEAR_BASE = 1500
+# Validado con las partidas del usuario (``track_check``: se quita cada posición real de un evento y se reconstruye con
+# el resto; 8.831 casos). Casi nadie vuelve andando a base: si compra en la fuente y estaba lejos, fue una vuelta a
+# base. Error medio 1.875 → 1.572 unidades y fallos de más de 4.000, 11,9 % → 7,0 %. Salir tarde de la fuente o «ir y
+# esperar» en vez de la línea recta empeoraban; el umbral del teletransporte y los puntos de daño apenas cambian nada.
+
+
+def interpolate(items: list[tuple[int, int, int, int]], t: int, times: list[int] | None = None) -> tuple[float, float] | None:
+    """Posición en ``t`` con los puntos de paso (ordenados): en línea recta entre dos, quieto antes de morir o de un salto."""
+    if not items:
+        return None
+    times = times if times is not None else [a[0] for a in items]
+    i = bisect.bisect_right(times, t)
+    prev = items[i - 1] if i > 0 else None
+    nxt = items[i] if i < len(items) else None
+    if prev is not None and prev[3] in (ANCHOR_DEATH, ANCHOR_HOLD):  # justo antes de morir o de un salto
+        return prev[1], prev[2]
+    if prev is None:
+        return (nxt[1], nxt[2]) if nxt else None
+    if nxt is None or nxt[0] == prev[0]:
+        return prev[1], prev[2]
+    f = (t - prev[0]) / (nxt[0] - prev[0])
+    return prev[1] + (nxt[1] - prev[1]) * f, prev[2] + (nxt[2] - prev[2]) * f
+
+
+def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, int] | None) -> list[tuple[int, int, int, int]]:
+    """Corrige los tramos imposibles de los puntos de paso (ordenados) de un jugador.
+
+    * Antes de una compra en la fuente estando lejos, hubo una **vuelta a base**: se queda donde se le vio por última vez
+      y salta a la fuente tras los 8 s de canalización (antes cruzaba el mapa andando).
+    * Entre dos puntos que no se pueden recorrer andando, hubo un **teletransporte**: se queda y salta al final.
+    """
+    out: list[list[int]] = []
+    for t, x, y, kind in anchors:
+        prev = out[-1] if out else None
+        if prev is not None and prev[3] != ANCHOR_DEATH and t > prev[0]:
+            gap = t - prev[0]
+            far = geo.dist((prev[1], prev[2]), (x, y))
+            recall = kind == ANCHOR_BASE and fountain is not None and prev[3] != ANCHOR_BASE and far > NEAR_BASE
+            teleport = not recall and kind != ANCHOR_BASE and far / gap > MAX_SPEED and far > NEAR_BASE
+            if recall or teleport:
+                start = t - (RECALL_MS if recall else 1_000)
+                if start > prev[0]:
+                    out.append([start, prev[1], prev[2], ANCHOR_HOLD])
+                elif prev[3] not in (ANCHOR_BASE,):
+                    prev[3] = ANCHOR_HOLD
+        out.append([t, x, y, kind])
+    return [tuple(a) for a in out]
+
+
+MOVE_STEP_MS = 5_000
+MOVE_GROUP_RADIUS = 2_000  # «agrupado»: al menos 2 aliados a esta distancia
+MOVE_ZONES = ("lane", "other_lane", "river", "own_jungle", "enemy_jungle", "base", "dead")
+
+
+def _move_zone(g: _Game, pid: int, p) -> str:
+    z = geo.zone(p)
+    team = g.players[pid]["team"]
+    if z.startswith("base_"):
+        return "base"
+    if geo.is_lane(z):
+        return "lane" if geo.ROLE_LANE.get(g.players[pid].get("role") or "") == z else "other_lane"
+    if z == "river":
+        return "river"
+    return "own_jungle" if geo.is_jungle_of(z, team) else "enemy_jungle"
+
+
+def _movement(g: _Game) -> dict:
+    """Dónde pasa el tiempo cada uno de los 10 jugadores (cada 5 s con las posiciones reconstruidas), antes y después
+    del 14, y pasado el 14 cuánto va agrupado con su equipo o solo en una línea lateral."""
+    out = {}
+    if not g.has_timeline:
+        return out
+    for pid in g.players:
+        if g.afk_ms(pid) >= 60_000:
+            continue  # sus posiciones no dicen nada de cómo juega
+        phases = {"early": Counter(), "late": Counter()}
+        grouped = alone_side = late_alive = 0
+        for t in range(0, g.duration_ms, MOVE_STEP_MS):
+            phase = "early" if t < EARLY_MS else "late"
+            if g.is_dead(pid, t):
+                phases[phase]["dead"] += 1
+                continue
+            p = g.pos_at(pid, t)
+            if p is None:
+                continue
+            zone = _move_zone(g, pid, p)
+            phases[phase][zone] += 1
+            if phase == "late" and zone != "base":
+                late_alive += 1
+                allies = [a for a in g.players if a != pid and g.players[a]["team"] == g.players[pid]["team"]]
+                near = sum(1 for a in allies if (q := g.pos_at(a, t)) is not None and geo.dist(p, q) <= MOVE_GROUP_RADIUS)
+                if near >= 2:
+                    grouped += 1
+                elif near == 0 and geo.zone(p) in ("top", "bot"):
+                    alone_side += 1
+        entry = {}
+        for phase, c in phases.items():
+            total = sum(c.values())
+            if total:
+                entry[phase] = {z: round(100 * c[z] / total, 1) for z in MOVE_ZONES if c[z]}
+        if late_alive:
+            entry["grouped_late"] = round(100 * grouped / late_alive, 1)
+            entry["side_alone_late"] = round(100 * alone_side / late_alive, 1)
+        out[str(pid)] = entry
+    return out
+
+
 def analyze_game(
     match: dict,
     timeline: dict | None,
@@ -867,6 +991,17 @@ def analyze_game(
         metrics["max_lead_min"] = result["series"]["minute"][best]
         metrics["max_deficit"] = min(diffs)
     result["replay"] = _replay(g)
+    movement = _movement(g)
+    if movement:
+        result["movement"] = movement
+        mine = movement.get(str(me)) or {}
+        early, late = mine.get("early") or {}, mine.get("late") or {}
+        metrics["mv_lane_pre14"] = early.get("lane", 0.0) if g.role != "JUNGLE" else None
+        metrics["mv_river_pre14"] = early.get("river", 0.0)
+        metrics["mv_enemy_jungle_pre14"] = early.get("enemy_jungle", 0.0)
+        metrics["mv_base_pct"] = round((early.get("base", 0.0) + late.get("base", 0.0)) / 2, 1) if early and late else early.get("base")
+        metrics["mv_grouped_late"] = mine.get("grouped_late")
+        metrics["mv_side_alone_late"] = mine.get("side_alone_late")
     return result
 
 

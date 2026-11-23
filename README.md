@@ -152,6 +152,13 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   avisan aparte; con un AFK tampoco se juzgan la fase de líneas ni la R a tiempo.
 - **Jungla.** Campamento inicial, ruta de los minutos 1-8, presencia en cada línea, impacto antes del 10 (kills, placas,
   objetivos, invasiones), CS de jungla y ganks del jungla rival en la otra mitad del mapa.
+- **Posiciones reconstruidas.** Riot da la posición de cada jugador una vez por minuto y en cada evento; el resto se
+  reconstruye: vuelta a base (si compra en la fuente estando lejos, se queda donde estaba 8 s y salta), teletransportes
+  (tramos imposibles andando), quien hizo o recibió daño en cada muerte y kills especiales. Validado con tus partidas
+  (`python -m app.coach.track_check`: se quita cada posición real de un evento y se reconstruye con el resto): error
+  medio 1.875 → 1.572 unidades y fallos de más de 4.000 (el mapa mide ~15.000), 11,9 % → 7,0 %. Con ellas se mide
+  **cómo se mueven los 10 jugadores** (cada 5 s: línea, otras líneas, río, junglas, base, muerto; después del 14,
+  agrupado o solo en una línea lateral), tú frente a tu rival directo y, con los OTPs, frente a cada elo.
 - **Referencias.** Cada métrica se compara con una referencia de tu rol escalada a tu *elo objetivo*. En cuanto hay
   ≥ 20 jugadores de tu rol en tus partidas (se analizan en segundo plano con el mismo código, sin peticiones a Riot) y se
   sabe tu liga, la referencia se **calibra** con sus medias reales, escaladas de tu liga a tu elo objetivo (salvo las

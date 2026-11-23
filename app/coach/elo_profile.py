@@ -28,7 +28,7 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 1
+VERSION = 2  # 2: medias de movimiento (mv_*) por elo
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 REBUILD_EVERY_S = 30 * 60
@@ -42,6 +42,7 @@ GROUP_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diaman
 MIN_GROUP_GAMES = 30  # partidas de un elo (en un rol o campeón) para enseñarlo
 MIN_CHAMP_GAMES = 20
 COUNTED = ("high", "medium", "low")
+MOVE_KEYS = ("mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late")
 
 
 def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:
@@ -68,8 +69,13 @@ class _Agg:
         self.with_type: Counter = Counter()
         self.sev: Counter = Counter()
         self.total = 0
+        self.move: dict[str, list[float]] = defaultdict(list)
 
-    def add(self, mistakes: list[tuple[str, str]], player: str) -> None:
+    def add(self, mistakes: list[tuple[str, str]], player: str, metrics: dict | None = None) -> None:
+        for k in MOVE_KEYS:
+            v = (metrics or {}).get(k)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                self.move[k].append(float(v))
         self.games += 1
         self.players.add(player)
         self.total += len(mistakes)
@@ -87,6 +93,8 @@ class _Agg:
             "per_game": round(self.total / n, 3),
             "severity": {s: round(self.sev[s] / n, 3) for s in COUNTED},
             "types": {mid: {"per_game": round(c / n, 3), "pct": round(100 * self.with_type[mid] / n, 1)} for mid, c in self.count.items()},
+            # Medias de movimiento (posiciones reconstruidas; solo partidas analizadas con la versión 14 o más).
+            "move": {k: round(sum(v) / len(v), 1) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
         }
 
 
@@ -130,6 +138,7 @@ def _records(data_dir: Path):
                     rec = champ_checks.record_from_analysis(a, skill_t or None)
                     rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
                     rec["mistakes"] = game_mistakes(a.get("moments") or [], rec["role"])
+                    rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
                     yield rec
         except (OSError, EOFError, gzip.BadGzipFile):
             log.debug("No se pudo leer %s", f, exc_info=True)
@@ -155,9 +164,9 @@ def build(data_dir: Path, catalog=None, champ_name=None) -> dict:
         name = (champ_name(r["champ"]) if champ_name and r.get("champ") else None) or "tu campeón"
         extra = champ_checks.check(r, champ_refs.get(key), catalog, name)
         mistakes = r["mistakes"] + game_mistakes(extra, r["role"])
-        roles[r["role"]][group].add(mistakes, r["player"])
+        roles[r["role"]][group].add(mistakes, r["player"], r.get("move"))
         if r.get("champ"):
-            champs[key][group].add(mistakes, r["player"])
+            champs[key][group].add(mistakes, r["player"], r.get("move"))
 
     def blocks(groups: dict[str, _Agg], min_games: int) -> dict:
         return {g: groups[g].public() for g in GROUPS if g in groups and groups[g].games >= min_games}

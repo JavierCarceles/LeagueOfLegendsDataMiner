@@ -174,3 +174,20 @@ def test_reglas_que_no_separan_elos_en_top_no_cuentan():
     assert not insights.dropped(boots, "MID") and not insights.dropped(resist, "ADC")
     assert insights.mistake_type("build", {"build", "boots"}, "TOP") is None
     assert insights.mistake_type("build", {"build", "boots"}, "MID")["id"] == "no_boots"
+
+
+def test_reconstruccion_vuelta_a_base_y_teletransporte():
+    from app.coach import analyzer as A
+
+    fountain = (400, 420)
+    # En la línea de bot al minuto 5 y compra en la fuente a los 5:20: no cruzó el mapa andando, volvió a base.
+    rec = A._reconstruct([(300_000, 12_000, 2_000, 0), (320_000, 400, 420, 2), (360_000, 12_000, 2_000, 0)], fountain)
+    assert rec[1] == (311_000, 12_000, 2_000, A.ANCHOR_HOLD)
+    assert A.interpolate(rec, 310_000) == (12_000, 2_000)  # canalizando en la línea
+    assert A.interpolate(rec, 321_000)[0] < 2_000  # ya en la fuente
+    # Cerca de la fuente, compra sin vuelta a base.
+    near = A._reconstruct([(300_000, 1_200, 1_000, 0), (320_000, 400, 420, 2)], fountain)
+    assert all(a[3] != A.ANCHOR_HOLD for a in near)
+    # De top a bot en 10 s: imposible andando, teletransporte (se queda y salta).
+    tp = A._reconstruct([(600_000, 1_500, 13_000, 0), (610_000, 13_500, 1_500, 1)], fountain)
+    assert tp[1][3] == A.ANCHOR_HOLD and A.interpolate(tp, 605_000) == (1_500, 13_000)

@@ -259,6 +259,7 @@ def list_games(db: Database, puuids: list[str], *, queue: str | None = None, rol
                 "issues": digest.get("issues") or [],
                 "mistakes": digest.get("mk"),
                 "checks": digest.get("cc"),
+                "movement": digest.get("mv"),
             }
         )
     return out

@@ -391,6 +391,7 @@ function summaryView(s, data) {
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
     s.elo_errors ? collapsible("progreso.elo", [icon("activity"), "Tus errores frente a cada elo"], () => eloErrorsCard(s.elo_errors), { open: true, summary: eloSummary(s.elo_errors) }) : null,
     weaknessesCard(s),
+    s.movement?.rows?.length ? collapsible("progreso.movimiento", [icon("map"), "Cómo te mueves por el mapa"], () => movementCard(s.movement), { summary: movementSummary(s.movement) }) : null,
     s.otp_compare?.length
       ? collapsible("progreso.otps.v2", [icon("crown"), "Tú frente a los OTPs de tu campeón"], () => otpCompareCard(s), {
           summary: s.otp_compare
@@ -695,6 +696,46 @@ function recurringLine(r) {
           r.separates === false ? h("span", " — lo cometen igual en todos los elos: cuenta, pero no es lo que te impide subir.") : r.separates ? h("span", " — los mejores lo hacen mucho menos.") : null,
         )
       : null,
+  );
+}
+
+function movementSummary(m) {
+  const g = m.rows.find((r) => r.key === "grouped_late");
+  const own = m.rows.find((r) => r.key === "own_jungle_pre14" || r.key === "lane_pre14");
+  return [own ? `${fmt.num(own.mine, 0)} % ${own.key === "lane_pre14" ? "en tu línea" : "en tu jungla"} antes del 14` : null, g ? `agrupado ${fmt.num(g.mine, 0)} % después` : null].filter(Boolean).join(" · ");
+}
+
+/** Dónde pasas el tiempo (posiciones reconstruidas cada 5 s) frente a tu rival directo y a cada elo. */
+function movementCard(m) {
+  const tiers = m.elo ? Object.keys(m.rows.find((r) => r.tiers)?.tiers || {}) : [];
+  return h(
+    "div.col",
+    { style: { gap: "10px" } },
+    h(
+      "p.small.muted",
+      { style: { margin: 0 } },
+      `Tus últimas ${m.games} partidas de ${ROLE_LABEL[m.role] || m.role}: dónde estabas cada 5 segundos. Riot da la posición una vez por minuto y en cada kill u objetivo; el resto se reconstruye (vueltas a base, teletransportes, peleas) y se ha validado con tus partidas: la mitad de las veces acierta a menos de 1.100 unidades (el mapa mide 15.000).`,
+    ),
+    h(
+      "div.table-wrap",
+      h(
+        "table.table.elo-table",
+        h("thead", h("tr", h("th", "Dónde"), h("th.num", "Tú"), h("th.num", m.role === "JUNGLE" ? "Su jungla" : "Tu rival"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)))),
+        h(
+          "tbody",
+          m.rows.map((r) =>
+            h(
+              "tr",
+              h("td", r.label),
+              h("td.num", h("b", `${fmt.num(r.mine, 0)} %`)),
+              h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : `${fmt.num(r.opp, 0)} %`),
+              tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : `${fmt.num(r.tiers[t], 0)} %`)),
+            ),
+          ),
+        ),
+      ),
+    ),
+    m.elo ? null : h("p.tiny.muted", { style: { margin: 0 } }, "La comparación con cada elo aparecerá cuando las partidas de OTPs se re-analicen con el movimiento (lo hace la app sola en segundo plano y las sube con los datos)."),
   );
 }
 

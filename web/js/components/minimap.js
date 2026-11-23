@@ -103,7 +103,8 @@ export function trackPos(track, t) {
   }
   const p = a[lo];
   const n = a[hi];
-  if (p[3] === 3) return { x: p[1], y: p[2] };
+  // 3: justo antes de morir; 4: se queda ahí y salta (vuelta a base con su canalización o teletransporte).
+  if (p[3] === 3 || p[3] === 4) return { x: p[1], y: p[2] };
   const f = n[0] === p[0] ? 0 : (t - p[0]) / (n[0] - p[0]);
   return { x: p[1] + (n[1] - p[1]) * f, y: p[2] + (n[2] - p[2]) * f };
 }

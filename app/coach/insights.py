@@ -851,6 +851,63 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
     }
 
 
+# ------------------------------------------------------------------ movimiento (posiciones reconstruidas)
+# (clave, fase, campo del movimiento, etiqueta, roles; None = todos). Las de elo salen de las métricas mv_* de los OTPs.
+MOVE_ROWS = [
+    ("lane_pre14", "early", "lane", "En tu línea (antes del 14)", ("TOP", "MID", "ADC", "SUPPORT"), "mv_lane_pre14"),
+    ("other_lane_pre14", "early", "other_lane", "En otras líneas (antes del 14)", None, None),
+    ("river_pre14", "early", "river", "En el río (antes del 14)", None, "mv_river_pre14"),
+    ("own_jungle_pre14", "early", "own_jungle", "En tu jungla (antes del 14)", ("JUNGLE",), None),
+    ("enemy_jungle_pre14", "early", "enemy_jungle", "En la jungla rival (antes del 14)", None, "mv_enemy_jungle_pre14"),
+    ("base", "both", "base", "En base", None, "mv_base_pct"),
+    ("dead", "both", "dead", "Muerto", None, None),
+    ("grouped_late", "late", "grouped_late", "Agrupado con 2+ aliados (después del 14)", None, "mv_grouped_late"),
+    ("side_alone_late", "late", "side_alone_late", "Solo en una línea lateral (después del 14)", None, "mv_side_alone_late"),
+]
+MIN_MOVE_GAMES = 5
+
+
+def _move_value(mv: dict | None, phase: str, field: str) -> float | None:
+    if not mv:
+        return None
+    if phase == "late" and field in ("grouped_late", "side_alone_late"):
+        return mv.get(field)
+    if phase == "both":
+        vals = [(mv.get(ph) or {}).get(field, 0.0) for ph in ("early", "late") if mv.get(ph)]
+        return sum(vals) / len(vals) if vals else None
+    block = mv.get(phase)
+    return block.get(field, 0.0) if block else None
+
+
+def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
+    """Dónde pasas el tiempo (posiciones reconstruidas cada 5 s) frente a tu rival directo y, si hay partidas analizadas
+    con el movimiento, frente a cada elo: tu rol más jugado y, si hay varios elos con datos, tu campeón."""
+    pool = [g for g in games if reliable(g) and (g.get("movement") or {}).get("me") and g.get("role")]
+    if len(pool) < MIN_MOVE_GAMES:
+        return None
+    role = Counter(g["role"] for g in pool).most_common(1)[0][0]
+    mine = [g for g in pool if g["role"] == role]
+    champ = Counter(g["champ"] for g in mine).most_common(1)[0][0]
+    tiers, scope = elo_tiers(profile, role, champ)
+    tiers = {t: b for t, b in tiers.items() if b.get("move")}
+    rows = []
+    for key, phase, field, label, roles, elo_key in MOVE_ROWS:
+        if roles is not None and role not in roles:
+            continue
+        me_vals = [v for g in mine if (v := _move_value(g["movement"].get("me"), phase, field)) is not None]
+        opp_vals = [v for g in mine if (v := _move_value(g["movement"].get("opp"), phase, field)) is not None]
+        if len(me_vals) < MIN_MOVE_GAMES:
+            continue
+        rows.append({
+            "key": key,
+            "label": label,
+            "mine": round(sum(me_vals) / len(me_vals), 1),
+            "opp": round(sum(opp_vals) / len(opp_vals), 1) if len(opp_vals) >= MIN_MOVE_GAMES else None,
+            "tiers": {g: tiers[g]["move"].get(elo_key) for g in ELO_GROUPS if g in tiers and elo_key and tiers[g]["move"].get(elo_key) is not None} or None,
+        })
+    return {"role": role, "champ": champ if scope == "champ" and tiers else None, "games": len(mine), "rows": rows, "elo": bool(tiers)}
+
+
 # ------------------------------------------------------------------ hábitos
 SESSION_GAP_MS = 60 * 60_000  # más de una hora entre partidas: otra sesión
 TILT_STREAK = 2  # derrotas seguidas
@@ -1394,6 +1451,7 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         "recurring": rest,
         "recurring_sample": recurring["sample"],
         "elo_errors": elo_block,
+        "movement": movement_summary(games, elo_profile),
         "deaths": deaths,
         "jungle": jungle_summary(games),
         "priority": priority_summary(games),

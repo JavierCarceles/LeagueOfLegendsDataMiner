@@ -49,7 +49,7 @@ class ProfileNotFound(ValueError):
     pass
 
 
-DIGEST_VERSION = 2  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto)
+DIGEST_VERSION = 3  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento
 
 
 def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
@@ -105,6 +105,11 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
             if m.get("severity") in ("high", "medium", "low") and m.get("kind") not in ("trade", "afk")
         ],
         "cc": checks_digest(analysis, skill_t),
+        # Movimiento (posiciones reconstruidas cada 5 s): el tuyo y el de tu rival directo (de jungla, el otro jungla).
+        "mv": {
+            "me": (analysis.get("movement") or {}).get(str(analysis.get("me"))),
+            "opp": (analysis.get("movement") or {}).get(str(analysis.get("enemy_jungler") if analysis.get("role") == "JUNGLE" else analysis.get("opponent"))),
+        } if analysis.get("movement") else None,
         "dv": DIGEST_VERSION,
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
