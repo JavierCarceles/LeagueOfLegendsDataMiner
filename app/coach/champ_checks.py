@@ -27,8 +27,12 @@ SEVERITY_ORDER = {"high": 3, "medium": 2, "low": 1}
 # Métricas de la partida que usan las comprobaciones (también van en el resumen ligero de tus partidas).
 METRIC_KEYS = (
     "first_item_min", "second_item_min", "gold_diff10", "gold_diff15", "cs10", "kp", "kills", "assists", "minutes",
-    "control_wards", "wards_pre14",
+    "control_wards", "wards_pre14", "jungle_cs10", "ganks_pre10",
 )
+# Despeje lento (jungla): CS de jungla a los 10 por debajo del 10 % más bajo de los OTPs Diamante+ de tu campeón, sin
+# haberlo cambiado por ganks (1 como mucho). Platino 11 %, Esmeralda 12 %, Diamante 4 %, Aspirante 2 % de partidas.
+SLOW_CLEAR_Q = 0.1
+SLOW_CLEAR_MAX_GANKS = 1
 # Errores de partida entera que separan elos (OTPs de jungla, % de partidas: Platino → Aspirante, noviembre de 2026):
 # ninguna pink en 20+ min 44 → 14 (top Diamante 50 → Aspirante 26); KP < 40 % 15 → 7 (en top no separa: 54 → 56);
 # 0-1 wards antes del 14 36 → 2; segundo objeto pasado el 21: 15 → 3.
@@ -96,6 +100,7 @@ class RefBuilder:
         self.first_items: Counter = Counter()
         self.first_min: list[float] = []
         self.second_min: list[float] = []
+        self.jungle_cs10: list[float] = []
 
     def add(self, rec: dict, catalog) -> None:
         self.games += 1
@@ -115,6 +120,8 @@ class RefBuilder:
             self.first_min.append(float(rec["first_item_min"]))
         if isinstance(rec.get("second_item_min"), (int, float)):
             self.second_min.append(float(rec["second_item_min"]))
+        if rec.get("role") == "JUNGLE" and isinstance(rec.get("jungle_cs10"), (int, float)):
+            self.jungle_cs10.append(float(rec["jungle_cs10"]))
 
     def ref(self) -> dict:
         return {
@@ -128,6 +135,8 @@ class RefBuilder:
             "first_item_p75": round(_percentile(self.first_min, 0.75), 2) if len(self.first_min) >= MIN_REF_GAMES else None,
             "second_item_p50": round(_percentile(self.second_min, 0.5), 2) if len(self.second_min) >= MIN_REF_GAMES else None,
             "second_item_p75": round(_percentile(self.second_min, 0.75), 2) if len(self.second_min) >= MIN_REF_GAMES else None,
+            "jungle_cs10_p10": round(_percentile(self.jungle_cs10, SLOW_CLEAR_Q), 1) if len(self.jungle_cs10) >= MIN_REF_GAMES else None,
+            "jungle_cs10_p50": round(_percentile(self.jungle_cs10, 0.5), 1) if len(self.jungle_cs10) >= MIN_REF_GAMES else None,
         }
 
 
@@ -172,7 +181,24 @@ def check(rec: dict, ref: dict | None, catalog=None, champ_name: str = "tu campe
     out += _first_back(rec, ref, catalog, champ_name)
     out += _item_tempo(rec, ref, catalog, champ_name)
     out += _second_item(rec, ref, catalog, champ_name)
+    out += _slow_clear(rec, ref, champ_name)
     return out
+
+
+def _slow_clear(rec: dict, ref: dict, champ_name: str) -> list[dict]:
+    p10, p50 = ref.get("jungle_cs10_p10"), ref.get("jungle_cs10_p50")
+    cs, ganks = _num(rec.get("jungle_cs10")), _num(rec.get("ganks_pre10")) or 0
+    if rec.get("role") != "JUNGLE" or p10 is None or cs is None or cs >= p10 or ganks > SLOW_CLEAR_MAX_GANKS:
+        return []
+    return [
+        _moment(
+            600, "medium" if cs < p10 - 10 else "low", f"Despeje lento: {int(cs)} CS de jungla a los 10",
+            f"Los OTPs de {champ_name} (Diamante o más) llevan {int(p50)} de media y solo 1 de cada 10 baja de {int(p10)}; tú, sin "
+            f"haberlo cambiado por ganks ({int(ganks)} con kill antes del 10). Encadena campamentos sin pararte, no esperes en el "
+            "río sin motivo y, si tu ruta se corta, retoma la jungla del otro lado antes de volver a base.",
+            ["jungle", "slow_clear"], kind="jungle",
+        )
+    ]
 
 
 def _num(v) -> float | None:

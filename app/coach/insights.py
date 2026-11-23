@@ -641,6 +641,8 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "tip": "Compra un guardián de control (75) en cada vuelta a base y ponlo en el río o junto al siguiente objetivo: en Aspirante casi nadie acaba una partida sin ninguno."},
     {"id": "few_wards", "kind": "vision", "need": ("few_wards",), "metric": "wards_pre14", "title": "Casi sin wards en la fase de líneas",
      "tip": "Usa el abalorio cada vez que se recargue: río, entrada de tu jungla y el campamento que el rival suele hacer."},
+    {"id": "slow_clear", "kind": "jungle", "need": ("slow_clear",), "metric": "jungle_cs10", "title": "Despejas la jungla más lento que los OTPs de tu campeón",
+     "tip": "Practica tu ruta de 3 minutos en una partida personalizada hasta hacerla sin pararte; en partida, encadena campamentos y no esperes en el río sin un motivo concreto."},
     {"id": "low_kp", "kind": "jungle", "need": ("low_kp",), "metric": "kp", "title": "Participas en pocas kills de tu equipo",
      "tip": "Sigue las peleas de tus líneas: llega a los ganks del rival (contragank), juega hacia la línea que va ganando y agrupa antes de cada objetivo."},
     {"id": "pink_unused", "kind": "vision", "need": ("pink",), "metric": None, "title": "Llevas pinks y no las usas en los objetivos",
@@ -781,7 +783,9 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
     per_game = total / n
     rows = []
     titles = {mt["id"]: mt["title"] for mt in MISTAKE_TYPES}
-    for mid in set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}:
+    all_ids = set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}
+    sep_ids = {mid for mid in all_ids if (sep := separation(tiers, mid)) and not sep["flat"]}
+    for mid in all_ids:
         sep = separation(tiers, mid)
         mine_pct = 100 * with_type[mid] / n
         top = sep["top_pct"] if sep else None
@@ -814,7 +818,6 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
         for g in ELO_GROUPS if g in tiers
     ]
     # Solo los tipos que separan elos (el más alto los comete claramente menos): lo que de verdad te falta para subir.
-    sep_ids = {r["id"] for r in rows if r["separates"]}
     sep_mine = sum(count[mid] for mid in sep_ids) / n
     for lv in levels:
         types = tiers[lv["tier"]].get("types") or {}

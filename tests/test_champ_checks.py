@@ -153,3 +153,15 @@ def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
     (g,) = [x for x in store.list_games(services.db, ["p"]) if x["match_id"] == "EUW1_1"]
     assert g["checks"]["skills"] == "QWE" and g["checks"]["skill_t"] == [1.0, 2.0, 3.0] and g["checks"]["first_item"] == 3071
     assert tracker.refresh_digests(services.db) == 0  # ya al día
+
+
+def test_despeje_lento_solo_sin_cambiarlo_por_ganks():
+    b = champ_checks.RefBuilder()
+    for i in range(100):
+        b.add(otp(i, jungle_cs10=60 + i % 30), CATALOG)
+    ref = b.ref()
+    assert ref["jungle_cs10_p10"] is not None
+    slow = champ_checks.check(otp(0, jungle_cs10=50, ganks_pre10=0), ref, CATALOG, "Hecarim")
+    assert [m["tags"] for m in slow if m["kind"] == "jungle"] == [["jungle", "slow_clear"]]
+    assert not [m for m in champ_checks.check(otp(0, jungle_cs10=50, ganks_pre10=2), ref, CATALOG) if "slow_clear" in m["tags"]]
+    assert not [m for m in champ_checks.check(otp(0, jungle_cs10=80, ganks_pre10=0), ref, CATALOG) if "slow_clear" in m["tags"]]

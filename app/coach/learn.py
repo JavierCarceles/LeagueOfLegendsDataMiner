@@ -152,13 +152,14 @@ MISTAKE_TOPIC = {
     "no_pinks": "vision",
     "few_wards": "vision",
     "low_kp": "macro",
+    "slow_clear": "jungle",
 }
 # Etiquetas de un momento de la repetición -> tema (la primera que encaje).
 TAG_TOPIC = [
     ("fight_outnumbered", "objectives"), ("before_objective", "objectives"), ("late_recall", "objectives"), ("late", "objectives"),
     ("far", "objectives"), ("duel_behind", "trades"), ("unconverted", "macro"), ("baron_wasted", "macro"), ("collapsed", "macro"), ("isolated", "macro"),
     ("no_ward", "vision"), ("pink", "vision"), ("enemy_jungle", "vision"), ("gank", "ganks"), ("jungler", "ganks"),
-    ("overextended", "ganks"), ("skill_order", "jungle"), ("first_back", "backs"), ("item_tempo", "farm"), ("no_pinks", "vision"), ("few_wards", "vision"), ("low_kp", "macro"), ("solo", "trades"), ("unspent_gold", "backs"), ("gold", "backs"), ("tracking", "jungle"),
+    ("overextended", "ganks"), ("skill_order", "jungle"), ("first_back", "backs"), ("item_tempo", "farm"), ("no_pinks", "vision"), ("few_wards", "vision"), ("low_kp", "macro"), ("slow_clear", "jungle"), ("solo", "trades"), ("unspent_gold", "backs"), ("gold", "backs"), ("tracking", "jungle"),
     ("jungle", "jungle"), ("lane", "waves"), ("idle", "macro"),
 ]
 
