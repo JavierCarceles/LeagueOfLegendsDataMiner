@@ -1198,6 +1198,16 @@ function metricsCard(s) {
   );
 }
 
+const FLAG_CHIP = {
+  item_tempo: "objeto tarde",
+  skill_order: "orden de habilidades",
+  first_back: "primera compra",
+  slow_clear: "despeje lento",
+  no_pinks: "sin pinks",
+  few_wards: "pocos wards",
+  low_kp: "KP baja",
+};
+
 function chips(g) {
   const out = [];
   if (g.deaths_to_jungler_pre14) out.push(h("span.chip-bad", `${g.deaths_to_jungler_pre14}× jungla rival`));
@@ -1207,6 +1217,7 @@ function chips(g) {
   if (g.obj_lost_far) out.push(h("span.chip-bad", g.obj_lost_far > 1 ? `${g.obj_lost_far} objetivos regalados` : "objetivo regalado"));
   if (g.gold_hoard_min >= 1) out.push(h("span.chip-warn", `${fmt.num(g.gold_hoard_min, 1)} min con oro útil`));
   if (g.idle_pct >= 25) out.push(h("span.chip-warn", `${fmt.num(g.idle_pct, 0)} % vacío`));
+  for (const f of new Set(g.flags || [])) if (FLAG_CHIP[f]) out.push(h("span.chip-bad", FLAG_CHIP[f]));
   if (g.obj_trades) out.push(h("span.chip-good", g.obj_trades > 1 ? `${g.obj_trades} buenos cambios` : "buen cambio"));
   if (g.obj_fair_trades) out.push(h("span.chip-muted", g.obj_fair_trades > 1 ? `${g.obj_fair_trades} cambios justos` : "cambio justo"));
   if (g.reliable === false) out.push(h("span.chip-muted", { title: "Swiftplay o con alguien desconectado 3 min o más: no cuenta en tus estadísticas" }, "no cuenta"));

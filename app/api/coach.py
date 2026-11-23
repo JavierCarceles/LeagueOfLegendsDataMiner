@@ -119,8 +119,10 @@ def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
         metrics = g.get("metrics") or {}
         rec = {**cc, **{k: metrics.get(k) for k in champ_checks.METRIC_KEYS}, "role": g.get("role")}
         issues = g["issues"] = dict(g.get("issues") or {})
+        flags = g["flags"] = []
         for m in champ_checks.check(rec, ref, catalog, _champ_name(svc, g.get("champ"))):
             g["mistakes"].append([m["kind"], m["severity"], m["t"], m["tags"], m["title"][:90]])
+            flags.append(m["tags"][-1])
             issues[m["severity"]] = issues.get(m["severity"], 0) + 1  # la lista de repeticiones cuenta lo mismo que se ve dentro
 
 
@@ -246,6 +248,7 @@ def _row(g: dict, refs: References) -> dict:
         "opponent_champ": g.get("opponent_champ"),
         "enemy_jungler_champ": g.get("enemy_jungler_champ"),
         "issues": g.get("issues") or {},
+        "flags": g.get("flags") or [],  # errores frente a los OTPs de tu campeón y de partida entera (champ_checks)
         # Swiftplay o con alguien AFK ≥ 3 min: no se puntúa (igual que en el resumen).
         "score": insights.fundamentals_score(m, insights.game_refs(refs, g), g["role"]) if insights.reliable(g) else None,
         "reliable": insights.reliable(g),
