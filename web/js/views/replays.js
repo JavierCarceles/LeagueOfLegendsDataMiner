@@ -63,6 +63,14 @@ const TAG_LABEL = {
   baron_wasted: ["Barón sin aprovechar", "bad"],
   pink: ["Pink sin usar", ""],
   team: ["De equipo", ""],
+  // Frente a los OTPs de tu campeón (Diamante o más) y de partida entera: los que más separan elos.
+  skill_order: ["Orden de habilidades", "bad"],
+  first_back: ["Primera compra", "bad"],
+  item_tempo: ["Ritmo de objetos", "bad"],
+  slow_clear: ["Despeje lento", "bad"],
+  no_pinks: ["Sin pinks", "bad"],
+  few_wards: ["Pocos wards", "bad"],
+  low_kp: ["Poca participación", "bad"],
 };
 // Consejos genéricos según lo que se detectó (no afirman nada que el análisis no haya visto).
 const TIPS = [
