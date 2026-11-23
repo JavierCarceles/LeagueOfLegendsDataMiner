@@ -105,13 +105,15 @@ def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
     catalog = _catalog(svc)
     for g in games:
         cc = g.get("checks")
-        if not cc or g.get("mistakes") is None:
+        if not cc or g.get("mistakes") is None or not insights.reliable(g):
             continue
         ref = prof.champ_ref(g.get("champ"), g.get("role"))
         metrics = g.get("metrics") or {}
         rec = {**cc, **{k: metrics.get(k) for k in champ_checks.METRIC_KEYS}, "role": g.get("role")}
+        issues = g["issues"] = dict(g.get("issues") or {})
         for m in champ_checks.check(rec, ref, catalog, _champ_name(svc, g.get("champ"))):
             g["mistakes"].append([m["kind"], m["severity"], m["t"], m["tags"], m["title"][:90]])
+            issues[m["severity"]] = issues.get(m["severity"], 0) + 1  # la lista de repeticiones cuenta lo mismo que se ve dentro
 
 
 def _require_profile(svc) -> dict:
@@ -357,7 +359,9 @@ def list_games(
 ):
     profile = _require_profile(svc)
     refs = _references(svc, profile)
+    refresh_digests(svc.db)
     games = store.list_games(svc.db, store.known_puuids(profile), queue=_queue(queue), role=_role(role), limit=limit)
+    _add_champ_checks(svc, games, _elo_profile(svc))
     return {"games": [_row(g, refs) for g in games]}
 
 

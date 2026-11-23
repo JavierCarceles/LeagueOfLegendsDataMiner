@@ -118,14 +118,21 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
 
 def refresh_digests(db) -> int:
     """Pone al día los resúmenes ligeros de un formato anterior (sin volver a analizar: sale del análisis guardado)."""
-    rows = db.query(
-        "SELECT match_id, pid, analysis, timeline_raw IS NOT NULL AS has_tl FROM my_games "
-        "WHERE analysis IS NOT NULL AND (digest IS NULL OR json_extract(digest, '$.dv') IS NOT ?)",
-        (DIGEST_VERSION,),
-    )
+    try:
+        rows = db.query(
+            "SELECT match_id, pid, analysis, timeline_raw IS NOT NULL AS has_tl FROM my_games WHERE analysis IS NOT NULL "
+            "AND (CASE WHEN json_valid(digest) THEN json_extract(digest, '$.dv') END) IS NOT ?",
+            (DIGEST_VERSION,),
+        )
+    except Exception:  # noqa: BLE001  (BD en migración: se intenta en la siguiente)
+        log.debug("No se pudieron poner al día los resúmenes", exc_info=True)
+        return 0
     done = 0
     for r in rows:
-        analysis = store.unpack(r["analysis"])
+        try:
+            analysis = store.unpack(r["analysis"])
+        except Exception:  # noqa: BLE001  (blob dañado: se queda como estaba)
+            continue
         if not analysis:
             continue
         skill_t = None

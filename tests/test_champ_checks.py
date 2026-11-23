@@ -134,3 +134,22 @@ def test_tipo_que_no_separa_elos_pesa_la_mitad():
     }
     assert insights.separation(tiers, "death_isolated")["flat"] is False
     assert insights.separation(tiers, "death_solo")["flat"] is True
+
+
+def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
+    services = keyed_svc
+    """Resúmenes de un formato anterior (sin datos para las comprobaciones por campeón): se rehacen del análisis
+    guardado, con los segundos de cada habilidad sacados del timeline; uno dañado no rompe nada."""
+    from app.coach import store, tracker
+
+    analysis = {"match_id": "EUW1_1", "me": 1, "has_timeline": True, "role": "JUNGLE", "champ": 120, "metrics": {"first_item_min": 11},
+                "build": {"skills": "QWE", "backs": [], "order": [{"t": 660, "item": 3071, "kind": "legendary"}]}, "moments": []}
+    timeline = {"info": {"frames": [{"events": [{"type": "SKILL_LEVEL_UP", "participantId": 1, "skillSlot": s, "timestamp": 1000 * (i + 1)} for i, s in enumerate((1, 2, 3))]}]}}
+    store.save_game(services.db, {"match_id": "EUW1_1", "puuid": "p", "pid": 1, "queue": 400, "game_start": 1, "duration": 1500, "champ": 120,
+                                  "role": "JUNGLE", "win": 1, "status": "ready", "analysis": analysis, "timeline_raw": timeline, "digest": {"m": {}}})
+    store.save_game(services.db, {"match_id": "EUW1_2", "puuid": "p", "pid": 1, "queue": 400, "game_start": 2, "duration": 1500, "champ": 120,
+                                  "role": "JUNGLE", "win": 1, "status": "ready", "analysis": analysis, "digest": "{roto"})
+    assert tracker.refresh_digests(services.db) == 2
+    (g,) = [x for x in store.list_games(services.db, ["p"]) if x["match_id"] == "EUW1_1"]
+    assert g["checks"]["skills"] == "QWE" and g["checks"]["skill_t"] == [1.0, 2.0, 3.0] and g["checks"]["first_item"] == 3071
+    assert tracker.refresh_digests(services.db) == 0  # ya al día
