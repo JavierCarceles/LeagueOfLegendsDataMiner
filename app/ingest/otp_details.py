@@ -393,9 +393,9 @@ def classify(db, puuid: str, champ: int) -> str:
     return "otp" if points >= OTP_MIN_POINTS and points >= OTP_RATIO * second else "player"
 
 
-def reclassify(db) -> int:
+def reclassify(db) -> list[tuple[str, int]]:
     """Vuelve a clasificar (OTP o jugador) a quien ya tiene partidas revisadas suficientes: con lo que juega de verdad.
-    Devuelve cuántas parejas jugador-campeón cambiaron de carpeta. Sin llamadas a Riot."""
+    Devuelve las parejas (jugador, campeón) que cambiaron de carpeta. Sin llamadas a Riot."""
     try:
         pairs = db.query(
             "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
@@ -403,7 +403,7 @@ def reclassify(db) -> int:
             (OTP_SHARE_MIN_SEEN,),
         )
     except Exception:  # noqa: BLE001  (BD vieja sin otp_progress)
-        return 0
+        return []
     changes = []
     for r in pairs:
         kind = classify(db, r["puuid"], int(r["champ"]))
@@ -416,7 +416,7 @@ def reclassify(db) -> int:
             "Reclasificados por lo que juegan de verdad: %d jugador-campeón (%d dejan de contar como OTP).",
             len(changes), sum(1 for k, _p, _c in changes if k == "player"),
         )
-    return len(changes)
+    return [(p, c) for _k, p, c in changes]
 
 
 def classify_pending(db) -> int:
@@ -527,6 +527,43 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
     return done
 
 
+def relocate(svc, pairs: list[tuple[str, int]]) -> int:
+    """Mueve de carpeta solo a los jugadores reclasificados (OTP ↔ otros jugadores): reescribe su carpeta en la que le
+    toca y la borra de la otra. Antes se regeneraban las dos carpetas enteras (~29.000 partidas) en cada arranque, con
+    la escritura bloqueada: el recolector se quedaba esperando minutos para guardar cada partida."""
+    db = svc.db
+    files = {kind: Files.of(svc, kind) for kind in KIND_DIRS}
+    if not pairs or any(f is None for f in files.values()):
+        return 0
+    moved = 0
+    for puuid, champ in pairs:
+        info = player_info(db, puuid)
+        for r in db.query("SELECT DISTINCT role, kind FROM otp_games WHERE puuid = ? AND champ = ?", (puuid, champ)):
+            for kind, f in files.items():
+                with f.lock:  # un jugador cada vez: el recolector solo espera milisegundos
+                    folder = f._player_dir(f.base, champ, r["role"], info)
+                    if kind != r["kind"]:
+                        shutil.rmtree(folder, ignore_errors=True)
+                        f.dirty.add(champ)
+                        continue
+                    folder.mkdir(parents=True, exist_ok=True)
+                    with gzip.GzipFile(folder / "partidas.jsonl.gz", "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
+                        for g in db.query(
+                            "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
+                            (champ, r["role"], puuid, kind),
+                        ):
+                            d = unpack(g["dossier"])
+                            if d:
+                                fh.write(json.dumps(d, ensure_ascii=False, separators=(",", ":")) + "\n")
+                    f._profile(folder, champ, r["role"], info)
+                    f.dirty.add(champ)
+            moved += 1
+    for f in files.values():
+        f.maybe_summarize(force=True)  # los resúmenes de esos campeones, en segundo plano
+    log.info("Jugadores cambiados de carpeta (OTP u otros jugadores): %d.", moved)
+    return moved
+
+
 def rebuild_all(svc) -> None:
     """Regenera las dos carpetas (OTPs y otros jugadores) desde la base de datos (si una falla, la otra sigue)."""
     for kind in KIND_DIRS:
@@ -547,9 +584,14 @@ def start_reanalysis(svc) -> threading.Thread | None:
     pending = outdated(db)
     unclassified = int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind IS NULL") or 0)
     stale = any(f is not None and f.needs_rebuild() for f in (Files.of(svc, k) for k in KIND_DIRS))
-    # OTP = lo que juega (sus partidas revisadas), no solo su maestría: si alguien cambia de carpeta, se reescriben.
-    stale = reclassify(db) > 0 or stale
+    # OTP = lo que juega (sus partidas revisadas), no solo su maestría: quien cambia de carpeta se mueve él solo (en
+    # segundo plano; regenerar las carpetas enteras bloqueaba al recolector durante minutos en cada arranque).
+    moved = reclassify(db)
     if not pending and not unclassified and not stale:
+        if moved:
+            thread = threading.Thread(target=relocate, args=(svc, moved), name="otp-relocate", daemon=True)
+            thread.start()
+            return thread
         return None
     stop = getattr(svc, "shutdown_event", None)
 
@@ -563,6 +605,8 @@ def start_reanalysis(svc) -> threading.Thread | None:
             classified = classify_pending(db) if unclassified else 0
             if (classified or stale) and not pending:
                 rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
+            elif moved and not pending:
+                relocate(svc, moved)
             if pending:
                 log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
                 done = reanalyze(db, svc, stop=stop, pause=in_game)

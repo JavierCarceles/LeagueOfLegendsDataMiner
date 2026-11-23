@@ -1258,3 +1258,25 @@ def test_with_whole_lines_the_elo_with_fewest_games_goes_first(keyed_svc):
     assert worker._next_otp()["puuid"] == "e-new"
     champs = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND"], champions=[AATROX, GAREN], focus="mastery", min_mastery=10_000).validated()
     assert RegionWorker(keyed_svc.crawler, "europe", ["euw1"], champs)._next_otp()["puuid"] == "d-garen"
+
+
+def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
+    """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
+    solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""
+    ids, payloads = history("otp-a", 4, prefix="1", champ_for=lambda i: AATROX)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], focus="games", save_details=True)
+    db = keyed_svc.db
+    with db.write() as conn:  # lo daban por OTP; con 40 partidas revisadas, solo 4 con Aatrox: no lo es
+        conn.execute("UPDATE otp_games SET kind = 'otp'")
+        conn.execute("UPDATE otp_progress SET seen = 40, hits = 4 WHERE puuid = 'otp-a'")
+    otp_details.rebuild_all(keyed_svc)
+    champ_dir = otps_dir(keyed_svc) / keyed_svc.dd.name(AATROX)
+    assert any(champ_dir.rglob("partidas.jsonl.gz"))
+    moved = otp_details.reclassify(db)
+    assert moved == [("otp-a", AATROX)]
+    assert otp_details.relocate(keyed_svc, moved) == 1
+    assert not any(champ_dir.rglob("partidas.jsonl.gz"))
+    players_dir = keyed_svc.settings.data_dir / "partidas_campeon" / keyed_svc.dd.name(AATROX)
+    assert len(read_games(next(players_dir.rglob("partidas.jsonl.gz")))) == 4
+    assert otp_details.reclassify(db) == []  # ya está donde toca

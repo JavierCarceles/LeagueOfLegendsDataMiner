@@ -31,7 +31,10 @@ log = get_logger("elo-profile")
 VERSION = 3  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*)
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
-REBUILD_EVERY_S = 30 * 60
+# Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
+# quitaba CPU. Cada 3 h basta (el perfil por elo apenas cambia con unas pocas partidas más).
+REBUILD_EVERY_S = 3 * 3600
+YIELD_EVERY = 25  # partidas leídas entre pausas cortas: cede la CPU al recolector y a la web
 # Grupos de elo que se comparan (de menos a más). Oro o menos cuenta con Platino; Gran Maestro, con Maestro.
 GROUPS = ("PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
 GROUP_OF = {
@@ -122,9 +125,10 @@ def signature(data_dir: Path) -> str:
     return h.hexdigest()
 
 
-def _records(data_dir: Path):
+def _records(data_dir: Path, throttle: bool = False):
     from app.coach.insights import reliable  # aquí: evita un import circular
 
+    read = 0
     for f in _files(data_dir):
         role = f.parent.parent.name
         player = f.parent.name
@@ -142,6 +146,9 @@ def _records(data_dir: Path):
                     rec = champ_checks.record_from_analysis(a, skill_t or None)
                     rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
                     rec["mistakes"] = game_mistakes(a.get("moments") or [], rec["role"])
+                    read += 1
+                    if throttle and read % YIELD_EVERY == 0:
+                        time.sleep(0.005)
                     rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
                     try:
                         rec["move"].update(route_macro.from_dossier(d))
@@ -152,10 +159,10 @@ def _records(data_dir: Path):
             log.debug("No se pudo leer %s", f, exc_info=True)
 
 
-def build(data_dir: Path, catalog=None, champ_name=None) -> dict:
+def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False) -> dict:
     """Lee todas las partidas guardadas y devuelve el perfil de errores por rol, elo y campeón."""
     t0 = time.monotonic()
-    records = list(_records(Path(data_dir)))
+    records = list(_records(Path(data_dir), throttle))
     refs: dict[tuple, champ_checks.RefBuilder] = defaultdict(champ_checks.RefBuilder)
     for r in records:
         if r.get("tier") in champ_checks.REF_TIERS and r.get("champ") and r.get("role"):
@@ -262,7 +269,7 @@ class EloProfile:
             dd = getattr(self.svc, "dd", None)
             catalog = getattr(dd, "item_catalog", None)
             name = (lambda c: dd.name(int(c))) if dd is not None and hasattr(dd, "name") else None
-            data = build(self.data_dir, catalog if catalog else None, name)
+            data = build(self.data_dir, catalog if catalog else None, name, throttle=True)
             self.data, self.sig = data, sig
             self.path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.path.with_suffix(".json.tmp")
