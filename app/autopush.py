@@ -174,16 +174,38 @@ class AutoPush:
         return {"enabled": n > 0, "every": n, "running": bool(self.thread and self.thread.is_alive()), **self.state}
 
     def note_game(self) -> None:
-        """Una partida nueva escrita en disco por el recolector."""
+        """Una partida nueva guardada por el recolector."""
         n = every()
         if n <= 0:
             return
         with self.lock:
-            self.state["pending"] = int(self.state.get("pending") or 0) + 1
+            self.state["pending"] = pending = int(self.state.get("pending") or 0) + 1
             self._save()
-            due = self.state["pending"] >= n and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
+            due = pending >= n and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
+        if pending % 100 == 0 and pending < n:
+            log.info("Subida a GitHub: %d de %d partidas nuevas.", pending, n)
         if due:
             self.start()
+
+    def check(self) -> dict:
+        """Al arrancar: ¿git está instalado y esto es un repositorio con rama? Así un problema se ve en «Datos y API»
+        desde el primer momento, no a las 500 partidas. Si ya tocaba subir (la app se cerró antes), se sube."""
+        try:
+            if _git(self.repo, "rev-parse", "--is-inside-work-tree", check=False, timeout=30).stdout.strip() != "true":
+                raise GitError(f"{self.repo} no es un repositorio git (¿descargaste el proyecto como .zip en vez de clonarlo?)")
+            branch = _git(self.repo, "rev-parse", "--abbrev-ref", "HEAD", timeout=30).stdout.strip()
+            remote = _git(self.repo, "remote", check=False, timeout=30).stdout.split()
+            if not remote:
+                raise GitError("el repositorio no tiene ningún remoto (GitHub) al que subir")
+            self.state.update(git=f"git listo (rama {branch}, remoto {remote[0]})", git_ok=True)
+        except GitError as exc:
+            self.state.update(git=str(exc), git_ok=False)
+            log.warning("Subida automática a GitHub: %s", exc)
+        with self.lock:
+            self._save()
+        if self.state.get("git_ok") and every() > 0 and int(self.state.get("pending") or 0) >= every():
+            self.start()
+        return self.public()
 
     def start(self) -> bool:
         with self.lock:
@@ -226,20 +248,41 @@ class AutoPush:
         with self.lock:
             # Las partidas que llegaron mientras se subía cuentan para la siguiente.
             self.state["pending"] = max(0, int(self.state.get("pending") or 0) - counted)
-            self.state.update(last_push_at=time.time(), last_push_games=counted, last_error=None, last_error_at=None)
+            self.state.update(last_error=None, last_error_at=None, last_check_at=time.time())
+            if result["pushed"]:
+                self.state.update(last_push_at=time.time(), last_push_games=counted, last_result="pushed")
+            else:
+                # Recogiendo todo el ranking (sin campeones) las partidas solo van a la base de datos (data/lol.db, que no
+                # se sube): en data/ no había nada nuevo.
+                self.state.update(last_result="nothing")
             self._save()
         if result["pushed"]:
             log.info("Datos subidos a GitHub (%d partidas nuevas, rama %s).", counted, result["branch"])
+        else:
+            log.info("Subida a GitHub: %d partidas nuevas, pero nada nuevo en data/ (sin campeones, solo se guardan en la base de datos).", counted)
+
+
+_warned = False
 
 
 def note_game(svc) -> None:
     """Para el recolector: cuenta una partida nueva (no falla nunca: subir datos no puede parar la recogida)."""
+    global _warned
     try:
         auto = AutoPush.of(svc)
         if auto is not None:
             auto.note_game()
     except Exception:
-        log.debug("autopush: no se pudo contar la partida", exc_info=True)
+        if not _warned:
+            _warned = True
+            log.exception("Subida automática a GitHub: no se pudo contar la partida")
+
+
+def start(svc) -> None:
+    """Al arrancar la app: comprueba git en segundo plano (y sube si quedó pendiente)."""
+    auto = AutoPush.of(svc)
+    if auto is not None and every() > 0:
+        threading.Thread(target=auto.check, name="autopush-check", daemon=True).start()
 
 
 def main() -> int:

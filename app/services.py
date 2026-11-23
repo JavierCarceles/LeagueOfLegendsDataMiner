@@ -113,6 +113,13 @@ class Services:
             log.exception("No se pudo calcular el perfil de errores por elo")
         # Repeticiones (.rofl) de este ordenador: carpeta recordada por sistema operativo, se indexa al arrancar.
         self.local_replays.start()
+        # Subida automática de data/ a GitHub: se comprueba git ya (el aviso sale en «Datos y API» si algo falla).
+        try:
+            from app import autopush
+
+            autopush.start(self)
+        except Exception:
+            log.exception("No se pudo comprobar la subida automática a GitHub")
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.
         try:
             self.crawler.autostart()

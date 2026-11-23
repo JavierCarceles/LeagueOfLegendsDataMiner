@@ -462,10 +462,6 @@ def save(
                 files.append(dossier, player_info(db, puuid))
             except OSError:
                 log.exception("No se pudo escribir la partida %s en su carpeta", dossier["match_id"])
-            else:
-                from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
-
-                autopush.note_game(svc)
     return True
 
 

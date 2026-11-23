@@ -36,6 +36,7 @@ def repos(tmp_path):
     git(seed, "config", "user.email", "test@example.com")
     git(seed, "config", "user.name", "Test")
     (seed / "codigo.py").write_text("x = 1\n")
+    (seed / ".gitignore").write_text("data/.autopush.json\n*.tmp\n")  # como el del proyecto
     (seed / "data").mkdir()
     (seed / "data" / "a.json").write_text("{}")
     git(seed, "add", ".")
@@ -127,3 +128,23 @@ def test_desactivado_con_cero(repos, monkeypatch):
     auto = autopush.AutoPush(svc, repo=repos.a)
     auto.note_game()
     assert auto.state["pending"] == 0 and auto.thread is None
+
+
+def test_al_arrancar_se_comprueba_git_y_se_ve_el_problema(repos, tmp_path):
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None)
+    ok = autopush.AutoPush(svc, repo=repos.a).check()
+    assert ok["git_ok"] is True and "rama main" in ok["git"]
+    plain = tmp_path / "zip"
+    (plain / "data").mkdir(parents=True)
+    bad = autopush.AutoPush(SimpleNamespace(settings=SimpleNamespace(data_dir=plain / "data"), tracker=None), repo=plain).check()
+    assert bad["git_ok"] is False and ".zip" in bad["git"]
+
+
+def test_sin_nada_nuevo_en_data_lo_dice(repos, monkeypatch):
+    monkeypatch.setattr(autopush, "every", lambda: 2)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None, shutdown_event=threading.Event())
+    auto = autopush.AutoPush(svc, repo=repos.a)
+    auto.note_game()
+    auto.note_game()
+    auto.thread.join(30)
+    assert auto.state["pending"] == 0 and auto.state["last_result"] == "nothing" and not auto.state.get("last_push_at")

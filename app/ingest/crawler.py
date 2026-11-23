@@ -1024,9 +1024,8 @@ class RegionWorker(threading.Thread):
         info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
         elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
         try:
-            # Buscando OTPs, el jugador ya cumplió la regla de OTP de tu búsqueda; si no, se clasifica (OTP o no).
-            kind = "otp" if self.config.focus == "otp" else None
-            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo, kind=kind)
+            # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
+            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
         except Exception:
             log.exception("No se pudo analizar la partida %s del jugador", match_id)
             return False
@@ -1316,6 +1315,10 @@ class RegionWorker(threading.Thread):
         got.result = store_match(svc.db, record, seed_tier=player["tier"], stats_queues=svc.settings.stats_queues)
         if cfg.targets and cfg.save_details and got.mine_target and got.result in ("stored", "duplicate"):
             got.detailed = self._detail(match_id, payload, player)
+        if got.result == "stored" or got.detailed:
+            from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
+
+            autopush.note_game(svc)
         if got.result == "stored":
             self.state["stored"] += 1
             self.crawler.total_stored += 1

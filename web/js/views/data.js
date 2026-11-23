@@ -1058,11 +1058,13 @@ function autopushLine(p) {
   const left = Math.max(0, p.every - (p.pending || 0));
   const parts = [p.running ? "subiendo los datos ahora…" : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`];
   if (p.last_push_at) parts.push(`última subida ${fmt.ago(p.last_push_at)}`);
+  if (p.last_result === "nothing") parts.push("la última vez no había nada nuevo en data/ (sin campeones elegidos, las partidas solo van a la base de datos)");
   return h(
     "div.tiny.muted",
     { style: { marginTop: "4px" } },
     h("b", "GitHub: "),
     parts.join(" · "),
+    p.git_ok === false ? h("div.tiny.bad", `No se podrá subir: ${p.git}`) : p.git ? h("div.tiny.faint", p.git) : null,
     p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
   );
 }
