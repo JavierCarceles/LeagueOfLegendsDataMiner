@@ -1198,7 +1198,7 @@ function metricsCard(s) {
   );
 }
 
-const FLAG_CHIP = {
+export const FLAG_CHIP = {
   item_tempo: "objeto tarde",
   skill_order: "orden de habilidades",
   first_back: "primera compra",

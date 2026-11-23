@@ -9,7 +9,7 @@ import { trackPos } from "../components/minimap.js";
 import { localReplayIds, roflSection } from "../components/rofl.js";
 import { dd, loadJSON, ROLE_LABEL, save, TIER_LABEL } from "../state.js";
 import { champImg, champText, collapsible, debounce, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, roleIcon, select, toast } from "../ui.js";
-import { buildCard, gameMetrics, goldCharts, jungleGame, scorePill } from "./coach.js";
+import { buildCard, FLAG_CHIP, gameMetrics, goldCharts, jungleGame, scorePill } from "./coach.js";
 
 const PREFS = "tempu.repeticiones.v1";
 let prefs = loadJSON(PREFS, { queue: "all", role: "all", result: "all", sort: "recent", sev: ["high", "medium", "low", "good", "info"], kind: "all" });
@@ -224,6 +224,7 @@ function gameCard(g, hasRofl = false) {
     h(
       "div.row-wrap.replay-issues",
       g.has_timeline ? [sevCount(i.high, "high"), sevCount(i.medium, "medium"), sevCount(i.low, "low"), sevCount(i.good, "good")] : h("span.chip-muted", "esperando timeline"),
+      [...new Set(g.flags || [])].filter((f) => FLAG_CHIP[f]).map((f) => h("span.chip-bad", { title: "Frente a los OTPs de tu campeón (Diamante o más): de lo que separa elos" }, FLAG_CHIP[f])),
       g.has_timeline && !i.high && !i.medium ? h("span.tiny.good", "sin errores importantes") : null,
       hasRofl ? h("span.chip-good", { title: "La repetición (.rofl) está en tu ordenador: se abre en el cliente sin descargarla" }, ".rofl en tu PC") : null,
     ),
