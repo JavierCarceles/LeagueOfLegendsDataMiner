@@ -1024,7 +1024,24 @@ function otpFilesBar(data) {
       ),
       d.path ? h("div.tiny.muted.otp-path", h("b", "OTPs: "), d.path) : null,
       d.players_path ? h("div.tiny.muted.otp-path", h("b", "Otros jugadores: "), d.players_path) : null,
+      autopushLine(d.autopush),
     ),
+  );
+}
+
+/** Subida automática a GitHub: cuántas partidas faltan para la siguiente y cómo fue la última. */
+function autopushLine(p) {
+  if (!p) return null;
+  if (!p.enabled) return h("div.tiny.muted", { style: { marginTop: "4px" } }, h("b", "GitHub: "), "subida automática desactivada (AUTO_PUSH_GAMES=0).");
+  const left = Math.max(0, p.every - (p.pending || 0));
+  const parts = [p.running ? "subiendo los datos ahora…" : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`];
+  if (p.last_push_at) parts.push(`última subida ${fmt.ago(p.last_push_at)}`);
+  return h(
+    "div.tiny.muted",
+    { style: { marginTop: "4px" } },
+    h("b", "GitHub: "),
+    parts.join(" · "),
+    p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
   );
 }
 

@@ -67,6 +67,10 @@ Tests: `pip install -r tests/requirements.txt` y `python -m pytest`.
 - **Mientras juegas** (cliente de LoL abierto en este ordenador) se pausan la precarga y el recolector para no quitarte
   ancho de banda; en Windows la app corre además con prioridad baja de CPU. Al terminar la partida sigue sola.
 - **Recolector**: si lo dejas en marcha, se reanuda solo al volver a abrir la app.
+- **Subida a GitHub**: cada 500 partidas nuevas del recolector (`AUTO_PUSH_GAMES`) se hace solo `git add data`, un commit
+  «datos» (solo `data/`: el código a medias nunca entra), `git pull --rebase` y `git push`, en segundo plano y esperando a que
+  acabe tu partida. Nunca se fuerza: si algo choca, el commit queda en local y se reintenta a los 15 min (el aviso sale en
+  *Datos y API*). Para subir ya lo que haya: `python -m app.autopush`.
 - En la barra superior, *Datos al día* / *Preparando datos N %* resume el estado; el detalle está en *Datos y API*.
 
 ## De dónde salen los datos
@@ -176,6 +180,7 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 | `PAUSE_IN_GAME` | `1` | Pausar descargas de fondo mientras juegas. |
 | `CALIBRATE_ENABLED` | `1` | Bajar poco a poco partidas reales de tu elo objetivo para calibrar las referencias. |
 | `LOW_PRIORITY` | `1` | Windows: prioridad baja del proceso. |
+| `AUTO_PUSH_GAMES` | `500` | Cada cuántas partidas nuevas del recolector se suben los datos a GitHub (commit «datos» + push); `0` lo desactiva. |
 | `STATS_QUEUES` | `420,440` | Colas que alimentan tus estadísticas propias. |
 | `DDRAGON_LANG` | `es_ES` | Idioma de campeones, objetos y notas de parche. |
 | `LOL_INSTALL_DIR` | — | Carpeta de LoL si no se detecta sola (se busca en las rutas por defecto, en `RiotClientInstalls.json` del Riot Client y en el proceso del cliente abierto). |

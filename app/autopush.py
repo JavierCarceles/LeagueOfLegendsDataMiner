@@ -1,0 +1,269 @@
+"""Subida automática de los datos a GitHub: cada N partidas nuevas del recolector, un commit «datos» y push.
+
+El recolector escribe cada partida en ``data/otps`` o ``data/partidas_campeon``. Al llegar a ``AUTO_PUSH_GAMES``
+partidas nuevas (500 por defecto; ``0`` lo desactiva) se hace, en segundo plano y sin tocar nada fuera de ``data/``:
+
+1. ``git add -- data`` y ``git commit -m datos -- data`` (solo la carpeta de datos: si tienes código a medias, no entra);
+2. ``git pull --rebase --autostash`` de la rama actual (trabajas desde dos ordenadores: el remoto puede ir por delante).
+   Si tienes código modificado sin commit fuera de ``data/``, no se hace pull (podría mezclar tus cambios con los del
+   remoto): solo se intenta el push y, si el remoto va por delante, se avisa en «Datos y API» y se reintenta luego;
+3. ``git push`` normal. **Nunca se fuerza**: si el rebase choca, se aborta, el commit queda en local y se reintenta
+   más tarde.
+
+Mientras juegas se espera a que acabe la partida. La cuenta de partidas pendientes se guarda en
+``data/.autopush.json`` (ignorado por git), así que sobrevive a cerrar la app.
+
+También se puede lanzar a mano: ``python -m app.autopush`` (sube ya lo que haya, sin esperar a las 500).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+from app.config import BASE_DIR, env
+from app.logbus import get_logger
+
+log = get_logger("autopush")
+
+DEFAULT_EVERY = 500
+STATE_FILE = ".autopush.json"
+COMMIT_MESSAGE = "datos"
+GIT_TIMEOUT_S = 600  # un push grande con una conexión lenta
+RETRY_AFTER_S = 15 * 60  # tras un fallo (sin red, rebase con conflictos…), no se reintenta antes
+IN_GAME_WAIT_S = 30
+
+
+def every() -> int:
+    """Partidas nuevas entre una subida y la siguiente (``AUTO_PUSH_GAMES``; 0 = desactivado)."""
+    raw = env("AUTO_PUSH_GAMES")
+    try:
+        return max(0, int(raw)) if raw not in (None, "") else DEFAULT_EVERY
+    except ValueError:
+        return DEFAULT_EVERY
+
+
+class GitError(RuntimeError):
+    pass
+
+
+def _git(repo: Path, *args: str, check: bool = True, timeout: int = GIT_TIMEOUT_S) -> subprocess.CompletedProcess:
+    env_vars = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}  # nunca quedarse esperando una contraseña en consola
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # Windows: sin ventanas de consola que aparecen y desaparecen
+    try:
+        proc = subprocess.run(
+            ["git", *args], cwd=repo, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout, env=env_vars, creationflags=flags,
+        )
+    except FileNotFoundError as exc:
+        raise GitError("git no está instalado o no está en el PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise GitError(f"git {args[0]} tardó más de {timeout} s") from exc
+    if check and proc.returncode != 0:
+        raise GitError(f"git {' '.join(args)}: {(proc.stderr or proc.stdout).strip()[:500]}")
+    return proc
+
+
+def push_data(repo: Path, data_dir: Path, locks=()) -> dict:
+    """Commit «datos» con lo que haya en ``data_dir`` y push de la rama actual. Devuelve qué se hizo.
+
+    ``locks``: cerrojos de los escritores de partidas, para no hacer el commit con un fichero a medio escribir.
+    """
+    if _git(repo, "rev-parse", "--is-inside-work-tree", check=False).stdout.strip() != "true":
+        raise GitError(f"{repo} no es un repositorio git")
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    if branch == "HEAD":
+        raise GitError("el repositorio no está en ninguna rama (HEAD separado)")
+    try:
+        rel = data_dir.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError as exc:
+        raise GitError(f"la carpeta de datos ({data_dir}) no está dentro del repositorio") from exc
+    if _git(repo, "rev-parse", "--verify", "--quiet", "REBASE_HEAD", check=False).returncode == 0:
+        raise GitError("hay un rebase a medias en el repositorio: termínalo o abórtalo antes")
+
+    # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el rebase y
+    # el autostash nunca tiene que mezclar partidas a medio escribir.
+    for lock in locks:
+        lock.acquire()
+    try:
+        _git(repo, "add", "--", rel)
+        staged = _git(repo, "diff", "--cached", "--quiet", "--", rel, check=False).returncode != 0
+        if staged:
+            _git(repo, "commit", "-m", COMMIT_MESSAGE, "--", rel)
+        upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).stdout.strip()
+        remote, _, remote_branch = upstream.partition("/") if upstream else ("origin", "", branch)
+        ahead = _git(repo, "rev-list", "--count", f"{upstream}..HEAD", check=False).stdout.strip() if upstream else "1"
+        if not staged and ahead == "0":
+            return {"committed": False, "pushed": False, "branch": branch}
+        # Código modificado sin commit: un rebase con autostash podría dejar marcas de conflicto en tus ficheros si el
+        # remoto cambió los mismos. En ese caso no se toca nada: se intenta el push tal cual y, si el remoto va por
+        # delante, se avisa y se reintenta más tarde.
+        code_dirty = _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}").stdout.strip()
+        if not code_dirty:
+            pull = _git(repo, "pull", "--rebase", "--autostash", remote, remote_branch, check=False)
+            conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.strip()
+            if pull.returncode != 0 or conflicts:
+                _git(repo, "rebase", "--abort", check=False)
+                raise GitError(f"git pull --rebase falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
+    finally:
+        for lock in reversed(locks):
+            lock.release()
+
+    if code_dirty:
+        pushed = _git(repo, "push", remote, f"HEAD:{remote_branch}", check=False)
+        if pushed.returncode != 0:
+            raise GitError(
+                "GitHub tiene commits nuevos y hay cambios de código sin commit fuera de data/ "
+                f"({len(code_dirty.splitlines())} ficheros): haz commit o descártalos y se subirá solo (el commit «datos» queda en local)"
+            )
+        return {"committed": staged, "pushed": True, "branch": branch}
+    _git(repo, "push", remote, f"HEAD:{remote_branch}")
+    return {"committed": staged, "pushed": True, "branch": branch}
+
+
+class AutoPush:
+    """Cuenta las partidas nuevas del recolector y, cada ``every()``, sube los datos a GitHub en segundo plano."""
+
+    _instance: AutoPush | None = None
+    _instance_lock = threading.Lock()
+
+    def __init__(self, svc, repo: Path = BASE_DIR) -> None:
+        self.svc = svc
+        self.repo = Path(repo)
+        self.data_dir = Path(svc.settings.data_dir)
+        self.path = self.data_dir / STATE_FILE
+        self.lock = threading.Lock()
+        self.thread: threading.Thread | None = None
+        self.state = self._load()
+
+    @classmethod
+    def of(cls, svc) -> AutoPush | None:
+        settings = getattr(svc, "settings", None)
+        if settings is None or getattr(settings, "data_dir", None) is None:
+            return None
+        with cls._instance_lock:
+            if cls._instance is None or cls._instance.svc is not svc:
+                cls._instance = cls(svc)
+            return cls._instance
+
+    def _load(self) -> dict:
+        try:
+            state = json.loads(self.path.read_text(encoding="utf-8"))
+            if isinstance(state, dict):
+                return {"pending": int(state.get("pending") or 0), **{k: v for k, v in state.items() if k != "pending"}}
+        except (OSError, ValueError, TypeError):
+            pass
+        return {"pending": 0}
+
+    def _save(self) -> None:
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(self.state, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(self.path)
+        except OSError:
+            log.debug("No se pudo guardar %s", self.path, exc_info=True)
+
+    def public(self) -> dict:
+        n = every()
+        return {"enabled": n > 0, "every": n, "running": bool(self.thread and self.thread.is_alive()), **self.state}
+
+    def note_game(self) -> None:
+        """Una partida nueva escrita en disco por el recolector."""
+        n = every()
+        if n <= 0:
+            return
+        with self.lock:
+            self.state["pending"] = int(self.state.get("pending") or 0) + 1
+            self._save()
+            due = self.state["pending"] >= n and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
+        if due:
+            self.start()
+
+    def start(self) -> bool:
+        with self.lock:
+            if self.thread is not None and self.thread.is_alive():
+                return False
+            self.thread = threading.Thread(target=self._run, name="autopush", daemon=True)
+            self.thread.start()
+            return True
+
+    def _in_game(self) -> bool:
+        tracker = getattr(self.svc, "tracker", None)
+        return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
+
+    def _run(self) -> None:
+        stop = getattr(self.svc, "shutdown_event", None)
+        while self._in_game():  # el ancho de banda, para la partida
+            if stop is not None and stop.wait(IN_GAME_WAIT_S):
+                return
+            if stop is None:
+                time.sleep(IN_GAME_WAIT_S)
+        with self.lock:
+            counted = int(self.state.get("pending") or 0)
+        from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
+
+        locks = [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
+        try:
+            result = push_data(self.repo, self.data_dir, locks)
+        except GitError as exc:
+            log.warning("No se pudieron subir los datos a GitHub: %s. Se reintentará en %d min.", exc, RETRY_AFTER_S // 60)
+            with self.lock:
+                self.state.update(last_error=str(exc), last_error_at=time.time())
+                self._save()
+            return
+        except Exception:
+            log.exception("Fallo inesperado subiendo los datos a GitHub")
+            with self.lock:
+                self.state.update(last_error="fallo inesperado (ver el log)", last_error_at=time.time())
+                self._save()
+            return
+        with self.lock:
+            # Las partidas que llegaron mientras se subía cuentan para la siguiente.
+            self.state["pending"] = max(0, int(self.state.get("pending") or 0) - counted)
+            self.state.update(last_push_at=time.time(), last_push_games=counted, last_error=None, last_error_at=None)
+            self._save()
+        if result["pushed"]:
+            log.info("Datos subidos a GitHub (%d partidas nuevas, rama %s).", counted, result["branch"])
+
+
+def note_game(svc) -> None:
+    """Para el recolector: cuenta una partida nueva (no falla nunca: subir datos no puede parar la recogida)."""
+    try:
+        auto = AutoPush.of(svc)
+        if auto is not None:
+            auto.note_game()
+    except Exception:
+        log.debug("autopush: no se pudo contar la partida", exc_info=True)
+
+
+def main() -> int:
+    """``python -m app.autopush``: commit «datos» y push ahora mismo."""
+    from app.config import settings
+
+    try:
+        result = push_data(BASE_DIR, settings.data_dir)
+    except GitError as exc:
+        print(f"No se pudo subir: {exc}", file=sys.stderr)
+        return 1
+    if not result["pushed"]:
+        print("No hay datos nuevos que subir.")
+    else:
+        print(f"Datos subidos a la rama {result['branch']}.")
+        try:  # la cuenta de partidas pendientes vuelve a empezar
+            path = Path(settings.data_dir) / STATE_FILE
+            state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+            state.update(pending=0, last_push_at=time.time())
+            path.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+        except (OSError, ValueError):
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
