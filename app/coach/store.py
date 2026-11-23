@@ -188,6 +188,11 @@ def update_analysis(db: Database, match_id: str, analysis: dict, digest: dict, v
         )
 
 
+def update_digest(db: Database, match_id: str, digest: dict) -> None:
+    with db.write() as conn:
+        conn.execute("UPDATE my_games SET digest = ? WHERE match_id = ?", (json.dumps(digest, separators=(",", ":"), ensure_ascii=False), match_id))
+
+
 def raw_game(db: Database, match_id: str) -> tuple[dict | None, dict | None, int | None]:
     row = db.one("SELECT match_raw, timeline_raw, pid FROM my_games WHERE match_id = ?", (match_id,))
     if not row:
@@ -253,6 +258,7 @@ def list_games(db: Database, puuids: list[str], *, queue: str | None = None, rol
                 "has_timeline": digest.get("has_timeline", False),
                 "issues": digest.get("issues") or [],
                 "mistakes": digest.get("mk"),
+                "checks": digest.get("cc"),
             }
         )
     return out

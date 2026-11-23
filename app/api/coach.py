@@ -10,9 +10,10 @@ from pydantic import BaseModel, Field
 
 from app import lcu
 from app.api.deps import role_param, svc_from
-from app.coach import insights, learn, otp_compare, store
+from app.coach import champ_checks, insights, learn, otp_compare, store
+from app.coach.elo_profile import EloProfile
 from app.coach.benchmarks import METRICS, TARGET_TIERS, References, next_target, normalize_tier, public_metrics
-from app.coach.tracker import ProfileNotFound, build_digest, resolve_account
+from app.coach.tracker import ProfileNotFound, build_digest, refresh_digests, resolve_account, skill_times
 from app.logbus import get_logger
 from app.riot.client import RiotAPIError, RiotKeyError
 from app.riot.routing import PLATFORMS, QUEUES
@@ -77,6 +78,40 @@ def _public(profile: dict | None) -> dict | None:
         "created_at": profile.get("created_at"),
         "settings": {k: settings.get(k) for k in ("enabled", "backfill", "poll_minutes", "scanned")},
     }
+
+
+def _elo_profile(svc) -> EloProfile | None:
+    try:
+        return EloProfile.of(svc)
+    except Exception:  # noqa: BLE001  (sin perfil por elo, el resto de «Mi progreso» sigue)
+        log.debug("Sin perfil de errores por elo", exc_info=True)
+        return None
+
+
+def _champ_name(svc, champ: int | None) -> str:
+    dd = getattr(svc, "dd", None)
+    return (dd.name(int(champ)) if dd is not None and champ and hasattr(dd, "name") else None) or "tu campeón"
+
+
+def _catalog(svc):
+    catalog = getattr(getattr(svc, "dd", None), "item_catalog", None)
+    return catalog if catalog else None
+
+
+def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
+    """Orden de habilidades, primera vuelta y ritmo del primer objeto frente a los OTPs de cada campeón (en sus errores)."""
+    if prof is None:
+        return
+    catalog = _catalog(svc)
+    for g in games:
+        cc = g.get("checks")
+        if not cc or g.get("mistakes") is None:
+            continue
+        ref = prof.champ_ref(g.get("champ"), g.get("role"))
+        metrics = g.get("metrics") or {}
+        rec = {**cc, **{k: metrics.get(k) for k in champ_checks.METRIC_KEYS}, "role": g.get("role")}
+        for m in champ_checks.check(rec, ref, catalog, _champ_name(svc, g.get("champ"))):
+            g["mistakes"].append([m["kind"], m["severity"], m["t"], m["tags"], m["title"][:90]])
 
 
 def _require_profile(svc) -> dict:
@@ -258,6 +293,7 @@ def summary(
         return {"profile": None, "games": 0}
     puuids = store.known_puuids(profile)
     queue, role_f = _queue(queue), _role(role)
+    refresh_digests(svc.db)  # resúmenes de un formato anterior: se rehacen del análisis guardado (solo la primera vez)
     games = store.list_games(svc.db, puuids, queue=queue, role=role_f, limit=last)
     # Tus datos siempre a la vista: si el filtro no tiene partidas pero otro sí (casi no juegas clasificatorias, o ese rol
     # no lo juegas), se enseñan las que hay y se dice qué filtro se ha usado.
@@ -277,7 +313,9 @@ def summary(
         if g.get("build"):
             counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
     top = [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
-    data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top))
+    prof = _elo_profile(svc)
+    _add_champ_checks(svc, games, prof)
+    data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top), prof.get() if prof else None)
     # Hábitos entre partidas: con todas tus partidas recientes (los filtros romperían las rachas y las sesiones).
     data["habits"] = insights.habits(store.list_games(svc.db, puuids, limit=HABITS_GAMES))
     data["habits"]["reviews"] = store.review_stats(svc.db, since=int(time.time()) - 7 * 86_400)
@@ -345,6 +383,17 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             log.warning("Build de OP.GG de %s (%s): %s", analysis["champ"], analysis["role"], exc)
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
+    # Orden de habilidades, primera vuelta y primer objeto frente a los OTPs de tu campeón (Diamante o más).
+    prof = _elo_profile(svc)
+    champ_ref = prof.champ_ref(analysis.get("champ"), analysis.get("role")) if prof and prof.get() else None
+    if analysis.get("build") and analysis.get("has_timeline") and analysis.get("reliable"):
+        skill_t = None
+        if not analysis["build"].get("skill_t"):
+            skill_t = skill_times(store.raw_timeline(svc.db, analysis["match_id"]), analysis.get("me"))
+        rec = champ_checks.record_from_analysis(analysis, skill_t)
+        extra = champ_checks.check(rec, champ_ref, _catalog(svc), _champ_name(svc, analysis.get("champ")))
+        if extra:
+            analysis["moments"] = sorted((analysis.get("moments") or []) + extra, key=lambda m: m.get("t") or 0)
     return analysis
 
 

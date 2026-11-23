@@ -389,6 +389,7 @@ function summaryView(s, data) {
     filtersBar(s),
     fallbackNotice(s),
     h("div.grid.coach-top", readinessCard(s), kpisCard(s), goalsCard(s)),
+    s.elo_errors ? collapsible("progreso.elo", [icon("activity"), "Tus errores frente a cada elo"], () => eloErrorsCard(s.elo_errors), { open: true, summary: eloSummary(s.elo_errors) }) : null,
     weaknessesCard(s),
     s.otp_compare?.length
       ? collapsible("progreso.otps.v2", [icon("crown"), "Tú frente a los OTPs de tu campeón"], () => otpCompareCard(s), {
@@ -674,7 +675,94 @@ function recurringExamples(r) {
 }
 
 function recurringLine(r) {
-  return h("div.small", { style: { marginTop: "4px" } }, h("b", `En ${r.games} de ${r.of} partidas`), ` (${r.count} ${r.count === 1 ? "vez" : "veces"}, el ${r.rate} % de tus partidas).`);
+  const tiers = Object.entries(r.elo || {});
+  return h(
+    "div.small",
+    { style: { marginTop: "4px" } },
+    h("b", `En ${r.games} de ${r.of} partidas`),
+    ` (${r.count} ${r.count === 1 ? "vez" : "veces"}, el ${r.rate} % de tus partidas).`,
+    tiers.length
+      ? h(
+          "div.tiny.muted",
+          { style: { marginTop: "4px" } },
+          "Partidas con este error en cada elo: ",
+          tiers.map(([t, pct], i) => [i ? " · " : "", h("b", `${ELO_LABEL[t] || t} ${fmt.num(pct, 0)} %`)]),
+          r.separates === false ? h("span", " — lo cometen igual en todos los elos: cuenta, pero no es lo que te impide subir.") : r.separates ? h("span", " — los mejores lo hacen mucho menos.") : null,
+        )
+      : null,
+  );
+}
+
+const ELO_LABEL = { PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
+const ELO_STATUS = { worse: ["Peor que los mejores", "bad"], even: ["Como los mejores", ""], better: ["Mejor que los mejores", "good"] };
+
+function eloSummary(e) {
+  const near = ELO_LABEL[e.closest_sep] || e.closest_sep;
+  const worse = (e.types || []).filter((t) => t.status === "worse").length;
+  return `${fmt.num(e.per_game_sep, 1)} errores que separan elos por partida · como ${near}${worse ? ` · ${worse} en los que fallas más que Aspirante` : ""}`;
+}
+
+/** Errores por partida (mismo análisis y mismas reglas) tuyos y de los OTPs de cada elo, y en qué tipos te separas. */
+function eloErrorsCard(e) {
+  const levels = e.levels || [];
+  const max = Math.max(e.per_game, ...levels.map((l) => l.per_game), 0.1);
+  const bar = (label, total, sep, cls, title) =>
+    h(
+      `div.elo-row${cls ? "." + cls : ""}`,
+      { title },
+      h("span.elo-name", label),
+      h("div.elo-track", h("span.elo-fill-all", { style: { width: `${(100 * total) / max}%` } }), h("span.elo-fill-sep", { style: { width: `${(100 * sep) / max}%` } })),
+      h("span.elo-val.num", fmt.num(sep, 1), h("span.faint", ` / ${fmt.num(total, 1)}`)),
+    );
+  const tiers = levels.map((l) => l.tier);
+  const champ = e.champ ? dd.name(e.champ) : null;
+  const rows = (e.types || []).filter((t) => t.status === "worse" || t.mine_pct > 0 || t.separates);
+  return h(
+    "div.col",
+    { style: { gap: "12px" } },
+    h(
+      "p.small.muted",
+      { style: { margin: 0 } },
+      `Tus últimas ${e.games} partidas de ${ROLE_LABEL[e.role] || e.role}${champ ? ` con ${champ}` : ""} frente a ${champ ? `los OTPs de ${champ}` : "los OTPs de tu rol"} de cada elo, analizadas con las mismas reglas. `,
+      "La barra fuerte son los errores que ",
+      h("b", "separan elos"),
+      " (los que el elo más alto comete claramente menos); la clara, todos.",
+    ),
+    h(
+      "div.elo-bars",
+      bar("Tú", e.per_game, e.per_game_sep, "me", `${e.games} partidas tuyas`),
+      levels.map((l) => bar(l.label, l.per_game, l.per_game_sep, l.tier === e.closest_sep ? "near" : "", `${fmt.int(l.games)} partidas de ${l.players} jugadores`)),
+    ),
+    e.normals
+      ? h(
+          "p.tiny.muted",
+          { style: { margin: 0 } },
+          `${e.normals === e.games ? "Todas tus partidas son" : `${e.normals} de tus ${e.games} partidas son`} normales: los rivales suelen tener menos nivel que en clasificatorias, así que cometes menos errores de los que cometerías en tu liga. Fíjate sobre todo en los tipos de abajo marcados en rojo.`,
+        )
+      : null,
+    rows.length
+      ? h(
+          "div.table-wrap",
+          h(
+            "table.table.elo-table",
+            h("thead", h("tr", h("th", "Error"), h("th.num", "Tú"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)), h("th", ""))),
+            h(
+              "tbody",
+              rows.map((t) =>
+                h(
+                  `tr${t.separates === false ? ".flat" : ""}`,
+                  h("td", t.title, t.separates === false ? h("div.tiny.faint", "No separa elos: lo cometen igual los mejores") : null),
+                  h(`td.num${t.status === "worse" ? ".bad" : t.status === "better" ? ".good" : ""}`, `${fmt.num(t.mine_pct, 0)} %`),
+                  tiers.map((g) => h("td.num.muted", `${fmt.num(t.tiers[g] ?? 0, 0)} %`)),
+                  h("td", t.status && ELO_STATUS[t.status] ? h(`span.pill${ELO_STATUS[t.status][1] ? ".pill-" + ELO_STATUS[t.status][1] : ""}`, ELO_STATUS[t.status][0]) : null),
+                ),
+              ),
+            ),
+          ),
+        )
+      : null,
+    h("p.tiny.muted", { style: { margin: 0 } }, "Porcentaje de partidas con al menos un error de ese tipo. «Los mejores» es el elo más alto con datos; con pocas partidas tuyas, solo se marca lo que se sale del ruido."),
+  );
 }
 
 function targetHint(s) {

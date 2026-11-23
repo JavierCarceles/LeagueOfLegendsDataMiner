@@ -588,7 +588,10 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "Mueres adelantado en la línea"},
     {"id": "death_duel_behind", "kind": "death", "need": ("duel_behind",), "metric": "deaths_duel_behind",
      "title": "Aceptas duelos con niveles u objetos de menos"},
+    # Para el jungla, entrar en la jungla rival es su trabajo: los Aspirante mueren ahí más que los Platino (0,50 frente a
+    # 0,45 por partida; invaden más). Solo es error si entró sin visión; aislado, en duelo… lo recogen los tipos de abajo.
     {"id": "death_enemy_jungle", "kind": "death", "need": ("enemy_jungle",), "metric": "deaths_enemy_jungle",
+     "role_need": {"JUNGLE": ("enemy_jungle", "no_ward")},
      "title": "Mueres en la jungla rival"},
     {"id": "death_unspent_gold", "kind": "death", "need": ("unspent_gold",), "metric": "deaths_unspent_gold",
      "title": "Mueres con oro sin gastar"},
@@ -617,6 +620,15 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "El rival coge objetivos mientras estás muerto",
      "tip": "Antes de cada objetivo, juega para estar vivo: retrocede si no ves a varios rivales y no busques peleas sin visión en el minuto previo."},
     {"id": "gold_hoard", "kind": "gold", "need": (), "metric": "gold_hoard_min", "title": "Tardas en gastar el oro"},
+    {"id": "skill_order", "kind": "build", "need": ("skill_order",), "metric": None,
+     "title": "Subes las habilidades en un orden que no usan los OTPs de tu campeón",
+     "tip": "Mira el orden de habilidades de los OTPs de tu campeón (página OTPs o «Tú frente a los OTPs») y cópialo en los niveles 1-9: decide la velocidad del despeje y quién gana los primeros duelos."},
+    {"id": "first_back", "kind": "build", "need": ("first_back",), "metric": None,
+     "title": "Tu primera vuelta no compra lo que compran los OTPs",
+     "tip": "En la primera vuelta compra piezas de tu primer objeto (o botas si es lo habitual en tu campeón). Los componentes sueltos de otros objetos retrasan tu primer pico de poder."},
+    {"id": "item_tempo", "kind": "build", "need": ("item_tempo",), "metric": "first_item_min",
+     "title": "Terminas el primer objeto más tarde que los OTPs de tu campeón",
+     "tip": "Entre jugada y jugada limpia campamentos u oleadas y vuelve a base en cuanto te llegue para una pieza grande: un minuto de retraso en el primer objeto es un minuto peleando más débil."},
     {"id": "r_late", "kind": "build", "need": ("skills",), "metric": "r_late", "title": "Subes la R tarde"},
     {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "title": "Sin botas mejoradas al minuto 20",
      "tip": "Las botas de nivel 2 cuestan poco y dan mucha movilidad: cómpralas entre el primer y el segundo objeto salvo que tu campeón no las use."},
@@ -625,30 +637,79 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
     {"id": "no_resist", "kind": "build", "need": ("resist",), "metric": None, "title": "No te defiendes del daño que más recibes",
      "tip": "Mira en la pantalla de muerte qué tipo de daño te mata: si casi todo es físico o mágico, mete armadura o resistencia mágica en tu siguiente compra."},
     {"id": "enemy_jungler_far", "kind": "jungle", "need": ("tracking",), "metric": "enemy_ganks_far", "title": "No sigues al jungla rival"},
+    {"id": "no_pinks", "kind": "vision", "need": ("no_pinks",), "metric": "control_wards", "title": "Partidas sin ninguna pink",
+     "tip": "Compra un guardián de control (75) en cada vuelta a base y ponlo en el río o junto al siguiente objetivo: en Aspirante casi nadie acaba una partida sin ninguno."},
+    {"id": "few_wards", "kind": "vision", "need": ("few_wards",), "metric": "wards_pre14", "title": "Casi sin wards en la fase de líneas",
+     "tip": "Usa el abalorio cada vez que se recargue: río, entrada de tu jungla y el campamento que el rival suele hacer."},
+    {"id": "low_kp", "kind": "jungle", "need": ("low_kp",), "metric": "kp", "title": "Participas en pocas kills de tu equipo",
+     "tip": "Sigue las peleas de tus líneas: llega a los ganks del rival (contragank), juega hacia la línea que va ganando y agrupa antes de cada objetivo."},
     {"id": "pink_unused", "kind": "vision", "need": ("pink",), "metric": None, "title": "Llevas pinks y no las usas en los objetivos",
      "tip": "Una pink en el inventario no da visión: ponla en el foso o en el arbusto de entrada un minuto antes de cada objetivo."},
 ]
 
 
-def _mistake_type(kind: str, tags: set) -> dict | None:
+def mistake_type(kind: str, tags: set, role: str | None = None) -> dict | None:
+    """Tipo de error de un momento (el primero de ``MISTAKE_TYPES`` que encaje) o ``None`` si no es un error.
+
+    ``role_need``: en ese rol hacen falta más etiquetas (lo que en él es su trabajo no es error por sí solo)."""
     if tags & NOT_A_MISTAKE:
         return None
     for mt in MISTAKE_TYPES:
-        if mt["kind"] == kind and all(t in tags for t in mt["need"]):
+        need = (mt.get("role_need") or {}).get(role or "", mt["need"])
+        if mt["kind"] == kind and all(t in tags for t in need):
             return mt
     return None
 
 
-def recurring_mistakes(games: list[dict]) -> dict:
-    """Tipos de error que se repiten en tus partidas: en cuántas, cuántas veces y ejemplos para verlos."""
+_mistake_type = mistake_type
+
+
+# ------------------------------------------------------------------ errores frente a cada elo
+ELO_GROUPS = ("PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
+ELO_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante", "MASTER": "Maestro", "CHALLENGER": "Aspirante"}
+# Un tipo de error «no separa elos» si el elo más alto con datos lo comete al menos el 85 % de veces que el más bajo.
+FLAT_RATIO = 0.85
+FLAT_WEIGHT = 0.5  # en «Errores que repites» pesa la mitad: es parte del juego, no lo que te impide subir
+MIN_ELO_GAMES = 5
+
+
+def elo_tiers(profile: dict | None, role: str | None, champ: int | None = None) -> tuple[dict, str]:
+    """Bloques por elo de tu campeón (si hay al menos 2 elos con muestra) o de tu rol: ``(tiers, "champ"|"role")``."""
+    if not profile or not role:
+        return {}, "role"
+    if champ:
+        tiers = ((profile.get("champs") or {}).get(f"{champ}:{role}") or {}).get("tiers") or {}
+        if len(tiers) >= 2:
+            return tiers, "champ"
+    return (profile.get("roles") or {}).get(role) or {}, "role"
+
+
+def separation(tiers: dict, mistake_id: str) -> dict | None:
+    """% de partidas con ese error en el elo más bajo y en el más alto con datos, y si de verdad separa elos (por
+    errores por partida: morir aislado 3 veces por partida o 1 es muy distinto aunque ambos lo hagan en todas)."""
+    present = [g for g in ELO_GROUPS if g in tiers]
+    if len(present) < 2:
+        return None
+    low, top = present[0], present[-1]
+    get = lambda g, k: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get(k, 0.0)  # noqa: E731
+    lo, hi = get(low, "per_game"), get(top, "per_game")
+    return {"low": low, "top": top, "low_pct": get(low, "pct"), "top_pct": get(top, "pct"), "flat": lo <= 0 or hi >= FLAT_RATIO * lo}
+
+
+def recurring_mistakes(games: list[dict], elo: dict | None = None) -> dict:
+    """Tipos de error que se repiten en tus partidas: en cuántas, cuántas veces y ejemplos para verlos.
+
+    ``elo``: rol -> bloques por elo (``elo_tiers``). Con ellos cada error dice cuántas partidas lo tienen en cada elo, y
+    el que comete igual un Aspirante que un Platino pesa la mitad (no es lo que te separa de subir)."""
     pool = [g for g in games if reliable(g) and g.get("has_timeline") and g.get("mistakes") is not None]
     groups: dict[str, dict] = {}
     for g in pool:
         for kind, severity, t, tags, title in g["mistakes"]:
-            mt = _mistake_type(kind, set(tags or []))
+            mt = mistake_type(kind, set(tags or []), g.get("role"))
             if mt is None:
                 continue
-            grp = groups.setdefault(mt["id"], {"type": mt, "count": 0, "games": set(), "weight": 0.0, "examples": []})
+            grp = groups.setdefault(mt["id"], {"type": mt, "count": 0, "games": set(), "weight": 0.0, "examples": [], "roles": Counter()})
+            grp["roles"][g.get("role")] += 1
             grp["count"] += 1
             grp["games"].add(g["match_id"])
             grp["weight"] += SEVERITY_WEIGHT.get(severity, 1.0)
@@ -663,6 +724,10 @@ def recurring_mistakes(games: list[dict]) -> dict:
             continue
         mt = grp["type"]
         rule = RULE_BY_METRIC.get(mt["metric"]) if mt["metric"] else None
+        role = grp["roles"].most_common(1)[0][0]
+        tiers = (elo or {}).get(role) or {}
+        sep = separation(tiers, mt["id"]) if tiers else None
+        weight = FLAT_WEIGHT if sep and sep["flat"] else 1.0
         out.append(
             {
                 "id": mt["id"],
@@ -674,13 +739,102 @@ def recurring_mistakes(games: list[dict]) -> dict:
                 "of": n,
                 "rate": round(rate * 100),
                 "severity": round(grp["weight"] / grp["count"], 2),
-                "score": round(rate * grp["weight"] / grp["count"], 3),
+                "score": round(weight * rate * grp["weight"] / grp["count"], 3),
+                "elo": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers} or None,
+                "separates": (not sep["flat"]) if sep else None,
                 "examples": grp["examples"],
                 "learn": learn.for_mistake(mt["id"]),
             }
         )
     out.sort(key=lambda x: x["score"], reverse=True)
     return {"items": out, "sample": n}
+
+
+def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
+    """Tus errores por partida frente a los de cada elo (mismo análisis, mismas reglas), en tu rol más jugado y, si hay
+    datos de varios elos, con tu campeón más jugado."""
+    pool = [g for g in games if reliable(g) and g.get("has_timeline") and g.get("mistakes") is not None and g.get("role")]
+    if not pool or not profile:
+        return None
+    role = Counter(g["role"] for g in pool).most_common(1)[0][0]
+    mine = [g for g in pool if g["role"] == role]
+    champ = Counter(g["champ"] for g in mine).most_common(1)[0][0]
+    tiers, scope = elo_tiers(profile, role, champ)
+    if scope == "champ":
+        mine = [g for g in mine if g["champ"] == champ]
+    if len(mine) < MIN_ELO_GAMES or not tiers:
+        return None
+    n = len(mine)
+    count, with_type, sev = Counter(), Counter(), Counter()
+    total = 0
+    for g in mine:
+        ids = []
+        for kind, severity, _t, tags, _title in g["mistakes"]:
+            mt = mistake_type(kind, set(tags or []), role)
+            if mt is None:
+                continue
+            ids.append(mt["id"])
+            sev[severity] += 1
+        total += len(ids)
+        count.update(ids)
+        with_type.update(set(ids))
+    per_game = total / n
+    rows = []
+    titles = {mt["id"]: mt["title"] for mt in MISTAKE_TYPES}
+    for mid in set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}:
+        sep = separation(tiers, mid)
+        mine_pct = 100 * with_type[mid] / n
+        top = sep["top_pct"] if sep else None
+        # Ruido: con n partidas, una diferencia menor que ~1,5 errores típicos de una proporción no dice nada.
+        p = max(min((top or 0) / 100, 0.99), 0.01)
+        noise = 150 * math.sqrt(p * (1 - p) / n)
+        status = None
+        if top is not None:
+            status = "worse" if with_type[mid] >= 2 and mine_pct - top > max(5.0, noise) else "better" if top - mine_pct > max(5.0, noise) else "even"
+        if not with_type[mid] and (top is None or top < 5):
+            continue
+        rows.append(
+            {
+                "id": mid,
+                "title": titles.get(mid, mid),
+                "mine_pct": round(mine_pct, 1),
+                "mine_per_game": round(count[mid] / n, 2),
+                "tiers": {g: ((tiers[g].get("types") or {}).get(mid) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers},
+                "separates": (not sep["flat"]) if sep else None,
+                "status": status,
+            }
+        )
+    order = {"worse": 0, "even": 1, None: 2, "better": 3}
+    rows.sort(key=lambda r: (order[r["status"]], not r["separates"], -r["mine_pct"]))
+    levels = [
+        {
+            "tier": g, "label": ELO_LABEL[g], "games": tiers[g]["games"], "players": tiers[g].get("players"),
+            "per_game": tiers[g]["per_game"], "severity": tiers[g].get("severity"),
+        }
+        for g in ELO_GROUPS if g in tiers
+    ]
+    # Solo los tipos que separan elos (el más alto los comete claramente menos): lo que de verdad te falta para subir.
+    sep_ids = {r["id"] for r in rows if r["separates"]}
+    sep_mine = sum(count[mid] for mid in sep_ids) / n
+    for lv in levels:
+        types = tiers[lv["tier"]].get("types") or {}
+        lv["per_game_sep"] = round(sum((types.get(mid) or {}).get("per_game", 0.0) for mid in sep_ids), 2)
+    closest = min(levels, key=lambda lv: abs(lv["per_game"] - per_game))["tier"] if levels else None
+    closest_sep = min(levels, key=lambda lv: abs(lv["per_game_sep"] - sep_mine))["tier"] if levels else None
+    normals = sum(1 for g in mine if g.get("queue") not in (420, 440))
+    return {
+        "role": role,
+        "champ": champ if scope == "champ" else None,
+        "games": n,
+        "normals": normals,
+        "per_game": round(per_game, 2),
+        "severity": {s: round(sev[s] / n, 2) for s in ("high", "medium", "low")},
+        "levels": levels,
+        "closest": closest,
+        "per_game_sep": round(sep_mine, 2),
+        "closest_sep": closest_sep,
+        "types": rows,
+    }
 
 
 # ------------------------------------------------------------------ hábitos
@@ -1161,7 +1315,7 @@ def build_summary(games: list[dict], refs: dict) -> list[dict]:
     return out
 
 
-def summarize(games: list[dict], refs: References, goals: list[dict], build_refs: dict | None = None) -> dict:
+def summarize(games: list[dict], refs: References, goals: list[dict], build_refs: dict | None = None, elo_profile: dict | None = None) -> dict:
     table = metric_table(games, refs)
     deaths = death_summary(games)
     evaluated = evaluate_goals(goals, games)
@@ -1172,7 +1326,8 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
     # Muestra que de verdad sirve para señalar puntos débiles (partidas fiables del rol de cada métrica).
     sample = max((row.get("games") or 0 for row in table), default=0)
     weak = weaknesses(table, deaths)
-    recurring = recurring_mistakes(games)
+    elo = {r: elo_tiers(elo_profile, r)[0] for r in {g.get("role") for g in games if g.get("role")}} if elo_profile else None
+    recurring = recurring_mistakes(games, elo)
     # Si un error repetido ya tiene su punto débil (misma métrica), se cuenta en él y no se repite en la lista.
     by_metric = {w["metric"]: w for w in weak}
     rest = []
@@ -1193,6 +1348,7 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         "weaknesses": weak,
         "recurring": rest,
         "recurring_sample": recurring["sample"],
+        "elo_errors": elo_errors(games, elo_profile),
         "deaths": deaths,
         "jungle": jungle_summary(games),
         "priority": priority_summary(games),

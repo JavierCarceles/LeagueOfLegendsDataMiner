@@ -1128,3 +1128,22 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .plan-player.me { border-color: var(--gold); }
 .plan-lines { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); }
 @media (max-width: 760px) { .plan-grid { grid-template-columns: 1fr; } }
+
+/* Errores frente a cada elo (Mi progreso) */
+.elo-bars { display: flex; flex-direction: column; gap: 6px; }
+.elo-row { display: grid; grid-template-columns: 84px 1fr 76px; align-items: center; gap: 10px; font-size: 13px; }
+.elo-name { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.elo-row.me .elo-name { color: var(--gold-2); font-weight: 700; }
+.elo-row.near .elo-name::after { content: " ≈"; color: var(--gold); }
+.elo-track { position: relative; height: 12px; border-radius: 6px; background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
+.elo-fill-all, .elo-fill-sep { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; transition: width 0.3s ease; }
+.elo-fill-all { background: rgba(127, 138, 160, 0.28); }
+.elo-fill-sep { background: var(--blue); }
+.elo-row.me .elo-fill-sep { background: var(--gold); }
+.elo-val { text-align: right; font-weight: 600; }
+.elo-table td.num, .elo-table th.num { white-space: nowrap; text-align: right; }
+.elo-table td.bad, .elo-table td.good { font-weight: 700; }
+.elo-table tr.flat td:first-child { color: var(--muted); }
+@media (max-width: 560px) {
+  .elo-row { grid-template-columns: 64px 1fr 64px; gap: 6px; font-size: 12px; }
+}

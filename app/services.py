@@ -104,6 +104,13 @@ class Services:
             otp_details.start_reanalysis(self)
         except Exception:
             log.exception("No se pudo empezar a re-analizar las partidas de OTPs")
+        # Errores por elo y referencias por campeón (data/otps): unos segundos en segundo plano, con caché en disco.
+        try:
+            from app.coach.elo_profile import EloProfile
+
+            EloProfile.of(self).refresh()
+        except Exception:
+            log.exception("No se pudo calcular el perfil de errores por elo")
         # Repeticiones (.rofl) de este ordenador: carpeta recordada por sistema operativo, se indexa al arrancar.
         self.local_replays.start()
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.

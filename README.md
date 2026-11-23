@@ -163,6 +163,16 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   los propósitos solo se comprueban en partidas donde la métrica aplica a tu rol. Las partidas de Swiftplay o con alguien
   desconectado 3 minutos o más (o marcado como AFK por Riot) no cuentan en los agregados ni en la nota (se ven igual en
   *Repeticiones*).
+- **Micro frente a los OTPs de tu campeón** (Diamante o más, `app/coach/champ_checks.py`): orden de habilidades a cada
+  nivel 1-9 (solo si tu reparto lo tiene < 8 % de ellos y uno concreto ≥ 60 %), primera vuelta a base (objetos que casi
+  nunca compran y que no son de sus primeros objetos; defensas y Heridas graves no cuentan) y primer y segundo objeto
+  tarde (más allá de su percentil 75, sin ir por detrás). De partida entera: ninguna pink en 20+ minutos, 0-1 wards antes
+  del 14 y, de jungla, KP < 40 %.
+- **Errores frente a cada elo** (`app/coach/elo_profile.py`): las ~15.000 partidas de `data/otps` y `data/partidas_campeon`
+  pasan por las mismas reglas que las tuyas (en segundo plano, con caché en `data/.cache`). *Mi progreso* enseña tus errores
+  por partida junto a los de Platino, Esmeralda, Diamante, Maestro y Aspirante (de tu campeón si hay varios elos; si no, de
+  tu rol) y en qué tipos fallas más que los mejores. Un tipo de error que el elo más alto comete casi igual (≥ 85 %) «no
+  separa elos» y pesa la mitad en *Errores que repites*. Con Hecarim: Platino 3,6 errores por partida, Aspirante 2,0.
 - **Hábitos.** Tu porcentaje de victorias tras 2 derrotas seguidas (solo avisa si la caída es clara) y por número de
   partida en la sesión, sesiones largas, tu pool por rol (más de 3 campeones → núcleo propuesto), derrotas yendo con
   +2.000 de oro de equipo a favor (con enlace al minuto) y cuántas partidas revisaste esta semana.

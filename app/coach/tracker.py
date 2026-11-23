@@ -49,7 +49,41 @@ class ProfileNotFound(ValueError):
     pass
 
 
-def digest(analysis: dict) -> dict:
+DIGEST_VERSION = 2  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto)
+
+
+def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
+    """Segundo de cada subida de habilidad (para análisis guardados antes de que se guardara)."""
+    if not timeline or not pid:
+        return None
+    out = []
+    for frame in (timeline.get("info") or {}).get("frames") or []:
+        for e in frame.get("events") or []:
+            if e.get("type") == "SKILL_LEVEL_UP" and e.get("participantId") == pid and (e.get("levelUpType") or "NORMAL") == "NORMAL" and e.get("skillSlot") in (1, 2, 3, 4):
+                out.append(round((e.get("timestamp") or 0) / 1000, 1))
+    return sorted(out) or None
+
+
+def checks_digest(analysis: dict, skill_t: list[float] | None = None) -> dict | None:
+    """Lo que necesita ``champ_checks`` de una partida, en pequeño (solo la primera vuelta de las compras)."""
+    from app.coach import champ_checks
+
+    if not analysis.get("build"):
+        return None
+    rec = champ_checks.record_from_analysis(analysis, skill_t)
+    back = champ_checks.first_back(rec["backs"])
+    return {
+        "skills": rec["skills"][: champ_checks.SKILL_LEVELS],
+        "skill_t": (rec["skill_t"] or [])[: champ_checks.SKILL_LEVELS] or None,
+        "backs": [back] if back else [],
+        "first_item": rec["first_item"],
+        "first_item_t": rec["first_item_t"],
+        "second_item_t": rec["second_item_t"],
+        "items_reliable": rec["items_reliable"],
+    }
+
+
+def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
     """Resumen ligero de un análisis (lo que necesitan las estadísticas agregadas)."""
     by_pid = {p["pid"]: p for p in analysis.get("players") or []}
     jungle = analysis.get("jungle")
@@ -70,6 +104,8 @@ def digest(analysis: dict) -> dict:
             for m in moments
             if m.get("severity") in ("high", "medium", "low") and m.get("kind") not in ("trade", "afk")
         ],
+        "cc": checks_digest(analysis, skill_t),
+        "dv": DIGEST_VERSION,
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
             "medium": sum(1 for m in moments if m.get("severity") == "medium"),
@@ -78,6 +114,28 @@ def digest(analysis: dict) -> dict:
             "info": sum(1 for m in moments if m.get("severity") == "info"),
         },
     }
+
+
+def refresh_digests(db) -> int:
+    """Pone al día los resúmenes ligeros de un formato anterior (sin volver a analizar: sale del análisis guardado)."""
+    rows = db.query(
+        "SELECT match_id, pid, analysis, timeline_raw IS NOT NULL AS has_tl FROM my_games "
+        "WHERE analysis IS NOT NULL AND (digest IS NULL OR json_extract(digest, '$.dv') IS NOT ?)",
+        (DIGEST_VERSION,),
+    )
+    done = 0
+    for r in rows:
+        analysis = store.unpack(r["analysis"])
+        if not analysis:
+            continue
+        skill_t = None
+        if not (analysis.get("build") or {}).get("skill_t") and r["has_tl"]:
+            skill_t = skill_times(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))
+        store.update_digest(db, r["match_id"], digest(analysis, skill_t))
+        done += 1
+    if done:
+        log.info("Resúmenes de %d partidas puestos al día.", done)
+    return done
 
 
 def analysis_version(analysis: dict) -> int:

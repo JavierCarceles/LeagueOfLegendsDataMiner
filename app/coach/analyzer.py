@@ -2783,6 +2783,7 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         "second_item_min": metrics["second_item_min"],
         "boots_min": metrics["boots_min"],
         "skills": letters,
+        "skill_t": [round(t / 1000, 1) for t, _slot in skills],  # segundo de cada subida (mismo orden que ``skills``)
         "skill_max": maxed[:3],
         "r_delays": r_delays,
         "sold": sold,
