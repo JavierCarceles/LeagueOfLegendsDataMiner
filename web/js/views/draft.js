@@ -594,6 +594,14 @@ function openBuild(p) {
           )
         : null,
       p.team_items?.length ? h("div.col", { style: { gap: "8px" } }, h("div.small", h("b", "Para el equipo (support)")), p.team_items.map((x) => itemRow({ ...x, kind: "situational" }))) : null,
+      p.situations?.length
+        ? h(
+            "div.col",
+            { style: { gap: "8px" } },
+            h("div.small", h("b", "Si la partida cambia"), h("span.tiny.muted", "  · qué cambiar de la build según cómo vaya")),
+            p.situations.map((x) => itemRow({ ...x, kind: "situational" }, h("span.tiny.muted", ` · ${x.when}${x.replaces ? `, en vez de ${dd.itemName(x.replaces)}` : ""}`))),
+          )
+        : null,
       p.alternatives?.length
         ? collapsible("draft.build.alternativas", [icon("crown"), "Otras opciones"], () => h("div.col", { style: { gap: "8px" } }, p.alternatives.map((x) => itemRow(x))), { cls: "flat", summary: p.alternatives.map((x) => dd.itemName(x.item)).join(" · ") })
         : null,

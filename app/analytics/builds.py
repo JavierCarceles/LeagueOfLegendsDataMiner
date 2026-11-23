@@ -108,13 +108,83 @@ def _squishy(style: str, tags: list[str]) -> bool:
     return style in ("ap", "ad") and not ({"Tank", "Fighter"} & set(tags))
 
 
-def _otp_items(svc, champ: int, role: str) -> dict | None:
-    dd = svc.dd
+def _otp_role(svc, champ: int, role: str) -> dict:
+    """Lo agregado de los OTPs de ese campeón en ese rol (``resumen.json``), o ``{}``."""
     try:
-        summary = json.loads((Path(svc.settings.data_dir) / FILES_DIR / _slug(dd.name(champ)) / "resumen.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    role_data = (summary.get("roles") or {}).get(role) or {}
+        summary = json.loads((Path(svc.settings.data_dir) / FILES_DIR / _slug(svc.dd.name(champ)) / "resumen.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return (summary.get("roles") or {}).get(role) or {}
+
+
+OTP_PLAN_MIN_GAMES = 60  # partidas de OTPs de ese campeón y rol para sacar de ellas el plan
+OTP_PLAN_MIN_SIDE = 25  # …y de cada lado de una comparación (por delante / por detrás, primero / no)
+# Solo los dos que salen a la vez (minuto 8-9): el heraldo cae hacia el 16, cuando quien lo coge suele ir ya por
+# delante, y saldría siempre como «el que más pesa» con cualquier campeón.
+OBJ_LABEL = {"dragon": "el primer dragón", "horde": "las primeras larvas"}
+OBJ_GRAMMAR = {"dragon": ("lo", "pesa"), "horde": ("las", "pesan")}
+CAMP_LABEL = {"blue": "azul", "red": "rojo", "raptors": "aviarios", "wolves": "lobos", "krugs": "krugs", "gromp": "gromp"}
+
+
+def _otp_plan_lines(svc, champ: int, role: str) -> list[dict]:
+    """Lo que dicen las partidas de los OTPs de ese campeón: qué línea decide más sus partidas (para el jungla, a quién
+    ayudar primero), qué primer objetivo pesa más y, de jungla, su ritmo (primer campamento, primer gank, primera vuelta).
+
+    Son correlaciones (ir por delante en una línea también es consecuencia de ganar), así que solo se dicen cuando las
+    muestras son grandes y la diferencia clara."""
+    block = (_otp_role(svc, champ, role) or {}).get("all") or {}
+    if (block.get("games") or 0) < OTP_PLAN_MIN_GAMES:
+        return []
+    name = svc.dd.name(champ)
+    out: list[dict] = []
+    if role == "JUNGLE":
+        swings = []
+        for lane in ("TOP", "MID", "ADC"):
+            li = (block.get("lanes_impact") or {}).get(lane) or {}
+            a, b = li.get("ahead") or {}, li.get("behind") or {}
+            if (a.get("games") or 0) >= OTP_PLAN_MIN_SIDE and (b.get("games") or 0) >= OTP_PLAN_MIN_SIDE:
+                swings.append((a["wr"] - b["wr"], lane, a["wr"], b["wr"]))
+        if len(swings) >= 2:
+            swings.sort(reverse=True)
+            top, second = swings[0], swings[1]
+            if top[0] - second[0] >= 5:
+                out.append({"topic": f"OTPs de {name}", "text": (
+                    f"La línea que más decide sus partidas es {LANE_NAME[top[1]]}: ganan el {top[2]:.0f} % si va por delante a los 15 "
+                    f"y el {top[3]:.0f} % si va por detrás (en {LANE_NAME[second[1]]}, {second[2]:.0f} % frente a {second[3]:.0f} %). "
+                    "Si puedes elegir, tus primeros ganks y contraganks, ahí.")})
+    objs = []
+    for key, label in OBJ_LABEL.items():
+        o = (block.get("objectives_first") or {}).get(key) or {}
+        games, share = o.get("games") or 0, (o.get("ally_first_pct") or 0) / 100
+        if games * share >= OTP_PLAN_MIN_SIDE and games * (1 - share) >= OTP_PLAN_MIN_SIDE and o.get("wr_ally_first") is not None:
+            objs.append((o["wr_ally_first"] - o["wr_enemy_first"], label, o, key))
+    if len(objs) == 2:
+        objs.sort(key=lambda x: -x[0])
+        (gap, label, o, key), (gap2, label2, _o2, _k2) = objs
+        if gap - gap2 >= 5:
+            pron, verb = OBJ_GRAMMAR[key]
+            out.append({"topic": "Primer objetivo", "text": (
+                f"Entre {label} y {label2}, a sus OTPs les {verb} más {label}: ganan el {o['wr_ally_first']:.0f} % cuando {pron} coge su "
+                f"equipo y el {o['wr_enemy_first']:.0f} % cuando {pron} coge el rival ({gap:.0f} puntos de diferencia; {label2}, {gap2:.0f}). "
+                "Si tenéis que elegir lado al empezar, ese.")})
+    if role == "JUNGLE":
+        m = block.get("metrics") or {}
+        camp = (block.get("first_camp") or [None])[0]
+        gank, recall = (m.get("first_gank_min") or {}).get("mean"), (m.get("first_recall_min") or {}).get("mean")
+        bits = []
+        if camp and camp.get("pct", 0) >= 30:
+            bits.append(f"empiezan por {CAMP_LABEL.get(camp['key'], camp['key'])} ({camp['pct']:.0f} %)")
+        if gank:
+            bits.append(f"primer gank hacia el {gank:.1f}".replace(".", ","))
+        if recall:
+            bits.append(f"primera vuelta a base hacia el {recall:.1f}".replace(".", ","))
+        if bits:
+            out.append({"topic": "Ritmo", "text": f"Sus OTPs {_join_names(bits)}."})
+    return out
+
+
+def _otp_items(svc, champ: int, role: str) -> dict | None:
+    role_data = _otp_role(svc, champ, role)
     groups = (role_data.get("all") or {}).get("items_by_enemy")
     best = None
     for tier in TIER_ORDER:  # el elo más alto con datos (para mostrar su build más jugada)
@@ -875,6 +945,7 @@ def _player(svc, ev, cat, champ_info, side: str, role: str, champ: int, theirs: 
     alternatives = [
         {"item": i, "reason": why or "Otra opción frecuente"} for i, why in ranked if i not in rush and not pool[i].get("off_core")
     ][: 4 - len(first_alt)] + first_alt
+    situations = _situations(svc, cat, champ_info, chosen, pool, scored, style, squishy, theirs, _paths(cat, lola), base) if len([c for c in theirs.values() if c]) >= 3 else []
     sources = [name for name, ok in (("OP.GG", bool(base.get("source") in ("matchup", "general") or general)), ("Lolalytics", bool(lola)),
                                      ("OTPs", bool(otp)), ("tu BD", bool(own))) if ok]
     return {
@@ -886,6 +957,7 @@ def _player(svc, ev, cat, champ_info, side: str, role: str, champ: int, theirs: 
         "build": chosen,
         "boots": _boots(cat, base, general, lola, otp, squishy, ctx),
         "alternatives": alternatives,
+        "situations": situations,
         "runes": runes,
         "starter": base.get("starter") or [],
         "spells": base.get("spells") or [],
@@ -896,6 +968,91 @@ def _player(svc, ev, cat, champ_info, side: str, role: str, champ: int, theirs: 
         "sources": sources,
         "plan": pplan,
     }
+
+
+THREAT_TAGS = {"Assassin", "Mage", "Marksman", "Fighter"}
+THREAT_ROLE_ORDER = ("ADC", "MID", "JUNGLE", "TOP", "SUPPORT")  # a igualdad, el que más daño suele hacer
+
+
+def _threats(svc, theirs: dict[str, int], champ_info) -> list[tuple[str, int, str]]:
+    """Su mayor amenaza de daño físico y la de daño mágico: [(tipo, campeón, rol)] (``ad`` / ``ap``)."""
+    out: dict[str, tuple[int, int, str]] = {}
+    for role in THREAT_ROLE_ORDER:
+        champ = theirs.get(role)
+        info = champ_info(champ) if champ and champ_info else None
+        tags = set(((svc.dd.champions.get(champ) or {}).get("tags")) or []) if champ else set()
+        if not info or not tags & THREAT_TAGS or (role == "SUPPORT" and "Mage" not in tags):
+            continue
+        kind = "ap" if info["magic"] >= 0.55 else "ad" if info["magic"] <= 0.4 else None
+        if kind is None:
+            continue
+        # Primero los que viven de matar (asesinos y tiradores), luego el orden de roles.
+        rank = (0 if tags & {"Assassin", "Marksman"} else 1, THREAT_ROLE_ORDER.index(role))
+        if kind not in out or rank < out[kind][0]:
+            out[kind] = (rank, champ, role)
+    return [(k, v[1], v[2]) for k, v in sorted(out.items(), key=lambda kv: kv[1][0])]
+
+
+def _defensive_pick(cat, pool: dict, scored: dict, style: str, need: str, taken: set[int]) -> int | None:
+    """El objeto con esa resistencia que más encaja con el campeón: primero de los que de verdad compra (su pool), y si
+    no, el más barato de la tienda de su tipo de daño."""
+    options = [i for i in pool if i not in taken and need in cat.resist(i) and cat.is_legendary(i)]
+    if options:
+        return max(options, key=lambda i: scored.get(i, (0, ""))[0])
+    tag = STYLE_TAG.get(style)
+    shop = [
+        i for i in sorted(cat.items, key=cat.cost)
+        if i not in taken and need in cat.resist(i) and cat.is_legendary(i) and cat.get(i).get("buyable")
+        and not cat.get(i).get("champion") and (tag is None or tag in cat.tags(i))
+    ]
+    return shop[0] if shop else None
+
+
+def _situations(svc, cat, champ_info, chosen: list[dict], pool: dict, scored: dict, style: str, squishy: bool,
+                theirs: dict[str, int], paths: list[dict], base: dict) -> list[dict]:
+    """Cómo cambiar la build si la partida cambia: si un rival concreto se pone fuerte (su amenaza física y su amenaza
+    mágica) y si vas por delante o por detrás (la otra forma de empezar que su campeón juega de verdad)."""
+    if not cat or not chosen:
+        return []
+    out: list[dict] = []
+    taken = {c["item"] for c in chosen}
+    swap = next((c["item"] for c in reversed(chosen) if c["kind"] != "core"), None)  # lo que se cambia: el último no núcleo
+    for kind, champ, role in _threats(svc, theirs, champ_info):
+        need = "armor" if kind == "ad" else "mr"
+        if any(need in cat.resist(i) for i in taken):
+            continue  # ya lo llevas en la build
+        item = _defensive_pick(cat, pool, scored, style, need, taken)
+        if not item:
+            continue
+        name = svc.dd.name(champ)
+        what = "armadura" if need == "armor" else "resistencia mágica"
+        out.append({
+            "when": f"Si {name} se pone fuerte",
+            "item": item,
+            "replaces": swap,
+            "reason": f"{name} ({LANE_NAME.get(role, role)}) es su mayor amenaza de daño {'físico' if kind == 'ad' else 'mágico'}: si va por "
+                      f"delante (2+ kills de ventaja o te mata en una pelea), adelanta {cat.name(item)} ({what})"
+                      + (f" y deja {cat.name(swap)} para después." if swap else "."),
+        })
+        taken.add(item)
+    core = base.get("core") or []
+    if paths and core:
+        main = next((x for x in paths if x["first"] == core[0]), None) or paths[0]
+        for ahead in (True, False):
+            options = [x for x in paths if x["first"] != core[0] and x["aggressive"] == ahead and x["wr"] >= main["wr"] - PATH_MAX_WR_LOSS]
+            if not options or _aggressive_item(cat, core[0]) == ahead:
+                continue
+            alt = options[0]
+            out.append({
+                "when": "Si vas por delante" if ahead else "Si vas por detrás",
+                "item": alt["first"],
+                "replaces": core[0],
+                "reason": (f"{'Build de bola de nieve' if ahead else 'Build para escalar'}: {cat.name(alt['first'])} de primer objeto "
+                           f"({alt['share'] * 100:.0f} % de sus builds empiezan así, {alt['wr'] * 100:.1f} % WR)"
+                           + (f" y después {cat.name(alt['second'])}" if alt.get("second") else "")
+                           + (". Con ventaja, cierra la partida antes de que escalen." if ahead else ". Sin ventaja, aguanta y llega fuerte al final.")),
+            })
+    return out
 
 
 def _team_plan(svc, players: dict[int, str], enemies: list[int], ally_comp: dict | None) -> dict[int, dict]:
@@ -970,7 +1127,7 @@ def recommend(svc, f, ally: dict[str, int], enemy: dict[str, int], sources: str 
         for role in ROLES:
             if mine.get(role):
                 pplan = _player_plan(plans.get(side), role)
-                pplan["lines"] = _plan_lines(plans.get(side), role, names[side], names["enemy" if side == "ally" else "ally"])
+                pplan["lines"] = _plan_lines(plans.get(side), role, names[side], names["enemy" if side == "ally" else "ally"]) + _otp_plan_lines(svc, mine[role], role)
                 p = _player(svc, ev, cat, champ_info, side, role, mine[role], theirs, rival_comp, plan, pplan)
                 if role == "SUPPORT":
                     holders = sum(1 for v in plan.values() if v.get("anti_heal") is not None)

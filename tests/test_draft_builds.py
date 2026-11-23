@@ -436,3 +436,45 @@ def test_lanes_without_both_champions_are_unknown_not_even():
     assert "(mid gana su línea y ADC aún sin rival)" in lines["Objetivos"]
     top = {l["topic"]: l["text"] for l in builds._plan_lines(team, "TOP", mine, theirs)}
     assert top["Línea"].startswith("Aún no se sabe tu rival de línea")
+
+
+def test_situations_say_what_to_buy_if_their_biggest_threat_gets_ahead(keyed_svc):
+    """Si su tirador (amenaza física) o su maga (amenaza mágica) se ponen fuertes: un objeto de su build con esa
+    resistencia, en vez del último que no es del núcleo."""
+    _svc(keyed_svc, generals={(AATROX, "TOP"): GENERAL})
+    enemy = {"TOP": DARIUS, "MID": SYNDRA, "ADC": JINX, "SUPPORT": THRESH}
+    (aatrox,) = builds.recommend(keyed_svc, Filters(), {"TOP": AATROX}, enemy)["ally"]
+    by_when = {s["when"]: s for s in aatrox["situations"]}
+    cat = keyed_svc.dd.item_catalog
+    jinx, syndra = by_when.get("Si Jinx se pone fuerte"), by_when.get("Si Syndra se pone fuerte")
+    if not any("armor" in cat.resist(i) for i in items_of(aatrox)):
+        assert jinx and "armor" in cat.resist(jinx["item"]) and "daño físico" in jinx["reason"]
+    if not any("mr" in cat.resist(i) for i in items_of(aatrox)):
+        assert syndra and "mr" in cat.resist(syndra["item"]) and "daño mágico" in syndra["reason"]
+    assert all(s["replaces"] in items_of(aatrox) for s in aatrox["situations"] if s["when"].startswith("Si ") and "fuerte" in s["when"])
+    # Con el draft rival a medias (menos de 3), aún no se sabe quién es su amenaza.
+    (early,) = builds.recommend(keyed_svc, Filters(), {"TOP": AATROX}, {"TOP": DARIUS})["ally"]
+    assert early["situations"] == []
+
+
+def test_plan_adds_what_the_champions_otps_show(keyed_svc):
+    """Del resumen de sus OTPs: la línea que más decide sus partidas (jungla), el primer objetivo que más pesa y su ritmo."""
+    folder = keyed_svc.settings.data_dir / "otps" / keyed_svc.dd.name(LEE_SIN).replace(" ", "_")
+    folder.mkdir(parents=True, exist_ok=True)
+    lanes = {"TOP": (60, 45), "MID": (75, 30), "ADC": (65, 40)}
+    block = {
+        "games": 200,
+        "lanes_impact": {r: {"ahead": {"games": 60, "wr": a}, "behind": {"games": 60, "wr": b}} for r, (a, b) in lanes.items()},
+        "objectives_first": {
+            "dragon": {"ally_first_pct": 50, "ally_first_min": 8.1, "wr_ally_first": 66, "wr_enemy_first": 40, "games": 200},
+            "horde": {"ally_first_pct": 50, "ally_first_min": 8.9, "wr_ally_first": 56, "wr_enemy_first": 48, "games": 200},
+        },
+        "first_camp": [{"key": "raptors", "pct": 71}],
+        "metrics": {"first_gank_min": {"mean": 5.1}, "first_recall_min": {"mean": 3.9}},
+    }
+    (folder / "resumen.json").write_text(json.dumps({"roles": {"JUNGLE": {"all": block}}}), encoding="utf-8")
+    lines = {l["topic"]: l["text"] for l in builds._otp_plan_lines(keyed_svc, LEE_SIN, "JUNGLE")}
+    assert "más decide sus partidas es mid" in next(t for k, t in lines.items() if k.startswith("OTPs de"))
+    assert "les pesa más el primer dragón" in lines["Primer objetivo"]
+    assert lines["Ritmo"] == "Sus OTPs empiezan por aviarios (71 %), primer gank hacia el 5,1 y primera vuelta a base hacia el 3,9."
+    assert builds._otp_plan_lines(keyed_svc, AHRI, "MID") == []  # sin OTPs de ese campeón: nada
