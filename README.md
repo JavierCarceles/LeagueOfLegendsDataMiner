@@ -256,8 +256,10 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   primera partida de un parche anterior—, último año o todo lo que guarde Riot): buscando por campeones, cuenta quien
   jugó el campeón en él y se bajan sus partidas de ese periodo; en todo el ranking, la primera vez se bajan las más
   recientes de cada jugador dentro de él.
-- **Variedad antes que cantidad:** 1) un OTP de cada campeón; 2) al menos 3 por campeón en cada elo; 3) más partidas,
-  empezando por el campeón con menos. Mientras siguen apareciendo jugadores nuevos, de cada uno solo se bajan sus N
+- **Variedad antes que cantidad:** con líneas enteras o «cualquiera que lo juegue», primero la línea y el elo con menos
+  partidas recogidas (para comparar elos hacen falta muchas de cada uno, sea el campeón que sea). Buscando OTPs de
+  campeones sueltos: 1) un OTP de cada campeón; 2) al menos 3 por campeón en cada elo; 3) más partidas, empezando por el
+  campeón con menos. Cada región va por su cuenta, con su propio cupo de la key. Mientras siguen apareciendo jugadores nuevos, de cada uno solo se bajan sus N
   partidas más recientes (30 por defecto). La búsqueda en el ranking va primero al elo con menos OTPs encontrados.
   Cada historial se baja de 100 en 100 hacia atrás con `endTime` fijo (la lista no se mueve aunque siga jugando); el
   avance se guarda (`otp_progress`) y sigue donde se quedó. Si una página del historial tiene ≤ 10 % de partidas con

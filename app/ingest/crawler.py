@@ -908,8 +908,10 @@ class RegionWorker(threading.Thread):
     def _next_otp(self):
         """El OTP con más prioridad que tenga algo pendiente (o ``None``). **Variedad antes que cantidad**:
 
-        1. Recién encontrados (aún sin visitar): primero los de campeones que aún no tienen ningún OTP; después los de
-           un elo en el que su campeón tiene menos de ``ELO_MIN_OTPS``; luego el resto (más jugadores distintos).
+        1. Recién encontrados (aún sin visitar). Con líneas enteras o «cualquiera que lo juegue»: primero la línea y el elo
+           con menos partidas recogidas (para comparar elos hacen falta muchas de cada uno, sea el campeón que sea).
+           Buscando OTPs de campeones sueltos: primero los de campeones que aún no tienen ninguno; después los de un elo
+           en el que su campeón tiene menos de ``ELO_MIN_OTPS``; luego el resto (más jugadores distintos).
         2. Partidas nuevas: no se visitan desde hace ``recrawl_hours`` o quedaron partidas nuevas por bajar.
         3. Historial (profundidad): primero el campeón con menos partidas y, dentro de él, el OTP que menos lleva.
            Mientras se siguen buscando OTPs, nadie pasa de ``games_per_otp``.
@@ -930,6 +932,15 @@ class RegionWorker(threading.Thread):
         champ_tier: dict[tuple[int, str], int] = {}
         champ_games: dict[int, int] = {}
         found_by_tier: dict[tuple[str, str], int] = {}
+        # Partidas ya recogidas por (línea, elo): con líneas enteras o «cualquiera que lo juegue», lo primero es tener
+        # muchas partidas de cada elo en cada línea (para comparar elos), no un jugador de cada uno de 150 campeones.
+        lane_tier_games: dict[tuple[str, str], int] = {}
+        by_elo = bool(cfg.roles) or cfg.focus == "games"
+
+        def lane_of(champ: int) -> str:
+            lanes = cfg.roles_for(champ) or []
+            return lanes[0] if len(lanes) == 1 else "ANY"
+
         for row, top in rows:
             champ = (otp_champs(cfg, top, sourced_champs(row)) or [0])[0]
             state = otp_history_state(row, list_key, depth_start, config_key)
@@ -940,6 +951,8 @@ class RegionWorker(threading.Thread):
                 champ_otps[champ] = champ_otps.get(champ, 0) + 1
                 champ_tier[(champ, tier)] = champ_tier.get((champ, tier), 0) + 1
                 champ_games[champ] = champ_games.get(champ, 0) + int(row["hits"] or 0)
+                key_lt = (lane_of(champ), tier)
+                lane_tier_games[key_lt] = lane_tier_games.get(key_lt, 0) + int(row["hits"] or 0)
         self.found_by_tier = found_by_tier  # la búsqueda en el ranking reparte por elos con esto
         best = None
         complete = 0
@@ -953,12 +966,18 @@ class RegionWorker(threading.Thread):
             if state == "queued":
                 in_tier, in_champ = champ_tier.get((champ, tier), 0), champ_otps.get(champ, 0)
                 level = 0 if not in_champ else 1 if in_tier < ELO_MIN_OTPS else 2
-                # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
-                key = (0, level, 0 if cfg.focus != "otp" else likely_specialist(cfg, top_of[row["puuid"]], row), in_tier, in_champ, *rank)
+                likely = 0 if cfg.focus != "otp" else likely_specialist(cfg, top_of[row["puuid"]], row)
+                if by_elo:
+                    # Primero la línea y el elo con menos partidas; la variedad de campeones, después.
+                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), level, likely, in_tier, *rank)
+                else:
+                    # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
+                    key = (0, level, likely, in_tier, in_champ, *rank)
             elif row["fwd_more"] or (row["last_crawled_at"] or 0) < now - recrawl:
                 key = (1, row["last_crawled_at"] or 0, 0, 0, *rank)
             elif state == "loading" and not (cap and cap_count(cfg, row["hits"], row["seen"]) >= cap):
-                key = (2, champ_games.get(champ, 0), int(row["hits"] or 0), row["back_offset"] or 0, *rank)
+                first = lane_tier_games.get((lane_of(champ), tier), 0) if by_elo else champ_games.get(champ, 0)
+                key = (2, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
             elif row["id"] in lacking:
                 key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
             else:

@@ -1234,3 +1234,27 @@ def test_the_period_decides_who_counts_and_how_far_back(keyed_svc):
     base = {"platforms": ["euw1"], "tiers": ["EMERALD"], "champions": [AATROX], "focus": "mastery", "min_mastery": 100_000}
     assert search_funnel(keyed_svc.db, CrawlerConfig(**base, otp_depth="30").validated(), now)["total"]["active"] == 0
     assert search_funnel(keyed_svc.db, CrawlerConfig(**base, otp_depth="90").validated(), now)["total"]["active"] == 1
+
+
+def test_with_whole_lines_the_elo_with_fewest_games_goes_first(keyed_svc):
+    """Con líneas enteras: aunque Garen aún no tenga a nadie, primero el elo con menos partidas recogidas (Esmeralda),
+    no la variedad de campeones; buscando OTPs de campeones sueltos, al revés (primero el campeón sin nadie)."""
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX, GAREN], role_pools={"TOP": [AATROX, GAREN]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        rows = [("d-old", "DIAMOND", AATROX, 40), ("e-new", "EMERALD", AATROX, None), ("d-garen", "DIAMOND", GAREN, None)]
+        for puuid, tier, champ, hits in rows:
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[champ, 900_000, now]])))
+            if hits is not None:  # ya visitado: 40 partidas de top en Diamante
+                conn.execute(
+                    "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, back_done_reason, seen, hits, updated_at) "
+                    "VALUES (?, ?, ?, 100, ?, 0, 'end', 40, ?, ?)",
+                    (puuid, otp_list_key(lines), now - 3600, now - 3600, hits, now - 3600),
+                )
+                conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = ?", (now, puuid))
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    assert worker._next_otp()["puuid"] == "e-new"
+    champs = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND"], champions=[AATROX, GAREN], focus="mastery", min_mastery=10_000).validated()
+    assert RegionWorker(keyed_svc.crawler, "europe", ["euw1"], champs)._next_otp()["puuid"] == "d-garen"
