@@ -228,6 +228,11 @@ def otps(
         "searching": bool(cap),
         "found": len(found),
         "complete": sum(1 for row, _ in found if otp_history_state(row, list_key, depth_start) in ("done", "share")),
+        # Mientras se buscan más jugadores, de cada uno solo se bajan sus N primeras: cuántos ya las tienen.
+        "capped": sum(
+            1 for row, _ in found
+            if cap and otp_history_state(row, list_key, depth_start) == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap
+        ),
         "games": sum(e["total"] for e in entries),
         "by_champion": by_champion,
         "matched": matched,

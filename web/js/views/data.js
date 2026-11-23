@@ -501,6 +501,7 @@ function crawlerPanel(c, key) {
             h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
             h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"),
             h("span.small.muted", `${fmt.int(c.stored)} partidas nuevas`, c.rate_per_min ? ` · ${fmt.num(c.rate_per_min, 1)}/min` : ""),
+            regionsHint(c),
           )
         : h(
             "div.row-wrap",
@@ -816,6 +817,17 @@ function gamesEditor(cfg, changed) {
   );
 }
 
+/** Con la key gratuita, cada región (Europa, América, Asia, SEA) tiene su propio cupo: con una sola, ~25 partidas/min. */
+function regionsHint(c) {
+  const regions = Object.keys(c.workers || {});
+  if (regions.length !== 1) return null;
+  return h(
+    "div.tiny.muted",
+    { style: { flexBasis: "100%" } },
+    `Va al máximo de la key en una sola región (100 peticiones cada 2 min; cada partida con su timeline son 2). Cada región tiene su propio cupo: añade servidores de ${REGION_GROUPS.filter((r) => r.id !== regions[0]).map((r) => r.label).join(", ")} para recoger hasta 4 veces más rápido.`,
+  );
+}
+
 /** Lo que se envía al pulsar «Iniciar». */
 function startPayload() {
   const cfg = { ...crawlerForm };
@@ -957,7 +969,18 @@ async function loadOtps(c) {
       { style: { gap: "10px" } },
       h(
         "div.row-wrap",
-        h("div.tiny.muted", { style: { flex: "1 1 auto" } }, `${fmt.int(data.found)} ${noun(data.focus, data.found)} · ${fmt.int(data.games || 0)} partidas con esos campeones · ${fmt.int(data.complete)} con todas sus partidas del periodo`),
+        h(
+          "div.tiny.muted",
+          { style: { flex: "1 1 auto" } },
+          `${fmt.int(data.found)} ${noun(data.focus, data.found)} · ${fmt.int(data.games || 0)} partidas con esos campeones · `,
+          data.searching
+            ? h(
+                "span",
+                { title: "Variedad antes que cantidad: mientras siguen apareciendo jugadores nuevos, de cada uno solo se bajan sus primeras partidas; el resto de cada historial, cuando termine la búsqueda." },
+                `${fmt.int(data.capped || 0)} ya con sus ${data.games_per_otp} primeras partidas (el resto de cada historial, al terminar la búsqueda) ⓘ`,
+              )
+            : `${fmt.int(data.complete)} con todas sus partidas del periodo`,
+        ),
         h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todas las partidas analizadas"),
       ),
       otpFunnel(data),
