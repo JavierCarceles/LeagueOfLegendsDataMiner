@@ -357,3 +357,17 @@ con el support lejos): se miden igual y la comparación aparecerá con partidas 
 
 No separan elos (no se usan): ganks fallidos largos (≥ 30 s en una línea sin kill ni asistencia: 0,18-0,20 por partida
 en todos los elos) y campamentos robados antes del 10 (0,6-0,7).
+
+### Revisión del 24-11-2026 (28.860 partidas; primeras de Esmeralda en top, mid y support)
+
+- Jungla, Platino → Aspirante (todos los campeones): objeto tarde 0,19 → 0,05 por partida, despeje lento 0,10 → 0,03,
+  pocos wards 0,36 → 0,10, sin pinks 0,45 → 0,17, KP baja 0,14 → 0,09, muertes antes de un objetivo 1,04 → 0,83 y
+  peleas ganadas sin convertir 0,08 → 0,04. Con todos los campeones mezclados, aislado y orden de habilidades no
+  separan (sí con el mismo campeón: por eso se compara por campeón cuando hay varios elos).
+- Morir adelantado en la línea no separa elos en ninguna línea (top: Diamante 0,76, Aspirante 0,81; Esmeralda, 0,29):
+  pesa la mitad en *Errores que repites*. No se toca la regla hasta tener más Esmeralda y Platino.
+- Top, Diamante → Aspirante: roams con kill o asistencia 57 % → 64 % y CS perdido por roamear 2,8 → 0,4.
+- «Solo en una línea lateral» pasado el 14 depende de la línea: en ADC es de elos bajos (Diamante 11 %, Aspirante 7 %),
+  en top de elos altos (Esmeralda 31 %, Aspirante 36 %: más split). La tabla de movimiento marca en cada fila hacia
+  dónde van los elos altos (↑/↓) y dónde quedas tú.
+- Mid y support con menos de 50 partidas de Esmeralda: sin conclusiones todavía.

@@ -728,8 +728,12 @@ function movementCard(m) {
           m.rows.map((r) =>
             h(
               "tr",
-              h("td", r.label),
-              h("td.num", h("b", moveVal(r, r.mine))),
+              h(
+                "td",
+                r.label,
+                r.trend ? h("span.tiny.muted", { title: r.trend === "up" ? "Los elos altos tienen más" : "Los elos altos tienen menos" }, r.trend === "up" ? " ↑" : " ↓") : null,
+              ),
+              h(`td.num${r.standing === "low" ? ".bad" : r.standing === "top" ? ".good" : ""}`, { title: r.standing === "low" ? "Como el elo más bajo con datos (o peor)" : r.standing === "top" ? "Como el elo más alto con datos (o mejor)" : "" }, h("b", moveVal(r, r.mine))),
               h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : moveVal(r, r.opp)),
               tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : moveVal(r, r.tiers[t]))),
             ),
@@ -737,7 +741,9 @@ function movementCard(m) {
         ),
       ),
     ),
-    m.elo ? null : h("p.tiny.muted", { style: { margin: 0 } }, "La comparación con cada elo aparecerá cuando las partidas de OTPs se re-analicen con el movimiento (lo hace la app sola en segundo plano y las sube con los datos)."),
+    m.elo
+      ? h("p.tiny.muted", { style: { margin: 0 } }, "↑ / ↓: hacia dónde van los elos altos en esa medida (solo si la diferencia es clara). Tu valor en verde si estás como el elo más alto o mejor; en rojo, como el más bajo o peor. No son errores sueltos: son tendencias de cómo juega cada elo.")
+      : h("p.tiny.muted", { style: { margin: 0 } }, "La comparación con cada elo aparecerá cuando haya partidas de OTPs de tu línea en varios elos (el recolector las sube con los datos)."),
   );
 }
 

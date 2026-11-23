@@ -930,7 +930,36 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "opp": None,
             "tiers": {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None,
         })
+    for r in rows:
+        r.update(_move_trend(r))
     return {"role": role, "champ": champ if scope == "champ" and tiers else None, "games": len(mine), "rows": rows, "elo": bool(tiers)}
+
+
+MOVE_TREND_REL = 0.10  # diferencia del elo más alto frente al más bajo para decir que «va en una dirección»…
+MOVE_TREND_ABS = 1.0  # …y en unidades (puntos o partidas), para no leer ruido en valores pequeños
+
+
+def _move_trend(row: dict) -> dict:
+    """Hacia dónde van los elos altos en esa medida (``up``/``down``/None) y dónde quedas tú: ``low`` si estás más allá
+    del elo más bajo en la dirección mala, ``top`` si estás a la altura del más alto o mejor. Así cada fila se lee sola:
+    estar solo en una lateral es bueno en top (los Aspirante hacen más split) y malo en ADC."""
+    tiers = row.get("tiers") or {}
+    present = [g for g in ELO_GROUPS if g in tiers]
+    if len(present) < 2:
+        return {"trend": None, "standing": None}
+    lo, hi = tiers[present[0]], tiers[present[-1]]
+    diff = hi - lo
+    if abs(diff) < max(MOVE_TREND_ABS, MOVE_TREND_REL * max(abs(lo), abs(hi))):
+        return {"trend": None, "standing": None}
+    trend = "up" if diff > 0 else "down"
+    mine = row["mine"]
+    if (trend == "up" and mine <= lo) or (trend == "down" and mine >= lo):
+        standing = "low"
+    elif (trend == "up" and mine >= hi) or (trend == "down" and mine <= hi):
+        standing = "top"
+    else:
+        standing = "mid"
+    return {"trend": trend, "standing": standing}
 
 
 # ------------------------------------------------------------------ hábitos
