@@ -333,10 +333,18 @@ const QUEUES = [
 ];
 const PLAYERS = [
   { value: "games", label: "Cualquiera que lo juegue", hint: "Toda partida en la que alguien juegue ese campeón en esa línea, sea quien sea: más datos de sus builds y de todos sus matchups." },
-  { value: "otp", label: "Solo OTPs", hint: "Es su campeón principal (1,5 veces los puntos del segundo): para aprender de especialistas y compararte con ellos." },
-  { value: "mastery", label: "Mucha maestría", hint: "Lo tienen entre sus 3 campeones con más puntos." },
+  { value: "specialist", label: "Especialistas", hint: "Jugadores que lo dominan: con el mínimo de maestría y, si quieres, que la mayoría de sus partidas sean con él. Para aprender de ellos y compararte." },
 ];
-const MASTERY_DEFAULT = { games: 10_000, otp: 300_000, mastery: 100_000 }; // «games»: fijo (no es una opción)
+// Especialistas: qué parte de sus partidas tiene que ser con ese campeón (se comprueba con sus partidas, no con la
+// maestría, que es de toda la vida de la cuenta). 0 = da igual («mucha maestría»).
+const SHARES = [
+  { value: 0, label: "Da igual cuánto lo juegue", short: "juegue lo que juegue" },
+  { value: 0.25, label: "Al menos 1 de cada 4 partidas", short: "≥ 25 % de sus partidas" },
+  { value: 0.5, label: "La mitad o más (OTP)", short: "≥ 50 % de sus partidas (OTP)" },
+  { value: 0.75, label: "3 de cada 4 o más (OTP estricto)", short: "≥ 75 % de sus partidas" },
+];
+const MASTERY_DEFAULT = { games: 10_000, otp: 100_000, mastery: 100_000 };
+const isSpecialist = (focus) => focus === "otp" || focus === "mastery";
 /** Cómo se llama a los jugadores encontrados según lo que buscas («OTPs» solo si buscas OTPs). */
 const noun = (focus, n = 2) => (focus === "otp" ? (n === 1 ? "OTP" : "OTPs") : n === 1 ? "jugador" : "jugadores");
 const RESULTS_TITLE = { otp: "OTPs encontrados", mastery: "Jugadores con mucha maestría encontrados", games: "Jugadores encontrados" };
@@ -346,7 +354,6 @@ const linesText = (roles) => roles.map((r) => ROLE_LABEL[r]).join(" y ");
 const listText = (items, max = 4) => (items.length <= max ? items.join(", ") : `${items.slice(0, max).join(", ")} y ${items.length - max} más`);
 
 let openRow = null; // fila de filtros abierta (solo una a la vez)
-let masteryByFocus = { ...MASTERY_DEFAULT }; // cada tipo de jugador recuerda su mínimo
 const poolCache = {};
 
 /** Campeones que entran con «líneas enteras» (de la tier list; se pide una vez por combinación de líneas). */
@@ -382,8 +389,10 @@ function champsText(cfg, poolSize = null) {
 }
 function playersText(cfg) {
   if (!hasTargets(cfg)) return "Cualquiera";
-  const p = PLAYERS.find((x) => x.value === cfg.focus) || PLAYERS[1];
-  return cfg.focus === "games" ? p.label : `${p.label} · ≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
+  const points = `≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
+  if (cfg.focus === "games") return `Cualquiera que lo juegue · ${points}`;
+  const share = cfg.focus === "otp" ? SHARES.find((x) => x.value === Number(cfg.min_share ?? 0.5)) : null;
+  return `Especialistas · ${points}${share ? ` · ${share.short}` : ""}`;
 }
 function gamesText(cfg) {
   const queues = cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ";
@@ -418,7 +427,7 @@ function sentence(cfg, poolSize, running = false) {
     ...cfg.champions.map((id) => dd.name(id)),
   ]);
   if (cfg.focus === "games") return `${verb} todas las partidas ${when} ${where} en las que alguien juegue ${champs}, analizadas minuto a minuto.`;
-  const who = cfg.focus === "mastery" ? "jugadores con mucha maestría" : "OTPs";
+  const who = cfg.focus === "mastery" ? "jugadores con mucha maestría" : `especialistas (${Math.round(100 * Number(cfg.min_share ?? 0.5))} % o más de sus partidas con él)`;
   const which = cfg.only_target_games !== false ? "solo sus partidas con ese campeón" : "todas sus partidas";
   return `${verb} partidas de ${who} de ${champs}, ${where}: ${which} ${when}, analizadas minuto a minuto.`;
 }
@@ -430,7 +439,6 @@ function crawlerPanel(c, key) {
   cfg.champions = cfg.champions || [];
   cfg.roles = cfg.roles || [];
   cfg.champion_roles = cfg.champion_roles || {};
-  if (!running && hasTargets(cfg)) masteryByFocus[cfg.focus] = cfg.min_mastery || masteryByFocus[cfg.focus];
   const list = h("div.filter-list");
   const foot = h("div.col", { style: { gap: "10px" } });
   let poolSize = running ? cfg.role_champions?.length || null : null;
@@ -670,32 +678,45 @@ function champsPicker(cfg, onChange) {
 }
 
 function playersEditor(cfg, changed) {
-  if (!hasTargets(cfg)) return editHint("Sin campeones elegidos se recogen partidas de cualquier jugador del ranking. Elige campeones (fila de arriba) para buscar OTPs o cualquier partida de esos campeones.");
+  if (!hasTargets(cfg)) return editHint("Sin campeones elegidos se recogen partidas de cualquier jugador del ranking. Elige campeones (fila de arriba) para buscar especialistas o cualquier partida de esos campeones.");
   const box = h("div.col", { style: { gap: "10px" } });
+  if (cfg.min_share == null) cfg.min_share = cfg.focus === "mastery" ? 0 : 0.5;
+  const setShare = (share) => {
+    cfg.min_share = share;
+    cfg.focus = share > 0 ? "otp" : "mastery";
+  };
   const draw = () =>
     mount(
       box,
-      choiceList(PLAYERS, cfg.focus, (v) => {
-        masteryByFocus[cfg.focus] = cfg.min_mastery;
-        cfg.focus = v;
-        cfg.min_mastery = masteryByFocus[v] || MASTERY_DEFAULT[v];
+      choiceList(PLAYERS, isSpecialist(cfg.focus) ? "specialist" : "games", (v) => {
+        if (v === "games") cfg.focus = "games";
+        else setShare(cfg.min_share > 0 ? cfg.min_share : 0.5);
+        if (!cfg.min_mastery) cfg.min_mastery = MASTERY_DEFAULT[cfg.focus];
         draw();
         changed();
       }),
-      cfg.focus === "games"
-        ? null
-        : inlineRow(
-            "Con al menos",
-            select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery, (v) => {
-              cfg.min_mastery = Number(v);
+      inlineRow(
+        "Con al menos",
+        select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || MASTERY_DEFAULT[cfg.focus], (v) => {
+          cfg.min_mastery = Number(v);
+          changed();
+        }, "select select-sm"),
+        "de maestría con él (entre sus 3 campeones con más puntos)",
+      ),
+      isSpecialist(cfg.focus)
+        ? inlineRow(
+            "Y que juegue con él",
+            select(SHARES.map((x) => ({ value: x.value, label: x.label })), cfg.focus === "otp" ? Number(cfg.min_share) : 0, (v) => {
+              setShare(Number(v));
               changed();
             }, "select select-sm"),
-            "de maestría con él",
-          ),
+            "",
+          )
+        : null,
       editHint(
         cfg.focus === "games"
-          ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados y se guarda toda partida suya en la que alguien lo juegue en esa línea."
-          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG.",
+          ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados (con ese mínimo de puntos) y se guarda toda partida suya en la que alguien lo juegue en esa línea."
+          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta, así que cuánto lo juega se comprueba con sus partidas: tras revisar 20, si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
       ),
     );
   draw();
@@ -964,11 +985,12 @@ function otpFunnel(data) {
   const champs = data.lines?.length ? `un campeón de ${linesText(data.lines).toLowerCase()}` : (data.champions || []).map((c) => dd.name(c)).join(" / ");
   const label = {
     checked: "revisados",
-    champ: data.focus === "otp" ? `con ${champs} de principal` : `con ${champs} entre sus 3 más jugados`,
+    champ: `con ${champs} entre sus 3 más jugados`,
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
-    ratio: "OTP estricto (1,5× su 2.º campeón)",
-    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${noun(data.focus)}`,
+    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()})${data.focus === "otp" ? " = candidatos" : ` = ${noun(data.focus)}`}`,
+    share: `comprobados con sus partidas: ≥ ${Math.round(100 * (data.min_share ?? 0.5))} % con él = ${noun(data.focus)}`,
   };
+  const last = f.stages.at(-1);
   const t = f.total;
   const steps = f.stages.map((k, i) => {
     const prev = i ? t[f.stages[i - 1]] : null;
@@ -976,7 +998,7 @@ function otpFunnel(data) {
     return h("div.funnel-step", h("b", fmt.int(t[k])), h("span.tiny.muted", ` ${label[k]}${pct}`));
   });
   const rows = Object.entries(f.platforms || {}).map(([p, b]) =>
-    h("tr", h("td", platformLabel(p)), h("td.num", fmt.int(b.seeds)), h("td.num", fmt.int(b.checked)), h("td.num", fmt.int(b.last_hour)), h("td.num", fmt.int(b.champ)), h("td.num", h("b", fmt.int(b.active)))),
+    h("tr", h("td", platformLabel(p)), h("td.num", fmt.int(b.seeds)), h("td.num", fmt.int(b.checked)), h("td.num", fmt.int(b.last_hour)), h("td.num", fmt.int(b.champ)), h("td.num", h("b", fmt.int(b[last] ?? b.active)))),
   );
   return h(
     "div.otp-export",

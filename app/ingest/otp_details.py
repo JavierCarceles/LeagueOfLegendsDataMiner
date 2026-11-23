@@ -22,6 +22,7 @@ Maestro… La base de datos es la fuente: si la carpeta falta o cambia su format
 from __future__ import annotations
 
 import gzip
+import io
 import json
 import os
 import re
@@ -52,6 +53,10 @@ KIND_DIRS = {"otp": FILES_DIR, "player": PLAYERS_DIR}
 # 1,5 veces los del segundo; o estar en la tabla de los mejores de ese campeón (OP.GG).
 OTP_RATIO = 1.5
 OTP_MIN_POINTS = 100_000
+# Con partidas suyas revisadas, lo que manda es lo que juega: OTP si al menos la mitad de ellas son con ese campeón.
+# La maestría es de toda la vida de la cuenta y engaña (300 K con un campeón y 130 K con el siguiente no es ser OTP).
+OTP_MIN_SHARE = 0.5
+OTP_SHARE_MIN_SEEN = 20
 LAYOUT_VERSION = 4  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival; 3: resúmenes sin partidas con AFK; 4: los que no son OTP, a otra carpeta)
 # Campeones que se curan mucho (los que justifican Heridas graves): para separar los objetos de los OTPs contra ellos.
 HEAVY_HEAL = {
@@ -345,9 +350,36 @@ def player_info(db, puuid: str) -> dict:
     return dict(row) if row else {"puuid": puuid}
 
 
+def play_share(db, puuid: str, champ: int) -> tuple[int, float] | None:
+    """(partidas revisadas, parte con ese campeón) de un jugador del recolector, o ``None`` sin muestra suficiente."""
+    try:
+        row = db.one("SELECT seen FROM otp_progress WHERE puuid = ?", (puuid,))
+    except Exception:  # noqa: BLE001  (BD sin la tabla: tests o versión vieja)
+        return None
+    seen = int((row["seen"] if row else 0) or 0)
+    if seen < OTP_SHARE_MIN_SEEN:
+        return None
+    stored = int(
+        db.scalar(
+            "SELECT COUNT(DISTINCT pa.match_id) FROM participants pa JOIN players pl ON pl.id = pa.player_id "
+            "WHERE pl.puuid = ? AND pa.champ = ?",
+            (puuid, champ),
+        )
+        or 0
+    )
+    analysed = int(db.scalar("SELECT COUNT(DISTINCT match_id) FROM otp_games WHERE puuid = ? AND champ = ?", (puuid, champ)) or 0)
+    return seen, min(1.0, max(stored, analysed) / seen)
+
+
 def classify(db, puuid: str, champ: int) -> str:
-    """``otp`` si ese jugador es OTP de ese campeón (por su maestría guardada o la tabla de los mejores de OP.GG);
-    si no, ``player``. Sin maestría guardada, ``player``: ante la duda, no ensucia los datos de OTPs."""
+    """``otp`` si ese jugador es OTP de ese campeón; si no, ``player``.
+
+    Con al menos ``OTP_SHARE_MIN_SEEN`` partidas suyas revisadas, por lo que juega: la mitad o más con ese campeón.
+    Sin esa muestra, por su maestría guardada (principal con 1,5 veces los puntos del segundo) o la tabla de los mejores
+    de OP.GG. Sin nada, ``player``: ante la duda, no ensucia los datos de OTPs."""
+    share = play_share(db, puuid, champ)
+    if share is not None:
+        return "otp" if share[1] >= OTP_MIN_SHARE else "player"
     if db.scalar("SELECT 1 FROM otp_sources WHERE puuid = ? AND champ = ? LIMIT 1", (puuid, champ)):
         return "otp"
     raw = db.scalar("SELECT top FROM mastery_checks WHERE puuid = ?", (puuid,))
@@ -359,6 +391,32 @@ def classify(db, puuid: str, champ: int) -> str:
         return "player"
     points, second = int(top[0][1]), int(top[1][1]) if len(top) > 1 else 0
     return "otp" if points >= OTP_MIN_POINTS and points >= OTP_RATIO * second else "player"
+
+
+def reclassify(db) -> int:
+    """Vuelve a clasificar (OTP o jugador) a quien ya tiene partidas revisadas suficientes: con lo que juega de verdad.
+    Devuelve cuántas parejas jugador-campeón cambiaron de carpeta. Sin llamadas a Riot."""
+    try:
+        pairs = db.query(
+            "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
+            "WHERE o.seen >= ? AND g.kind IS NOT NULL",
+            (OTP_SHARE_MIN_SEEN,),
+        )
+    except Exception:  # noqa: BLE001  (BD vieja sin otp_progress)
+        return 0
+    changes = []
+    for r in pairs:
+        kind = classify(db, r["puuid"], int(r["champ"]))
+        if kind != r["kind"]:
+            changes.append((kind, r["puuid"], int(r["champ"])))
+    if changes:
+        with db.write() as conn:
+            conn.executemany("UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ?", changes)
+        log.info(
+            "Reclasificados por lo que juegan de verdad: %d jugador-campeón (%d dejan de contar como OTP).",
+            len(changes), sum(1 for k, _p, _c in changes if k == "player"),
+        )
+    return len(changes)
 
 
 def classify_pending(db) -> int:
@@ -493,6 +551,8 @@ def start_reanalysis(svc) -> threading.Thread | None:
     pending = outdated(db)
     unclassified = int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind IS NULL") or 0)
     stale = any(f is not None and f.needs_rebuild() for f in (Files.of(svc, k) for k in KIND_DIRS))
+    # OTP = lo que juega (sus partidas revisadas), no solo su maestría: si alguien cambia de carpeta, se reescriben.
+    stale = reclassify(db) > 0 or stale
     if not pending and not unclassified and not stale:
         return None
     stop = getattr(svc, "shutdown_event", None)
@@ -1110,7 +1170,8 @@ class Files:
                 info = infos.get(g["puuid"]) or {"puuid": g["puuid"]}
                 folder = self._player_dir(tmp, int(g["champ"]), g["role"], info)
                 folder.mkdir(parents=True, exist_ok=True)
-                with gzip.open(folder / "partidas.jsonl.gz", "wt", encoding="utf-8") as fh:
+                # mtime=0: el mismo contenido da los mismos bytes (al regenerar, git solo ve lo que cambió de verdad).
+                with gzip.GzipFile(folder / "partidas.jsonl.gz", "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
                     for r in db.query(
                         "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
                         (g["champ"], g["role"], g["puuid"], self.kind),

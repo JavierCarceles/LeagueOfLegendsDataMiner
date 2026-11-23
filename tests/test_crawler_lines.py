@@ -87,7 +87,7 @@ class _Worker:
 
 
 def test_start_resolves_the_line_into_champions(keyed_svc, monkeypatch):
-    monkeypatch.setattr(crawler_mod, "role_pool", lambda svc, roles: [DARIUS, AATROX])
+    monkeypatch.setattr(crawler_mod, "role_pools", lambda svc, roles: {"TOP": [DARIUS, AATROX]})
     started = _Worker.started
     started.clear()
     monkeypatch.setattr(crawler_mod, "RegionWorker", _Worker)
@@ -95,7 +95,7 @@ def test_start_resolves_the_line_into_champions(keyed_svc, monkeypatch):
     assert started["cfg"].role_champions == [DARIUS, AATROX] and started["cfg"].targets == [DARIUS, AATROX]
     # Sin red al reanudar: se usa la lista de la última vez; sin ninguna, se avisa.
     keyed_svc.crawler.workers = {}
-    monkeypatch.setattr(crawler_mod, "role_pool", lambda svc, roles: [])
+    monkeypatch.setattr(crawler_mod, "role_pools", lambda svc, roles: {})
     started.clear()
     keyed_svc.crawler.start(CrawlerConfig(platforms=["euw1"], roles=["TOP"], role_champions=[GAREN]))
     assert started["cfg"].role_champions == [GAREN]
@@ -175,7 +175,7 @@ def test_champion_games_mode_keeps_any_game_with_the_champion_in_that_role():
 def test_endpoint_accepts_lines_and_champion_games(keyed_svc, monkeypatch):
     from tests.test_crawler_otp import _client
 
-    monkeypatch.setattr(crawler_mod, "role_pool", lambda svc, roles: [DARIUS, AATROX])
+    monkeypatch.setattr(crawler_mod, "role_pools", lambda svc, roles: {"TOP": [DARIUS, AATROX]})
     monkeypatch.setattr(crawler_mod, "RegionWorker", _Worker)
     with _client(keyed_svc) as client:
         body = {"platforms": ["euw1"], "tiers": ["EMERALD"], "roles": ["TOP"], "focus": "games", "otp_depth": "30", "save_details": False}
@@ -189,20 +189,31 @@ def test_endpoint_accepts_lines_and_champion_games(keyed_svc, monkeypatch):
         assert preview["champions"] == [DARIUS, AATROX]
 
 
-def test_champion_games_mode_has_no_mastery_option_and_its_funnel_no_points_stage(keyed_svc):
-    """«Cualquiera que lo juegue»: la maestría no es una opción (basta con tenerlo entre sus 3 más jugados)."""
+def test_champion_games_mode_uses_the_same_mastery_minimum(keyed_svc):
+    """«Cualquiera que lo juegue» también admite un mínimo de maestría (el mismo filtro que los especialistas); por
+    defecto, el mínimo de siempre (tenerlo entre sus 3 más jugados)."""
     from app.ingest.crawler import GAMES_MIN_MASTERY, search_funnel
 
-    cfg = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[LEE_SIN], focus="games", min_mastery=500_000).validated()
-    assert cfg.min_mastery == GAMES_MIN_MASTERY
+    assert CrawlerConfig(champions=[LEE_SIN], focus="games", min_mastery=5).validated().min_mastery == GAMES_MIN_MASTERY
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[LEE_SIN], focus="games", min_mastery=30_000).validated()
+    assert cfg.min_mastery == 30_000 and cfg.min_share == 0
     now = _now()
     with keyed_svc.db.write() as conn:
-        for puuid, top in (("a", [[AHRI, 900_000, now], [LEE_SIN, 40_000, now]]), ("b", [[AHRI, 900_000, now]])):
+        for puuid, top in (("a", [[AHRI, 900_000, now], [LEE_SIN, 40_000, now]]), ("b", [[AHRI, 900_000, now]]), ("c", [[LEE_SIN, 20_000, now]])):
             conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'EMERALD', 1, 10)", (puuid,))
             conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
     funnel = search_funnel(keyed_svc.db, cfg, now)
-    assert funnel["stages"] == ["checked", "champ", "active"] and funnel["total"]["active"] == 1
-    assert "points" not in funnel["platforms"]["euw1"]
+    assert funnel["stages"] == ["checked", "champ", "points", "active"]
+    assert funnel["total"]["champ"] == 2 and funnel["total"]["active"] == 1
+
+
+def test_each_champion_of_a_line_counts_only_in_its_own_line():
+    """Top y mid enteros: Darius solo en top y Ahri solo en mid (antes, todos los de ambas listas en las dos líneas)."""
+    cfg = CrawlerConfig(roles=["TOP", "MID"], role_champions=[DARIUS, AHRI, AATROX], role_pools={"TOP": [DARIUS, AATROX], "mid": [AHRI, AATROX]}).validated()
+    assert cfg.roles_for(DARIUS) == ["TOP"] and cfg.roles_for(AHRI) == ["MID"] and cfg.roles_for(AATROX) == ["TOP", "MID"]
+    assert cfg.is_target(DARIUS, "TOP") and not cfg.is_target(DARIUS, "MID")
+    old = CrawlerConfig(roles=["TOP", "MID"], role_champions=[DARIUS, AHRI]).validated()  # guardada antes del cambio
+    assert old.roles_for(AHRI) == ["TOP", "MID"]
 
 
 def test_per_player_cap_counts_every_game_when_collecting_a_champions_games():

@@ -66,11 +66,19 @@ def stored(svc):
 def test_qualifies_otp_vs_mastery():
     otp = CrawlerConfig(champions=[AATROX], focus="otp", min_mastery=300_000).validated()
     mastery = CrawlerConfig(champions=[AATROX], focus="mastery", min_mastery=300_000).validated()
+    # Candidatos por maestría (entre sus 3 primeros, con el mínimo): igual buscando OTPs o mucha maestría…
     assert otp.qualifies(MASTERY["seed-0"]) and mastery.qualifies(MASTERY["seed-0"])
-    assert not otp.qualifies(MASTERY["seed-1"]) and mastery.qualifies(MASTERY["seed-1"])
+    assert otp.qualifies(MASTERY["seed-1"]) and mastery.qualifies(MASTERY["seed-1"])
     assert not otp.qualifies(MASTERY["seed-2"]) and not mastery.qualifies(MASTERY["seed-2"])
-    assert not otp.qualifies([[AATROX, 900_000], [GAREN, 800_000]])  # no domina: no es OTP
     assert not otp.qualifies([])
+    # …y especialista solo si sus partidas lo confirman: 300 K con Lee Sin y 130 K con Yuumi no hacen a nadie OTP.
+    assert otp.min_share == 0.5 and mastery.min_share == 0
+    assert otp.share_ok(10, 1)  # aún sin muestra: se le sigue revisando
+    assert otp.share_ok(30, 15) and not otp.share_ok(30, 14)
+    assert mastery.share_ok(30, 0)  # mucha maestría: da igual lo que juegue
+    strict = CrawlerConfig(champions=[AATROX], focus="otp", min_share=0.75).validated()
+    assert strict.min_share == 0.75 and not strict.share_ok(40, 29)
+    assert CrawlerConfig(champions=[AATROX], focus="otp", min_share=0).validated().focus == "mastery"
 
 
 def test_validated_cleans_champion_options():
@@ -80,12 +88,16 @@ def test_validated_cleans_champion_options():
 
 def test_otp_mode_collects_only_otp_games_with_target_champion(keyed_svc):
     worker, fake = run(keyed_svc, champions=[AATROX], focus="otp", min_mastery=300_000, only_target_games=True)
-    assert stored(keyed_svc) == {"EUW1_1001", "EUW1_1003"}  # la de Garen se descarta
-    assert worker.state["targets_found"] == 1
+    # seed-1 (Aatrox entre sus 3 primeros) también es candidato: con tan pocas partidas aún no se le puede descartar.
+    assert stored(keyed_svc) == {"EUW1_1001", "EUW1_1003", "EUW1_2001"}  # las de Garen se descartan
+    assert worker.state["targets_found"] == 2
     assert worker.state["mastery_checked"] == 3
-    assert worker.state["target_games"] == 2 and worker.state["other_champ_skipped"] == 1
-    # no se piden partidas de quien no es OTP
-    assert not [c for c in fake.calls_to("match_ids") if c[2] in ("seed-1", "seed-2")]
+    assert worker.state["target_games"] == 3 and worker.state["other_champ_skipped"] == 2
+    # no se piden partidas de quien no tiene el campeón entre sus 3 primeros
+    assert not [c for c in fake.calls_to("match_ids") if c[2] == "seed-2"]
+    # Sin muestra suficiente, la carpeta de OTPs solo recibe al que lo tiene de principal con mucha ventaja.
+    kinds = dict(keyed_svc.db.query("SELECT puuid, kind FROM otp_games GROUP BY puuid"))
+    assert kinds.get("seed-0") in (None, "otp") and kinds.get("seed-1") in (None, "player")
     # la descartada queda recordada solo para ese OTP (con quién jugó), no para todo el programa
     assert keyed_svc.db.scalar("SELECT champ FROM otp_skips WHERE puuid = 'seed-0' AND match_id = 'EUW1_1002'") == GAREN
     assert keyed_svc.db.scalar("SELECT COUNT(*) FROM skipped_matches WHERE match_id = 'EUW1_1002'") == 0
@@ -99,7 +111,7 @@ def test_mastery_mode_includes_high_mastery_players(keyed_svc):
 
 def test_all_games_of_otps_when_not_filtering(keyed_svc):
     run(keyed_svc, champions=[AATROX], focus="otp", min_mastery=300_000, only_target_games=False)
-    assert stored(keyed_svc) == {"EUW1_1001", "EUW1_1002", "EUW1_1003"}
+    assert stored(keyed_svc) == {"EUW1_1001", "EUW1_1002", "EUW1_1003", "EUW1_2001", "EUW1_2002"}
 
 
 def test_mastery_is_remembered_between_runs(keyed_svc):
@@ -138,7 +150,8 @@ def test_otp_must_still_play_the_champion():
 
 def test_found_otps_get_their_riot_id(keyed_svc):
     _, fake = run(keyed_svc, champions=[AATROX], focus="otp")
-    assert [c[1] for c in fake.calls_to("account_by_puuid")] == ["seed-0"]  # solo los OTPs, no todo el ranking
+    # Solo los candidatos, no todo el ranking (y primero el que más pinta de OTP tiene).
+    assert [c[1] for c in fake.calls_to("account_by_puuid")] == ["seed-0", "seed-1"]
     # Tiene nombre (el de account-v1 o, si ya hay partidas guardadas, el Riot ID que trae la propia partida).
     assert keyed_svc.db.scalar("SELECT game_name FROM players WHERE puuid = 'seed-0'")
     assert keyed_svc.db.scalar("SELECT game_name FROM players WHERE puuid = 'seed-2'") is None  # no es OTP: no se gasta la llamada
@@ -296,7 +309,7 @@ def test_otp_scheduler_gives_everyone_recent_games_first(keyed_svc):
 def test_otp_history_stops_when_they_no_longer_played_the_champion(keyed_svc):
     ids, payloads = history("otp-a", 500, prefix="1", champ_for=lambda i: AATROX if i < 40 else GAREN, every_h=4)
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
-    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], only_target_games=True)
+    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="mastery", only_target_games=True)
     assert keyed_svc.db.scalar("SELECT COUNT(*) FROM matches") == 40
     state = progress(keyed_svc, "otp-a")
     # Dos páginas seguidas casi sin Aatrox, pasadas sus 200 más recientes: ahí para (no se piden las dos últimas).
@@ -308,18 +321,35 @@ def test_a_recent_break_from_the_champion_does_not_stop_the_history(keyed_svc):
     """Sus últimas 100 con otro campeón (de descanso de Aatrox) y las 150 anteriores con Aatrox: se bajan todas."""
     ids, payloads = history("otp-a", 250, prefix="1", champ_for=lambda i: GAREN if i < 100 else AATROX, every_h=3)
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
-    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], only_target_games=True)
+    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="mastery", only_target_games=True)
     assert keyed_svc.db.scalar("SELECT COUNT(*) FROM matches") == 150
     assert progress(keyed_svc, "otp-a")["back_done_reason"] == "end"
+
+
+def test_specialists_are_checked_with_their_own_games(keyed_svc):
+    """Buscando OTPs (la mitad de sus partidas con el campeón): con 900 K de maestría pero 1 de cada 5 partidas con
+    Aatrox, tras 20 revisadas se le deja de seguir; quien de verdad lo juega sigue hasta el final."""
+    ids_a, pay_a = history("casual", 200, prefix="1", champ_for=lambda i: AATROX if i % 5 == 0 else GAREN, every_h=3)
+    ids_b, pay_b = history("main", 60, prefix="2", champ_for=lambda i: AATROX if i % 4 else GAREN, every_h=3)
+    fake = HistoryRiot({"casual": ids_a, "main": ids_b}, {**pay_a, **pay_b}, {"casual": [(AATROX, 900_000)], "main": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="otp", only_target_games=True)
+    casual, main = progress(keyed_svc, "casual"), progress(keyed_svc, "main")
+    assert casual["back_done_reason"] == "share" and casual["seen"] == 20 and casual["hits"] == 4
+    assert main["back_done_reason"] == "end" and main["hits"] == 45
+    # Sus partidas con Aatrox no ensucian la carpeta de OTPs: con muestra, OTP = lo que juega.
+    assert otp_details.classify(keyed_svc.db, "casual", AATROX) == "player"
+    assert otp_details.classify(keyed_svc.db, "main", AATROX) == "otp"
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX], focus="otp").validated()
+    assert [r["puuid"] for r, _ in otp_rows(keyed_svc.db, cfg)] == ["main"]  # ya no cuenta como encontrado
 
 
 def test_changing_the_filter_fetches_the_games_skipped_for_that_otp(keyed_svc):
     ids, payloads = history("otp-a", 20, prefix="1", champ_for=lambda i: AATROX if i % 2 else GAREN)
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
-    run_history(keyed_svc, fake, champions=[AATROX], only_target_games=True)
+    run_history(keyed_svc, fake, champions=[AATROX], focus="mastery", only_target_games=True)
     assert keyed_svc.db.scalar("SELECT COUNT(*) FROM matches") == 10
     fake2 = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
-    run_history(keyed_svc, fake2, champions=[AATROX], only_target_games=False)
+    run_history(keyed_svc, fake2, champions=[AATROX], focus="mastery", only_target_games=False)
     assert keyed_svc.db.scalar("SELECT COUNT(*) FROM matches") == 20  # ahora también las de Garen
     assert len(fake2.calls_to("match")) == 10  # y solo esas se vuelven a pedir
 
@@ -1165,10 +1195,17 @@ def test_search_funnel_shows_where_players_are_dropped(keyed_svc):
     assert f["stages"] == ["checked", "champ", "points", "active"]
     assert f["total"] == {"checked": 5, "champ": 4, "points": 3, "active": 2, "seeds": 6, "last_hour": 5}
     otp = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX], focus="otp", min_mastery=100_000, otp_depth="30").validated()
-    t = search_funnel(keyed_svc.db, otp, now)["total"]
-    assert (t["champ"], t["points"], t["ratio"], t["active"]) == (3, 2, 2, 1)
-    # Coincide con los OTPs que cuenta el recolector.
-    assert t["active"] == len(otp_rows(keyed_svc.db, otp, ["euw1"], ["EMERALD"], now))
+    with keyed_svc.db.write() as conn:  # f-1 juega casi siempre Aatrox; f-2 (Garen de principal), casi nunca
+        conn.execute(
+            "INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('f-1', 'k', ?, 30, 24, ?), ('f-2', 'k', ?, 30, 4, ?)",
+            (now, now, now, now),
+        )
+    f = search_funnel(keyed_svc.db, otp, now)
+    assert f["stages"] == ["checked", "champ", "points", "active", "share"]
+    t = f["total"]
+    assert (t["champ"], t["points"], t["active"], t["share"]) == (4, 3, 2, 1)
+    # Coincide con los OTPs que cuenta el recolector (f-2 ya revisado y descartado).
+    assert [r["puuid"] for r, _ in otp_rows(keyed_svc.db, otp, ["euw1"], ["EMERALD"], now)] == ["f-1"]
 
 
 def test_funnel_is_written_for_review(keyed_svc):

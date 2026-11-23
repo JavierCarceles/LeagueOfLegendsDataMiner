@@ -215,17 +215,23 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   búsquedas. En *Datos y API* eliges servidores (agrupados por región, con *Todas* / *Ninguna*) y elos.
 - **Recolector: una lista de filtros** (*Datos y API*). Cada fila muestra su valor y se abre al pulsarla:
   - *Campeones*: ninguno = todo el ranking; o **líneas completas** (p. ej. solo top: todos los campeones con ≥ 8 % de
-    sus partidas en ella según la tier list de OP.GG o Lolalytics, y solo sus partidas en esa línea) y/o **campeones
+    sus partidas en ella según la tier list de OP.GG o Lolalytics, y solo sus partidas en esa línea; con varias líneas,
+    cada campeón cuenta solo en la suya: Sylas de mid no se busca en top) y/o **campeones
     sueltos sin límite** (con su rol, opcional). Se suman.
   - *Jugadores* (con campeones): **cualquiera que lo juegue** (toda partida en la que aparezca en esa línea, sea quien
-    sea: más datos de builds y matchups), **solo OTPs** (su campeón principal, con 1,5 veces los puntos del segundo) o
-    **mucha maestría** (entre sus 3 primeros), con un mínimo de puntos. Riot no ofrece un ranking de maestría por
-    campeón: se mira la maestría de cada jugador del ranking (1 llamada, se recuerda 7 días) y la tabla de los mejores
-    de cada campeón de OP.GG.
+    sea: más datos de builds y matchups) o **especialistas**. Los dos con el mismo filtro de **maestría mínima** (con el
+    campeón entre sus 3 con más puntos). Para especialistas, además, **cuánto lo juega**: da igual, ≥ 25 %, ≥ 50 % (OTP)
+    o ≥ 75 % de sus partidas. La maestría es de toda la vida de la cuenta (300 K con un campeón y 130 K con el siguiente
+    no hacen a nadie OTP), así que se comprueba con sus partidas: tras revisar 20, si no llega, se le deja de seguir.
+    Primero se revisa a quien más pinta tiene (su principal con mucha ventaja o en la tabla de los mejores de OP.GG).
+    Riot no ofrece un ranking de maestría por campeón: se mira la maestría de cada jugador del ranking (1 llamada, se
+    recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG.
   - *Servidores*, *Elos*, *Periodo* y *Partidas* (cuántas de cada jugador, colas y cada cuánto se buscan las nuevas).
   Debajo, una frase dice qué se va a recoger. Buscando por campeones, cada partida se analiza siempre minuto a minuto
-  (como las tuyas; 1 llamada más por partida). Las de **OTPs** (su campeón principal con ≥ 100 K puntos y 1,5 veces
-  los del segundo, o en la tabla de los mejores de OP.GG) van a `data/otps`; las de **cualquier otro jugador**, a
+  (como las tuyas; 1 llamada más por partida). Las de **OTPs** van a `data/otps`: OTP es quien juega ese campeón en
+  la mitad o más de sus partidas (en cuanto hay 20 suyas revisadas; antes, provisionalmente, su principal con ≥ 100 K
+  puntos y 1,5 veces los del segundo o estar en la tabla de los mejores de OP.GG; al arrancar se reclasifica a quien ya
+  tiene muestra y sus partidas cambian de carpeta si hace falta); las de **cualquier otro jugador**, a
   `data/partidas_campeon`. Las comparaciones con OTPs («Tú frente a los OTPs», la página de OTPs, las referencias de
   farm por campeón y las builds del draft) solo usan las de OTPs.
 - **Un solo periodo** (30/90/180 días, *temporada actual* —desde el 1 de enero del año del parche, parando en la

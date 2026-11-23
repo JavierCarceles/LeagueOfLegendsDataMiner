@@ -35,6 +35,7 @@ class CrawlerBody(BaseModel):
     roles: list[str] = Field(default_factory=list, description="Líneas completas: OTPs de todos los campeones que se juegan en ellas")
     focus: str = Field("otp", pattern="^(otp|mastery|games)$", description="otp, mastery o games (partidas de un campeón, sea OTP o no)")
     min_mastery: int = 300_000
+    min_share: float = Field(0.5, ge=0, le=1, description="Especialistas (otp): parte mínima de sus partidas con ese campeón (0, 0.25, 0.5 o 0.75)")
     only_target_games: bool = True
     otp_depth: str = Field("season", pattern="^(30|90|180|season|365|all)$", description="Periodo: cuenta quien jugó el campeón en él y se bajan sus partidas de ese periodo")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
@@ -221,6 +222,7 @@ def otps(
         "lines": cfg.roles,
         "focus": cfg.focus,
         "min_mastery": cfg.min_mastery,
+        "min_share": cfg.min_share,
         "otp_depth": cfg.otp_depth,
         "games_per_otp": cfg.games_per_otp,
         "searching": bool(cap),
