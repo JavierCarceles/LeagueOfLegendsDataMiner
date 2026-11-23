@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app import lcu
 from app.api.deps import role_param, svc_from
-from app.coach import champ_checks, insights, learn, otp_compare, store
+from app.coach import champ_checks, insights, learn, navgrid, otp_compare, store
 from app.coach.elo_profile import EloProfile
 from app.coach.benchmarks import METRICS, TARGET_TIERS, References, next_target, normalize_tier, public_metrics
 from app.coach.tracker import ProfileNotFound, build_digest, refresh_digests, resolve_account, skill_times
@@ -399,6 +399,14 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"))]
+    # Rutas que rodean los muros (navgrid): sin ellas la vista 2D los atravesaba en línea recta (11 % del tiempo dentro
+    # de un muro; con rutas, 1 %). Se calcula al abrir la partida (~0,2 s): no hace falta re-analizar nada.
+    if analysis.get("replay") and not analysis["replay"].get("routed"):
+        try:
+            champs = {str(p.get("pid")): p.get("champ") for p in analysis.get("players") or []}
+            analysis["replay"] = navgrid.route_replay(analysis["replay"], champs)
+        except Exception:  # noqa: BLE001  (sin rutas, la repetición se ve igual que antes)
+            log.warning("No se pudieron calcular las rutas de %s", match_id, exc_info=True)
     # Orden de habilidades, primera vuelta y primer objeto frente a los OTPs de tu campeón (Diamante o más).
     prof = _elo_profile(svc)
     champ_ref = prof.champ_ref(analysis.get("champ"), analysis.get("role")) if prof and prof.get() else None

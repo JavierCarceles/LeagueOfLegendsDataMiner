@@ -156,6 +156,7 @@ export function createReplay(a, opts = {}) {
       el.style.left = `${p.left}%`;
       el.style.top = `${p.top}%`;
       el.classList.toggle("dead", !!pos.dead);
+      el.classList.toggle("estimated", !pos.dead && !pos.sure);
       el.classList.toggle("focus", focus.has(Number(pid)));
     }
     // Rastro de tus últimos segundos.
@@ -358,6 +359,12 @@ export function createReplay(a, opts = {}) {
       h("span", h("i.sev-dot.sev-high"), "Grave"),
       h("span", h("i.sev-dot.sev-medium"), "A mejorar"),
       h("span", h("i.sev-dot.sev-good"), "Bien hecho"),
+      h(
+        "span",
+        { title: "Riot solo da la posición de cada jugador una vez por minuto y en cada kill, objetivo o torre. El resto se reconstruye con las compras (vuelta a base), las muertes, los campamentos de jungla (su CS) y rutas que rodean los muros; validado con tus partidas." },
+        h("i.legend-estimated"),
+        "Translúcido: posición reconstruida ⓘ",
+      ),
       h("span.faint", "Teclas: espacio, ← →, N/P"),
     ),
   );

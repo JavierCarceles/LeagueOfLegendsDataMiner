@@ -160,7 +160,11 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   los **campamentos** que hizo en cada tramo sin otros datos: el CS de jungla de cada minuto dice cuántos, sus posiciones
   de antes y de después por dónde pudo ir, y los que ya estaban hechos (los dos junglas, reaparición a los 2:30) cuáles
   estaban vivos; si no cuadra, no se inventa nada (1 % de los tramos). Escondiendo su posición en un minuto y
-  reconstruyéndola con lo de antes y lo de después: error medio 3.602 → 3.069 y fallos grandes 40 % → 30 %. Con ellas se mide
+  reconstruyéndola con lo de antes y lo de después: error medio 3.602 → 3.069 y fallos grandes 40 % → 30 %. En la
+  repetición 2D, entre dos puntos se sigue una **ruta que rodea los muros** (`app/coach/navgrid.py`: rejilla de lo
+  caminable sacada del minimapa y comprobada con tus partidas, el 96 % de las posiciones reales caen en ella; A* solo
+  cuando la recta cruza un muro). Kayn, Zac, Talon, Nidalee, Kindred… pueden atravesarlos. Antes, en línea recta, los
+  campeones estaban dentro de un muro el 11 % del tiempo; ahora, el 1 %. Lo reconstruido se ve translúcido. Con ellas se mide
   **cómo se mueven los 10 jugadores** (cada 5 s: línea, otras líneas, río, junglas, base, muerto; después del 14,
   agrupado o solo en una línea lateral), tú frente a tu rival directo y, con los OTPs, frente a cada elo.
 - **Referencias.** Cada métrica se compara con una referencia de tu rol escalada a tu *elo objetivo*. En cuanto hay

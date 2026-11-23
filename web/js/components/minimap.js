@@ -86,16 +86,32 @@ export function pathMap(paths) {
 }
 
 // ------------------------------------------------------------------ replay
+const SURE_S = 6; // a menos de 6 s de una posición real (frame, evento, fuente o muerte): «exacta»
+
+/** ¿Hay una posición real de Riot a menos de SURE_S segundos de t? (las demás son reconstruidas) */
+function isSure(track, t) {
+  if (!track._real) track._real = track.a.filter((a) => a[3] <= 3).map((a) => a[0]);
+  const real = track._real;
+  let lo = 0;
+  let hi = real.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (real[mid] < t) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return [real[lo], real[lo - 1]].some((v) => v !== undefined && Math.abs(v - t) <= SURE_S);
+}
+
 export function trackPos(track, t) {
   for (const [s, e, x, y] of track.dead) {
-    if (s <= t && t < e) return { dead: true, x, y };
+    if (s <= t && t < e) return { dead: true, x, y, sure: true };
   }
   const a = track.a;
   if (!a.length) return null;
   let lo = 0;
   let hi = a.length - 1;
-  if (t <= a[0][0]) return { x: a[0][1], y: a[0][2] };
-  if (t >= a[hi][0]) return { x: a[hi][1], y: a[hi][2] };
+  if (t <= a[0][0]) return { x: a[0][1], y: a[0][2], sure: true };
+  if (t >= a[hi][0]) return { x: a[hi][1], y: a[hi][2], sure: isSure(track, t) };
   while (hi - lo > 1) {
     const mid = (lo + hi) >> 1;
     if (a[mid][0] <= t) lo = mid;
@@ -104,9 +120,10 @@ export function trackPos(track, t) {
   const p = a[lo];
   const n = a[hi];
   // 3: justo antes de morir; 4: se queda ahí y salta (vuelta a base con su canalización o teletransporte).
-  if (p[3] === 3 || p[3] === 4) return { x: p[1], y: p[2] };
+  const sure = isSure(track, t);
+  if (p[3] === 3 || p[3] === 4) return { x: p[1], y: p[2], sure };
   const f = n[0] === p[0] ? 0 : (t - p[0]) / (n[0] - p[0]);
-  return { x: p[1] + (n[1] - p[1]) * f, y: p[2] + (n[2] - p[2]) * f };
+  return { x: p[1] + (n[1] - p[1]) * f, y: p[2] + (n[2] - p[2]) * f, sure };
 }
 
 export const OBJ_ICON = { dragon: "🐉", elder: "🐉", baron: "👾", herald: "🦀", grubs: "🪲", atakhan: "💀" };
@@ -170,6 +187,7 @@ export function replay(analysis) {
       el.style.left = `${p.left}%`;
       el.style.top = `${p.top}%`;
       el.classList.toggle("dead", !!pos.dead);
+      el.classList.toggle("estimated", !pos.dead && !pos.sure);
     }
     const recent = [];
     for (const [time, killer, victim, x, y] of r.kills) {
@@ -233,7 +251,12 @@ export function replay(analysis) {
       h("span", h("i", { style: { background: "var(--blue)" } }), "Azul"),
       h("span", h("i", { style: { background: "var(--red)" } }), "Rojo"),
       h("span", h("i", { style: { background: "var(--gold)" } }), "Tú"),
-      h("span.faint", "Posición exacta cada minuto y en cada evento; entre medias, estimada."),
+      h("span", h("i.legend-estimated"), "Translúcido: posición reconstruida"),
+      h(
+        "span.faint",
+        { title: "Riot solo da la posición de cada jugador una vez por minuto y en cada kill, objetivo o torre. Entre medias se reconstruye con las compras (vuelta a base), las muertes, los campamentos de jungla (su CS) y rutas que rodean los muros; validado con tus partidas." },
+        "Riot da la posición cada minuto y en cada evento; el resto se reconstruye siguiendo los caminos ⓘ",
+      ),
     ),
   );
   seek(0);

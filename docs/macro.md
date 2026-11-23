@@ -329,3 +329,10 @@ Riot da la posición de cada jugador una vez por minuto y en cada evento. Valida
 
 Lo que queda (fallos grandes) son sobre todo minutos enteros sin ningún evento fuera de la jungla: ahí no hay datos de
 por dónde fue.
+
+Rutas (24-11-2026): la línea recta entre dos puntos atraviesa muros; con rutas que los rodean (A* en una rejilla de
+128 × 128 sacada del minimapa `map11.png`, en la que caen el 96 % de las posiciones reales) el tiempo dentro de un muro
+en la repetición baja del 11,2 % al 1,2 %. La precisión no cambia (error medio 1.573 en los dos casos): entre dos
+posiciones conocidas, el desvío por los caminos es pequeño frente a lo que no se sabe. Las repeticiones `.rofl` sí
+guardan todas las posiciones, pero sus paquetes están ofuscados y cambian en cada parche (y Riot prohíbe la ingeniería
+inversa del cliente): no se usan.
