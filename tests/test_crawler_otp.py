@@ -1211,6 +1211,7 @@ def test_search_funnel_shows_where_players_are_dropped(keyed_svc):
 def test_funnel_is_written_for_review(keyed_svc):
     keyed_svc.crawler.config = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX]).validated()
     keyed_svc.crawler.write_funnel(force=True)
+    keyed_svc.crawler._funnel_thread.join(10)  # se escribe en su propio hilo
     data = json.loads((keyed_svc.settings.data_dir / "otps" / "_busqueda.json").read_text(encoding="utf-8"))
     assert data["config"]["focus"] == "otp" and "total" in data and data["config"]["champions"]
 
@@ -1280,3 +1281,22 @@ def test_reclassified_players_move_folder_alone_without_rebuilding_everything(ke
     players_dir = keyed_svc.settings.data_dir / "partidas_campeon" / keyed_svc.dd.name(AATROX)
     assert len(read_games(next(players_dir.rglob("partidas.jsonl.gz")))) == 4
     assert otp_details.reclassify(db) == []  # ya está donde toca
+
+
+def test_stop_answers_at_once_even_if_the_search_report_is_slow(keyed_svc, monkeypatch):
+    """Con decenas de miles de jugadores revisados, el embudo de la búsqueda tarda segundos: antes se calculaba antes
+    de avisar a los hilos y el botón «Detener» parecía no responder."""
+    import time as _time
+
+    from app.ingest import crawler as crawler_mod
+
+    def slow_funnel(db, cfg, now=None):
+        _time.sleep(1.5)
+        return {"stages": [], "total": {}, "platforms": {}}
+
+    monkeypatch.setattr(crawler_mod, "search_funnel", slow_funnel)
+    keyed_svc.crawler.config = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD"], champions=[AATROX]).validated()
+    t0 = _time.monotonic()
+    keyed_svc.crawler.stop()
+    assert _time.monotonic() - t0 < 0.5 and keyed_svc.crawler.stop_event.is_set()
+    keyed_svc.crawler._funnel_thread.join(5)

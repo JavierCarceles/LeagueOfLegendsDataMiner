@@ -1153,6 +1153,9 @@ class RegionWorker(threading.Thread):
             starts = self._stored_starts([m for m in ids if m in known])
             finished = True
             for match_id in reversed(ids):
+                if self.stop_event.is_set():
+                    finished = False
+                    break
                 if match_id in known:
                     prog["fwd_newest"] = max(prog["fwd_newest"], starts.get(match_id, 0))
                     continue
@@ -1184,6 +1187,8 @@ class RegionWorker(threading.Thread):
                 consumed = page_seen = page_hits = 0
                 old_season = False
                 for match_id in ids:
+                    if self.stop_event.is_set():
+                        break
                     if match_id not in known:
                         if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
                             break
@@ -1547,6 +1552,7 @@ class Crawler:
         self.total_stored = 0
         self._lock = threading.Lock()
         self._funnel_at = 0.0
+        self._funnel_thread: threading.Thread | None = None
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1562,14 +1568,21 @@ class Crawler:
         return any(w.searching() for w in self.workers.values())
 
     def write_funnel(self, force: bool = False) -> None:
-        """Cada 5 min (lo llama cualquier región): el embudo de la búsqueda en ``data/otps/_busqueda.json``."""
+        """Cada 5 min (lo llama cualquier región): el embudo de la búsqueda en ``data/otps/_busqueda.json``. En su propio
+        hilo: con muchos jugadores revisados tarda segundos y no debe frenar las descargas ni el botón de detener."""
         cfg = self.config
         if cfg is None or not cfg.targets:
             return
         with self._lock:
             if not force and time.time() - self._funnel_at < FUNNEL_EVERY_S:
                 return
+            if self._funnel_thread is not None and self._funnel_thread.is_alive():
+                return
             self._funnel_at = time.time()
+            self._funnel_thread = threading.Thread(target=self._write_funnel, args=(cfg,), name="crawler-funnel", daemon=True)
+            self._funnel_thread.start()
+
+    def _write_funnel(self, cfg: CrawlerConfig) -> None:
         try:
             funnel = search_funnel(self.svc.db, cfg)
             dd = getattr(self.svc, "dd", None)
@@ -1652,14 +1665,15 @@ class Crawler:
         return self.status()
 
     def stop(self) -> dict:
-        """Parada pedida por el usuario: tampoco arrancará solo la próxima vez."""
-        self.svc.db.meta_set("crawler_autostart", "0")
-        self.write_funnel(force=True)
+        """Parada pedida por el usuario: tampoco arrancará solo la próxima vez.
+
+        Lo primero, avisar a los hilos (antes se escribía el embudo de la búsqueda, que con decenas de miles de jugadores
+        revisados tarda segundos, y el botón parecía no responder); el embudo, después y en segundo plano."""
         self.stop_event.set()
         for worker in list(self.workers.values()):
             worker.wake()
-        for worker in list(self.workers.values()):
-            worker.join(timeout=0.1)
+        self.svc.db.meta_set("crawler_autostart", "0")
+        self.write_funnel(force=True)
         return self.status()
 
     def shutdown(self) -> None:
