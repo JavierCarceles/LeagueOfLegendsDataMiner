@@ -166,7 +166,10 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
   cuando la recta cruza un muro). Kayn, Zac, Talon, Nidalee, Kindred… pueden atravesarlos. Antes, en línea recta, los
   campeones estaban dentro de un muro el 11 % del tiempo; ahora, el 1 %. Lo reconstruido se ve translúcido. Con ellas se mide
   **cómo se mueven los 10 jugadores** (cada 5 s: línea, otras líneas, río, junglas, base, muerto; después del 14,
-  agrupado o solo en una línea lateral), tú frente a tu rival directo y, con los OTPs, frente a cada elo.
+  agrupado o solo en una línea lateral), tú frente a tu rival directo y, con los OTPs, frente a cada elo. Con los
+  recorridos también: roams (cuántos, cuántos con kill o asistencia y el CS que cuestan), contraganks (si estabas cerca y
+  respondiste a lo que hizo el jungla rival), el mid con su jungla y el support que deja solo a su ADC
+  (`app/coach/route_macro.py`; ver `docs/macro.md`, apartado K).
 - **Referencias.** Cada métrica se compara con una referencia de tu rol escalada a tu *elo objetivo*. En cuanto hay
   ≥ 20 jugadores de tu rol en tus partidas (se analizan en segundo plano con el mismo código, sin peticiones a Riot) y se
   sabe tu liga, la referencia se **calibra** con sus medias reales, escaladas de tu liga a tu elo objetivo (salvo las

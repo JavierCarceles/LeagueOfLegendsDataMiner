@@ -336,3 +336,24 @@ en la repetición baja del 11,2 % al 1,2 %. La precisión no cambia (error medio
 posiciones conocidas, el desvío por los caminos es pequeño frente a lo que no se sabe. Las repeticiones `.rofl` sí
 guardan todas las posiciones, pero sus paquetes están ofuscados y cambian en cada parche (y Riot prohíbe la ingeniería
 inversa del cliente): no se usan.
+
+## K) Macro con los recorridos reconstruidos (24-11-2026, `app/coach/route_macro.py`)
+
+Con las 28.918 partidas re-analizadas en la versión 14 (recorrido reconstruido de cada OTP y todas las kills con
+posición) se miden reglas de `macro/` que antes no se podían comprobar. Son tendencias, no errores sueltos (hasta un
+Aspirante deja sin responder 4 de cada 5 jugadas del jungla rival): salen en «Cómo te mueves por el mapa» junto a cada
+elo. Jungla, Platino → Esmeralda → Diamante → Maestro → Aspirante (~17.000 partidas):
+
+| Regla | Medida | Plat | Esm | Diam | Maes | Asp |
+|---|---|---|---|---|---|---|
+| Jungla 10, 13; general 26 | Responde a lo que hace el jungla rival (kill o asistencia allí en 15 s) | 17 % | 17 % | 18 % | 20 % | 20 % |
+| Jungla 10 | Cerca cuando actúa el jungla rival | 22 % | 23 % | 23 % | 25 % | 26 % |
+| General 12-14 | Agrupado pasado el 14 | 28 % | 31 % | 32 % | 33 % | 35 % |
+| Top 12; ADC 9; compos 122, 132 | Solo en una línea lateral pasado el 14 | 6,4 % | 4,8 % | 4,5 % | 4,3 % | 4,1 % |
+
+Top (Diamante → Aspirante): roams con kill o asistencia 58 % → 66 % y CS perdido por roamear 1,2 → 0,2. ADC solo en
+una lateral pasado el 14: 11 % → 7 %. Mid y support solo tienen Diamante (roams, el mid con su jungla, muertes del ADC
+con el support lejos): se miden igual y la comparación aparecerá con partidas de más elos.
+
+No separan elos (no se usan): ganks fallidos largos (≥ 30 s en una línea sin kill ni asistencia: 0,18-0,20 por partida
+en todos los elos) y campamentos robados antes del 10 (0,6-0,7).

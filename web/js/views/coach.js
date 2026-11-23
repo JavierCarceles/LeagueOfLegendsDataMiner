@@ -699,6 +699,8 @@ function recurringLine(r) {
   );
 }
 
+const moveVal = (r, v) => (r.unit === "%" ? `${fmt.num(v, 0)} %` : fmt.num(v, 1));
+
 function movementSummary(m) {
   const g = m.rows.find((r) => r.key === "grouped_late");
   const own = m.rows.find((r) => r.key === "own_jungle_pre14" || r.key === "lane_pre14");
@@ -707,7 +709,7 @@ function movementSummary(m) {
 
 /** Dónde pasas el tiempo (posiciones reconstruidas cada 5 s) frente a tu rival directo y a cada elo. */
 function movementCard(m) {
-  const tiers = m.elo ? Object.keys(m.rows.find((r) => r.tiers)?.tiers || {}) : [];
+  const tiers = m.elo ? [...new Set(m.rows.flatMap((r) => Object.keys(r.tiers || {})))].sort((a, b) => Object.keys(ELO_LABEL).indexOf(a) - Object.keys(ELO_LABEL).indexOf(b)) : [];
   return h(
     "div.col",
     { style: { gap: "10px" } },
@@ -720,16 +722,16 @@ function movementCard(m) {
       "div.table-wrap",
       h(
         "table.table.elo-table",
-        h("thead", h("tr", h("th", "Dónde"), h("th.num", "Tú"), h("th.num", m.role === "JUNGLE" ? "Su jungla" : "Tu rival"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)))),
+        h("thead", h("tr", h("th", "Qué"), h("th.num", "Tú"), h("th.num", m.role === "JUNGLE" ? "Su jungla" : "Tu rival"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)))),
         h(
           "tbody",
           m.rows.map((r) =>
             h(
               "tr",
               h("td", r.label),
-              h("td.num", h("b", `${fmt.num(r.mine, 0)} %`)),
-              h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : `${fmt.num(r.opp, 0)} %`),
-              tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : `${fmt.num(r.tiers[t], 0)} %`)),
+              h("td.num", h("b", moveVal(r, r.mine))),
+              h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : moveVal(r, r.opp)),
+              tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : moveVal(r, r.tiers[t]))),
             ),
           ),
         ),

@@ -865,6 +865,16 @@ MOVE_ROWS = [
     ("side_alone_late", "late", "side_alone_late", "Solo en una línea lateral (después del 14)", None, "mv_side_alone_late"),
 ]
 MIN_MOVE_GAMES = 5
+# Roams, contraganks… (``route_macro``): (clave, etiqueta, roles, unidad). Tendencias, no errores: se comparan con cada elo.
+ROUTE_ROWS = [
+    ("rm_roams", "Roams antes del 14 (20 s o más fuera de tu línea)", ("TOP", "MID", "ADC", "SUPPORT"), ""),
+    ("rm_roam_success_pct", "Roams con kill o asistencia", ("TOP", "MID", "ADC", "SUPPORT"), "%"),
+    ("rm_roam_cs_cost", "CS que pierdes frente a tu rival por roamear", ("TOP", "MID", "ADC"), ""),
+    ("rm_counter_near_pct", "Cerca cuando actúa el jungla rival (antes del 14)", ("JUNGLE",), "%"),
+    ("rm_counter_pct", "Respondes a lo que hace el jungla rival (kill o asistencia allí en 15 s)", ("JUNGLE",), "%"),
+    ("rm_mid_with_jg_pct", "Con tu jungla en sus peleas del río o la jungla", ("MID",), "%"),
+    ("rm_adc_alone_deaths", "Muertes de tu ADC estando tú lejos (antes del 14)", ("SUPPORT",), ""),
+]
 
 
 def _move_value(mv: dict | None, phase: str, field: str) -> float | None:
@@ -904,6 +914,21 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "mine": round(sum(me_vals) / len(me_vals), 1),
             "opp": round(sum(opp_vals) / len(opp_vals), 1) if len(opp_vals) >= MIN_MOVE_GAMES else None,
             "tiers": {g: tiers[g]["move"].get(elo_key) for g in ELO_GROUPS if g in tiers and elo_key and tiers[g]["move"].get(elo_key) is not None} or None,
+            "unit": "%",
+        })
+    for key, label, roles, unit in ROUTE_ROWS:
+        if role not in roles:
+            continue
+        vals = [v for g in mine if isinstance(v := (g.get("route_macro") or {}).get(key), (int, float))]
+        if len(vals) < MIN_MOVE_GAMES:
+            continue
+        rows.append({
+            "key": key,
+            "label": label,
+            "unit": unit,
+            "mine": round(sum(vals) / len(vals), 1),
+            "opp": None,
+            "tiers": {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None,
         })
     return {"role": role, "champ": champ if scope == "champ" and tiers else None, "games": len(mine), "rows": rows, "elo": bool(tiers)}
 

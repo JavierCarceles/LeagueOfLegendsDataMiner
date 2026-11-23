@@ -23,12 +23,12 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from app.coach import champ_checks
+from app.coach import champ_checks, route_macro
 from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 2  # 2: medias de movimiento (mv_*) por elo
+VERSION = 3  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*)
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 REBUILD_EVERY_S = 30 * 60
@@ -42,7 +42,11 @@ GROUP_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diaman
 MIN_GROUP_GAMES = 30  # partidas de un elo (en un rol o campeón) para enseñarlo
 MIN_CHAMP_GAMES = 20
 COUNTED = ("high", "medium", "low")
-MOVE_KEYS = ("mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late")
+MOVE_KEYS = (
+    "mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late",
+    "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
+    "rm_adc_alone_deaths",
+)
 
 
 def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:
@@ -139,6 +143,10 @@ def _records(data_dir: Path):
                     rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
                     rec["mistakes"] = game_mistakes(a.get("moments") or [], rec["role"])
                     rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
+                    try:
+                        rec["move"].update(route_macro.from_dossier(d))
+                    except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
+                        pass
                     yield rec
         except (OSError, EOFError, gzip.BadGzipFile):
             log.debug("No se pudo leer %s", f, exc_info=True)

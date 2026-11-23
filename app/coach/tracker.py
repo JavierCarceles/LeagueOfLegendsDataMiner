@@ -49,7 +49,7 @@ class ProfileNotFound(ValueError):
     pass
 
 
-DIGEST_VERSION = 3  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento
+DIGEST_VERSION = 4  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y contraganks
 
 
 def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
@@ -62,6 +62,16 @@ def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
             if e.get("type") == "SKILL_LEVEL_UP" and e.get("participantId") == pid and (e.get("levelUpType") or "NORMAL") == "NORMAL" and e.get("skillSlot") in (1, 2, 3, 4):
                 out.append(round((e.get("timestamp") or 0) / 1000, 1))
     return sorted(out) or None
+
+
+def _route_macro(analysis: dict) -> dict | None:
+    from app.coach import route_macro
+
+    try:
+        return route_macro.from_analysis(analysis) or None
+    except Exception:  # noqa: BLE001  (un análisis raro no puede romper el resumen)
+        log.debug("Sin roams ni contraganks para %s", analysis.get("match_id"), exc_info=True)
+        return None
 
 
 def checks_digest(analysis: dict, skill_t: list[float] | None = None) -> dict | None:
@@ -105,6 +115,7 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
             if m.get("severity") in ("high", "medium", "low") and m.get("kind") not in ("trade", "afk")
         ],
         "cc": checks_digest(analysis, skill_t),
+        "rm": _route_macro(analysis),
         # Movimiento (posiciones reconstruidas cada 5 s): el tuyo y el de tu rival directo (de jungla, el otro jungla).
         "mv": {
             "me": (analysis.get("movement") or {}).get(str(analysis.get("me"))),
