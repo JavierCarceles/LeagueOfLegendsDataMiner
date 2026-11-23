@@ -269,3 +269,31 @@ jungla, 0,05): sigue siendo un punto débil solo de jungla hasta que haya top de
 Los 500 casos de los 50 drafts, repetidos con los resúmenes de `data/otps` (antes no se usaban en la auditoría), siguen
 sin ningún problema; los OTPs cambian 1 build de 500 (Hecarim con plan de bola de nieve: Cuchilla negra en vez de
 Rencor de Serylda, que no van juntas, porque sus OTPs la compran más contra ese tipo de equipo).
+
+## I) Errores que separan elos (23-11-2026, ~14.600 partidas de `data/otps` y `data/partidas_campeon`)
+
+Con las reglas de la versión 13, un Aspirante cometía casi los mismos errores por partida que un Platino (jungla:
+2,9 frente a 2,2) y el usuario, en normales, menos que un Aspirante. Dos causas: la mitad de los errores eran muertes que
+cualquier elo comete igual (morir en la jungla rival siendo jungla: 29 % de partidas en todos los elos; los Aspirante
+mueren ahí más, porque invaden más) y faltaban los errores que de verdad separan elos. Se mide todo con la misma regla en
+cada elo (`app/coach/elo_profile.py`) y se añaden, como errores con su minuto (`app/coach/champ_checks.py`), los que se
+dan claramente menos en Aspirante (% de partidas de jungla, Platino → Aspirante):
+
+| Error | Platino | Esmeralda | Diamante | Aspirante | Regla |
+|---|---|---|---|---|---|
+| Ninguna pink en 20+ min | 44 | 45 | 39 | 14 | top, jungla, mid y ADC |
+| 0-1 wards antes del 14 | 36 | 12 | 15 | 2 | top, jungla, mid y ADC |
+| KP < 40 % (≥ 10 kills de equipo) | 14 | 17 | 17 | 7 | solo jungla (en top no separa: 54 → 56) |
+| Primer objeto tarde (> p75 + 1 min de sus OTPs Diamante+, sin ir por detrás) | 13 | 12 | 7 | 5 | por campeón |
+| Segundo objeto tarde (> p75 + 1,5 min, sin ir por detrás a los 15) | | | | | por campeón (pasado el 21: 15 → 3) |
+| Despeje lento (CS de jungla a los 10 < p10 de sus OTPs, ≤ 1 gank) | 11 | 12 | 4 | 2 | por campeón |
+| Orden de habilidades raro (< 8 % de sus OTPs, uno ≥ 60 %) | 4 | 18 | 5 | 2 | por campeón, niveles 1-9 |
+| Primera vuelta rara (< 4 % de sus OTPs y fuera de sus primeros objetos) | 3 | 1 | 5 | 1 | por campeón; defensas y Heridas graves no cuentan |
+
+Morir en la jungla rival siendo jungla solo cuenta si fue sin visión (`MISTAKE_TYPES.role_need`). Un tipo de error que
+el elo más alto con datos comete al menos el 85 % de veces que el más bajo «no separa elos» y pesa la mitad en *Errores
+que repites*. Resultado con Hecarim (mismos OTPs del campeón): Platino 3,7 errores por partida, Esmeralda 3,8,
+Diamante 3,2, Maestro 2,7 y Aspirante 2,1; el usuario, en normales, 2,6.
+
+Descartado por no separar elos: volver a base gastando < 350 sin haber muerto (Platino 11 %, Diamante 11 %, Aspirante
+8 %), ningún gank con kill antes del 10 (Platino 12 %, Aspirante 17 %) y 3 o más muertes antes del 14 (33 % → 29 %).
