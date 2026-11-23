@@ -308,3 +308,5 @@ Descartado por no separar elos: volver a base gastando < 350 sin haber muerto (P
   (≈ 2.000-3.000 partidas por rol) donde se desviaban más de un 25 %. Muertes justo antes de un objetivo: 0,3 → 1,1;
   muertes antes del 14 en mid, ADC y support: 1,3-1,6 → 2,4-2,9 (eran falsos puntos débiles); muertes aisladas y en su
   jungla, oro sin gastar y wards de control de support (9 por partida, no 5): más exigentes.
+- Descartado también: estar cerca del foso cuando aparece el primer dragón (5:00) o las larvas (8:00), medido con la
+  posición de cada minuto: Platino 35 % / 37 %, Diamante 35 % / 39 %, Aspirante 38 % / 43 %. No separa elos.
