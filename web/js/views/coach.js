@@ -525,7 +525,12 @@ function readinessCard(s) {
         { style: { gap: "6px" } },
         r.ready ? h("span.pill.pill-good", "¡Sí! Puedes empezar") : provisional ? h("span.pill", "Faltan partidas") : h("span.pill.pill-warn", "Todavía no"),
         h("div.small", r.message),
-        h("div.tiny.muted", `Fundamentos ${r.fundamentals !== null ? fmt.num(r.fundamentals, 1) + "/10" : "—"} · propósitos cumplidos ${r.goals_rate !== null ? r.goals_rate + " %" : "— (añade alguno)"} · últimas ${r.games} partidas`),
+        h(
+          "div.tiny.muted",
+          `Fundamentos ${r.fundamentals !== null ? fmt.num(r.fundamentals, 1) + "/10" : "—"}`,
+          r.errors ? ` · errores ${fmt.num(r.errors.mine, 1)} por partida (${ELO_LABEL[r.errors.tier] || r.errors.tier}: ${fmt.num(r.errors.target, 1)})` : "",
+          ` · propósitos cumplidos ${r.goals_rate !== null ? r.goals_rate + " %" : "— (añade alguno)"} · últimas ${r.games} partidas`,
+        ),
       ),
     ),
   );
@@ -973,7 +978,9 @@ function noWeaknessText(s, recurring) {
   const head = better
     ? `Ninguna de tus medias está claramente por debajo de ${tier} en estas ${s.reliable_games ?? s.games} partidas, y en ${better} de ${rows.length} estás por encima`
     : `Tus medias están al nivel de ${tier} en estas ${s.reliable_games ?? s.games} partidas`;
-  const tail = recurring.length ? ": lo que te queda por corregir son los errores que repites (abajo)." : ".";
+  const tail = recurring.length || s.elo_errors
+    ? `: lo que te queda por corregir son ${s.elo_errors ? "los errores en los que fallas más que los mejores (arriba, «Tus errores frente a cada elo»)" : ""}${s.elo_errors && recurring.length ? " y " : ""}${recurring.length ? "los errores que repites (abajo)" : ""}.`
+    : ".";
   return head + tail + (s.target_hint ? "" : " Sube tu elo objetivo para exigirte más.");
 }
 

@@ -1178,7 +1178,24 @@ def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
     return out
 
 
-def readiness(games: list[dict], refs: References, goals: list[dict]) -> dict:
+ELO_OF_TARGET = {"SILVER": "PLATINUM", "GOLD": "PLATINUM", "PLATINUM": "PLATINUM", "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER"}
+
+
+def errors_score(elo: dict | None, target_tier: str | None) -> dict | None:
+    """Tus errores que separan elos frente a los de tu elo objetivo, en 0-100 (70 = como ellos; más, menos errores)."""
+    if not elo or not elo.get("levels"):
+        return None
+    want = ELO_OF_TARGET.get((target_tier or "").upper())
+    level = next((lv for lv in elo["levels"] if lv["tier"] == want), None)
+    if level is None or not level.get("per_game_sep"):
+        return None
+    ratio = elo["per_game_sep"] / level["per_game_sep"]
+    return {"score": round(max(0.0, min(100.0, 100 - (ratio - 0.7) * 100))), "mine": elo["per_game_sep"], "target": level["per_game_sep"], "tier": want}
+
+
+def readiness(games: list[dict], refs: References, goals: list[dict], elo: dict | None = None) -> dict:
+    """Nota 0-100 para jugar clasificatorias: propósitos que cumples, fundamentos (medias frente a tu elo objetivo) y
+    errores que separan elos frente a los de tu elo objetivo. Sin propósitos, mitad fundamentos y mitad errores."""
     games = [g for g in games if reliable(g)]
     recent = games[:RECENT]
     scores = [fundamentals_score(g["metrics"] or {}, game_refs(refs, g), g["role"]) for g in recent]
@@ -1186,35 +1203,48 @@ def readiness(games: list[dict], refs: References, goals: list[dict]) -> dict:
     fundamentals = round(sum(scores) / len(scores), 1) if scores else None
     rated = [g["rate"] for g in goals if g.get("active", True) and g.get("rate") is not None and g.get("games", 0) >= MIN_GOAL_GAMES]
     goals_rate = round(sum(rated) / len(rated)) if rated else None
-    if fundamentals is None and goals_rate is None:
-        score = None
-    elif goals_rate is None:
-        score = round(fundamentals * 10)
-    elif fundamentals is None:
-        score = goals_rate
-    else:
-        score = round(0.6 * goals_rate + 0.4 * fundamentals * 10)
+    errs = errors_score(elo, getattr(refs, "tier", None))
+    parts = []  # (peso, nota 0-100)
+    if goals_rate is not None:
+        parts.append((0.5 if errs else 0.6, goals_rate))
+    if fundamentals is not None:
+        parts.append((0.25 if goals_rate is not None and errs else 0.4 if goals_rate is not None else 0.5 if errs else 1.0, fundamentals * 10))
+    if errs:
+        parts.append((0.25 if goals_rate is not None else 0.5 if fundamentals is not None else 1.0, errs["score"]))
+    total = sum(w for w, _ in parts)
+    score = round(sum(w * v for w, v in parts) / total) if parts else None
     missing = max(0, MIN_GAMES_READY - len(games))
     ready = score is not None and score >= READY_SCORE and not missing
+    tier = ELO_LABEL.get(ELO_OF_TARGET.get(getattr(refs, "tier", "") or "", ""), "tu elo objetivo")
     if score is None:
         message = "Juega unas partidas con el seguimiento activo para calcularlo."
     elif missing:
         message = f"Te faltan {missing} partidas analizadas para valorarlo con fiabilidad."
     elif ready:
         message = (
-            "Cumples tus propósitos y tus fundamentos están al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
+            "Cumples tus propósitos y juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
             if goals_rate is not None
-            else "Tus fundamentos están al nivel de tu elo objetivo: es buen momento para jugar clasificatorias. Ponte un propósito para seguir mejorando."
+            else "Juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias. Ponte un propósito para seguir mejorando."
         )
     elif goals_rate is not None and goals_rate < READY_SCORE:
         message = f"Cumples tus propósitos en el {goals_rate} % de tus últimas partidas. Llega al 70 % antes de saltar a clasificatorias."
+    elif errs and errs["score"] < READY_SCORE:
+        message = (
+            f"Cometes {_fmt(errs['mine'], 1)} errores que separan elos por partida y en {tier} se cometen {_fmt(errs['target'], 1)}: "
+            "baja de ahí con los que más repites (mira «Tus errores frente a cada elo»)."
+        )
+    elif fundamentals is not None and fundamentals >= 5:
+        message = "Tus medias ya están a la altura de tu elo objetivo, pero aún sin margen: sigue unas partidas más o súbelo un elo para ver qué te falta."
     else:
-        message = "Tus fundamentos aún están por debajo de tu elo objetivo: céntrate en los puntos débiles de arriba."
+        message = "Tus medias aún están por debajo de tu elo objetivo: céntrate en tus puntos débiles (abajo)."
+    if ready and elo and elo.get("games") and (elo.get("normals") or 0) >= 0.8 * elo["games"]:
+        message += " Ojo: casi todas tus partidas son normales, donde los rivales suelen ser más flojos; confírmalo con unas pocas clasificatorias."
     return {
         "score": score,
         "ready": ready,
         "fundamentals": fundamentals,
         "goals_rate": goals_rate,
+        "errors": errs,
         "games": len(recent),
         "missing_games": missing,
         "message": message,
@@ -1341,6 +1371,7 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
     sample = max((row.get("games") or 0 for row in table), default=0)
     weak = weaknesses(table, deaths)
     elo = {r: elo_tiers(elo_profile, r)[0] for r in {g.get("role") for g in games if g.get("role")}} if elo_profile else None
+    elo_block = elo_errors(games, elo_profile)
     recurring = recurring_mistakes(games, elo)
     # Si un error repetido ya tiene su punto débil (misma métrica), se cuenta en él y no se repite en la lista.
     by_metric = {w["metric"]: w for w in weak}
@@ -1362,12 +1393,12 @@ def summarize(games: list[dict], refs: References, goals: list[dict], build_refs
         "weaknesses": weak,
         "recurring": rest,
         "recurring_sample": recurring["sample"],
-        "elo_errors": elo_errors(games, elo_profile),
+        "elo_errors": elo_block,
         "deaths": deaths,
         "jungle": jungle_summary(games),
         "priority": priority_summary(games),
         "goals": evaluated,
-        "readiness": readiness(games, refs, evaluated),
+        "readiness": readiness(games, refs, evaluated, elo_block),
         "champions": champion_stats(games, refs),
         "builds": build_summary(games, build_refs or {}),
         "categories": CATEGORIES,

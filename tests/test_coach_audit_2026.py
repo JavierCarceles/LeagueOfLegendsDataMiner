@@ -119,3 +119,14 @@ def test_items_received_without_a_purchase_take_a_slot():
     events = [ev(200_000, "ITEM_DESTROYED", participantId=1, itemId=2010), ev(260_000, "ITEM_DESTROYED", participantId=1, itemId=2010)]
     inv = Inventory(ITEMS, events)
     assert inv.at(150_000)[2010] == 1 and inv.at(230_000)[2010] == 1 and inv.at(300_000)[2010] == 0
+
+
+def test_readiness_counts_errors_against_your_target_elo_and_explains_what_is_missing():
+    games = [{"queue": 400, "role": "JUNGLE", "metrics": {"deaths_pre14": 1, "cs_min": 7.5, "vision_min": 1.1, "kp": 55}}] * 12
+    levels = [{"tier": "PLATINUM", "per_game_sep": 3.6}, {"tier": "DIAMOND", "per_game_sep": 3.1}, {"tier": "CHALLENGER", "per_game_sep": 2.0}]
+    worse = insights.readiness(games, References(None, "PLATINUM"), [], {"per_game_sep": 4.6, "levels": levels})
+    assert worse["errors"]["tier"] == "PLATINUM" and worse["errors"]["score"] < 70 and not worse["ready"]
+    assert "en Platino se cometen 3,6" in worse["message"]
+    better = insights.readiness(games, References(None, "PLATINUM"), [], {"per_game_sep": 2.4, "levels": levels})
+    assert better["errors"]["score"] > 70 and better["score"] > worse["score"]
+    assert "puntos débiles de arriba" not in better["message"]
