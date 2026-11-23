@@ -310,3 +310,22 @@ Descartado por no separar elos: volver a base gastando < 350 sin haber muerto (P
   jungla, oro sin gastar y wards de control de support (9 por partida, no 5): más exigentes.
 - Descartado también: estar cerca del foso cuando aparece el primer dragón (5:00) o las larvas (8:00), medido con la
   posición de cada minuto: Platino 35 % / 37 %, Diamante 35 % / 39 %, Aspirante 38 % / 43 %. No separa elos.
+
+## J) Posiciones reconstruidas y validadas (23-11-2026, `ANALYSIS_VERSION = 14`)
+
+Riot da la posición de cada jugador una vez por minuto y en cada evento. Validación con las 53 partidas del usuario
+(`python -m app.coach.track_check`):
+
+1. Se quita la posición real de cada evento (8.831) y se reconstruye con el resto. Línea recta: error medio 1.875
+   unidades, 11,9 % a más de 4.000. Con la vuelta a base (si compra en la fuente estando lejos, se queda 8 s donde
+   estaba y salta; casi nadie vuelve andando), teletransportes, quien hizo o recibió daño en cada muerte y kills
+   especiales: 1.575 y 6,9 %. Sin efecto o peor: salir tarde de la fuente, «ir y esperar», ir por la línea al salir de
+   base y el umbral del teletransporte.
+2. Se esconde la posición del jungla en un minuto (su CS sí se sabe) y se reconstruye con la de antes, la de después y
+   los campamentos que encajan con su CS (vivos según los que ya hicieron los dos junglas). En los 244 casos en que
+   farmeaba: 3.602 → 3.069 de error medio y 40 % → 30 % de fallos grandes. Parámetros ajustados con esa prueba:
+   aparición 1:30, reaparición 2:30, 5 de CS por campamento de media (unos dan 4 y otros más), 9 s de limpieza.
+   De 802 tramos de jungla sin otros datos, 12 (1 %) no cuadran con el CS: ahí no se deduce nada.
+
+Lo que queda (fallos grandes) son sobre todo minutos enteros sin ningún evento fuera de la jungla: ahí no hay datos de
+por dónde fue.

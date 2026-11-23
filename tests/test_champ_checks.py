@@ -191,3 +191,27 @@ def test_reconstruccion_vuelta_a_base_y_teletransporte():
     # De top a bot en 10 s: imposible andando, teletransporte (se queda y salta).
     tp = A._reconstruct([(600_000, 1_500, 13_000, 0), (610_000, 13_500, 1_500, 1)], fountain)
     assert tp[1][3] == A.ANCHOR_HOLD and A.interpolate(tp, 605_000) == (1_500, 13_000)
+
+
+def test_campamentos_deducidos_del_cs_de_jungla():
+    """Un jungla azul va de su fuente a los aviarios en un minuto y su CS sube 10 (2 campamentos): pasa por los dos
+    campamentos vivos más a mano, a su hora; si no da tiempo andando, no se inventa nada."""
+    from types import SimpleNamespace
+
+    from app.coach import analyzer as A
+    from app.coach import geometry as geo
+
+    pos = {0: (1_000, 7_000), 1: geo.CAMPS[(100, "raptors")]}
+    cs = {0: 0, 1: 10}
+    g = SimpleNamespace(
+        players={1: {"smite": True, "team": 100, "role": "JUNGLE"}}, has_timeline=True, ts=[120_000, 180_000],
+        frame_pos=lambda pid, i: pos[i], fval=lambda pid, i, key: cs[i], dead_overlap=lambda pid, a, b: 0,
+    )
+    camps = A.infer_camps(g, {1: []})[1]
+    names = {next(n for (team, n), p in geo.CAMPS.items() if (int(p[0]), int(p[1])) == (c[1], c[2])) for c in camps}
+    assert len(camps) == 4 and len(names) == 2 and all(120_000 <= c[0] < 180_000 for c in camps)
+    assert g.camp_minutes == 1 and g.camp_misses == 0
+    # De una esquina a la otra con 6 campamentos en un minuto: imposible, no cuadra.
+    pos.update({0: (500, 500), 1: (14_000, 14_000)})
+    cs[1] = 30
+    assert A.infer_camps(g, {1: []}) == {} and g.camp_misses == 1

@@ -658,6 +658,8 @@ class _Game:
             for pid in b["takers"]:
                 if pid in self.players and not self.is_dead(pid, b["t"]):
                     add(pid, b["t"], b["pos"], 1)
+        for pid, camps in infer_camps(self, anchors).items():
+            anchors[pid].extend(camps)
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
         self.anchors = {
             pid: _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"])) for pid, items in self.raw_anchors.items()
@@ -772,6 +774,108 @@ def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, 
                     prev[3] = ANCHOR_HOLD
         out.append([t, x, y, kind])
     return [tuple(a) for a in out]
+
+
+# ---------------------------------------------------------------- campamentos de jungla deducidos
+ANCHOR_CAMP = 6  # en un campamento de jungla (deducido del CS de jungla de ese minuto)
+# Ajustado con las partidas del usuario: se esconde la posición del jungla en un minuto (su CS sí se sabe) y se
+# reconstruye con la de antes, la de después y los campamentos que encajan con su CS. En los 244 casos en que farmeaba,
+# error medio 3.602 → 3.069 unidades y fallos de más de 4.000, 40 % → 30 %. Probados: aparición 1:00/1:30/1:45,
+# reaparición 2:15/2:30/3:00, CS por campamento 4-10 y limpieza 4-15 s.
+CAMP_CS = 5  # CS de jungla de media por campamento (unos dan 4 y otros más)
+CAMP_SPAWN_MS = 90_000
+CAMP_RESPAWN_MS = 150_000
+CAMP_CLEAR_MS = 9_000
+CAMP_SPEED = 0.40  # unidades por ms andando entre campamentos
+CAMP_CANDIDATES = 6  # los campamentos vivos más cerca del tramo (para no probar todas las combinaciones)
+CAMP_MAX = 4
+
+
+def _camp_sites() -> list[tuple[str, tuple[float, float]]]:
+    return [(f"{team}_{name}", pos) for (team, name), pos in geo.CAMPS.items()]
+
+
+def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) -> dict[int, list[tuple[int, int, int, int]]]:
+    """Por qué campamentos pasó cada jungla en cada tramo sin otros datos.
+
+    El CS de jungla de cada minuto dice cuántos campamentos hizo; su posición al empezar y al acabar, por dónde pudo ir;
+    y los que ya se hicieron antes (los dos junglas) y su reaparición, cuáles estaban vivos. Se elige la combinación de
+    campamentos vivos que forma el camino más corto y se le coloca en cada uno a su hora; el CS de los minutos
+    intermedios (si un tramo dura más de uno) reparte los campamentos entre ellos. Si no da tiempo andando, no se inventa
+    nada (y el tramo queda «sin cuadrar» en ``g.camp_misses``).
+
+    ``hidden``: {(jugador, índice de frame)} cuya posición se da por desconocida (para validar la reconstrucción).
+    """
+    from itertools import permutations
+
+    sites = _camp_sites()
+    killed: dict[str, int] = {}  # campamento -> último momento en que se hizo (de cualquiera de los dos junglas)
+    out: dict[int, list] = {}
+    junglers = [pid for pid, p in g.players.items() if p.get("smite") or p.get("role") == "JUNGLE"]
+    g.camp_misses = 0
+    g.camp_minutes = 0
+    if not g.has_timeline or len(g.ts) < 2:
+        return out
+    known = {pid: sorted(a[0] for a in anchors.get(pid) or [] if a[3] not in (0, ANCHOR_CAMP)) for pid in junglers}
+    visible = {pid: [i for i in range(len(g.ts)) if (pid, i) not in hidden and g.frame_pos(pid, i) is not None] for pid in junglers}
+    # Tramos de todos los junglas en orden de tiempo (los campamentos que hace uno no están vivos para el otro).
+    spans = sorted(
+        (g.ts[a], g.ts[b], pid, a, b)
+        for pid in junglers for a, b in zip(visible[pid], visible[pid][1:])
+    )
+    for t0, t1, pid, a, b in spans:
+        c = [g.fval(pid, i, "jungleMinionsKilled") for i in range(a, b + 1)]
+        if any(v is None for v in c):
+            continue
+        k = round((c[-1] - c[0]) / CAMP_CS)
+        if k <= 0:
+            continue
+        p0, p1 = g.frame_pos(pid, a), g.frame_pos(pid, b)
+        # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias.
+        if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known[pid]):
+            continue
+        g.camp_minutes += 1
+        k = min(k, CAMP_MAX)
+        alive = [
+            (name, pos) for name, pos in sites
+            if t1 >= CAMP_SPAWN_MS and (name not in killed or killed[name] + CAMP_RESPAWN_MS <= t1)
+        ]
+        alive.sort(key=lambda s: geo._dist_segment(s[1], p0, p1))
+        alive = alive[:CAMP_CANDIDATES]
+        best = None
+        for combo in permutations(alive, min(k, len(alive))):
+            length, here = 0.0, p0
+            for _name, pos in combo:
+                length += geo.dist(here, pos)
+                here = pos
+            length += geo.dist(here, p1)
+            if best is None or length < best[0]:
+                best = (length, combo)
+        if best is None:
+            g.camp_misses += 1
+            continue
+        length, combo = best
+        walk = (t1 - t0) - len(combo) * CAMP_CLEAR_MS
+        if walk <= 0 or length / walk > CAMP_SPEED:
+            g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
+            continue
+        # Con minutos intermedios conocidos (su CS), cada campamento cae en el minuto en que subió el CS.
+        due = []
+        for j in range(1, len(c)):
+            due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
+        speed = length / walk
+        t, here = t0, p0
+        for n, (name, pos) in enumerate(combo):
+            t += geo.dist(here, pos) / speed if speed > 0 else 0
+            t = max(t, CAMP_SPAWN_MS)
+            if n < len(due) and t + CAMP_CLEAR_MS > due[n]:
+                t = max(t0, due[n] - CAMP_CLEAR_MS)  # el CS dice que ya lo había hecho a esa hora
+            out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+            t += CAMP_CLEAR_MS
+            out[pid].append((int(min(t, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+            killed[name] = int(t)
+            here = pos
+    return out
 
 
 MOVE_STEP_MS = 5_000
@@ -991,6 +1095,8 @@ def analyze_game(
         metrics["max_lead_min"] = result["series"]["minute"][best]
         metrics["max_deficit"] = min(diffs)
     result["replay"] = _replay(g)
+    # Coherencia de la reconstrucción: tramos de jungla sin otros datos y cuántos no cuadraban con el CS (sin inventar).
+    result["reconstruction"] = {"camp_spans": getattr(g, "camp_minutes", 0), "camp_misses": getattr(g, "camp_misses", 0)}
     movement = _movement(g)
     if movement:
         result["movement"] = movement
