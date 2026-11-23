@@ -630,11 +630,13 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "title": "Terminas el primer objeto más tarde que los OTPs de tu campeón",
      "tip": "Entre jugada y jugada limpia campamentos u oleadas y vuelve a base en cuanto te llegue para una pieza grande: un minuto de retraso en el primer objeto es un minuto peleando más débil."},
     {"id": "r_late", "kind": "build", "need": ("skills",), "metric": "r_late", "title": "Subes la R tarde"},
-    {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "title": "Sin botas mejoradas al minuto 20",
+    # En top no: los Aspirante lo hacen el doble que los Diamante (0,079 frente a 0,035 por partida; en jungla, igual).
+    {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "skip_roles": ("TOP", "JUNGLE"), "title": "Sin botas mejoradas al minuto 20",
      "tip": "Las botas de nivel 2 cuestan poco y dan mucha movilidad: cómpralas entre el primer y el segundo objeto salvo que tu campeón no las use."},
     {"id": "no_antiheal", "kind": "build", "need": ("anti_heal",), "metric": None, "title": "Sin Heridas graves contra curaciones",
      "tip": "Contra campeones que se curan mucho, compra un componente de Heridas graves (desde 800 de oro) en cuanto empiecen a pelear."},
-    {"id": "no_resist", "kind": "build", "need": ("resist",), "metric": None, "title": "No te defiendes del daño que más recibes",
+    # En top no: los Aspirante lo hacen más que los Diamante (0,075 frente a 0,052 por partida).
+    {"id": "no_resist", "kind": "build", "need": ("resist",), "metric": None, "skip_roles": ("TOP",), "title": "No te defiendes del daño que más recibes",
      "tip": "Mira en la pantalla de muerte qué tipo de daño te mata: si casi todo es físico o mágico, mete armadura o resistencia mágica en tu siguiente compra."},
     {"id": "enemy_jungler_far", "kind": "jungle", "need": ("tracking",), "metric": "enemy_ganks_far", "title": "No sigues al jungla rival"},
     {"id": "no_pinks", "kind": "vision", "need": ("no_pinks",), "metric": "control_wards", "title": "Partidas sin ninguna pink",
@@ -659,8 +661,17 @@ def mistake_type(kind: str, tags: set, role: str | None = None) -> dict | None:
     for mt in MISTAKE_TYPES:
         need = (mt.get("role_need") or {}).get(role or "", mt["need"])
         if mt["kind"] == kind and all(t in tags for t in need):
-            return mt
+            return None if role in mt.get("skip_roles", ()) else mt
     return None
+
+
+def dropped(moment: dict, role: str | None) -> bool:
+    """¿Momento de una regla que en ese rol ya no cuenta (``skip_roles``)? Para las partidas analizadas antes del cambio."""
+    tags = set(moment.get("tags") or [])
+    for mt in MISTAKE_TYPES:
+        if mt["kind"] == moment.get("kind") and mt["need"] and all(t in tags for t in mt["need"]):
+            return role in mt.get("skip_roles", ())
+    return False
 
 
 _mistake_type = mistake_type

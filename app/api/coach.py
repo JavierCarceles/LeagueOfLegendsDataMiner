@@ -104,6 +104,14 @@ def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
         return
     catalog = _catalog(svc)
     for g in games:
+        # Reglas que en ese rol ya no cuentan (partidas analizadas antes del cambio): fuera de errores y recuentos.
+        if g.get("mistakes"):
+            gone = [m for m in g["mistakes"] if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role"))]
+            if gone:
+                g["mistakes"] = [m for m in g["mistakes"] if m not in gone]
+                issues = g["issues"] = dict(g.get("issues") or {})
+                for m in gone:
+                    issues[m[1]] = max(0, issues.get(m[1], 0) - 1)
         cc = g.get("checks")
         if not cc or g.get("mistakes") is None or not insights.reliable(g):
             continue
@@ -387,6 +395,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             log.warning("Build de OP.GG de %s (%s): %s", analysis["champ"], analysis["role"], exc)
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
+    analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"))]
     # Orden de habilidades, primera vuelta y primer objeto frente a los OTPs de tu campeón (Diamante o más).
     prof = _elo_profile(svc)
     champ_ref = prof.champ_ref(analysis.get("champ"), analysis.get("role")) if prof and prof.get() else None

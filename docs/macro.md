@@ -297,3 +297,14 @@ Diamante 3,2, Maestro 2,7 y Aspirante 2,1; el usuario, en normales, 2,6.
 
 Descartado por no separar elos: volver a base gastando < 350 sin haber muerto (Platino 11 %, Diamante 11 %, Aspirante
 8 %), ningún gank con kill antes del 10 (Platino 12 %, Aspirante 17 %) y 3 o más muertes antes del 14 (33 % → 29 %).
+
+### Con las ~540 partidas nuevas (23-11-2026, sobre todo top de Aspirante)
+
+- Top: Diamante 4,4 errores por partida frente a 3,8 de Aspirante. Dos reglas los Aspirante las cometen **más**: «sin
+  botas mejoradas al 20» (0,079 frente a 0,035) y «no te defiendes del daño que más recibes» (0,075 frente a 0,052): no
+  son errores en top (`skip_roles`; tampoco se marcan en las partidas nuevas). Las muertes por gank (1,27) o adelantado
+  (1,01) no separan elos y pesan la mitad en *Errores que repites*.
+- Referencias orientativas de top, mid, ADC y support (`benchmarks.BASE`) recalculadas con los OTPs de Diamante
+  (≈ 2.000-3.000 partidas por rol) donde se desviaban más de un 25 %. Muertes justo antes de un objetivo: 0,3 → 1,1;
+  muertes antes del 14 en mid, ADC y support: 1,3-1,6 → 2,4-2,9 (eran falsos puntos débiles); muertes aisladas y en su
+  jungla, oro sin gastar y wards de control de support (9 por partida, no 5): más exigentes.

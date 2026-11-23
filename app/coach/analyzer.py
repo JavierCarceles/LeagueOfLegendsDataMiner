@@ -2757,7 +2757,8 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
     total_taken = sum(taken.values()) or 1
     shares = {k: round(v / total_taken * 100) for k, v in taken.items()}
     need = "armor" if shares["physical"] >= 65 else "mr" if shares["magic"] >= 65 else None
-    if reliable and need and need not in final_resists and _num(raw.get("deaths")) >= 6 and len(legendaries) >= 2:
+    # En top no: los Aspirante de top lo hacen más que los Diamante (data/otps, 23-11-2026).
+    if reliable and need and need not in final_resists and _num(raw.get("deaths")) >= 6 and len(legendaries) >= 2 and g.role != "TOP":
         boots_id = 3047 if need == "armor" else 3111
         kind = "físico" if need == "armor" else "mágico"
         res = "armadura" if need == "armor" else "resistencia mágica"
@@ -2768,8 +2769,9 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         )
 
     # 6. Botas.
-    # Al jungla no: 1 de cada 3 junglas Aspirante no tiene botas mejoradas al 20 (van antes a por objetos).
-    if reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS and g.role != "JUNGLE":
+    # Al jungla no: 1 de cada 3 junglas Aspirante no tiene botas mejoradas al 20 (van antes a por objetos). Al top
+    # tampoco: los Aspirante de top lo hacen el doble que los Diamante (0,079 frente a 0,035 por partida).
+    if reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS and g.role not in ("JUNGLE", "TOP"):
         moments.append(
             _moment(20 * 60_000, "build", "low", "Sin botas mejoradas al minuto 20",
                     "Las botas de nivel 2 cuestan poco (900-1.250) y dan mucha movilidad y estadísticas: suelen ir entre el primer y el segundo objeto.", tags=["build", "boots"])

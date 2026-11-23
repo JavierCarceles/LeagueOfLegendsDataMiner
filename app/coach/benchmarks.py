@@ -108,6 +108,12 @@ METRICS: dict[str, Metric] = {
 }
 
 # Referencia base (≈ Esmeralda). None = no aplica al rol.
+# Top, mid, ADC y support revisados el 23-11-2026 con las partidas de OTPs de Diamante de data/otps (3.000, 2.400, 2.050
+# y 2.500), pasadas a Esmeralda con los factores de abajo, solo donde la referencia anterior se desviaba más de un 25 %:
+# las orientativas eran estimaciones y en muertes justo antes de un objetivo, antes del 14 o por el jungla rival pedían
+# la mitad de lo que hace de verdad un Diamante (falsos puntos débiles), y en muertes aisladas, oro sin gastar o en su
+# jungla eran demasiado permisivas. Minutos vacíos, oro sin gastar y R tardía tienen un mínimo (3 %, 0,2 y 0,05): la
+# media de Diamante es casi 0 y un solo minuto saldría como punto débil.
 BASE: dict[str, dict[str, float | None]] = {
     # Revisado con 119 partidas de 11 OTPs de top de Aspirante (data/otps, noviembre de 2026; sobre todo Fiora, Urgot,
     # Warwick e Irelia): mueren antes del 14 2,45 veces (la referencia era 1,3), por el jungla rival 0,93 (0,5), por gank
@@ -116,12 +122,12 @@ BASE: dict[str, dict[str, float | None]] = {
     # partidas de top de Esmeralda aún, no se toca nada más.
     "TOP": {
         "deaths_to_jungler_pre14": 0.95, "deaths_ganked": 1.0, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.8,
-        "deaths_pre14": 2.45, "deaths": 5.4, "deaths_solo": 1.1, "deaths_enemy_jungle": 0.5, "deaths_isolated_late": 1.3,
-        "deaths_unspent_gold": 0.35, "time_dead_pct": 10.5, "gold_hoard_min": 0.6, "idle_pct": 15,
+        "deaths_pre14": 2.45, "deaths": 5.4, "deaths_solo": 1.49, "deaths_enemy_jungle": 0.28, "deaths_isolated_late": 0.78,
+        "deaths_unspent_gold": 0.11, "time_dead_pct": 10.5, "gold_hoard_min": 0.2, "idle_pct": 3,
         "cs_min": 7.1, "cs10": 71, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 400,
-        "vision_min": 0.65, "wards_pre14": 4, "control_wards": 1.8,
-        "obj_participation": 40, "obj_lost_dead": 0.3, "obj_lost_far": 0.6, "deaths_before_objective": 0.75,
-        "kp": 46, "dmg_share": 22, "first_item_min": 12.0, "r_late": 0.2,
+        "vision_min": 0.65, "wards_pre14": 4, "control_wards": 0.78,
+        "obj_participation": 28, "obj_lost_dead": 0.44, "obj_lost_far": 0.3, "deaths_before_objective": 1.04,
+        "kp": 34, "dmg_share": 22, "first_item_min": 12.0, "r_late": 0.05,
     },
     # Revisado con partidas de OTPs de jungla (data/otps, noviembre de 2026): 704 de Aspirante y 240 de Esmeralda
     # (Hecarim). Base = lo que hace Esmeralda de verdad (muertes 5,8; antes del 14: 2,0; tiempo muerto: 10,4 %; KP 52 %;
@@ -138,31 +144,31 @@ BASE: dict[str, dict[str, float | None]] = {
         "ganks_pre10": 1.7, "impact_pre10": 6.0, "jungle_cs10": 65, "enemy_ganks_far": 0.25,
     },
     "MID": {
-        "deaths_to_jungler_pre14": 0.45, "deaths_ganked": 0.6, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.4,
-        "deaths_pre14": 1.3, "deaths": 5.0, "deaths_solo": 1.0, "deaths_enemy_jungle": 0.5, "deaths_isolated_late": 1.1,
-        "deaths_unspent_gold": 0.35, "time_dead_pct": 7.0, "gold_hoard_min": 0.6, "idle_pct": 15,
+        "deaths_to_jungler_pre14": 0.86, "deaths_ganked": 0.79, "deaths_no_vision_pre14": 0.27, "deaths_overextended": 0.4,
+        "deaths_pre14": 2.38, "deaths": 5.0, "deaths_solo": 1.0, "deaths_enemy_jungle": 0.27, "deaths_isolated_late": 0.65,
+        "deaths_unspent_gold": 0.13, "time_dead_pct": 11.2, "gold_hoard_min": 0.2, "idle_pct": 3,
         "cs_min": 7.5, "cs10": 75, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 410,
-        "vision_min": 0.75, "wards_pre14": 4, "control_wards": 2.0,
-        "obj_participation": 52, "obj_lost_dead": 0.3, "obj_lost_far": 0.5, "deaths_before_objective": 0.3,
-        "kp": 54, "dmg_share": 26, "first_item_min": 11.5, "r_late": 0.2,
+        "vision_min": 0.75, "wards_pre14": 4, "control_wards": 1.5,
+        "obj_participation": 33, "obj_lost_dead": 0.43, "obj_lost_far": 0.5, "deaths_before_objective": 1.14,
+        "kp": 54, "dmg_share": 26, "first_item_min": 11.5, "r_late": 0.05,
     },
     "ADC": {
-        "deaths_to_jungler_pre14": 0.5, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.6, "deaths_overextended": 0.4,
-        "deaths_pre14": 1.5, "deaths": 5.6, "deaths_solo": 0.7, "deaths_enemy_jungle": 0.4, "deaths_isolated_late": 1.2,
-        "deaths_unspent_gold": 0.35, "time_dead_pct": 8.0, "gold_hoard_min": 0.6, "idle_pct": 15,
+        "deaths_to_jungler_pre14": 0.79, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.16, "deaths_overextended": 0.67,
+        "deaths_pre14": 2.93, "deaths": 5.6, "deaths_solo": 0.45, "deaths_enemy_jungle": 0.23, "deaths_isolated_late": 0.44,
+        "deaths_unspent_gold": 0.17, "time_dead_pct": 11.0, "gold_hoard_min": 0.2, "idle_pct": 3,
         "cs_min": 7.9, "cs10": 76, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 430,
-        "vision_min": 0.7, "wards_pre14": 4, "control_wards": 1.6,
-        "obj_participation": 58, "obj_lost_dead": 0.3, "obj_lost_far": 0.6, "deaths_before_objective": 0.3,
-        "kp": 52, "dmg_share": 27, "first_item_min": 12.0, "r_late": 0.2,
+        "vision_min": 0.7, "wards_pre14": 4, "control_wards": 0.66,
+        "obj_participation": 38, "obj_lost_dead": 0.3, "obj_lost_far": 0.3, "deaths_before_objective": 1.09,
+        "kp": 52, "dmg_share": 27, "first_item_min": 12.0, "r_late": 0.05,
     },
     "SUPPORT": {
-        "deaths_to_jungler_pre14": 0.55, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.4, "deaths_overextended": 0.4,
-        "deaths_pre14": 1.6, "deaths": 6.0, "deaths_solo": 0.8, "deaths_enemy_jungle": 0.7, "deaths_isolated_late": 1.4,
-        "deaths_unspent_gold": 0.2, "time_dead_pct": 8.5, "gold_hoard_min": 0.4, "idle_pct": 15,
+        "deaths_to_jungler_pre14": 0.9, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.14, "deaths_overextended": 0.4,
+        "deaths_pre14": 2.81, "deaths": 6.0, "deaths_solo": 0.18, "deaths_enemy_jungle": 0.31, "deaths_isolated_late": 0.24,
+        "deaths_unspent_gold": 0.03, "time_dead_pct": 8.5, "gold_hoard_min": 0.2, "idle_pct": 3,
         "cs_min": None, "cs10": None, "cs_diff10": None, "gold_diff15": 0, "gold_min": 270,
-        "vision_min": 2.3, "wards_pre14": 12, "control_wards": 5.0,
-        "obj_participation": 66, "obj_lost_dead": 0.3, "obj_lost_far": 0.5, "deaths_before_objective": 0.3,
-        "kp": 62, "dmg_share": None, "first_item_min": 14.0, "r_late": 0.2,
+        "vision_min": 2.3, "wards_pre14": 12, "control_wards": 9.1,
+        "obj_participation": 46, "obj_lost_dead": 0.3, "obj_lost_far": 0.3, "deaths_before_objective": 1.16,
+        "kp": 62, "dmg_share": None, "first_item_min": 14.0, "r_late": 0.05,
     },
 }
 

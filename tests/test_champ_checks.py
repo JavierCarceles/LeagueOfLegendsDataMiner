@@ -165,3 +165,12 @@ def test_despeje_lento_solo_sin_cambiarlo_por_ganks():
     assert [m["tags"] for m in slow if m["kind"] == "jungle"] == [["jungle", "slow_clear"]]
     assert not [m for m in champ_checks.check(otp(0, jungle_cs10=50, ganks_pre10=2), ref, CATALOG) if "slow_clear" in m["tags"]]
     assert not [m for m in champ_checks.check(otp(0, jungle_cs10=80, ganks_pre10=0), ref, CATALOG) if "slow_clear" in m["tags"]]
+
+
+def test_reglas_que_no_separan_elos_en_top_no_cuentan():
+    boots = {"kind": "build", "tags": ["build", "boots"]}
+    resist = {"kind": "build", "tags": ["build", "resist"]}
+    assert insights.dropped(boots, "TOP") and insights.dropped(resist, "TOP") and insights.dropped(boots, "JUNGLE")
+    assert not insights.dropped(boots, "MID") and not insights.dropped(resist, "ADC")
+    assert insights.mistake_type("build", {"build", "boots"}, "TOP") is None
+    assert insights.mistake_type("build", {"build", "boots"}, "MID")["id"] == "no_boots"
