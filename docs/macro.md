@@ -522,3 +522,8 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   (refresco de la mañana) hizo ~1.470 escrituras y esperó ~850 s el candado. Ahora la precarga espera 10 s entre tareas
   mientras recoge el recolector (lo que pides desde la web no), 3 hilos de descarga por región y 4 partidas por delante,
   y cada 5 min se intenta recortar el WAL (686 MB) esperando como mucho 2 s.
+- **Subida de las 09:54 (64 partidas/min en 7 min, pico de 69,5):** el WAL pasaba de 1,25 GB y no se podía recortar
+  (siempre había escrituras o lecturas en marcha); al crecer, guardar volvía a ~0,9 s. Era la partida y el timeline en
+  bruto (~400 KB por partida) dentro de la base de datos: ahora van a `data/raw_otp/<plataforma>/<id>.json.gz` (una vez
+  por partida, fuera de GitHub) y en la base de datos solo el análisis. Reanalizar los lee de la base de datos (las de
+  antes) o de su fichero.

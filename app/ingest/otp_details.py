@@ -448,9 +448,13 @@ def save(
         return False
     kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
     is_new = not db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
-    # Comprimir (>1 MB de JSON entre partida, timeline y análisis) antes de coger el candado de escritura: dentro, las
-    # demás regiones y búsquedas esperaban para escribir (guardar una partida tardaba 1,3 s en Windows).
-    packed = pack(match), pack(timeline), pack(dossier)
+    # La partida y el timeline en bruto (~400 KB por partida) van a un fichero (``raw_path``), no a la base de datos:
+    # en ella llenaban el registro de escrituras (WAL: 1,25 GB en 7 min) y cada escritura tardaba ~1 s. Sin ``svc`` (o
+    # sin carpeta), como antes. Se comprime antes de coger el candado de escritura.
+    if save_raw(svc, dossier["match_id"], match, timeline):
+        packed = None, None, pack(dossier)
+    else:
+        packed = pack(match), pack(timeline), pack(dossier)
     with db.write() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO otp_games (match_id, puuid, champ, role, win, game_start, patch, platform, tier, "
@@ -471,6 +475,52 @@ def save(
             except OSError:
                 log.exception("No se pudo escribir la partida %s en su carpeta", dossier["match_id"])
     return True
+
+
+RAW_DIR = "raw_otp"  # data/raw_otp/<plataforma>/<id>.json.gz (no se sube a GitHub: .gitignore)
+
+
+def raw_path(svc, match_id: str) -> Path | None:
+    data_dir = getattr(getattr(svc, "settings", None), "data_dir", None)
+    if not data_dir or not match_id:
+        return None
+    platform = match_id.split("_", 1)[0].lower() or "otros"
+    return Path(data_dir) / RAW_DIR / platform / f"{match_id}.json.gz"
+
+
+def save_raw(svc, match_id: str, match: dict, timeline: dict | None) -> bool:
+    """Guarda la partida y su timeline en bruto en su fichero (una vez por partida aunque la jueguen varios OTPs)."""
+    path = raw_path(svc, match_id)
+    if path is None:
+        return False
+    try:
+        if path.exists():
+            return True
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f".{threading.get_ident()}.tmp")
+        with gzip.open(tmp, "wt", encoding="utf-8", compresslevel=5) as fh:
+            json.dump({"match": match, "timeline": timeline}, fh, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, path)
+        return True
+    except OSError:
+        log.debug("No se pudo guardar la partida en bruto %s", match_id, exc_info=True)
+        return False
+
+
+def load_raw(db, svc, match_id: str, puuid: str) -> tuple[dict | None, dict | None]:
+    """La partida y el timeline en bruto de una partida guardada: de la base de datos (las de antes) o de su fichero."""
+    row = db.one("SELECT match_raw, timeline_raw FROM otp_games WHERE match_id = ? AND puuid = ?", (match_id, puuid))
+    if row is not None and row["match_raw"] is not None:
+        return unpack(row["match_raw"]), unpack(row["timeline_raw"])
+    path = raw_path(svc, match_id)
+    if path is None or not path.exists():
+        return None, None
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data.get("match"), data.get("timeline")
+    except (OSError, ValueError):
+        return None, None
 
 
 def counts(db) -> dict:
@@ -518,10 +568,9 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
                 break
         if stop is not None and stop.is_set():
             break
-        raw = db.one("SELECT match_raw, timeline_raw FROM otp_games WHERE match_id = ? AND puuid = ?", (r["match_id"], r["puuid"]))
-        if raw is None:
+        match, timeline = load_raw(db, svc, r["match_id"], r["puuid"])
+        if match is None:
             continue
-        match, timeline = unpack(raw["match_raw"]), unpack(raw["timeline_raw"])
         elo = {"tier": r["tier"], "division": r["division"], "lp": r["lp"]}
         try:
             if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False, kind=r["kind"]):
