@@ -485,3 +485,8 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   núcleo). Ahora la cola se calcula una vez cada 2 min (las regiones comparten la lectura) y las visitas siguientes se
   eligen al instante; quien ya se visitó no se repite hasta la siguiente lectura. Techo con la key gratuita: ~85-95
   partidas/min con las 4 regiones (100 llamadas cada 2 min por región, 2 por partida, menos la reserva para la web).
+- **Llamadas que no traían partidas** (subida de las 01:48: las regiones al 81-87 % de su cupo para 15 partidas por
+  minuto, ~9 llamadas por partida cuando bastan 2): (1) el Riot ID de cada jugador que cumplía el filtro de maestría
+  (account-v1, cupo regional; ~100 por minuto con ~7.500 revisados por hora) y de cada jugador nuevo visitado: ya no se
+  pide, llega con su primera partida; (2) las tablas de OP.GG con líneas enteras o «cualquiera que lo juegue»: ya no se
+  piden (solo traen Diamante+, del que hay 146.000 jugadores encontrados), y buscando especialistas, 20 por tabla.

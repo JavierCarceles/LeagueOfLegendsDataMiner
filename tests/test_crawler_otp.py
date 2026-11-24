@@ -148,13 +148,13 @@ def test_otp_must_still_play_the_champion():
     assert not mastery.qualifies([[GAREN, 2_000_000, now], [AATROX, 400_000, now - 200 * 86400]], now)
 
 
-def test_found_otps_get_their_riot_id(keyed_svc):
+def test_found_otps_get_their_riot_id_from_their_games(keyed_svc):
     _, fake = run(keyed_svc, champions=[AATROX], focus="otp")
-    # Solo los candidatos, no todo el ranking (y primero el que más pinta de OTP tiene).
-    assert [c[1] for c in fake.calls_to("account_by_puuid")] == ["seed-0", "seed-1"]
-    # Tiene nombre (el de account-v1 o, si ya hay partidas guardadas, el Riot ID que trae la propia partida).
+    # El Riot ID llega con sus partidas (``store_match``): pedirlo a account-v1 gastaba el cupo regional de las partidas
+    # (~100 llamadas por minuto con muchos jugadores válidos).
+    assert fake.calls_to("account_by_puuid") == []
     assert keyed_svc.db.scalar("SELECT game_name FROM players WHERE puuid = 'seed-0'")
-    assert keyed_svc.db.scalar("SELECT game_name FROM players WHERE puuid = 'seed-2'") is None  # no es OTP: no se gasta la llamada
+    assert keyed_svc.db.scalar("SELECT game_name FROM players WHERE puuid = 'seed-2'") is None  # no es OTP: no se visita
 
 
 def test_otps_endpoint_lists_found_players_with_both_mastery_formats(keyed_svc):
@@ -1331,3 +1331,12 @@ def test_las_tablas_de_opgg_se_intercalan_con_la_busqueda_por_elo(keyed_svc):
     first_plat = calls.index("PLATINUM")
     assert sum(1 for c in calls[:first_plat] if isinstance(c, tuple)) <= 1  # Platino no espera a las 6 tablas
     assert [c[1] for c in calls if isinstance(c, tuple)] == boards  # y todas se piden, en orden
+
+
+def test_con_lineas_enteras_no_se_piden_las_tablas_de_opgg(keyed_svc):
+    """Las tablas de los mejores solo traen Diamante+ y cada jugador nuevo cuesta una llamada del cupo de las partidas:
+    con líneas enteras o «cualquiera que lo juegue» no se piden."""
+    games = CrawlerConfig(tiers=["GOLD", "DIAMOND"], champions=[AATROX], focus="games").validated()
+    lines = CrawlerConfig(tiers=["GOLD", "DIAMOND"], champions=[AATROX], roles=["TOP"]).validated()
+    for cfg in (games, lines):
+        assert crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg).leaderboard_pending("euw1") == []
