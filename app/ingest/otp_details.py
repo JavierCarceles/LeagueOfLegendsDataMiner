@@ -619,6 +619,8 @@ def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> No
         d["tiers"][tier or "?"] = d["tiers"].get(tier or "?", 0) + 1
         if kind == "otp":
             d["otp_games"] += 1
+            otp_tiers = d.setdefault("tiers_otp", {})
+            otp_tiers[tier or "?"] = otp_tiers.get(tier or "?", 0) + 1
 
 
 def live_counts(db) -> dict:
@@ -644,7 +646,7 @@ def live_counts(db) -> dict:
         threading.Thread(target=recount, name="otp-counts", daemon=True).start()
     with _live_lock:
         d = st["data"] or {}
-        return {**d, "tiers": dict(d.get("tiers") or {})}
+        return {**d, "tiers": dict(d.get("tiers") or {}), "tiers_otp": dict(d.get("tiers_otp") or {})}
 
 
 def counts(db) -> dict:
@@ -654,11 +656,14 @@ def counts(db) -> dict:
         for r in db.query("SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier")
     }
     otp = db.one("SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'")
+    # De cada elo, las de OTPs (la gráfica por elo de «Datos y API» parte cada barra en OTPs y resto).
+    tiers_otp = {r["tier"] or "?": int(r["n"]) for r in db.query("SELECT tier, COUNT(*) AS n FROM otp_games WHERE kind = 'otp' GROUP BY tier")}
     return {
         "games": int(row["games"] or 0),
         "players": int(row["players"] or 0),
         "timelines": int(row["timelines"] or 0),
         "tiers": {t: tiers[t] for t in sorted(tiers, key=lambda t: TIER_ORDER.index(t) if t in TIER_ORDER else 99)},
+        "tiers_otp": tiers_otp,
         # De ellas, de OTPs (data/otps); el resto, de otros jugadores (data/partidas_campeon).
         "otp_games": int(otp["games"] or 0),
         "otp_players": int(otp["players"] or 0),

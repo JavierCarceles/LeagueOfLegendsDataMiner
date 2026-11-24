@@ -158,3 +158,31 @@ def test_crawler_config_validation():
         CrawlerConfig(platforms=["xx1"]).validated()
     with pytest.raises(ValueError):
         CrawlerConfig(tiers=["bogus"]).validated()
+
+
+def test_todo_el_ranking_va_primero_al_elo_con_menos_partidas_guardadas(keyed_svc):
+    """24-11-2026: se rotaba por (servidor, elo) de mayor a menor y al arrancar solo salían Aspirante, Gran Maestro y
+    Maestro. Ahora cada visita va al elo con menos partidas guardadas, contando las visitas en curso de otras regiones."""
+    from app.ingest.crawler import RegionWorker
+
+    crawler = keyed_svc.crawler
+    with keyed_svc.db.write() as conn:
+        for i, tier in enumerate(["CHALLENGER"] * 3 + ["GOLD"] * 2 + ["IRON"] * 2):
+            conn.execute(
+                "INSERT INTO matches (match_id, platform, region, queue, patch, game_start, duration, tier, ingested_at) "
+                "VALUES (?, 'euw1', 'europe', 420, '16.22', 0, 1800, ?, 0)",
+                (f"EUW1_{i}", tier),
+            )
+    config = CrawlerConfig(platforms=["euw1", "eun1"], tiers=["IRON", "GOLD", "CHALLENGER"], matches_per_player=20).validated()
+    worker = RegionWorker(crawler, "europe", ["euw1", "eun1"], config)
+    combos = [(p, t) for t in config.tiers for p in worker.platforms]
+    assert crawler.ladder_load(20) == {"CHALLENGER": 3, "GOLD": 2, "IRON": 2}
+    assert worker._ladder_pick(combos) == ("euw1", "IRON")  # a igualdad, el más bajo
+    assert worker._ladder_pick(combos) == ("eun1", "IRON")  # dentro del elo, los servidores por turnos
+    crawler.ladder_visit_started("americas", "IRON")  # otra región visita a uno de Hierro: cuenta lo que dará
+    assert worker._ladder_pick(combos)[1] == "GOLD"
+    crawler.note_ladder_stored("americas", "IRON")
+    assert crawler.ladder_load(20)["IRON"] == 2 + 1 + 19  # 1 guardada y 19 que se esperan aún de la visita
+    crawler.ladder_visit_ended("americas")
+    assert crawler.ladder_load(20)["IRON"] == 3
+    assert worker._ladder_pick([("euw1", "CHALLENGER")]) == ("euw1", "CHALLENGER")  # sin otros elos disponibles

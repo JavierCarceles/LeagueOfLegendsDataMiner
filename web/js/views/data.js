@@ -1447,7 +1447,7 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
-    if (eloBox?.isConnected) updateEloChart(eloBox, details.autopush, resultsMode !== "ranking");
+    if (eloBox?.isConnected) updateEloChart(eloBox, details, resultsMode !== "ranking");
   } catch {
     // sin conexión un momento: el siguiente refresco lo intenta otra vez
   } finally {
@@ -1457,7 +1457,8 @@ async function loadLive() {
 
 // ------------------------------------------------------------------ gráfica por elo
 /** Partidas por elo desde la última subida a GitHub (vuelve a 0 al subir): barras con el icono de cada elo y el eje Y
- *  con el máximo arriba y sus cuartos. Se construye una vez; cada refresco solo cambia alturas y números (se ve subir). */
+ *  con el máximo arriba y sus cuartos; cada barra, partida en OTPs (abajo) y el resto. Se construye una vez; cada
+ *  refresco solo cambia alturas y números (se ve subir). */
 const ELO_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
 let eloBox = null;
 let eloSig = null;
@@ -1465,7 +1466,12 @@ let eloSig = null;
 function eloChartShell() {
   return h(
     "div.elo-chart",
-    h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub")),
+    h(
+      "div.elo-chart-head",
+      h("b.elo-chart-title", "Partidas analizadas por elo"),
+      h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"),
+      h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto"),
+    ),
     h(
       "div.elo-chart-body",
       h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q }, "0"))),
@@ -1475,7 +1481,12 @@ function eloChartShell() {
         h(
           "div.elo-chart-bars",
           ELO_ORDER.map((t) =>
-            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } })),
+            h(
+              "div.elo-chart-col",
+              { "data-tier": t, title: TIER_LABEL[t] || t },
+              h("span.elo-chart-n", "0"),
+              h("div.elo-chart-bar", { style: { height: "0%" } }, h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })),
+            ),
           ),
         ),
       ),
@@ -1484,24 +1495,53 @@ function eloChartShell() {
   );
 }
 
-function updateEloChart(box, autopush, analyzed) {
-  const counts = autopush?.tiers?.[analyzed ? "analizadas" : "guardadas"] || {};
-  const sig = JSON.stringify([analyzed, counts]);
+/** Partidas de OTPs en cada barra: las que se clasificaron al guardarse y, de las que no (sin análisis minuto a minuto),
+ *  la parte que da el % de OTPs de ese elo en todas las partidas analizadas (sin datos del elo, el de todos). */
+function eloOtpSplit(details, kind) {
+  const push = details?.autopush || {};
+  const total = push.tiers?.[kind] || {};
+  const known = push.tiers_known?.[kind] || {};
+  const otp = push.tiers_otp?.[kind] || {};
+  const all = details?.tiers || {};
+  const allOtp = details?.tiers_otp || {};
+  const sum = (o) => Object.values(o).reduce((a, b) => a + (b || 0), 0);
+  const overall = sum(all) ? sum(allOtp) / sum(all) : 0;
+  const byTier = {};
+  let estimated = false;
+  for (const t of ELO_ORDER) {
+    const n = total[t] || 0;
+    const unknown = Math.max(0, n - (known[t] || 0));
+    const ratio = all[t] ? (allOtp[t] || 0) / all[t] : overall;
+    if (unknown) estimated = true;
+    byTier[t] = { n, otp: Math.min(n, Math.round((otp[t] || 0) + unknown * ratio)) };
+  }
+  return { byTier, estimated };
+}
+
+function updateEloChart(box, details, analyzed) {
+  const { byTier, estimated } = eloOtpSplit(details, analyzed ? "analizadas" : "guardadas");
+  const sig = JSON.stringify([analyzed, byTier, estimated]);
   if (sig === eloSig) return;
   eloSig = sig;
-  const max = Math.max(0, ...ELO_ORDER.map((t) => counts[t] || 0));
-  const total = ELO_ORDER.reduce((n, t) => n + (counts[t] || 0), 0);
+  const max = Math.max(0, ...ELO_ORDER.map((t) => byTier[t].n));
+  const total = ELO_ORDER.reduce((n, t) => n + byTier[t].n, 0);
+  const otpTotal = ELO_ORDER.reduce((n, t) => n + byTier[t].otp, 0);
   const title = box.querySelector(".elo-chart-title");
-  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}`;
+  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}` + (total ? ` (${fmt.int(otpTotal)} de OTPs)` : "");
   const sub = box.querySelector(".elo-chart-sub");
-  if (sub) sub.textContent = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
+  const when = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
+  if (sub) sub.textContent = estimated ? `${when} · OTPs estimados con el % de OTPs de cada elo en las partidas analizadas` : when;
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });
   box.querySelectorAll(".elo-chart-col").forEach((col) => {
-    const n = counts[col.dataset.tier] || 0;
+    const t = col.dataset.tier;
+    const { n, otp } = byTier[t];
     col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
+    col.querySelector(".elo-chart-seg.otp").style.height = n ? `${(100 * otp) / n}%` : "0%";
     col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
+    const approx = estimated ? "~" : "";
+    col.title = n ? `${TIER_LABEL[t] || t}: ${fmt.int(n)} · OTPs ${approx}${fmt.int(otp)} · resto ${approx}${fmt.int(n - otp)}` : TIER_LABEL[t] || t;
     col.classList.toggle("top", !!max && n === max);
   });
 }

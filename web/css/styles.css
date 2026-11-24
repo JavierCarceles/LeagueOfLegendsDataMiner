@@ -1181,9 +1181,17 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .elo-chart-grid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
 .elo-chart-bars { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
 .elo-chart-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
-.elo-chart-bar { width: 100%; max-width: 46px; background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-radius: 4px 4px 0 0;
+.elo-chart-bar { width: 100%; max-width: 46px; display: flex; flex-direction: column; overflow: hidden; border-radius: 4px 4px 0 0;
   transition: height 0.6s ease; min-height: 0; opacity: 0.85; }
 .elo-chart-col.top .elo-chart-bar { opacity: 1; box-shadow: 0 0 12px var(--gold-soft); }
+/* Cada barra: OTPs abajo (dorado) y el resto encima (azul). */
+.elo-chart-seg { width: 100%; transition: height 0.6s ease; }
+.elo-chart-seg.rest { flex: 1 1 auto; background: linear-gradient(180deg, #8cc8ef, var(--blue)); }
+.elo-chart-seg.otp { flex: 0 0 auto; background: linear-gradient(180deg, var(--gold-2), var(--gold)); }
+.elo-chart-legend { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--text-2); }
+.elo-chart-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.elo-chart-sw.otp { background: var(--gold); }
+.elo-chart-sw.rest { background: var(--blue); margin-left: 8px; }
 .elo-chart-n { font-size: 11px; color: var(--text-2); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
 .elo-chart-x { display: grid; grid-template-columns: 52px 1fr; margin-top: 6px; }
 .elo-chart-logos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }

@@ -1059,7 +1059,7 @@ def test_one_search_per_platform_in_the_same_region(keyed_svc):
     worker.join(timeout=5)
 
 
-def test_search_goes_from_the_top_elo_down(keyed_svc):
+def test_search_goes_from_the_lowest_elo_up_when_no_elo_has_data(keyed_svc):
     from types import SimpleNamespace
 
     order = []
@@ -1076,6 +1076,7 @@ def test_search_goes_from_the_top_elo_down(keyed_svc):
         _discover=lambda platform, tier: order.append(tier) or 0,
         _refill_seeds=lambda platform, tier: 0,
         found_by_tier={},
+        _tier_load=dict,
     )
     worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
     scout = OtpScout(worker, "euw1")
@@ -1083,14 +1084,14 @@ def test_search_goes_from_the_top_elo_down(keyed_svc):
     real_set = scout._set
     scout._set = lambda status: (real_set(status), status == "idle" and stop.set())
     scout.run()
-    assert order == ["CHALLENGER", "MASTER", "DIAMOND"]  # sin OTPs en ninguno: del más alto al más bajo
+    assert order == ["DIAMOND", "MASTER", "CHALLENGER"]  # sin datos en ninguno: del más bajo al más alto
 
 
 def test_search_goes_to_the_elo_with_fewest_otps_first():
-    """Variedad de elos: la siguiente tanda del ranking va al elo con menos OTPs encontrados (a igualdad, el más alto)."""
+    """A igualdad de partidas, la siguiente tanda del ranking va al elo con menos OTPs encontrados (luego, el más bajo)."""
     from types import SimpleNamespace
 
-    worker = SimpleNamespace(found_by_tier={("euw1", "CHALLENGER"): 9, ("euw1", "MASTER"): 2, ("kr", "DIAMOND"): 50})
+    worker = SimpleNamespace(found_by_tier={("euw1", "CHALLENGER"): 9, ("euw1", "MASTER"): 2, ("kr", "DIAMOND"): 50}, _tier_load=dict)
     order = crawler_mod.RegionWorker.tier_order(worker, "euw1", ["CHALLENGER", "MASTER", "DIAMOND"])
     assert order == ["DIAMOND", "MASTER", "CHALLENGER"]  # en EUW, Diamante aún no tiene ninguno
 
@@ -1291,9 +1292,10 @@ def test_the_period_decides_who_counts_and_how_far_back(keyed_svc):
     assert search_funnel(keyed_svc.db, CrawlerConfig(**base, otp_depth="90").validated(), now)["total"]["active"] == 1
 
 
-def test_with_whole_lines_the_elo_with_fewest_games_goes_first(keyed_svc):
-    """Con líneas enteras: aunque Garen aún no tenga a nadie, primero el elo con menos partidas recogidas (Esmeralda),
-    no la variedad de campeones; buscando OTPs de campeones sueltos, al revés (primero el campeón sin nadie)."""
+def test_the_elo_with_fewest_games_goes_first_in_every_mode(keyed_svc):
+    """Aunque Garen aún no tenga a nadie, primero el elo con menos partidas recogidas (Esmeralda), con líneas enteras y
+    también buscando OTPs de campeones sueltos (antes ahí iba primero el campeón sin nadie, 24-11-2026). Dentro del
+    mismo elo, la variedad de campeones sigue mandando."""
     now = _now_s()
     db = keyed_svc.db
     lines = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX, GAREN], role_pools={"TOP": [AATROX, GAREN]}, focus="games", min_mastery=10_000).validated()
@@ -1312,7 +1314,11 @@ def test_with_whole_lines_the_elo_with_fewest_games_goes_first(keyed_svc):
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
     assert worker._next_otp()["puuid"] == "e-new"
     champs = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND"], champions=[AATROX, GAREN], focus="mastery", min_mastery=10_000).validated()
-    assert RegionWorker(keyed_svc.crawler, "europe", ["euw1"], champs)._next_otp()["puuid"] == "d-garen"
+    champs_worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], champs)
+    assert champs_worker._next_otp()["puuid"] == "e-new"
+    keyed_svc.crawler.note_visit_tier("EMERALD")  # Esmeralda ya alcanza a Diamante (25 + 40 analizadas): le toca a él
+    keyed_svc.crawler.note_visit_tier("EMERALD")
+    assert champs_worker._next_otp()["puuid"] == "d-garen"
 
 
 
@@ -1336,36 +1342,35 @@ def test_las_regiones_se_turnan_los_elos(keyed_svc):
     assert worker._next_otp()["tier"] == "DIAMOND"
 
 
-def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nadie():
-    from app.ingest.crawler import tier_shares
+def test_el_reparto_por_elo_llena_primero_los_elos_con_menos_datos():
+    from app.ingest.crawler import tier_need, tier_shares
 
-    shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
-    assert round(shares["GOLD"], 3) == 0.999 and 0 < shares["DIAMOND"] < 0.001  # inversa al cubo: casi todo, pero no todo
+    need = tier_need({"GOLD": 100, "DIAMOND": 1000, "IRON": 40}, ["IRON", "GOLD", "DIAMOND"])
+    assert need == {"IRON": 960, "GOLD": 900, "DIAMOND": 0}
+    shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"], games=500)
+    assert shares == {"GOLD": 1.0, "DIAMOND": 0.0}  # Diamante no recibe nada hasta que Oro lo alcanza
+    both = tier_shares({"GOLD": 900, "DIAMOND": 1000}, ["GOLD", "DIAMOND"], games=300)
+    assert {t: round(v, 6) for t, v in both.items()} == {"GOLD": 0.666667, "DIAMOND": 0.333333}  # Oro llega a 1.000 y suben juntos
     assert {t: round(v, 6) for t, v in tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]).items()} == {"GOLD": 0.5, "DIAMOND": 0.5}
-    five = tier_shares({"IRON": 0, "GOLD": 100, "EMERALD": 900, "MASTER": 1000, "CHALLENGER": 1000}, ["IRON", "GOLD", "EMERALD", "MASTER", "CHALLENGER"])
-    assert abs(sum(five.values()) - 1) < 1e-9 and five["IRON"] > five["GOLD"] > five["EMERALD"] > five["MASTER"]
 
 
-def test_el_reparto_con_las_cifras_reales_da_mas_a_oro_que_a_maestro():
-    """Lo que había el 24-11-2026: Oro (1.500) recibía casi lo mismo que Maestro (5.000) porque todo se medía frente a
-    Diamante (17.000). Ahora la parte es inversa (al cubo) a lo analizado: los elos con pocos datos se recuperan antes y
-    el que tiene muchas más que los demás (Diamante) casi no recibe hasta que lo alcanzan."""
-    from app.ingest.crawler import tier_shares
+def test_con_las_cifras_reales_va_primero_bronce_no_platino():
+    """24-11-2026: con la «parte objetivo» en las últimas 3.000 partidas, Platino (2.571) iba antes que Bronce (2.419,
+    el que menos tenía) porque iba algo por debajo de su parte en esa ventana. Ahora va primero el que menos tiene."""
+    from app.ingest.crawler import tier_need, tier_shares
 
-    real = {"CHALLENGER": 6800, "GRANDMASTER": 2800, "MASTER": 5000, "DIAMOND": 17000, "EMERALD": 2100, "PLATINUM": 1600,
-            "GOLD": 1500, "SILVER": 1500, "BRONZE": 1300, "IRON": 1700}
+    real = {"IRON": 2573, "BRONZE": 2419, "SILVER": 2501, "GOLD": 2447, "PLATINUM": 2571, "EMERALD": 2818,
+            "DIAMOND": 17487, "MASTER": 5210, "GRANDMASTER": 3330, "CHALLENGER": 7007}
+    need = tier_need(real, list(real))
+    assert max(need, key=need.get) == "BRONZE" and need["PLATINUM"] < need["GOLD"] < need["BRONZE"]
     shares = tier_shares(real, list(real))
-    assert shares["GOLD"] > 20 * shares["MASTER"] and shares["PLATINUM"] > 20 * shares["MASTER"]
-    assert max(shares, key=shares.get) == "BRONZE" and min(shares, key=shares.get) == "DIAMOND"
-    assert sum(shares[t] for t in ("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM")) > 0.85
-    # Cuantas más partidas tiene, menos recibe: Diamante < Aspirante < Maestro < Gran Maestro, y ninguno a 0.
-    assert 0 < shares["DIAMOND"] < shares["CHALLENGER"] < shares["MASTER"] < shares["GRANDMASTER"]
+    assert all(shares[t] == 0 for t in ("DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"))
+    assert shares["BRONZE"] > shares["GOLD"] > shares["SILVER"] > shares["PLATINUM"] > shares["IRON"] > shares["EMERALD"]
 
 
 def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
-    """Diamante con 1.000 partidas analizadas y Oro con 500: Oro se lleva el 86 % y Diamante entra solo cuando a Oro le
-    falta menos que a él (lo que le falta a cada uno, no quién tiene 0 recientes)."""
-    from app.ingest.crawler import ACTIVE_VISIT_GAMES, tier_need, tier_shares
+    """Diamante con 1.000 partidas y Oro con 500: van jugadores de Oro hasta que Oro alcanza a Diamante; luego se turnan."""
+    from app.ingest.crawler import ACTIVE_VISIT_GAMES
 
     now = _now_s()
     db = keyed_svc.db
@@ -1384,22 +1389,18 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
             conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = ?", (now, puuid))
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
     crawler = keyed_svc.crawler
-    assert worker._next_otp()["tier"] == "GOLD"  # nadie visitado aún: el que va por detrás
-    shares = tier_shares({"GOLD": 500, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
     gold_visits = 0
-    while True:
-        need = tier_need({"GOLD": gold_visits * ACTIVE_VISIT_GAMES}, shares)
-        if need["DIAMOND"] > need["GOLD"]:
-            break
+    while 500 + gold_visits * ACTIVE_VISIT_GAMES <= 1000:
         assert worker._next_otp()["tier"] == "GOLD"
         crawler.note_visit_tier("GOLD")
         gold_visits += 1
-    assert gold_visits >= 5  # Oro muy por delante antes de que Diamante reciba nada
+    assert gold_visits == 21  # Oro hasta pasar a Diamante (1.025 frente a 1.000)
     assert worker._next_otp()["tier"] == "DIAMOND"
     crawler.note_visit_tier("DIAMOND")
     assert worker._next_otp()["tier"] == "GOLD"
     report = crawler.tier_report()
-    assert report["GOLD"]["parte_pct"] == round(100 * shares["GOLD"], 1) > 85 and report["DIAMOND"]["analizadas"] == 1000
+    # Igualados (1.025 cada uno): las siguientes partidas, mitad y mitad.
+    assert report["DIAMOND"]["analizadas"] == 1000 + ACTIVE_VISIT_GAMES and report["GOLD"]["parte_pct"] == 50.0
 
 
 def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, monkeypatch):
@@ -1498,26 +1499,24 @@ def test_el_diagnostico_dice_que_elo_se_queda_sin_candidatos_y_lo_que_da_cada_vi
     assert report["ultimas_visitas"][-1]["fin"] == "historial completo"
 
 
-def test_el_reparto_no_rota_por_todos_los_elos_cuando_uno_tiene_poca_parte():
-    """24-11-2026 14:29: con «(recientes + 1) / parte» cualquier elo sin partidas recientes pasaba delante y se elegían
-    los 10 elos por turnos (Diamante, con un 2 % de parte, tanto como Oro). Con lo que le falta a cada uno, no."""
-    from app.ingest.crawler import tier_need, tier_shares
+def test_el_reparto_iguala_los_elos_de_abajo_antes_de_dar_a_los_de_arriba():
+    """Con las cifras reales y lo que da cada visita, 200 visitas van todas a Hierro-Esmeralda y Gran Maestro, que
+    acaban igualados (a menos de una visita), y Diamante, con 17.400, no recibe ninguna."""
+    from app.ingest.crawler import tier_need
 
     real = {"CHALLENGER": 6900, "GRANDMASTER": 3000, "MASTER": 5100, "DIAMOND": 17400, "EMERALD": 2300, "PLATINUM": 1800,
             "GOLD": 1550, "SILVER": 1700, "BRONZE": 1450, "IRON": 1800}
-    shares = tier_shares(real, list(real))
-    recent: dict[str, int] = {}
-    picks = []
+    load = dict(real)
     yield_of = {"IRON": 25, "BRONZE": 20, "SILVER": 25, "GOLD": 17}  # los elos bajos dan menos partidas por visita
+    picks = []
     for _ in range(200):
-        need = tier_need(recent, shares)
+        need = tier_need(load, list(load))
         tier = max(need, key=need.get)
         picks.append(tier)
-        recent[tier] = recent.get(tier, 0) + yield_of.get(tier, 50)
-    total = sum(recent.values())
-    assert abs(recent["GOLD"] / total - shares["GOLD"]) < 0.02
-    assert abs(recent.get("DIAMOND", 0) / total - shares["DIAMOND"]) < 0.02
-    assert picks.count("GOLD") > 5 * picks.count("DIAMOND")
+        load[tier] += yield_of.get(tier, 50)
+    assert "DIAMOND" not in picks and "CHALLENGER" not in picks and "MASTER" not in picks
+    low = [load[t] for t in ("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD")]
+    assert max(low) - min(low) <= 50
 
 
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
@@ -1615,7 +1614,7 @@ def test_las_tablas_de_opgg_se_intercalan_con_la_busqueda_por_elo(keyed_svc):
         stop_event=stop, svc=keyed_svc, crawler=SimpleNamespace(paused_reason=lambda: None), state={"errors": 0},
         scouts=[], wake=lambda: None, leaderboard_pending=lambda platform: list(boards),
         _seed_from_leaderboards=lambda platform, champs: calls.append(("board", champs[0])) or 0,
-        _discover=discover, _refill_seeds=lambda platform, tier: 0, found_by_tier=found,
+        _discover=discover, _refill_seeds=lambda platform, tier: 0, found_by_tier=found, _tier_load=dict,
     )
     worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
     OtpScout(worker, "euw1").run()
@@ -1651,7 +1650,7 @@ def test_no_se_busca_mas_en_un_elo_con_jugadores_de_sobra_esperando(keyed_svc):
         stop_event=stop, svc=keyed_svc, crawler=SimpleNamespace(paused_reason=lambda: None), state={"errors": 0},
         scouts=[], wake=lambda: None, leaderboard_pending=lambda platform: [],
         _seed_from_leaderboards=lambda platform, champs: 0, _discover=discover, _refill_seeds=lambda platform, tier: 0,
-        found_by_tier={}, waiting_by_tier={("euw1", "DIAMOND"): crawler_mod.SCOUT_BACKLOG},
+        found_by_tier={}, waiting_by_tier={("euw1", "DIAMOND"): crawler_mod.SCOUT_BACKLOG}, _tier_load=dict,
     )
     worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
     OtpScout(worker, "euw1").run()
@@ -1745,3 +1744,16 @@ def test_una_lista_de_jugadores_vacia_se_vuelve_a_leer_pronto(keyed_svc, monkeyp
         conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('p2', 'euw1', 'CHALLENGER', 1, 800)")
         conn.execute("INSERT INTO mastery_checks VALUES ('p2', 'euw1', ?, ?)", (now, json.dumps([[AATROX, 800_000, now]])))
     assert crawler.otp_rows_cached(cfg)[0] is first  # con jugadores, se reutiliza hasta los 2 min
+
+
+def test_la_busqueda_en_el_ranking_va_primero_al_elo_con_menos_datos(keyed_svc):
+    """24-11-2026: la búsqueda iba al elo con menos jugadores encontrados (a igualdad, el más alto): tras encontrar 250
+    de Platino buscaba en Oro aunque Bronce tuviera menos partidas. Ahora sigue el mismo reparto que las visitas."""
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["BRONZE", "GOLD", "PLATINUM"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    worker._plan_totals = {"BRONZE": 50, "GOLD": 100, "PLATINUM": 300}
+    worker.found_by_tier = {("euw1", "BRONZE"): 500, ("euw1", "PLATINUM"): 250}
+    assert worker.tier_order("euw1", list(lines.tiers)) == ["BRONZE", "GOLD", "PLATINUM"]
+    worker._plan_totals = {"BRONZE": 100, "GOLD": 100, "PLATINUM": 100}  # a igualdad: menos jugadores encontrados
+    assert worker.tier_order("euw1", list(lines.tiers)) == ["GOLD", "PLATINUM", "BRONZE"]
