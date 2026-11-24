@@ -91,10 +91,13 @@ ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (menos lo qu
 RECENT_META_KEY = "crawler_recent_games"
 VISIT_LOG_SIZE = 40  # últimas visitas en el embudo (``_busqueda.json``): elo, por qué se eligió, cuánto dio y por qué acabó
 PLAN_KIND = {0: "nuevo", 1: "partidas nuevas", 2: "historial", 3: "sin análisis"}
-FLOOR_SHARE = 0.05  # parte repartida a partes iguales (ninguno se para)
-# Inversa al cuadrado: los elos con pocos datos se recuperan antes (con las cifras del 24-11-2026, Hierro a Platino ~81 %
-# y Diamante 0,7 %; con la inversa simple, ~70 % y 2,3 %). Según se igualan, las partes se acercan solas.
-SHARE_POWER = 2
+# Inversa al cubo y sin reparto a partes iguales: el elo con muchas más partidas que los demás casi no recibe hasta que lo
+# alcanzan (con las cifras del 24-11-2026, Diamante 17.500 frente a ~2.300 de Hierro a Platino: 0,04 %; Maestro 1,4 %,
+# Aspirante 0,6 %, Gran Maestro 5,8 %, Hierro a Platino ~75 %). Con el 5 % a partes iguales y al cuadrado, Diamante
+# salía en 6 de cada 10 subidas de 2.000 partidas, a veces con más que Maestro, Gran Maestro o Aspirante (simulado con
+# lo que da cada visita). Ninguno se queda a 0: según se igualan los totales, las partes se acercan solas.
+FLOOR_SHARE = 0.0
+SHARE_POWER = 3
 SHARE_SMOOTH = 100  # partidas que se suman a cada elo al invertir (uno con 0 no se lo lleva todo)
 OTP_BACK_PAGES = 5  # páginas del historial por visita (las ya conocidas no gastan descargas)
 OTP_FORWARD_PAGES = 10  # partidas nuevas listadas por visita (hasta 1.000)
@@ -658,11 +661,12 @@ PREFETCH_AHEAD = 8
 # de Riot se respeta igual).
 PREFETCH_THREADS = 3
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
+SEARCH_FUNNEL_EVERY_S = 1800  # embudo de la búsqueda (maestrías revisadas): cada 30 min (lo demás del informe, cada 5)
 
 
 def tier_shares(totals: dict[str, int], tiers: list[str]) -> dict[str, float]:
-    """Parte de las partidas de cada elo: ``FLOOR_SHARE`` a partes iguales y el resto inversa al cuadrado de las
-    partidas analizadas que ya tiene (con 1.500 frente a 5.000, unas 10 veces más). Suma 1."""
+    """Parte de las partidas de cada elo: ``FLOOR_SHARE`` a partes iguales y el resto inversa a la potencia
+    ``SHARE_POWER`` de las partidas analizadas que ya tiene (al cubo: con 1.500 frente a 5.000, unas 30 veces más). Suma 1."""
     tiers = list(dict.fromkeys(tiers))
     if not tiers:
         return {}
@@ -2250,13 +2254,25 @@ class Crawler:
             self._funnel_thread = threading.Thread(target=self._write_funnel, args=(cfg,), name="crawler-funnel", daemon=True)
             self._funnel_thread.start()
 
+    def _search_funnel(self, cfg: CrawlerConfig) -> dict:
+        """El embudo de la búsqueda (maestrías revisadas por plataforma), como mucho cada ``SEARCH_FUNNEL_EVERY_S``: lee
+        todas las maestrías revisadas (~350.000) y tardaba hasta 16-25 s en Windows cada 5 min. Lo demás del informe (key,
+        reparto por elo, visitas, dónde se va el tiempo) sigue cada 5 min."""
+        key = (otp_list_key(cfg), tuple(cfg.platforms), tuple(cfg.tiers), cfg.focus, cfg.min_mastery, cfg.min_share)
+        cached = getattr(self, "_search_funnel_cache", None)
+        if cached is not None and cached[0] == key and time.time() - cached[1] < SEARCH_FUNNEL_EVERY_S:
+            return dict(cached[2])
+        funnel = search_funnel(self.svc.db, cfg)
+        self._search_funnel_cache = (key, time.time(), dict(funnel))
+        return funnel
+
     def _write_funnel(self, cfg: CrawlerConfig) -> None:
         try:
             # El uso de la key, antes que nada: el embudo tarda hasta ~20 s y al detener la ventana se iba vaciando
             # (salía «63 de 100» con el recolector a tope).
             limiter = getattr(self.svc, "limiter", None)
             limits = limiter.snapshot() if limiter is not None else None
-            funnel = search_funnel(self.svc.db, cfg)
+            funnel = self._search_funnel(cfg)
             # Para «Datos y API» (no lo recalcula en cada petición): (configuración, cuándo, embudo).
             import json as _json
 

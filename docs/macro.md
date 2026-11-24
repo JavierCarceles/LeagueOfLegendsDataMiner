@@ -799,3 +799,36 @@ Bajan de forma limpia, elo a elo:
   mucha muestra), así que pesa la mitad.
 - «Pinks rivales en tu jungla»: sube con el elo (en Maestro se ponen más pinks), así que pesa un cuarto.
 - «Te ganquean» y «adelantado»: suben con el elo, como ya se vio en la sección M.
+
+### Diamante aún entraba y la web gastaba en los OTPs (24-11-2026, subida de las 15:52)
+
+- **Diamante salía en la gráfica con más partidas que Maestro, Gran Maestro o Aspirante** justo después de una subida.
+  Tenía un 0,8 % de parte (casi todo del 5 % que se repartía a partes iguales) y una visita da ~47 partidas. En una
+  simulación con lo que da cada visita, Diamante salía en 47 de cada 80 subidas de 2.000 partidas (en 19, con más que
+  algún elo alto). Ahora la parte es inversa al cubo de lo analizado, sin reparto a partes iguales (`SHARE_POWER = 3`,
+  `FLOOR_SHARE = 0`). Con las cifras de ahora queda así:
+
+  | Elo | Parte |
+  |---|---|
+  | Diamante (17.500) | 0,04 % |
+  | Aspirante | 0,6 % |
+  | Maestro | 1,4 % |
+  | Gran Maestro | 5,8 % |
+  | Hierro a Platino | ~75 % en total |
+
+  En la simulación, Diamante no sale en ninguna de las 80 subidas. No se queda a 0: según los demás elos lo alcanzan,
+  las partes se acercan solas.
+- **«Cualquiera que lo juegue» gastaba en buscar OTPs:**
+  - **La web:** «Datos y API» pedía la lista de OTPs cada ~10 s, y cada petición contaba las partidas de cada jugador
+    con cada campeón. Eran ~26 s con 30.000 jugadores, pedida 57 veces en 35 min: unos 25 min de CPU que le faltaban al
+    recolector. La web solo enseña los totales (la lista por campeón ya no está). Ahora salen sin consultas propias
+    (`summary=1`) de la cola del recolector, que se rehace cada minuto en segundo plano, y del embudo. La lista completa
+    (por campeón) se guarda 5 min.
+  - **El embudo de la búsqueda:** lee todas las maestrías revisadas (~350.000), hasta 16-25 s. Ahora se rehace cada
+    30 min (`SEARCH_FUNNEL_EVERY_S`); lo demás del informe sigue cada 5 min.
+  - **Lo que ya estaba bien:** las tablas de los mejores de OP.GG ya no se pedían en este modo. Las búsquedas en el
+    ranking estuvieron paradas el 100 % de la sesión, porque todos los elos ya tienen jugadores de sobra esperando.
+- **Lo demás de la sesión (15:16-15:52):** sin errores. La key va al 84 % de su ritmo (34-44 de 47,5 llamadas/min) y
+  salen ~69 partidas analizadas por minuto. El reparto por elo se cumple a ±1 punto. Hubo subida automática a las 2.000
+  partidas y otra al detener. El perfil por elo se rehízo con los grupos nuevos (42.594 partidas en 7 min, en segundo
+  plano).

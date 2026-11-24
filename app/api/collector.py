@@ -127,6 +127,7 @@ def otps(
     platform: str | None = Query(None),
     q: str | None = Query(None, max_length=40, description="Busca en el Riot ID"),
     sort: str = Query("games", pattern="^(games|winrate|elo|points|name)$"),
+    summary: bool = Query(False, description="Solo los totales (lo que enseña «Datos y API»), sin la lista por campeón"),
     svc=Depends(svc_from),
 ):
     """OTPs (o jugadores con mucha maestría) encontrados con la configuración actual: un resumen por campeón
@@ -134,11 +135,111 @@ def otps(
     cfg = svc.crawler.config
     if cfg is None or not cfg.targets:
         return {"champions": [], "focus": None, "players": [], "by_champion": []}
-    target_cond, target_params = target_sql(cfg)
     games_cond, games_params = target_sql(cfg, "pa")
+    cap = int(cfg.games_per_otp or 0) if svc.crawler.running and svc.crawler.searching() else 0
+    if summary:
+        return _otp_summary(svc, cfg, cap)
+    # Lo pesado (partidas de cada jugador con cada campeón: ~26 s con 30.000 jugadores en Windows, y la web lo pedía cada
+    # ~10 s: 57 veces en 35 min, CPU que le faltaba al recolector, 24-11-2026), una vez cada ``ROWS_TTL_S``.
+    heavy = _cached(svc, ("otps", _cfg_key(cfg), cap), ROWS_TTL_S, lambda: _otp_entries(svc, cfg, cap))
+    entries, by_champion = heavy["entries"], heavy["by_champion"]
+
+    # Lista de jugadores: filtros, orden y página (sobre una copia: lo de la caché no se toca).
+    rows = list(entries)
+    if champ is not None:
+        rows = [e for e in rows if e["champ"] == champ]
+    if platform:
+        rows = [e for e in rows if e["platform"] == platform.lower()]
+    if q and q.strip():
+        needle = q.strip().lower()
+        rows = [e for e in rows if needle in f"{e['game_name'] or ''}#{e['tag_line'] or ''}".lower()]
+    if sort == "winrate":
+        rows.sort(key=lambda e: (-(e["wins"] / e["total"]) if e["total"] >= 5 else 1, -e["total"]))
+    elif sort == "elo":
+        rows.sort(key=lambda e: (-TIER_INDEX.get(e["tier"] or "", -1), -(e["lp"] or 0), -e["total"]))
+    elif sort == "points":
+        rows.sort(key=lambda e: (-e["points"], -e["total"]))
+    elif sort == "name":
+        rows.sort(key=lambda e: ((e["game_name"] or "~").lower(), -e["total"]))
+    else:
+        rows.sort(key=lambda e: (-e["total"], -e["points"]))
+    matched = len(rows)
+    page = [dict(e) for e in rows[offset : offset + limit]]
+    for p in page:
+        games = svc.db.query(
+            f"SELECT pa.match_id, pa.champ, pa.role, pa.win, pa.kills, pa.deaths, pa.assists, ma.game_start, ma.duration "
+            f"FROM participants pa JOIN matches ma ON ma.match_id = pa.match_id "
+            f"WHERE pa.player_id = ? AND pa.champ = ? AND {games_cond} ORDER BY ma.game_start DESC LIMIT 8",
+            (p.pop("id"), p["champ"], *games_params),
+        )
+        p.pop("puuid", None)
+        p["games"] = [dict(g) for g in games]
+    return {
+        "champions": cfg.targets,
+        "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
+        "lines": cfg.roles,
+        "focus": cfg.focus,
+        "min_mastery": cfg.min_mastery,
+        "min_share": cfg.min_share,
+        "otp_depth": cfg.otp_depth,
+        "games_per_otp": cfg.games_per_otp,
+        "searching": bool(cap),
+        "found": heavy["found"],
+        "complete": heavy["complete"],
+        # Mientras se buscan más jugadores, de cada uno solo se bajan sus N primeras: cuántos ya las tienen.
+        "capped": heavy["capped"],
+        "games": heavy["games"],
+        "by_champion": by_champion,
+        "matched": matched,
+        "offset": offset,
+        "players": page,
+        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
+        "funnel": _funnel(svc, cfg),
+    }
+
+
+def _otp_summary(svc, cfg, cap: int) -> dict:
+    """Los totales de «Datos y API» sin consultas propias: de la cola del recolector (todos los jugadores ya visitados,
+    los únicos que pueden tener partidas o el historial completo, y los siguientes por visitar; se rehace sola cada
+    minuto en segundo plano) y del embudo que escribe cada 5 min. Antes, cada petición contaba las partidas de cada
+    jugador con cada campeón: ~26 s con 30.000 jugadores, pedida cada ~10 s (24-11-2026)."""
+    rows, _at = svc.crawler.otp_rows_cached(cfg)
+    list_key = otp_list_key(cfg)
+    depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
+    states = [otp_history_state(row, list_key, depth_start) for row, _ in rows]
+    funnel = _funnel(svc, cfg)
+    found = int(((funnel or {}).get("total") or {}).get("active") or 0) or len(rows)
+    return {
+        "champions": cfg.targets,
+        "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
+        "lines": cfg.roles,
+        "focus": cfg.focus,
+        "min_mastery": cfg.min_mastery,
+        "min_share": cfg.min_share,
+        "otp_depth": cfg.otp_depth,
+        "games_per_otp": cfg.games_per_otp,
+        "searching": bool(cap),
+        "found": found,
+        "complete": sum(1 for st in states if st in ("done", "share")),
+        "capped": sum(
+            1 for (row, _), st in zip(rows, states)
+            if cap and st == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap
+        ),
+        "games": sum(int(row["hits"] or 0) for row, _ in rows),
+        "by_champion": [],
+        "matched": 0,
+        "offset": 0,
+        "players": [],
+        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
+        "funnel": funnel,
+    }
+
+
+def _otp_entries(svc, cfg, cap: int) -> dict:
+    """Jugadores encontrados (uno por campeón) con sus partidas y su historial, y el resumen por campeón."""
+    target_cond, target_params = target_sql(cfg)
     # Los de los servidores y elos elegidos (los que se visitan).
     found = _cached(svc, ("rows", _cfg_key(cfg)), ROWS_TTL_S, lambda: otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers))
-    cap = int(cfg.games_per_otp or 0) if svc.crawler.running and svc.crawler.searching() else 0
     list_key = otp_list_key(cfg)
     depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
 
@@ -219,60 +320,17 @@ def otps(
             }
         )
 
-    # Lista de jugadores: filtros, orden y página.
-    rows = entries
-    if champ is not None:
-        rows = [e for e in rows if e["champ"] == champ]
-    if platform:
-        rows = [e for e in rows if e["platform"] == platform.lower()]
-    if q and q.strip():
-        needle = q.strip().lower()
-        rows = [e for e in rows if needle in f"{e['game_name'] or ''}#{e['tag_line'] or ''}".lower()]
-    if sort == "winrate":
-        rows.sort(key=lambda e: (-(e["wins"] / e["total"]) if e["total"] >= 5 else 1, -e["total"]))
-    elif sort == "elo":
-        rows.sort(key=lambda e: (-TIER_INDEX.get(e["tier"] or "", -1), -(e["lp"] or 0), -e["total"]))
-    elif sort == "points":
-        rows.sort(key=lambda e: (-e["points"], -e["total"]))
-    elif sort == "name":
-        rows.sort(key=lambda e: ((e["game_name"] or "~").lower(), -e["total"]))
-    else:
-        rows.sort(key=lambda e: (-e["total"], -e["points"]))
-    matched = len(rows)
-    page = rows[offset : offset + limit]
-    for p in page:
-        games = svc.db.query(
-            f"SELECT pa.match_id, pa.champ, pa.role, pa.win, pa.kills, pa.deaths, pa.assists, ma.game_start, ma.duration "
-            f"FROM participants pa JOIN matches ma ON ma.match_id = pa.match_id "
-            f"WHERE pa.player_id = ? AND pa.champ = ? AND {games_cond} ORDER BY ma.game_start DESC LIMIT 8",
-            (p.pop("id"), p["champ"], *games_params),
-        )
-        p.pop("puuid", None)
-        p["games"] = [dict(g) for g in games]
+    states = [otp_history_state(row, list_key, depth_start) for row, _ in found]
     return {
-        "champions": cfg.targets,
-        "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
-        "lines": cfg.roles,
-        "focus": cfg.focus,
-        "min_mastery": cfg.min_mastery,
-        "min_share": cfg.min_share,
-        "otp_depth": cfg.otp_depth,
-        "games_per_otp": cfg.games_per_otp,
-        "searching": bool(cap),
+        "entries": entries,
+        "by_champion": by_champion,
         "found": len(found),
-        "complete": sum(1 for row, _ in found if otp_history_state(row, list_key, depth_start) in ("done", "share")),
-        # Mientras se buscan más jugadores, de cada uno solo se bajan sus N primeras: cuántos ya las tienen.
+        "complete": sum(1 for st in states if st in ("done", "share")),
         "capped": sum(
-            1 for row, _ in found
-            if cap and otp_history_state(row, list_key, depth_start) == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap
+            1 for (row, _), st in zip(found, states)
+            if cap and st == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap
         ),
         "games": sum(e["total"] for e in entries),
-        "by_champion": by_champion,
-        "matched": matched,
-        "offset": offset,
-        "players": page,
-        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
-        "funnel": _funnel(svc, cfg),
     }
 
 

@@ -1035,14 +1035,14 @@ async function loadOtps(c) {
   let data;
   otpsLoading = true;
   try {
-    data = await api.get("/api/crawler/otps", { limit: 1 });
+    data = await api.get("/api/crawler/otps", { summary: 1 }); // solo los totales (la lista por campeón ya no se enseña)
   } catch (err) {
     return mount(box, errorBox(err));
   } finally {
     otpsLoading = false;
     otpsAt = Date.now();
   }
-  const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details, data.funnel?.total]);
+  const sig = JSON.stringify([data.found, data.complete, data.capped, data.games, data.details, data.funnel?.total]);
   if (sig === otpsSig) return;
   otpsSig = sig;
   mount(

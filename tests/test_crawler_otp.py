@@ -470,6 +470,48 @@ def test_otps_endpoint_reports_totals_and_history(keyed_svc):
     assert otp["share"] == 0.9 and len(otp["games"]) == 8 and otp["game_name"]  # Riot ID de account-v1 o de la partida
 
 
+def test_el_resumen_de_datos_y_api_sale_de_la_cola_sin_contar_partidas_por_jugador(keyed_svc, monkeypatch):
+    """«Datos y API» solo enseña los totales: antes cada petición contaba las partidas de cada jugador con cada campeón
+    (~26 s con 30.000 jugadores, pedida cada ~10 s). El resumen sale de la cola del recolector y del embudo."""
+    from fastapi.testclient import TestClient
+
+    from app.api import collector
+    from app.main import create_app
+
+    ids, payloads = history("otp-a", 130, prefix="1", champ_for=lambda i: AATROX if i % 10 else GAREN)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], only_target_games=True)
+    app = create_app(keyed_svc.settings, run_startup=False)
+    app.state.svc = keyed_svc
+
+    def heavy(*_a, **_k):
+        raise AssertionError("el resumen no debe contar las partidas de cada jugador")
+
+    monkeypatch.setattr(collector, "_otp_entries", heavy)
+    with TestClient(app) as client:
+        data = client.get("/api/crawler/otps", params={"summary": 1}).json()
+    assert data["found"] == 1 and data["complete"] == 1 and data["games"] == 117 and data["players"] == []
+
+
+def test_el_embudo_de_la_busqueda_se_rehace_cada_30_min(keyed_svc, monkeypatch):
+    """Lee todas las maestrías revisadas (hasta 16-25 s en Windows): cada 30 min, no cada 5."""
+    import time
+
+    from app.ingest import crawler as crawler_mod
+
+    calls = []
+    monkeypatch.setattr(crawler_mod, "search_funnel", lambda db, cfg, now=None: calls.append(1) or {"stages": [], "total": {"active": 5}})
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["GOLD"], champions=[AATROX]).validated()
+    crawler = keyed_svc.crawler
+    assert crawler._search_funnel(cfg)["total"]["active"] == 5
+    crawler._search_funnel(cfg)
+    assert len(calls) == 1
+    crawler._search_funnel_cache = (crawler._search_funnel_cache[0], time.time() - crawler_mod.SEARCH_FUNNEL_EVERY_S - 1,
+                                    crawler._search_funnel_cache[2])
+    crawler._search_funnel(cfg)
+    assert len(calls) == 2
+
+
 def test_otps_endpoint_only_lists_the_selected_servers_and_tiers(keyed_svc):
     """Un OTP de otro servidor (de una búsqueda anterior) no se visitará con esta configuración: no se muestra."""
     from fastapi.testclient import TestClient
@@ -1298,7 +1340,7 @@ def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nad
     from app.ingest.crawler import tier_shares
 
     shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
-    assert round(shares["GOLD"], 3) == 0.967 and round(shares["DIAMOND"], 3) == 0.033  # inversa al cuadrado, con mínimo
+    assert round(shares["GOLD"], 3) == 0.999 and 0 < shares["DIAMOND"] < 0.001  # inversa al cubo: casi todo, pero no todo
     assert {t: round(v, 6) for t, v in tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]).items()} == {"GOLD": 0.5, "DIAMOND": 0.5}
     five = tier_shares({"IRON": 0, "GOLD": 100, "EMERALD": 900, "MASTER": 1000, "CHALLENGER": 1000}, ["IRON", "GOLD", "EMERALD", "MASTER", "CHALLENGER"])
     assert abs(sum(five.values()) - 1) < 1e-9 and five["IRON"] > five["GOLD"] > five["EMERALD"] > five["MASTER"]
@@ -1306,21 +1348,23 @@ def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nad
 
 def test_el_reparto_con_las_cifras_reales_da_mas_a_oro_que_a_maestro():
     """Lo que había el 24-11-2026: Oro (1.500) recibía casi lo mismo que Maestro (5.000) porque todo se medía frente a
-    Diamante (17.000). Ahora la parte es inversa (al cuadrado) a lo analizado: los elos con pocos datos se recuperan antes."""
+    Diamante (17.000). Ahora la parte es inversa (al cubo) a lo analizado: los elos con pocos datos se recuperan antes y
+    el que tiene muchas más que los demás (Diamante) casi no recibe hasta que lo alcanzan."""
     from app.ingest.crawler import tier_shares
 
     real = {"CHALLENGER": 6800, "GRANDMASTER": 2800, "MASTER": 5000, "DIAMOND": 17000, "EMERALD": 2100, "PLATINUM": 1600,
             "GOLD": 1500, "SILVER": 1500, "BRONZE": 1300, "IRON": 1700}
     shares = tier_shares(real, list(real))
-    assert shares["GOLD"] > 6 * shares["MASTER"] and shares["PLATINUM"] > 6 * shares["MASTER"]
+    assert shares["GOLD"] > 20 * shares["MASTER"] and shares["PLATINUM"] > 20 * shares["MASTER"]
     assert max(shares, key=shares.get) == "BRONZE" and min(shares, key=shares.get) == "DIAMOND"
-    assert sum(shares[t] for t in ("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM")) > 0.8
-    assert shares["DIAMOND"] >= 0.005  # ninguno se para
+    assert sum(shares[t] for t in ("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM")) > 0.85
+    # Cuantas más partidas tiene, menos recibe: Diamante < Aspirante < Maestro < Gran Maestro, y ninguno a 0.
+    assert 0 < shares["DIAMOND"] < shares["CHALLENGER"] < shares["MASTER"] < shares["GRANDMASTER"]
 
 
 def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
-    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva casi todas (~97 %) y Diamante entra solo
-    cuando a Oro le falta menos que a él (lo que le falta a cada uno, no quién tiene 0 recientes)."""
+    """Diamante con 1.000 partidas analizadas y Oro con 500: Oro se lleva el 86 % y Diamante entra solo cuando a Oro le
+    falta menos que a él (lo que le falta a cada uno, no quién tiene 0 recientes)."""
     from app.ingest.crawler import ACTIVE_VISIT_GAMES, tier_need, tier_shares
 
     now = _now_s()
@@ -1328,19 +1372,20 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
     lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
                           role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
     with db.write() as conn:
-        for puuid, tier in (("g1", "GOLD"), ("g2", "GOLD"), ("d1", "DIAMOND"), ("d-old", "DIAMOND")):
+        for puuid, tier in (("g1", "GOLD"), ("g2", "GOLD"), ("g-old", "GOLD"), ("d1", "DIAMOND"), ("d-old", "DIAMOND")):
             conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
             conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 900_000, now]])))
-        conn.execute(
-            "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, back_done_reason, seen, hits, updated_at) "
-            "VALUES ('d-old', ?, ?, 100, ?, 0, 'end', 1000, 1000, ?)",
-            (otp_list_key(lines), now - 3600, now - 3600, now - 3600),
-        )
-        conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = 'd-old'", (now,))
+        for puuid, hits in (("d-old", 1000), ("g-old", 500)):
+            conn.execute(
+                "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, back_done_reason, seen, hits, updated_at) "
+                "VALUES (?, ?, ?, 100, ?, 0, 'end', ?, ?, ?)",
+                (puuid, otp_list_key(lines), now - 3600, now - 3600, hits, hits, now - 3600),
+            )
+            conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = ?", (now, puuid))
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
     crawler = keyed_svc.crawler
     assert worker._next_otp()["tier"] == "GOLD"  # nadie visitado aún: el que va por detrás
-    shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
+    shares = tier_shares({"GOLD": 500, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
     gold_visits = 0
     while True:
         need = tier_need({"GOLD": gold_visits * ACTIVE_VISIT_GAMES}, shares)
@@ -1349,12 +1394,12 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
         assert worker._next_otp()["tier"] == "GOLD"
         crawler.note_visit_tier("GOLD")
         gold_visits += 1
-    assert gold_visits > 20  # Oro muy por delante antes de que Diamante reciba nada
+    assert gold_visits >= 5  # Oro muy por delante antes de que Diamante reciba nada
     assert worker._next_otp()["tier"] == "DIAMOND"
     crawler.note_visit_tier("DIAMOND")
     assert worker._next_otp()["tier"] == "GOLD"
     report = crawler.tier_report()
-    assert report["GOLD"]["parte_pct"] == round(100 * shares["GOLD"], 1) > 95 and report["DIAMOND"]["analizadas"] == 1000
+    assert report["GOLD"]["parte_pct"] == round(100 * shares["GOLD"], 1) > 85 and report["DIAMOND"]["analizadas"] == 1000
 
 
 def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, monkeypatch):
@@ -1471,7 +1516,7 @@ def test_el_reparto_no_rota_por_todos_los_elos_cuando_uno_tiene_poca_parte():
         recent[tier] = recent.get(tier, 0) + yield_of.get(tier, 50)
     total = sum(recent.values())
     assert abs(recent["GOLD"] / total - shares["GOLD"]) < 0.02
-    assert abs(recent["DIAMOND"] / total - shares["DIAMOND"]) < 0.02
+    assert abs(recent.get("DIAMOND", 0) / total - shares["DIAMOND"]) < 0.02
     assert picks.count("GOLD") > 5 * picks.count("DIAMOND")
 
 
