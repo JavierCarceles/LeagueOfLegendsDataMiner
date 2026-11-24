@@ -490,3 +490,7 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   (account-v1, cupo regional; ~100 por minuto con ~7.500 revisados por hora) y de cada jugador nuevo visitado: ya no se
   pide, llega con su primera partida; (2) las tablas de OP.GG con líneas enteras o «cualquiera que lo juegue»: ya no se
   piden (solo traen Diamante+, del que hay 146.000 jugadores encontrados), y buscando especialistas, 20 por tabla.
+- **Desglose de la subida de las 02:28:** cada región pasaba 15-19 s preparando la cola de visitas (ordenaba los ~350.000
+  jugadores encontrados) y en esa sesión no llegó a visitar a nadie. Ahora la cola lee solo los ya visitados y los 100
+  de más LP sin visitar de cada plataforma y elo (5,6 → 0,6 s en un Mac con 280.000); la búsqueda para en los elos con
+  200+ jugadores esperando visita, y analizar cada partida tarda la mitad (0,14 → 0,077 s).

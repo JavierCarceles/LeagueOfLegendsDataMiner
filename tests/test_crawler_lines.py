@@ -261,11 +261,25 @@ def test_la_cola_de_otps_se_reutiliza_y_no_repite_a_quien_ya_se_visito(keyed_svc
     _otp(db, "dia-1", AATROX, "DIAMOND")
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
     reads = []
-    real = crawler_mod.otp_rows
-    monkeypatch.setattr(crawler_mod, "otp_rows", lambda *a, **k: reads.append(1) or real(*a, **k))
+    real = crawler_mod.otp_rows_for_plan
+    monkeypatch.setattr(crawler_mod, "otp_rows_for_plan", lambda *a, **k: reads.append(1) or real(*a, **k))
     first = worker._next_otp()
     assert first["puuid"] == "gold-1"
     worker._visited["gold-1"] = __import__("time").time()  # lo que hace _visit_otp al empezar
     assert worker._next_otp()["puuid"] == "dia-1"
     assert worker._next_otp() is None  # cola agotada: no se relee enseguida
     assert len(reads) == 1
+
+
+
+def test_la_cola_solo_lee_los_visitados_y_los_mejores_sin_visitar_de_cada_elo(keyed_svc, monkeypatch):
+    """Con cientos de miles de jugadores encontrados, la cola lee los ya visitados y los N de más LP sin visitar de
+    cada plataforma y elo (al visitarlos, entran los siguientes)."""
+    monkeypatch.setattr(crawler_mod, "PLAN_UNVISITED_PER_TIER", 2)
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], champions=[AATROX], roles=["TOP"]).validated()
+    db = keyed_svc.db
+    for i in range(5):
+        _otp(db, f"gold-{i}", AATROX, "GOLD", lp=i)
+    _otp(db, "dia-v", AATROX, "DIAMOND", visited=True, hits=3, cfg=cfg)
+    rows = crawler_mod.otp_rows_for_plan(db, cfg)
+    assert sorted(r["puuid"] for r, _ in rows) == ["dia-v", "gold-3", "gold-4"]

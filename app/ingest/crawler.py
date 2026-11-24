@@ -513,6 +513,52 @@ def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: 
     return out
 
 
+PLAN_UNVISITED_PER_TIER = 100  # sin visitar que entran en la cola por plataforma y elo (los de más LP)
+
+
+def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None) -> list:
+    """Como ``otp_rows`` pero solo lo que necesita la cola de visitas: todos los ya visitados (o de las tablas de OP.GG)
+    y, de los que nunca se han visitado, los ``PLAN_UNVISITED_PER_TIER`` de más LP de cada plataforma y elo. Con ~350.000
+    jugadores encontrados, ordenarlos todos costaba 15-19 s por región en Windows cada vez que se rehacía la cola; al
+    visitar unos, entran los siguientes."""
+    targets = cfg.targets
+    platforms, tiers = list(cfg.platforms), list(cfg.tiers)
+    if not targets or not platforms or not tiers:
+        return []
+    pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
+    cols = (
+        "p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_name, p.tag_line, p.newest_match_at, "
+        "p.last_crawled_at, m.top, m.checked_at, o.list_key, o.anchor, o.back_offset, o.back_done_at, "
+        "o.back_done_start, o.back_done_reason, o.fwd_more, o.fwd_newest, o.low_pages, o.config_key, o.seen, o.hits, "
+        "(SELECT group_concat(s.champ) FROM otp_sources s WHERE s.puuid = p.puuid) AS sourced"
+    )
+    base = (
+        "FROM mastery_checks m JOIN players p ON p.puuid = m.puuid LEFT JOIN otp_progress o ON o.puuid = p.puuid "
+        f"WHERE p.is_seed = 1 AND p.platform IN ({pm}) AND p.tier IN ({tm})"
+    )
+    known = db.query(
+        f"SELECT {cols} {base} AND (o.puuid IS NOT NULL OR p.puuid IN (SELECT puuid FROM otp_sources))", (*platforms, *tiers)
+    )
+    fresh = db.query(
+        f"SELECT * FROM (SELECT {cols}, ROW_NUMBER() OVER (PARTITION BY p.platform, p.tier ORDER BY p.lp DESC) AS rn "
+        f"{base} AND o.puuid IS NULL AND p.puuid NOT IN (SELECT puuid FROM otp_sources)) WHERE rn <= ?",
+        (*platforms, *tiers, PLAN_UNVISITED_PER_TIER),
+    )
+    now = now or now_s()
+    wanted = set(targets)
+    out = []
+    for row in [*known, *fresh]:
+        try:
+            top = json.loads(row["top"])
+        except (TypeError, ValueError):
+            continue
+        if not cfg.share_ok(row["seen"], row["hits"]):
+            continue
+        if cfg.qualifies(top, now) or sourced_champs(row) & wanted:
+            out.append((row, top))
+    return out
+
+
 def otp_champs(cfg: CrawlerConfig, top: list, sourced: set[int] | None = None) -> list[int]:
     """Campeones buscados por los que cuenta este jugador: los de su top 3 con el mínimo de maestría o los de la tabla
     de los mejores de cada campeón (OP.GG)."""
@@ -1693,7 +1739,7 @@ class Crawler:
             if cached is not None and cached[0] == key and time.time() - cached[1] < OTP_ROWS_FRESH_S:
                 return cached[2], cached[1]
             at = time.time()
-            rows = otp_rows(self.svc.db, cfg, cfg.platforms, cfg.tiers, now)
+            rows = otp_rows_for_plan(self.svc.db, cfg, now)
             self._rows_cache = (key, at, rows)
             return rows, at
 
