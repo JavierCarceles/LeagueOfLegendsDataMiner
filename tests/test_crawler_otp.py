@@ -1273,6 +1273,26 @@ def test_with_whole_lines_the_elo_with_fewest_games_goes_first(keyed_svc):
     assert RegionWorker(keyed_svc.crawler, "europe", ["euw1"], champs)._next_otp()["puuid"] == "d-garen"
 
 
+
+def test_las_regiones_se_turnan_los_elos(keyed_svc):
+    """Antes las 4 regiones iban todas al elo con menos partidas en total (entre una subida y otra salían 3-4 elos):
+    ahora el siguiente jugador es del elo menos visitado últimamente (entre las 4 regiones); a igualdad, el de menos."""
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["SILVER", "EMERALD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        for puuid, tier in (("s1", "SILVER"), ("s2", "SILVER"), ("e1", "EMERALD"), ("d1", "DIAMOND")):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 900_000, now]])))
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    first = worker._next_otp()
+    assert first["tier"] == "SILVER"  # a igualdad, el elo más bajo
+    keyed_svc.crawler.note_visit_tier("SILVER")  # otra región acaba de empezar con uno de Plata
+    assert worker._next_otp()["tier"] == "EMERALD"
+    keyed_svc.crawler.note_visit_tier("EMERALD")
+    assert worker._next_otp()["tier"] == "DIAMOND"
+
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
     solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""

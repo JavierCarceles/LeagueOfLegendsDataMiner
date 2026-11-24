@@ -696,3 +696,8 @@ Lo que encontró con ~35.000 partidas:
   `data/otps/_medias_ranking.json` (solo sumas; se vuelca cada minuto, al detener y antes de subir). El perfil por elo
   las mezcla con las de las partidas analizadas, cada una pesando sus partidas. El movimiento, los roams y los errores
   siguen necesitando el timeline (las 5 líneas).
+- **Solo salían 3-4 elos en la gráfica (subida de las 12:41):** cada región visita a un jugador cada vez (hasta ~50
+  partidas, 2-4 min) y la cola elegía siempre el elo con menos partidas en total, así que las 4 regiones se juntaban en
+  los 2-3 elos que iban por detrás. Ahora hay turno por elo entre las 4 regiones: el siguiente jugador es del elo menos
+  visitado en las últimas 12 visitas (`RECENT_TIER_VISITS`) y, a igualdad, del que va por detrás. Acortar las visitas no
+  servía: el corte de «ya no juega ese campeón» se mide por tramos del historial y cortaba antes de tiempo.

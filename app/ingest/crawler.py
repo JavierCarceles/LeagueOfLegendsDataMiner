@@ -35,7 +35,7 @@ import contextlib
 import json
 import queue
 from concurrent.futures import ThreadPoolExecutor
-from collections import deque
+from collections import Counter, deque
 import threading
 import time
 from dataclasses import asdict, dataclass, field, fields, replace
@@ -73,6 +73,10 @@ ROLE_MIN_RATE = 0.08  # «toda una línea» = campeones con ≥ 8 % de sus parti
 # Historial de los OTPs (sin tope de partidas por jugador).
 OTP_PAGE = 100  # ids por petición de match-v5 (el máximo de Riot)
 OTP_VISIT_MATCHES = 100  # partidas descargadas por visita antes de pasar a otro OTP (reparto justo)
+# Turno por elo (las 4 regiones juntas): el siguiente jugador, del elo que menos se ha visitado en las últimas visitas.
+# Antes iba siempre primero el elo con menos partidas en total y las 4 regiones se juntaban en los 2-3 elos que iban
+# por detrás (entre una subida y otra salían 3-4 elos, 24-11-2026).
+RECENT_TIER_VISITS = 12
 OTP_BACK_PAGES = 5  # páginas del historial por visita (las ya conocidas no gastan descargas)
 OTP_FORWARD_PAGES = 10  # partidas nuevas listadas por visita (hasta 1.000)
 OTP_LOW_SHARE = 0.10  # páginas del historial con ≤ 10 % de partidas con el campeón…
@@ -1200,6 +1204,9 @@ class RegionWorker(threading.Thread):
         self.waiting_by_tier = waiting_by_tier  # y no busca más en un elo con jugadores de sobra esperando visita
         plan = []
         complete = 0
+        # Turno por elo: antes iba siempre primero el elo con menos partidas en total y las 4 regiones se juntaban en los
+        # 2-3 elos que iban por detrás. Ahora primero el elo menos visitado últimamente; a igualdad, el que va por detrás.
+        recent = self.crawler.recent_tiers() if hasattr(self.crawler, "recent_tiers") else Counter()
         for row, champ, state in info:
             if state in ("done", "share"):
                 complete += 1
@@ -1216,7 +1223,7 @@ class RegionWorker(threading.Thread):
                     # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
                     again = int(row["anchor"] is not None)
                     low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
-                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
+                    key = (0, recent.get(tier, 0), lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
                 else:
                     # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
                     key = (0, level, likely, in_tier, in_champ, *rank)
@@ -1224,7 +1231,7 @@ class RegionWorker(threading.Thread):
                 key = (1, row["last_crawled_at"] or 0, 0, 0, *rank)
             elif state == "loading" and not (cap and cap_count(cfg, row["hits"], row["seen"]) >= cap):
                 first = lane_tier_games.get((lane_of(champ), tier), 0) if by_elo else champ_games.get(champ, 0)
-                key = (2, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
+                key = (2, recent.get(tier, 0) if by_elo else 0, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
             elif row["id"] in lacking:
                 key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
             else:
@@ -1360,6 +1367,7 @@ class RegionWorker(threading.Thread):
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         platform, puuid = row["platform"], row["puuid"]
         self._visited[puuid] = time.time()
+        self.crawler.note_visit_tier(row["tier"] or "")
         player = {"id": row["id"], "puuid": puuid, "tier": row["tier"]}
         queue = None if cfg.include_flex else QUEUE_SOLO
         list_key, config_key = self._list_key(), otp_config_key(cfg)
@@ -1902,6 +1910,7 @@ class Crawler:
         self._funnel_thread: threading.Thread | None = None
         self._rows_lock = threading.Lock()
         self._rows_cache: tuple | None = None  # (clave de la búsqueda, cuándo, filas de ``otp_rows``)
+        self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (turno por elo)
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1915,6 +1924,15 @@ class Crawler:
 
     def searching(self) -> bool:
         return any(w.searching() for w in self.workers.values())
+
+    def note_visit_tier(self, tier: str) -> None:
+        """Una región empieza a visitar a un jugador de ese elo (turno por elo entre las 4 regiones)."""
+        with self._rows_lock:
+            self._recent_visit_tiers.append(tier)
+
+    def recent_tiers(self) -> Counter:
+        with self._rows_lock:
+            return Counter(self._recent_visit_tiers)
 
     def otp_rows_cached(self, cfg: CrawlerConfig, now: int | None = None) -> tuple[list, float]:
         """``otp_rows`` de todas las plataformas de la búsqueda, leído una vez para todas las regiones cada
