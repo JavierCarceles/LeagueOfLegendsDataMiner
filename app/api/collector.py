@@ -255,6 +255,20 @@ def _files_state(svc) -> dict:
     return {"path": str(files.base), "files": files.state, "players_path": str(players.base) if players is not None else None, "autopush": push}
 
 
+@router.post("/otps/push")
+def otps_push_now(svc=Depends(svc_from)):
+    """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 500 partidas."""
+    from app.autopush import AutoPush
+
+    auto = AutoPush.of(svc)
+    if auto is None or not auto.public().get("enabled"):
+        raise HTTPException(409, "La subida automática está desactivada (AUTO_PUSH_GAMES=0).")
+    if auto.state.get("git_ok") is False:
+        raise HTTPException(409, f"No se puede subir: {auto.state.get('git')}")
+    started = auto.start()
+    return {"started": started, "autopush": auto.public()}
+
+
 @router.post("/otps/files/rebuild")
 def otps_files_rebuild(svc=Depends(svc_from)):
     """Reescribe las carpetas ``otps`` y ``partidas_campeon`` desde la base de datos (normalmente se escriben solas)."""

@@ -148,3 +148,19 @@ def test_sin_nada_nuevo_en_data_lo_dice(repos, monkeypatch):
     auto.note_game()
     auto.thread.join(30)
     assert auto.state["pending"] == 0 and auto.state["last_result"] == "nothing" and not auto.state.get("last_push_at")
+
+
+def test_subir_ahora_sin_esperar_al_limite(repos, monkeypatch):
+    from app.api import collector
+
+    a = repos.a
+    monkeypatch.setattr(autopush, "every", lambda: 500)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event())
+    auto = autopush.AutoPush(svc, repo=a)
+    monkeypatch.setattr(autopush.AutoPush, "of", classmethod(lambda cls, s: auto))
+    (a / "data" / "pocas.json").write_text("{}")
+    auto.note_game()
+    out = collector.otps_push_now(svc)
+    assert out["started"]
+    auto.thread.join(30)
+    assert auto.state["pending"] == 0 and git(repos.remote, "log", "-1", "--format=%s", "main") == "datos"

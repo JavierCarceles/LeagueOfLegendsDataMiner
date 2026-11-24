@@ -86,6 +86,7 @@ const ICONS = {
   pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
   monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  upload: '<path d="M12 20V8M7 13l5-5 5 5M4 4h16"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
 };
 

@@ -1093,6 +1093,26 @@ function autopushLine(p) {
     { style: { marginTop: "4px" } },
     h("b", "GitHub: "),
     parts.join(" · "),
+    p.git_ok !== false && !p.running && (p.pending || 0) > 0
+      ? h(
+          "button.btn.btn-ghost.btn-sm",
+          {
+            style: { marginLeft: "8px" },
+            title: "Commit «datos» y push ahora, sin esperar a llegar al límite",
+            onclick: async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api.post("/api/crawler/otps/push");
+                toast("Subiendo los datos a GitHub…", "success");
+              } catch (err) {
+                toast(`No se pudo subir: ${err.message || err}`, "error", 8000);
+              }
+            },
+          },
+          icon("upload"),
+          "Subir ahora",
+        )
+      : null,
     p.git_ok === false ? h("div.tiny.bad", `No se podrá subir: ${p.git}`) : p.git ? h("div.tiny.faint", p.git) : null,
     p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
   );
