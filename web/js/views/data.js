@@ -98,6 +98,9 @@ export async function render(container) {
     ),
   );
   Object.values(sections).forEach((s) => mount(s, loading()));
+  // La primera vez se cuentan todas las partidas en la base de datos (unos segundos con decenas de miles): se dice qué
+  // se espera (un % no se puede saber: es una sola consulta).
+  mount(sections.eloTotal, loading("Contando las partidas por elo en la base de datos…"));
   await refresh();
   clearInterval(timer);
   timer = setInterval(() => root && !interacting() && refresh({ timer: true }), 2500);
@@ -1475,7 +1478,9 @@ let eloSig = null;
 /** ``stacked``: cada barra partida en OTPs (abajo) y el resto, con leyenda (la del total por elo). */
 function eloChartShell(stacked = false) {
   const legend = stacked ? h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto") : null;
-  const segments = stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null;
+  // Unos segmentos nuevos por columna: un mismo nodo solo puede estar en un sitio (compartidos, acababan todos en la
+  // última columna y la primera fallaba al pintarse).
+  const segments = () => (stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null);
   return h(
     stacked ? "div.elo-chart.stacked" : "div.elo-chart",
     h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"), legend),
@@ -1488,7 +1493,7 @@ function eloChartShell(stacked = false) {
         h(
           "div.elo-chart-bars",
           ELO_ORDER.map((t) =>
-            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } }, segments)),
+            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } }, segments())),
           ),
         ),
       ),
