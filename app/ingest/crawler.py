@@ -73,10 +73,12 @@ ROLE_MIN_RATE = 0.08  # «toda una línea» = campeones con ≥ 8 % de sus parti
 # Historial de los OTPs (sin tope de partidas por jugador).
 OTP_PAGE = 100  # ids por petición de match-v5 (el máximo de Riot)
 OTP_VISIT_MATCHES = 100  # partidas descargadas por visita antes de pasar a otro OTP (reparto justo)
-# Turno por elo (las 4 regiones juntas): el siguiente jugador, del elo que menos se ha visitado en las últimas visitas.
-# Antes iba siempre primero el elo con menos partidas en total y las 4 regiones se juntaban en los 2-3 elos que iban
-# por detrás (entre una subida y otra salían 3-4 elos, 24-11-2026).
-RECENT_TIER_VISITS = 12
+# Reparto por elo de las visitas (las 4 regiones juntas), entre los elos de los filtros: la mitad a partes iguales (ninguno
+# se para) y la otra mitad según lo que le falta a cada uno (partidas analizadas) frente al que más tiene. El siguiente
+# jugador es del elo más por debajo de su parte en las últimas visitas. Antes iba siempre el elo con menos partidas y las
+# 4 regiones se juntaban en 2-3 elos; con turnos iguales, los elos que van por detrás no se ponían al día (24-11-2026).
+RECENT_TIER_VISITS = 40
+EVEN_SHARE = 0.5
 OTP_BACK_PAGES = 5  # páginas del historial por visita (las ya conocidas no gastan descargas)
 OTP_FORWARD_PAGES = 10  # partidas nuevas listadas por visita (hasta 1.000)
 OTP_LOW_SHARE = 0.10  # páginas del historial con ≤ 10 % de partidas con el campeón…
@@ -638,6 +640,19 @@ PREFETCH_AHEAD = 8
 # de Riot se respeta igual).
 PREFETCH_THREADS = 3
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
+
+
+def tier_shares(totals: dict[str, int], tiers: list[str]) -> dict[str, float]:
+    """Parte de las visitas de cada elo: ``EVEN_SHARE`` a partes iguales y el resto según lo que le falta (partidas
+    analizadas) frente al elo que más tiene. Suma 1."""
+    tiers = list(dict.fromkeys(tiers))
+    if not tiers:
+        return {}
+    top = max(totals.get(t, 0) for t in tiers)
+    deficit = {t: top - totals.get(t, 0) for t in tiers}
+    total = sum(deficit.values())
+    n = len(tiers)
+    return {t: EVEN_SHARE / n + (1 - EVEN_SHARE) * (deficit[t] / total if total else 1 / n) for t in tiers}
 
 
 def _field(row, key: str):
@@ -1207,6 +1222,17 @@ class RegionWorker(threading.Thread):
         # Turno por elo: antes iba siempre primero el elo con menos partidas en total y las 4 regiones se juntaban en los
         # 2-3 elos que iban por detrás. Ahora primero el elo menos visitado últimamente; a igualdad, el que va por detrás.
         recent = self.crawler.recent_tiers() if hasattr(self.crawler, "recent_tiers") else Counter()
+        tier_totals: dict[str, int] = {}
+        for (_lane, t), n in lane_tier_games.items():
+            tier_totals[t] = tier_totals.get(t, 0) + n
+        shares = tier_shares(tier_totals, list(cfg.tiers or tier_totals))
+        if hasattr(self.crawler, "note_tier_shares"):
+            self.crawler.note_tier_shares(self.region, shares, tier_totals)
+
+        def behind(tier: str) -> float:
+            """Visitas recientes de ese elo frente a su parte (menos = más por debajo: va antes)."""
+            return recent.get(tier, 0) / max(shares.get(tier, 0.0), 1e-6)
+
         for row, champ, state in info:
             if state in ("done", "share"):
                 complete += 1
@@ -1223,7 +1249,7 @@ class RegionWorker(threading.Thread):
                     # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
                     again = int(row["anchor"] is not None)
                     low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
-                    key = (0, recent.get(tier, 0), lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
+                    key = (0, behind(tier), lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
                 else:
                     # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
                     key = (0, level, likely, in_tier, in_champ, *rank)
@@ -1231,7 +1257,7 @@ class RegionWorker(threading.Thread):
                 key = (1, row["last_crawled_at"] or 0, 0, 0, *rank)
             elif state == "loading" and not (cap and cap_count(cfg, row["hits"], row["seen"]) >= cap):
                 first = lane_tier_games.get((lane_of(champ), tier), 0) if by_elo else champ_games.get(champ, 0)
-                key = (2, recent.get(tier, 0) if by_elo else 0, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
+                key = (2, behind(tier) if by_elo else 0, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
             elif row["id"] in lacking:
                 key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
             else:
@@ -1910,7 +1936,8 @@ class Crawler:
         self._funnel_thread: threading.Thread | None = None
         self._rows_lock = threading.Lock()
         self._rows_cache: tuple | None = None  # (clave de la búsqueda, cuándo, filas de ``otp_rows``)
-        self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (turno por elo)
+        self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (reparto por elo)
+        self._tier_shares: dict[str, tuple[dict, dict]] = {}  # región -> (parte de cada elo, partidas analizadas)
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1933,6 +1960,30 @@ class Crawler:
     def recent_tiers(self) -> Counter:
         with self._rows_lock:
             return Counter(self._recent_visit_tiers)
+
+    def note_tier_shares(self, region: str, shares: dict, totals: dict) -> None:
+        """El reparto por elo que usa cada región (para el embudo y el registro)."""
+        with self._rows_lock:
+            self._tier_shares[region] = (shares, totals)
+
+    def tier_report(self) -> dict:
+        """Por elo: parte objetivo de las visitas (media de las regiones), visitas recientes y partidas analizadas."""
+        with self._rows_lock:
+            per_region = dict(self._tier_shares)
+            recent = Counter(self._recent_visit_tiers)
+        out: dict = {}
+        for shares, totals in per_region.values():
+            for t, sh in shares.items():
+                e = out.setdefault(t, {"parte": 0.0, "regiones": 0, "analizadas": 0})
+                e["parte"] += sh
+                e["regiones"] += 1
+                e["analizadas"] += totals.get(t, 0)
+        n_recent = sum(recent.values()) or 1
+        return {
+            t: {"parte_pct": round(100 * e["parte"] / e["regiones"], 1), "visitas_recientes_pct": round(100 * recent.get(t, 0) / n_recent, 1),
+                "analizadas": e["analizadas"]}
+            for t, e in sorted(out.items(), key=lambda kv: TIER_INDEX.get(kv[0], 0))
+        }
 
     def otp_rows_cached(self, cfg: CrawlerConfig, now: int | None = None) -> tuple[list, float]:
         """``otp_rows`` de todas las plataformas de la búsqueda, leído una vez para todas las regiones cada
@@ -2026,6 +2077,11 @@ class Crawler:
                         for h, v in sorted(regional.items())
                     ))
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
+            funnel["reparto_elo"] = self.tier_report()
+            if funnel["reparto_elo"]:
+                log.info("Reparto por elo (parte objetivo / visitas recientes / analizadas): %s", ", ".join(
+                    f"{t} {e['parte_pct']}%/{e['visitas_recientes_pct']}%/{e['analizadas']}" for t, e in funnel["reparto_elo"].items()
+                ))
             # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
             from app import diag
 

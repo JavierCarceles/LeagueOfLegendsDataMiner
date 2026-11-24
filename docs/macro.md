@@ -701,3 +701,8 @@ Lo que encontró con ~35.000 partidas:
   los 2-3 elos que iban por detrás. Ahora hay turno por elo entre las 4 regiones: el siguiente jugador es del elo menos
   visitado en las últimas 12 visitas (`RECENT_TIER_VISITS`) y, a igualdad, del que va por detrás. Acortar las visitas no
   servía: el corte de «ya no juega ese campeón» se mide por tramos del historial y cortaba antes de tiempo.
+- **Reparto por elo con pesos** (en vez de turnos iguales): entre los elos de los filtros, la mitad de las visitas a
+  partes iguales (ninguno se para) y la otra mitad según lo que le falta a cada uno en partidas analizadas frente al que
+  más tiene (`tier_shares`, `EVEN_SHARE = 0,5`). El siguiente jugador es del elo más por debajo de su parte en las
+  últimas 40 visitas de las 4 regiones; si un elo no tiene a nadie esperando, se pasa al siguiente sin frenar. El embudo
+  (`reparto_elo`) y el registro cada 5 min dicen, por elo, la parte objetivo, las visitas recientes y las analizadas.

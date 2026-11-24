@@ -1293,6 +1293,44 @@ def test_las_regiones_se_turnan_los_elos(keyed_svc):
     keyed_svc.crawler.note_visit_tier("EMERALD")
     assert worker._next_otp()["tier"] == "DIAMOND"
 
+
+def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nadie():
+    from app.ingest.crawler import tier_shares
+
+    shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
+    assert shares == {"GOLD": 0.75, "DIAMOND": 0.25}  # la mitad a partes iguales, la otra mitad para el que va por detrás
+    assert tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]) == {"GOLD": 0.5, "DIAMOND": 0.5}
+    five = tier_shares({"IRON": 0, "GOLD": 100, "EMERALD": 900, "MASTER": 1000, "CHALLENGER": 1000}, ["IRON", "GOLD", "EMERALD", "MASTER", "CHALLENGER"])
+    assert abs(sum(five.values()) - 1) < 1e-9 and min(five.values()) == 0.1 and five["IRON"] > five["GOLD"] > five["EMERALD"]
+
+
+def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
+    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva 3 de cada 4 visitas, Diamante 1."""
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        for puuid, tier in (("g1", "GOLD"), ("g2", "GOLD"), ("d1", "DIAMOND"), ("d-old", "DIAMOND")):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 900_000, now]])))
+        conn.execute(
+            "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, back_done_reason, seen, hits, updated_at) "
+            "VALUES ('d-old', ?, ?, 100, ?, 0, 'end', 1000, 1000, ?)",
+            (otp_list_key(lines), now - 3600, now - 3600, now - 3600),
+        )
+        conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = 'd-old'", (now,))
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    crawler = keyed_svc.crawler
+    assert worker._next_otp()["tier"] == "GOLD"  # nadie visitado aún: el que va por detrás
+    crawler.note_visit_tier("GOLD")
+    crawler.note_visit_tier("GOLD")
+    assert worker._next_otp()["tier"] == "DIAMOND"  # Oro ya va por encima de su parte (2 visitas / 0,75)
+    crawler.note_visit_tier("DIAMOND")
+    assert worker._next_otp()["tier"] == "GOLD"
+    report = crawler.tier_report()
+    assert report["GOLD"]["parte_pct"] == 75.0 and report["DIAMOND"]["analizadas"] == 1000
+
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
     solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""
