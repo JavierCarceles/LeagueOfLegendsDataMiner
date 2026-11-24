@@ -81,7 +81,12 @@ OTP_VISIT_MATCHES = 100  # partidas descargadas por visita antes de pasar a otro
 # la mayoría y Oro y Platino ninguna (24-11-2026).
 RECENT_TIER_VISITS = 40  # (compatibilidad) visitas recientes
 RECENT_TIER_GAMES = 400  # partidas analizadas recientes con las que se mide el reparto
-ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (aún sin partidas)
+ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (menos lo que ya lleva analizado)
+# Las últimas partidas analizadas se guardan en la base de datos (cada 5 min y al detener): antes se perdían al
+# reiniciar y cada sesión de 5-15 min (unas 10 visitas) empezaba el reparto de cero.
+RECENT_META_KEY = "crawler_recent_games"
+VISIT_LOG_SIZE = 40  # últimas visitas en el embudo (``_busqueda.json``): elo, por qué se eligió, cuánto dio y por qué acabó
+PLAN_KIND = {0: "nuevo", 1: "partidas nuevas", 2: "historial", 3: "sin análisis"}
 FLOOR_SHARE = 0.1  # parte repartida a partes iguales (ninguno se para)
 SHARE_SMOOTH = 100  # partidas que se suman a cada elo al invertir (uno con 0 no se lo lleva todo)
 OTP_BACK_PAGES = 5  # páginas del historial por visita (las ya conocidas no gastan descargas)
@@ -747,6 +752,9 @@ class RegionWorker(threading.Thread):
         self._plan_at = 0.0
         self._plan_rows_at = 0.0
         self._visited: dict[str, float] = {}  # puuid -> cuándo empezó su última visita
+        self._pick: dict | None = None  # por qué se eligió al jugador de la visita en curso (diagnóstico del reparto)
+        self._visit_analyzed = 0  # partidas analizadas en la visita en curso
+        self._visit_result: dict = {}
         # Segundos de esta sesión en cada fase (para ver dónde se va el tiempo si el cupo de Riot no se llena).
         self.timing: dict[str, float] = {}
         self.waiting_by_tier: dict[tuple[str, str], int] = {}
@@ -894,11 +902,18 @@ class RegionWorker(threading.Thread):
                         continue
                     self.state.update(status="running", platform=target["platform"], tier=target["tier"])
                     self.crawler.visit_started(self.region, target["tier"] or "")
+                    t0 = time.time()
+                    self._visit_analyzed = 0
+                    self._visit_result = {"fin": "error o detenido"}
                     try:
                         with self.timed("visitas"):
                             self._visit_otp(target)
                     finally:
-                        self.crawler.visit_ended(self.region)
+                        self.crawler.visit_ended(self.region, {
+                            "plataforma": PLATFORMS.get(target["platform"], (None, target["platform"]))[1],
+                            "elo": target["tier"] or "", "analizadas": self._visit_analyzed,
+                            "s": round(time.time() - t0, 1), **(self._pick or {}), **self._visit_result,
+                        })
                     self.timing["n_visitas"] = self.timing.get("n_visitas", 0) + 1
                 except Cancelled:
                     break
@@ -1174,15 +1189,33 @@ class RegionWorker(threading.Thread):
             tier = row["tier"] or ""
             return ((recent.get(tier, 0) + 1) / max(shares.get(tier, 0.0), 1e-6), *key)  # +1: a igualdad, el de más parte
 
+        self._pick = None
+        if recent is not None:
+            self._note_queue(shares, recent)
         while self._plan:
             best = min(range(len(self._plan)), key=lambda i: live(self._plan[i]))
-            _key, row = self._plan.pop(best)
+            key, row = self._plan.pop(best)
             if self._visited.get(row["puuid"], 0.0) >= self._plan_rows_at:
                 continue  # ya visitado con esta cola: su progreso ha cambiado, vuelve en la siguiente
             if self._otp_fails.get(row["puuid"], (0, 0.0))[1] > time.time():
                 continue  # falló varias veces seguidas: descansa un rato
+            self._pick = {**(self._pick or {}), "tipo": PLAN_KIND.get(key[0], str(key[0]))}
             return row
         return None
+
+    def _note_queue(self, shares: dict, recent: Counter) -> None:
+        """Diagnóstico del reparto por elo: qué hay en la cola de la región por elo y tipo, cuál es el elo más atrasado
+        y si hay alguien de ese elo esperando (si no, la región elige otro elo y ese se queda atrás)."""
+        counts: dict[str, list[int]] = {}
+        for key, row in self._plan:
+            c = counts.setdefault(row["tier"] or "", [0, 0, 0, 0])
+            c[min(3, max(0, int(key[0])))] += 1
+        behind = {t: (recent.get(t, 0) + 1) / max(sh, 1e-6) for t, sh in shares.items()}
+        wanted = min(behind, key=behind.get) if behind else None
+        has = bool(wanted) and sum(counts.get(wanted, [0, 0, 0, 0])[:3]) > 0
+        self._pick = {"mas_atrasado": wanted, "hay_de_ese": has}
+        self.crawler.note_queue(self.region, counts)
+        self.crawler.note_pick(self.region, wanted, has)
 
     def _plan_otps(self) -> list:
         """La cola de OTPs por prioridad: ``[(clave, fila)]``, la primera la más prioritaria. **Variedad antes que cantidad**:
@@ -1614,13 +1647,36 @@ class RegionWorker(threading.Thread):
         stored_now = self.state["stored"] - stored_before
         if stored_now:
             svc.agg.bump()
+        # Por qué acabó la visita: con el tope de la visita (``OTP_VISIT_MATCHES``) da ~50 partidas analizadas; si acaba
+        # antes (historial completo: pocas partidas en la temporada, típico de elos bajos) da menos.
+        if self.stop_event.is_set():
+            fin = "detenido"
+        elif budget <= 0:
+            fin = "tope de la visita"
+        elif prog["done_at"]:
+            fin = "historial completo" if prog["reason"] == "end" else "pocas con esos campeones"
+        elif self._games_cap() and cap_count(cfg, prog["hits"], prog["seen"]) >= self._games_cap():
+            fin = "tope por jugador"
+        else:
+            fin = "páginas de la visita"
+        self._visit_result = {"nuevas": stored_now, "revisadas": prog["offset"], "fin": fin}
+        pick = getattr(self, "_pick", None) or {}
+        why = ""
+        if pick.get("mas_atrasado"):
+            why = f" · elegido: {pick.get('tipo')}, elo más atrasado {pick['mas_atrasado']}"
+            if pick["mas_atrasado"] != (row["tier"] or "") and not pick.get("hay_de_ese"):
+                why += f" (sin nadie de ese elo en la cola de {self.region})"
         log.info(
-            "%s · %s · jugador: %d partidas nuevas (historial: %d revisadas%s).",
+            "%s · %s · jugador: %d partidas nuevas, %d analizadas en %.1f min (historial: %d revisadas%s) · fin: %s%s.",
             PLATFORMS[platform][1],
             row["tier"],
             stored_now,
+            getattr(self, "_visit_analyzed", 0),
+            (time.time() - self._visited.get(puuid, time.time())) / 60,
             prog["offset"],
             ", completo" if prog["done_at"] else "",
+            fin,
+            why,
         )
 
     def _known_for(self, puuid: str, ids: list[str]) -> set[str]:
@@ -1720,7 +1776,8 @@ class RegionWorker(threading.Thread):
         if cfg.targets and cfg.save_details and got.mine_target and got.result in ("stored", "duplicate"):
             got.detailed = self._detail(match_id, payload, player)
         if got.detailed:
-            self.crawler.note_analyzed(_field(player, "tier") or "")
+            self.crawler.note_analyzed(_field(player, "tier") or "", region=self.region)
+            self._visit_analyzed += 1
         if got.result == "stored" or got.detailed:
             from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
 
@@ -1968,8 +2025,15 @@ class Crawler:
         self._rows_refresh: threading.Thread | None = None
         self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (reparto por elo)
         self._recent_games: deque = deque(maxlen=RECENT_TIER_GAMES)  # elo de las últimas partidas analizadas
-        self._active_visits: dict[str, str] = {}  # región -> elo de la visita en curso
+        self._active_visits: dict[str, list] = {}  # región -> [elo de la visita en curso, partidas ya analizadas en ella]
         self._tier_shares: dict[str, tuple[dict, dict]] = {}  # región -> (parte de cada elo, partidas analizadas)
+        # Diagnóstico del reparto por elo (``visit_report``): qué da cada visita, qué había en la cola de cada región y
+        # cuántas veces el elo más atrasado no tenía a nadie esperando en la cola de una región.
+        self._visit_stats: dict[str, dict] = {}  # elo -> {visitas, analizadas, nuevas, s, completo} desde que arrancó
+        self._visit_log: deque = deque(maxlen=VISIT_LOG_SIZE)
+        self._pick_misses: dict[str, Counter] = {}  # elo más atrasado sin candidatos -> Counter(región)
+        self._queue_by_tier: dict[str, dict] = {}  # región -> elo -> candidatos por tipo [nuevos, partidas nuevas, historial, sin análisis]
+        self._load_recent()
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1984,20 +2048,101 @@ class Crawler:
     def searching(self) -> bool:
         return any(w.searching() for w in self.workers.values())
 
+    def _load_recent(self) -> None:
+        """Las últimas partidas analizadas de la sesión anterior (el reparto sigue donde se quedó)."""
+        try:
+            saved = json.loads(self.svc.db.meta_get(RECENT_META_KEY) or "[]")
+        except Exception:  # noqa: BLE001  (sin base de datos o un valor raro: se empieza de cero)
+            return
+        if isinstance(saved, list):
+            self._recent_games.extend(str(t) for t in saved[-RECENT_TIER_GAMES:])
+            if saved:
+                log.info("Reparto por elo: se sigue con las últimas %d partidas analizadas de la sesión anterior (%s).",
+                         len(self._recent_games), ", ".join(f"{t} {n}" for t, n in sorted(
+                             Counter(self._recent_games).items(), key=lambda kv: TIER_INDEX.get(kv[0], 0))))
+
+    def _save_recent(self) -> None:
+        with self._rows_lock:
+            games = list(self._recent_games)
+        if not games:
+            return
+        try:
+            self.svc.db.meta_set(RECENT_META_KEY, json.dumps(games))
+        except Exception:  # noqa: BLE001
+            log.debug("No se pudo guardar el reparto reciente por elo", exc_info=True)
+
     def visit_started(self, region: str, tier: str) -> None:
         """Una región empieza a visitar a un jugador de ese elo: cuenta como ``ACTIVE_VISIT_GAMES`` hasta que acabe."""
         with self._rows_lock:
-            self._active_visits[region] = tier
+            self._active_visits[region] = [tier, 0]
             self._recent_visit_tiers.append(tier)
 
-    def visit_ended(self, region: str) -> None:
+    def visit_ended(self, region: str, info: dict | None = None) -> None:
+        """Acaba la visita de esa región; ``info`` (elo, analizadas, nuevas, segundos, completo…) va al diagnóstico."""
         with self._rows_lock:
             self._active_visits.pop(region, None)
+            if not info:
+                return
+            info = {"region": region, "at": int(time.time()), **info}
+            self._visit_log.append(info)
+            st = self._visit_stats.setdefault(info.get("elo") or "", {"visitas": 0, "analizadas": 0, "nuevas": 0, "s": 0.0, "completo": 0})
+            st["visitas"] += 1
+            st["analizadas"] += int(info.get("analizadas") or 0)
+            st["nuevas"] += int(info.get("nuevas") or 0)
+            st["s"] += float(info.get("s") or 0)
+            st["completo"] += int(info.get("fin") == "historial completo")
 
-    def note_analyzed(self, tier: str, n: int = 1) -> None:
+    def note_pick(self, region: str, wanted: str | None, has_wanted: bool) -> None:
+        """El elo más atrasado al elegir jugador y si había alguien de ese elo en la cola de la región."""
+        if wanted and not has_wanted:
+            with self._rows_lock:
+                self._pick_misses.setdefault(wanted, Counter())[region] += 1
+
+    def note_queue(self, region: str, counts: dict) -> None:
+        """Candidatos en la cola de la región por elo y tipo (al elegir el último jugador)."""
+        with self._rows_lock:
+            self._queue_by_tier[region] = counts
+
+    def visit_report(self) -> dict:
+        """Para el embudo y el registro: visitas por elo desde que arrancó, la cola por elo (las regiones juntas), las
+        veces que el elo más atrasado no tenía candidatos y las últimas visitas."""
+        with self._rows_lock:
+            stats = {t: dict(v) for t, v in self._visit_stats.items()}
+            queues = dict(self._queue_by_tier)
+            misses = {t: dict(c) for t, c in self._pick_misses.items()}
+            last = list(self._visit_log)
+        order = lambda t: TIER_INDEX.get(t, 0)  # noqa: E731
+        visits = {}
+        for t in sorted(stats, key=order):
+            v = stats[t]
+            n = max(1, v["visitas"])
+            visits[t] = {
+                "visitas": v["visitas"], "analizadas": v["analizadas"], "nuevas": v["nuevas"],
+                "por_visita": round(v["analizadas"] / n, 1), "min_por_visita": round(v["s"] / n / 60, 1),
+                "completo_pct": round(100 * v["completo"] / n),
+            }
+        queue: dict[str, list[int]] = {}
+        for counts in queues.values():
+            for t, c in counts.items():
+                acc = queue.setdefault(t, [0, 0, 0, 0])
+                for i in range(4):
+                    acc[i] += c[i]
+        queue = {t: queue[t] for t in sorted(queue, key=order)}
+        return {
+            "visitas_por_elo": visits,
+            "cola_por_elo": {t: dict(zip(("nuevos", "partidas_nuevas", "historial", "sin_analisis"), c)) for t, c in queue.items()},
+            "cola_por_region": queues,
+            "sin_candidatos": {t: misses[t] for t in sorted(misses, key=order)},
+            "ultimas_visitas": last,
+        }
+
+    def note_analyzed(self, tier: str, n: int = 1, region: str | None = None) -> None:
         """Partidas analizadas de ese elo (el reparto se mide en partidas, no en visitas)."""
         with self._rows_lock:
             self._recent_games.extend([tier] * n)
+            active = self._active_visits.get(region) if region else None
+            if active is not None:
+                active[1] += n
 
     def note_visit_tier(self, tier: str) -> None:
         """Una visita de otra región a ese elo (para los tests: como una visita en curso)."""
@@ -2007,8 +2152,8 @@ class Crawler:
         """Partidas analizadas recientes por elo más lo que se espera de las visitas en curso."""
         with self._rows_lock:
             load = Counter(self._recent_games)
-            for tier in self._active_visits.values():
-                load[tier] += ACTIVE_VISIT_GAMES
+            for tier, done in self._active_visits.values():
+                load[tier] += max(0, ACTIVE_VISIT_GAMES - done)  # lo que ya analizó ya está en ``_recent_games``
             return load
 
     def analyzed_by_tier(self) -> dict[str, int]:
@@ -2155,6 +2300,21 @@ class Crawler:
                 log.info("Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): %s", ", ".join(
                     f"{t} {e['parte_pct']}%/{e['recientes_pct']}%/{e['analizadas']}" for t, e in funnel["reparto_elo"].items()
                 ))
+            # Cómo se reparte por elo y por qué: lo que da cada visita, la cola de cada región y el elo que se queda atrás.
+            report = self.visit_report()
+            funnel.update(report)
+            if report["visitas_por_elo"]:
+                log.info("Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): %s",
+                         ", ".join(f"{t} {v['visitas']}·{v['analizadas']}·{v['por_visita']}·{v['min_por_visita']}·{v['completo_pct']}%"
+                                   for t, v in report["visitas_por_elo"].items()))
+            if report["cola_por_elo"]:
+                log.info("Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): %s",
+                         ", ".join(f"{t} {'/'.join(str(n) for n in c.values())}" for t, c in report["cola_por_elo"].items()))
+            if report["sin_candidatos"]:
+                log.info("El elo más atrasado no tenía a nadie en la cola de la región (veces al elegir): %s",
+                         ", ".join(f"{t} {sum(r.values())} ({', '.join(f'{k} {n}' for k, n in r.items())})"
+                                   for t, r in report["sin_candidatos"].items()))
+            self._save_recent()
             # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
             from app import diag
 
@@ -2238,6 +2398,11 @@ class Crawler:
             }
             self.started_at = time.time()
             self.total_stored = 0
+            with self._rows_lock:  # «desde que arrancó»: el diagnóstico de visitas empieza de cero (el reparto reciente no)
+                self._visit_stats.clear()
+                self._visit_log.clear()
+                self._pick_misses.clear()
+                self._queue_by_tier.clear()
             for worker in self.workers.values():
                 worker.start()
             if config.targets and config.save_details:

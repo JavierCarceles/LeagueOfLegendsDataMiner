@@ -1397,6 +1397,50 @@ def test_el_elo_atrasado_va_antes_aunque_solo_tenga_historiales_a_medias(keyed_s
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
     assert worker._next_otp()["puuid"] == "g-half"
 
+def test_el_reparto_reciente_sigue_tras_reiniciar_y_las_visitas_en_curso_no_cuentan_doble(keyed_svc):
+    """Cada sesión duraba 5-15 min (unas 10 visitas) y el reparto empezaba de cero: ahora se guarda. Una visita en curso
+    cuenta ``ACTIVE_VISIT_GAMES`` menos lo que ya ha analizado (eso ya está en las partidas recientes)."""
+    from app.ingest.crawler import ACTIVE_VISIT_GAMES, Crawler
+
+    crawler = keyed_svc.crawler
+    crawler.note_analyzed("GOLD", 5)
+    crawler.visit_started("americas", "MASTER")
+    crawler.note_analyzed("MASTER", 10, region="americas")
+    assert crawler.recent_tiers()["MASTER"] == ACTIVE_VISIT_GAMES  # 10 analizadas + 15 que se esperan aún
+    crawler.visit_ended("americas")
+    assert crawler.recent_tiers()["MASTER"] == 10
+    crawler._save_recent()
+    again = Crawler(keyed_svc)
+    assert again.recent_tiers() == {"GOLD": 5, "MASTER": 10}
+
+
+def test_el_diagnostico_dice_que_elo_se_queda_sin_candidatos_y_lo_que_da_cada_visita(keyed_svc):
+    """Oro va por detrás pero en la cola de la región solo hay Diamante: se apunta (el registro dice por qué Oro no
+    sube) y cada visita queda en el embudo con lo que dio y por qué acabó."""
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('d1', 'euw1', 'DIAMOND', 1, 50)")
+        conn.execute("INSERT INTO mastery_checks VALUES ('d1', 'euw1', ?, ?)", (now, json.dumps([[AATROX, 900_000, now]])))
+    crawler = keyed_svc.crawler
+    crawler.note_analyzed("DIAMOND", 300)  # Diamante muy por encima: el más atrasado es Oro
+    worker = RegionWorker(crawler, "europe", ["euw1"], lines)
+    assert worker._next_otp()["tier"] == "DIAMOND"
+    assert worker._pick == {"mas_atrasado": "GOLD", "hay_de_ese": False, "tipo": "nuevo"}
+    crawler.visit_started("europe", "DIAMOND")
+    crawler.visit_ended("europe", {"elo": "DIAMOND", "analizadas": 50, "nuevas": 52, "s": 120, "fin": "tope de la visita"})
+    crawler.visit_ended("europe", {"elo": "DIAMOND", "analizadas": 10, "nuevas": 10, "s": 60, "fin": "historial completo"})
+    report = crawler.visit_report()
+    assert report["sin_candidatos"] == {"GOLD": {"europe": 1}}
+    assert report["cola_por_elo"]["DIAMOND"]["nuevos"] == 1
+    assert report["visitas_por_elo"]["DIAMOND"] == {
+        "visitas": 2, "analizadas": 60, "nuevas": 62, "por_visita": 30.0, "min_por_visita": 1.5, "completo_pct": 50,
+    }
+    assert report["ultimas_visitas"][-1]["fin"] == "historial completo"
+
+
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
     solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""
