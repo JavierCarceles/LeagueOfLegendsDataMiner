@@ -621,6 +621,9 @@ SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
 # 24-11-2026 a las ~22 partidas; hasta saber por qué, se analiza en el mismo hilo, como cuando iba a 36/min).
 SAVE_IN_BACKGROUND = False
 PREFETCH = True  # descargar la siguiente partida mientras se analiza la actual (solo llamadas a Riot, ver _Prefetch)
+# Partidas por delante: con 1, el hilo de descarga se quedaba parado mientras la región guardaba y analizaba (~2,2 s) y
+# cada región usaba ~29 llamadas por minuto de las ~47 que permite el ritmo. Al cortar una visita se tiran como mucho estas.
+PREFETCH_AHEAD = 2
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -1437,7 +1440,7 @@ class RegionWorker(threading.Thread):
             starts = self._stored_starts([m for m in ids if m in known])
             finished = True
             todo = [m for m in reversed(ids) if m not in known]
-            after_of = dict(zip(todo, todo[1:]))
+            ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
             for match_id in reversed(ids):
                 if self.stop_event.is_set():
                     finished = False
@@ -1449,8 +1452,8 @@ class RegionWorker(threading.Thread):
                     finished = False
                     break
                 self._prefetch.hint(match_id, puuid)
-                if budget > 1:
-                    self._prefetch.hint(after_of.get(match_id), puuid)  # la siguiente, mientras se analiza esta
+                for nxt in ahead_of.get(match_id, [])[: max(0, budget - 1)]:
+                    self._prefetch.hint(nxt, puuid)  # las siguientes, mientras se guarda y analiza esta
                 got = ingest(match_id)
                 prog["fwd_newest"] = max(prog["fwd_newest"], got.game_start)
             if finished:
@@ -1476,7 +1479,7 @@ class RegionWorker(threading.Thread):
                 consumed = page_seen = page_hits = 0
                 old_season = False
                 todo = [m for m in ids if m not in known]
-                after_of = dict(zip(todo, todo[1:]))
+                ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
                 for match_id in ids:
                     if self.stop_event.is_set():
                         break
@@ -1484,8 +1487,8 @@ class RegionWorker(threading.Thread):
                         if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
                             break
                         self._prefetch.hint(match_id, puuid)
-                        if budget > 1:
-                            self._prefetch.hint(after_of.get(match_id), puuid)
+                        for nxt in ahead_of.get(match_id, [])[: max(0, budget - 1)]:
+                            self._prefetch.hint(nxt, puuid)
                         got = ingest(match_id)
                         page_seen += got.valid
                         page_hits += got.valid and got.mine_target
