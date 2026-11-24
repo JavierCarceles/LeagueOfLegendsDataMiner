@@ -22,7 +22,11 @@ from contextlib import contextmanager
 from pathlib import Path
 
 SCHEMA_VERSION = 1
-WAL_AUTOCHECKPOINT_PAGES = 20_000  # ~80 MB: de reserva (el volcado normal va en segundo plano, ``start_checkpointer``)
+# 0: ninguna escritura vuelca el WAL (lo hace ``start_checkpointer`` en segundo plano). Con el volcado dentro de cada
+# escritura y siempre alguna lectura en marcha, el WAL llegó a 504 MB y cada escritura reintentaba volcarlo (~50 ms una
+# de una fila). ``journal_size_limit`` lo recorta cuando se puede reiniciar.
+WAL_AUTOCHECKPOINT_PAGES = 0
+JOURNAL_SIZE_LIMIT = 64 * 1024 * 1024
 CHECKPOINT_EVERY_S = 30
 
 SCHEMA = """
@@ -407,6 +411,7 @@ class Database:
             # en segundo plano; aquí solo de reserva, cuando pasa de ~80 MB (por defecto, cada ~4 MB dentro de la
             # escritura de turno: en Windows, con partidas de ~0,5 MB, esa escritura tardaba segundos).
             conn.execute(f"PRAGMA wal_autocheckpoint={WAL_AUTOCHECKPOINT_PAGES}")
+            conn.execute(f"PRAGMA journal_size_limit={JOURNAL_SIZE_LIMIT}")
             self._local.conn = conn
         return conn
 

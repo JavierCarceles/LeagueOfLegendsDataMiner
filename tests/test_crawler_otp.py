@@ -1381,3 +1381,9 @@ def test_la_siguiente_partida_se_descarga_mientras_se_analiza_sin_repetir_llamad
     assert len(matches) == len(set(matches)) == 8
     assert sorted(timelines) == sorted(wanted)  # solo las suyas con Aatrox, una vez cada una
     assert set(details(keyed_svc)) == wanted
+
+
+def test_el_umbral_para_dejar_de_buscar_cabe_en_la_cola():
+    """La cola solo carga PLAN_UNVISITED_PER_TIER sin visitar por plataforma y elo: si el umbral fuera mayor, el contador
+    nunca llegaría y las búsquedas no pararían nunca."""
+    assert crawler_mod.SCOUT_BACKLOG < crawler_mod.PLAN_UNVISITED_PER_TIER
