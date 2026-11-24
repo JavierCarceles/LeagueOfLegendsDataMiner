@@ -1331,6 +1331,33 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
     report = crawler.tier_report()
     assert report["GOLD"]["parte_pct"] == 75.0 and report["DIAMOND"]["analizadas"] == 1000
 
+
+def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, monkeypatch):
+    """La cola se calcula cada 5 min; antes se consumía en el orden de cuando se calculó y las regiones repetían elos
+    (Bronce, Maestro y Aspirante una y otra vez). Ahora cada jugador se elige con las visitas de ese momento."""
+    from app.ingest import crawler as crawler_mod
+
+    monkeypatch.setattr(crawler_mod, "OTP_PLAN_TTL_S", 300)
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["BRONZE", "GOLD", "MASTER"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        for puuid, tier in (("b1", "BRONZE"), ("b2", "BRONZE"), ("b3", "BRONZE"), ("g1", "GOLD"), ("m1", "MASTER")):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 900_000, now]])))
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    calls = []
+    real = worker._plan_otps
+    monkeypatch.setattr(worker, "_plan_otps", lambda: calls.append(1) or real())
+    picked = []
+    for _ in range(3):
+        row = worker._next_otp()
+        picked.append(row["tier"])
+        keyed_svc.crawler.note_visit_tier(row["tier"])  # lo que hace la visita al empezar
+    assert len(calls) == 1  # la cola se calculó una vez
+    assert sorted(picked) == ["BRONZE", "GOLD", "MASTER"]  # un elo de cada, no los 3 de Bronce seguidos
+
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
     solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""

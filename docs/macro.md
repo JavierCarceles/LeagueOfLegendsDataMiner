@@ -706,3 +706,8 @@ Lo que encontró con ~35.000 partidas:
   más tiene (`tier_shares`, `EVEN_SHARE = 0,5`). El siguiente jugador es del elo más por debajo de su parte en las
   últimas 40 visitas de las 4 regiones; si un elo no tiene a nadie esperando, se pasa al siguiente sin frenar. El embudo
   (`reparto_elo`) y el registro cada 5 min dicen, por elo, la parte objetivo, las visitas recientes y las analizadas.
+- **El reparto no se aplicaba (subida de las 13:04: visitas de Bronce, Maestro, Gran Maestro y Aspirante, nada de Plata
+  a Diamante aunque su parte era la mayor):** la cola de jugadores se calcula cada 5 min (~10 s en Windows) y se consumía
+  en el orden de cuando se calculó, sin enterarse de las visitas de las otras regiones. Ahora cada jugador se elige
+  sobre esa cola con el reparto de ese momento (`_next_otp`, milisegundos). En los tests la caché de la cola va a 0 y no
+  lo cazaban: hay uno con la cola guardada.

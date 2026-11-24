@@ -1148,10 +1148,23 @@ class RegionWorker(threading.Thread):
         if now_t - self._plan_at >= OTP_PLAN_TTL_S or (not self._plan and now_t - self._plan_at >= OTP_PLAN_EMPTY_S):
             with self.timed("cola"):
                 self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
-            self._plan.reverse()  # se sacan del final (pop) en orden de prioridad
             self._plan_at = now_t
+        # El reparto por elo, con las visitas de ahora (de las 4 regiones), no con las de cuando se calculó la cola: la
+        # cola dura 5 min y en ese rato las regiones seguían su orden sin enterarse (salían Bronce, Maestro y Aspirante
+        # una y otra vez, 24-11-2026). Reordenar sobre la cola ya calculada cuesta milisegundos.
+        shares = getattr(self, "_plan_shares", None) or {}
+        recent = self.crawler.recent_tiers() if shares and hasattr(self.crawler, "recent_tiers") else None
+
+        def live(entry):
+            key, row = entry
+            if recent is None or not isinstance(key[1], float) or key[0] not in (0, 2):
+                return key
+            tier = row["tier"] or ""
+            return (key[0], recent.get(tier, 0) / max(shares.get(tier, 0.0), 1e-6), *key[2:])
+
         while self._plan:
-            _key, row = self._plan.pop()
+            best = min(range(len(self._plan)), key=lambda i: live(self._plan[i]))
+            _key, row = self._plan.pop(best)
             if self._visited.get(row["puuid"], 0.0) >= self._plan_rows_at:
                 continue  # ya visitado con esta cola: su progreso ha cambiado, vuelve en la siguiente
             if self._otp_fails.get(row["puuid"], (0, 0.0))[1] > time.time():
@@ -1226,6 +1239,7 @@ class RegionWorker(threading.Thread):
         for (_lane, t), n in lane_tier_games.items():
             tier_totals[t] = tier_totals.get(t, 0) + n
         shares = tier_shares(tier_totals, list(cfg.tiers or tier_totals))
+        self._plan_shares = shares if by_elo else {}
         if hasattr(self.crawler, "note_tier_shares"):
             self.crawler.note_tier_shares(self.region, shares, tier_totals)
 
