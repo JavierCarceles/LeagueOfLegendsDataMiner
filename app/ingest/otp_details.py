@@ -265,7 +265,9 @@ def _game_context(match: dict, timeline: dict | None, team: int) -> dict:
 
 def build_dossier(match: dict, timeline: dict | None, puuid: str, items=None, *, elo: dict | None = None) -> dict:
     """Todo lo que se puede sacar de una partida desde el punto de vista de ese jugador (función pura)."""
-    analysis = analyze_game(match, timeline, puuid=puuid, items=items)
+    # Solo su recorrido rodea muros: de los otros 9 no se guarda ni se usa nada que dependa de ello (y era la mayor parte
+    # del tiempo de análisis de cada partida del recolector).
+    analysis = analyze_game(match, timeline, puuid=puuid, items=items, route_all=False)
     info = match.get("info") or {}
     pid = analysis["me"]
     raw = next((p for p in info.get("participants") or [] if int(p.get("participantId") or 0) == pid), {})

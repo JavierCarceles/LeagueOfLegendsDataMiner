@@ -33,6 +33,7 @@ from __future__ import annotations
 import calendar
 import contextlib
 import json
+import queue
 from collections import deque
 import threading
 import time
@@ -611,6 +612,7 @@ OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto comparten la lectura de jugadores
 SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
 SCOUT_BACKLOG_WAIT_S = 60
+SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -633,6 +635,11 @@ class RegionWorker(threading.Thread):
         # Segundos de esta sesión en cada fase (para ver dónde se va el tiempo si el cupo de Riot no se llena).
         self.timing: dict[str, float] = {}
         self.waiting_by_tier: dict[tuple[str, str], int] = {}
+        # Análisis y guardado en otro hilo: mientras se analiza una partida se descarga la siguiente (antes todo iba en
+        # fila: descargar, esperar el turno de Riot, analizar 1,7 s en Windows y volver a empezar).
+        self._save_q: queue.Queue = queue.Queue(maxsize=SAVE_QUEUE_MAX)
+        self._saver: threading.Thread | None = None
+        self._saving: set[tuple[str, str]] = set()  # (partida, jugador) descargadas y aún sin guardar
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
         self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
@@ -682,6 +689,7 @@ class RegionWorker(threading.Thread):
             self._run_otp()
         else:
             self._run_ladder()
+        self.finish_saving()
         self.state["status"] = "stopped"
         if self.config.targets and self.config.save_details:
             otp_details.flush(self.svc)  # los resúmenes de campeón pendientes, ya
@@ -1158,6 +1166,8 @@ class RegionWorker(threading.Thread):
     def _detail(self, match_id: str, payload: dict | None, player) -> bool:
         """Baja el timeline (y la partida si no se tiene) y guarda el micro/macro de ese OTP. ``True`` si se guardó."""
         svc = self.svc
+        if (match_id, player["puuid"]) in self._saving:
+            return False  # ya descargada, esperando su análisis
         if svc.db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (match_id, player["puuid"])):
             return False
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
@@ -1178,16 +1188,52 @@ class RegionWorker(threading.Thread):
                 return False
         info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
         elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
-        try:
-            # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
-            with self.timed("analizar_guardar"):
-                saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
-        except Exception:
-            log.exception("No se pudo analizar la partida %s del jugador", match_id)
-            return False
-        if saved:
-            self.state["details"] += 1
-        return saved
+        if self._saver is None or not self._saver.is_alive():
+            self._saver = threading.Thread(target=self._save_loop, name=f"crawler-save-{self.region}", daemon=True)
+            self._saver.start()
+        item = (match_id, payload, timeline, player["puuid"], elo)
+        self._saving.add((match_id, player["puuid"]))
+        with self.timed("esperando_analisis"):  # si el análisis va por detrás, se espera (no se acumulan en memoria)
+            while True:
+                try:
+                    self._save_q.put(item, timeout=0.5)
+                    break
+                except queue.Full:
+                    if self.stop_event.is_set():
+                        self._saving.discard((match_id, player["puuid"]))
+                        return False
+        return True
+
+    def _save_loop(self) -> None:
+        """Analiza y guarda lo que descarga la región (en su propio hilo)."""
+        svc = self.svc
+        while True:
+            item = self._save_q.get()
+            try:
+                if item is None:
+                    return
+                match_id, payload, timeline, puuid, elo = item
+                try:
+                    # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
+                    with self.timed("analizar_guardar"):
+                        saved = otp_details.save(svc.db, svc, payload, timeline, puuid, elo)
+                except Exception:
+                    log.exception("No se pudo analizar la partida %s del jugador", match_id)
+                    continue
+                if saved:
+                    self.state["details"] += 1
+            finally:
+                if item is not None:
+                    self._saving.discard((item[0], item[3]))
+                self._save_q.task_done()
+
+    def finish_saving(self, timeout: float = 120) -> None:
+        """Espera a que se analice y guarde lo descargado (al parar el recolector)."""
+        saver = self._saver
+        if saver is None or not saver.is_alive():
+            return
+        self._save_q.put(None)
+        saver.join(timeout)
 
     def _list_ids(self, *args, **kwargs) -> list[str]:
         with self.timed("riot_listas"):

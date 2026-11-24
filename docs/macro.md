@@ -494,3 +494,8 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   jugadores encontrados) y en esa sesión no llegó a visitar a nadie. Ahora la cola lee solo los ya visitados y los 100
   de más LP sin visitar de cada plataforma y elo (5,6 → 0,6 s en un Mac con 280.000); la búsqueda para en los elos con
   200+ jugadores esperando visita, y analizar cada partida tarda la mitad (0,14 → 0,077 s).
+- **Desglose de la subida de las 02:38 (36 partidas/min):** cada partida costaba ~4,3 s por región en fila: ~2,6 s
+  esperando a Riot (el recolector espacia sus llamadas 1,41 s para dejar sitio a la web) y 1,7 s analizando y
+  guardando en Windows (0,2 s en un Mac). Ahora el análisis va en otro hilo por región, mientras se descarga la
+  siguiente, y en las partidas del recolector solo el recorrido de su jugador rodea muros (es lo único que se guarda de
+  ellas; los 10 se siguen rodeando en tus partidas): 0,21 → 0,12 s por partida con el perfilador.

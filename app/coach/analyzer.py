@@ -292,7 +292,10 @@ def find_me(match: dict, *, pid: int | None = None, puuid: str | None = None, ga
 class _Game:
     """Datos de la partida indexados para consultas rápidas."""
 
-    def __init__(self, match: dict, timeline: dict | None, me: dict, catalog: ItemCatalog | None = None) -> None:
+    def __init__(self, match: dict, timeline: dict | None, me: dict, catalog: ItemCatalog | None = None, *, route_all: bool = True) -> None:
+        # Rutas que rodean muros de los 10 o solo del jugador analizado (las partidas de otros jugadores que guarda el
+        # recolector solo usan su recorrido: rodear los muros de los 10 era la mayor parte del tiempo de análisis).
+        self.route_all = route_all
         info = match.get("info") or {}
         self.info = info
         self.duration = duration_seconds(info)
@@ -668,10 +671,11 @@ class _Game:
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
         # Corregidos (vueltas a base, teletransportes) y andando por donde se puede: rodeando los muros salvo los
         # campeones que los saltan (``navgrid``). Todo lo que usa posiciones (roams, contraganks, zonas) va por ahí.
-        self.anchors = {
-            pid: _walk(_reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"])), self.players[pid].get("champ"))
-            for pid, items in self.raw_anchors.items()
-        }
+        me_pid = self.me["pid"]
+        self.anchors = {}
+        for pid, items in self.raw_anchors.items():
+            fixed = _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"]))
+            self.anchors[pid] = _walk(fixed, self.players[pid].get("champ")) if self.route_all or pid == me_pid else fixed
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
 
     def pos_at(self, pid: int, t: int) -> tuple[float, float] | None:
@@ -1041,9 +1045,10 @@ def analyze_game(
     game_name: str | None = None,
     tag_line: str | None = None,
     items: ItemCatalog | None = None,
+    route_all: bool = True,
 ) -> dict:
     me_raw = find_me(match, pid=pid, puuid=puuid, game_name=game_name, tag_line=tag_line)
-    g = _Game(match, timeline, me_raw, items)
+    g = _Game(match, timeline, me_raw, items, route_all=route_all)
     me = g.me["pid"]
     info = g.info
     ch = me_raw.get("challenges") or {}
@@ -3191,7 +3196,7 @@ def _replay(g: _Game) -> dict:
     }
     return {
         "tracks": tracks,
-        "routed": True,  # ya rodean los muros (``_walk``): la vista 2D no tiene que calcularlas
+        "routed": g.route_all,  # ya rodean los muros (``_walk``): la vista 2D no tiene que calcularlas
         "frames": frames,
         "kills": [[round(k["t"] / 1000, 1), k["killer"], k["victim"], *(k["pos"] or (None, None)), k["assists"]] for k in g.kills],
         "objectives": [[round(o["t"] / 1000, 1), o["kind"], o["team"], int(o["pos"][0]), int(o["pos"][1])] for o in g.objectives],
