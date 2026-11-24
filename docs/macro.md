@@ -507,3 +507,7 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
 - **Registro de la subida de las 03:18 (49 partidas/min):** guardar cada partida en la base de datos tardaba 1,3-1,5 s
   por región. `otp_details.save` comprimía partida, timeline y análisis (>1 MB de JSON) dentro del candado de escritura
   de la base de datos: las demás regiones y las 15 búsquedas esperaban. Ahora se comprime antes de cogerlo.
+- **Base de datos (subida de las 03:39, 42,8 partidas/min):** el WAL de SQLite ocupaba 504 MB y cada escritura reintentaba
+  volcarlo; las 15 búsquedas hicieron 1.864 escrituras en 5 min (~50 ms cada una) y esperaron 2.333 s el candado; cada
+  región, ~1 s por escritura. Las búsquedas no paraban porque el umbral (200 sin visitar) era mayor que lo que carga la
+  cola (100 por elo): ahora 60. Ninguna escritura vuelca el WAL (lo hace un hilo cada 30 s) y se recorta a 64 MB.

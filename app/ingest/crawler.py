@@ -611,7 +611,10 @@ class Ingested:
 OTP_PLAN_TTL_S = 300  # la cola de OTPs se recalcula cada 5 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S); ~10 s en Windows
 OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
-SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
+# Jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más. Tiene que ser menor que
+# PLAN_UNVISITED_PER_TIER (la cola solo carga esos de cada elo): con 200 el contador nunca llegaba y las 15 búsquedas no
+# paraban (1.864 escrituras en 5 min acaparando la base de datos).
+SCOUT_BACKLOG = 60
 SCOUT_BACKLOG_WAIT_S = 60
 SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
 # Analizar en otro hilo mientras se descarga: desactivado (con él, el recolector se quedó parado en Windows el
