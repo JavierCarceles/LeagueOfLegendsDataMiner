@@ -676,3 +676,11 @@ Lo que encontró con ~35.000 partidas:
   el tiempo en base y el % de objetivos con ward tuyo en top.
 - **Roams y Riot:** el éxito de los roams va con las kills oficiales en otras líneas (`killsOnOtherLanesEarlyJungleAsLaner`,
   r = 0,22 en mid): mide lo que dice.
+- **Subida de las 12:11 (con 8 partidas por delante):** la key al 94-97 % de su ritmo (44,8-46,0 de 47,5 llamadas/min)
+  y 21-24 partidas/min por región, ~90/min en total: el techo de la key de desarrollo. «Analizadas» queda un 8-18 % por
+  debajo de «nuevas» a propósito: son partidas guardadas porque otro jugador de ellas juega un campeón objetivo
+  (`_other_target`, para los enfrentamientos), sin análisis de ese jugador.
+- **Primeras partidas con la certeza de cada detección** (736, sobre todo Diamante y Maestro): casi todos los errores se
+  deciden con posiciones a menos de 10 s de un dato real; la excepción era «el rival coge objetivos estando tú lejos»
+  (casi la mitad, con tu posición a más de 20 s de un dato). Ahora, en ese caso, o en los puntos reales de antes y de
+  después también estabas lejos, o hace falta estar 2.000 unidades más lejos (`OBJ_FAR_UNSURE_MARGIN`).

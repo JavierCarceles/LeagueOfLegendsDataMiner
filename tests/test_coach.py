@@ -713,3 +713,25 @@ def test_detect_without_client(api, monkeypatch):
     monkeypatch.setattr(lcu.importlib.util, "find_spec", lambda name: None)
     response = client.get("/api/profile/detect")
     assert response.status_code == 409
+
+
+def test_lejos_del_objetivo_con_la_posicion_dudosa_hace_falta_margen():
+    """Entre dos posiciones reales (una junto al dragón) la reconstruida queda a ~6.000: con esa duda no se acusa de
+    estar lejos (la auditoría vio que casi la mitad de estos avisos se decidían con la posición a >20 s de un dato)."""
+    from app.coach import analyzer as an
+
+    dragon = _event(1_230_000, "ELITE_MONSTER_KILL", killerId=7, killerTeamId=200, monsterType="DRAGON", monsterSubType="FIRE_DRAGON",
+                    position={"x": 9866, "y": 4414}, assistingParticipantIds=[9, 10], bounty=0)
+    near_then_far = {(2, 20): {"position": (8600, 5200)}, (2, 21): {"position": (500, 9000)}}
+    a = _analyze([dragon], near_then_far, pid=2)
+    assert not any("far" in mo["tags"] and "dragón" in mo["title"] for mo in a["moments"])
+    # Con el margen a 0 sí se habría acusado: es el margen lo que lo evita.
+    import pytest
+
+    mp = pytest.MonkeyPatch()
+    mp.setattr(an, "OBJ_FAR_UNSURE_MARGIN", 0)
+    try:
+        a = _analyze([dragon], near_then_far, pid=2)
+        assert any("far" in mo["tags"] and "dragón" in mo["title"] for mo in a["moments"])
+    finally:
+        mp.undo()

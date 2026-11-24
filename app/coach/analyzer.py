@@ -99,6 +99,8 @@ FIGHT_GAP_MS = 20_000
 FIGHT_RADIUS = 3200
 NEAR_OBJECTIVE = 2600
 FAR_FROM_OBJECTIVE = 5500
+OBJ_FAR_SURE_GAP_S = 20  # tu posición a más de esto de un punto real: «lejos» con margen…
+OBJ_FAR_UNSURE_MARGIN = 2000  # …de esto (el error de la reconstrucción crece con el tiempo sin datos)
 ISOLATED_RADIUS = 2200
 AFK_MIN_FRAMES = 2
 SMITE = 11
@@ -709,6 +711,13 @@ class _Game:
             return None
         i = bisect.bisect_left(times, t)
         return round(min(abs(t - times[j]) for j in (i - 1, i) if 0 <= j < len(times)) / 1000, 1)
+
+    def real_around(self, pid: int, t: int) -> list[tuple[int, int]]:
+        """Las posiciones reales (de Riot) justo antes y justo después de ``t``."""
+        items = [a for a in (self.raw_anchors or {}).get(pid) or [] if a[3] in EXACT_ANCHOR_KINDS]
+        before = [a for a in items if a[0] <= t]
+        after = [a for a in items if a[0] > t]
+        return [(a[1], a[2]) for a in ([before[-1]] if before else []) + ([after[0]] if after else [])]
 
     def pos_at(self, pid: int, t: int) -> tuple[float, float] | None:
         """Posición estimada (interpolada) o ``None`` si estaba muerto o no se sabe."""
@@ -2411,7 +2420,16 @@ def _objectives(g: _Game, metrics: dict, moments: list) -> None:
                         o["pos"], ["objective", "dead"])
             )
             continue
-        if p is None or geo.dist(p, o["pos"]) < FAR_FROM_OBJECTIVE:
+        # Con tu posición lejos de un punto real (más de 20 s), que estuvieras «lejos» se exige con margen: la auditoría
+        # de la calibración vio que casi la mitad de estos avisos se decidían así (24-11-2026).
+        # Si en los puntos reales de antes y de después también estabas lejos, vale sin margen.
+        gap = g.anchor_gap(g.me["pid"], o["t"])
+        around = g.real_around(g.me["pid"], o["t"])
+        sure = (gap is not None and gap <= OBJ_FAR_SURE_GAP_S) or (
+            len(around) == 2 and all(geo.dist(q, o["pos"]) >= FAR_FROM_OBJECTIVE for q in around)
+        )
+        far = FAR_FROM_OBJECTIVE + (0 if sure else OBJ_FAR_UNSURE_MARGIN)
+        if p is None or geo.dist(p, o["pos"]) < far:
             continue
         if any(o["t"] - OBJECTIVE_WINDOW_MS <= d <= o["t"] for d in my_deaths):
             continue  # acababas de morir y volvías de la base: la muerte de antes ya lo cuenta
