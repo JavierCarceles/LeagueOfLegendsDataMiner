@@ -499,3 +499,8 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   guardando en Windows (0,2 s en un Mac). Ahora el análisis va en otro hilo por región, mientras se descarga la
   siguiente, y en las partidas del recolector solo el recorrido de su jugador rodea muros (es lo único que se guarda de
   ellas; los 10 se siguen rodeando en tus partidas): 0,21 → 0,12 s por partida con el perfilador.
+- **36,3 partidas/min con la versión estable (subida de las 03:00):** por región, ~2,8 s por partida esperando a Riot y
+  ~1,5 s analizando y guardando, en fila. El análisis en otro hilo se quedó parado en Windows (desactivado,
+  `SAVE_IN_BACKGROUND`); ahora otro hilo solo **descarga** la siguiente partida (y su timeline si es de las que
+  interesan) mientras la región analiza la actual (`_Prefetch`, sin tocar la base de datos ni los ficheros). Coste: al
+  cortar una visita, a veces una descarga de más.

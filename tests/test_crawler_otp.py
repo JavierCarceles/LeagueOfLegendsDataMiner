@@ -362,7 +362,10 @@ def test_season_depth_stops_at_previous_season_patch(keyed_svc, monkeypatch):
         payloads[match_id]["info"]["gameVersion"] = "15.24.1.1"
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
     run_history(keyed_svc, fake, champions=[AATROX])
-    assert len(fake.calls_to("match")) == 16  # la primera de la temporada anterior se guarda y ahí se para
+    # La primera de la temporada anterior se guarda y ahí se para (la siguiente puede haberse descargado ya mientras se
+    # analizaba esa: se descarta).
+    assert len(fake.calls_to("match")) in (16, 17)
+    assert len(stored(keyed_svc)) == 16
     assert progress(keyed_svc, "otp-a")["back_done_reason"] == "end"
 
 
@@ -1365,3 +1368,16 @@ def test_no_se_busca_mas_en_un_elo_con_jugadores_de_sobra_esperando(keyed_svc):
     worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
     OtpScout(worker, "euw1").run()
     assert calls and set(calls) == {"GOLD"}
+
+
+def test_la_siguiente_partida_se_descarga_mientras_se_analiza_sin_repetir_llamadas(keyed_svc):
+    """Con la descarga adelantada, cada partida y cada timeline se piden una sola vez y se guarda lo mismo."""
+    ids, payloads = history("otp-a", 8, prefix="1", champ_for=lambda i: AATROX if i % 2 else GAREN)
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    matches = [c[1] for c in fake.calls_to("match")]
+    timelines = [c[1] for c in fake.calls_to("timeline")]
+    wanted = {ids[i] for i in range(8) if i % 2}
+    assert len(matches) == len(set(matches)) == 8
+    assert sorted(timelines) == sorted(wanted)  # solo las suyas con Aatrox, una vez cada una
+    assert set(details(keyed_svc)) == wanted
