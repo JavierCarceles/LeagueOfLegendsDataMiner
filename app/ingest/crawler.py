@@ -1653,8 +1653,17 @@ class RegionWorker(threading.Thread):
         if got.result == "stored" or got.detailed:
             from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
 
-            autopush.note_game(svc)
+            autopush.note_game(svc, player.get("tier"), analyzed=bool(got.detailed))
         if got.result == "stored":
+            # Las estadísticas exactas de Riot de sus 10 jugadores, a las medias por elo (también sin análisis).
+            try:
+                from app.coach import ranking_stats
+
+                stats = ranking_stats.of(svc)
+                if stats is not None:
+                    stats.add(payload, player.get("tier"))
+            except Exception:  # noqa: BLE001  (son medias: nunca paran la recogida)
+                log.debug("No se pudieron sumar las medias del ranking", exc_info=True)
             self.state["stored"] += 1
             self.crawler.total_stored += 1
             self.stored_at.append(time.time())
@@ -2114,6 +2123,14 @@ class Crawler:
         except Exception:  # noqa: BLE001
             log.debug("No se pudo guardar que el recolector no arranque solo", exc_info=True)
         self.write_funnel(force=True)
+        try:
+            from app.coach import ranking_stats
+
+            stats = ranking_stats.of(self.svc)
+            if stats is not None:
+                stats.flush()
+        except Exception:  # noqa: BLE001
+            log.debug("No se pudieron volcar las medias del ranking", exc_info=True)
         next_report = STOP_REPORT_AFTER_S
         while self.running and stop_event is self.stop_event:
             waited = time.time() - t0

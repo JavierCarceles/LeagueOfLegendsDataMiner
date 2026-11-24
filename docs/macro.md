@@ -684,3 +684,15 @@ Lo que encontró con ~35.000 partidas:
   deciden con posiciones a menos de 10 s de un dato real; la excepción era «el rival coge objetivos estando tú lejos»
   (casi la mitad, con tu posición a más de 20 s de un dato). Ahora, en ese caso, o en los puntos reales de antes y de
   después también estabas lejos, o hace falta estar 2.000 unidades más lejos (`OBJ_FAR_UNSURE_MARGIN`).
+
+### Gráfica por elo y medias con las partidas del ranking (24-11-2026)
+
+- **Gráfica en «Datos y API» → Recolector** (en lugar de los paneles por campeón): barras por elo con su icono, el
+  máximo arriba en el eje Y y sus cuartos, que suben en tiempo real (cada 2,5 s, con `/api/crawler/otps/live`). Cuenta
+  las partidas analizadas por elo (en «todo el ranking», las guardadas) desde la última subida a GitHub y vuelve a 0 al
+  subir (`autopush`: `tiers`). La tabla por servidor y la línea de GitHub siguen debajo.
+- **Las partidas del ranking sin analizar también calibran** (`app/coach/ranking_stats.py`): cada partida nueva suma las
+  métricas exactas de Riot (`rl_*`) de sus 10 jugadores, por rol y con el elo del jugador por el que se encontró, a
+  `data/otps/_medias_ranking.json` (solo sumas; se vuelca cada minuto, al detener y antes de subir). El perfil por elo
+  las mezcla con las de las partidas analizadas, cada una pesando sus partidas. El movimiento, los roams y los errores
+  siguen necesitando el timeline (las 5 líneas).

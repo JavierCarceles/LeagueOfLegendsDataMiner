@@ -413,3 +413,18 @@ def test_el_limitador_dice_cuanto_usa_y_por_que_espera():
     snap = lim.snapshot()["europe"]
     assert snap["llamadas_min_recolector"] == snap["llamadas_min"] and 30 <= snap["llamadas_min"] <= 41
     assert snap["max_min_recolector"] == 47.5 and snap["reserva_pct"] == 5
+
+
+def test_la_grafica_por_elo_cuenta_hasta_la_subida(repos):
+    """Partidas por elo para la gráfica de «Datos y API»: vuelve a 0 al subir (lo que llegó mientras, se queda)."""
+    a = repos.a
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event(), crawler=None)
+    auto = autopush.AutoPush(svc, repo=a)
+    auto.note_game("GOLD", analyzed=True)
+    auto.note_game("gold", analyzed=True)
+    auto.note_game("DIAMOND", analyzed=False)
+    assert auto.public()["tiers"] == {"analizadas": {"GOLD": 2}, "guardadas": {"DIAMOND": 1}}
+    (a / "data" / "otps").mkdir(exist_ok=True)
+    (a / "data" / "otps" / "x.json").write_text("{}", encoding="utf-8")
+    auto._run()
+    assert auto.public()["tiers"] == {"analizadas": {}, "guardadas": {}}

@@ -1039,7 +1039,8 @@ están en la base de datos (`otp_games`): si esta carpeta se borra o cambia de f
 """
 
 
-KEEP_ON_REBUILD = frozenset({"_busqueda.json", "_busqueda.json.tmp"})  # informes de la búsqueda: no son partidas
+# Informes de la búsqueda y medias del ranking (``ranking_stats``): no son partidas, no se borran al regenerar.
+KEEP_ON_REBUILD = frozenset({"_busqueda.json", "_busqueda.json.tmp", "_medias_ranking.json", "_medias_ranking.json.tmp", "_registro.json"})
 REPLACE_RETRIES = 4
 
 

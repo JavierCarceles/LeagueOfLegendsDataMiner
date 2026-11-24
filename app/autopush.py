@@ -243,12 +243,17 @@ class AutoPush:
         n = every()
         return {"enabled": n > 0, "every": n, "running": bool(self.thread and self.thread.is_alive()), **self.state}
 
-    def note_game(self) -> None:
-        """Una partida nueva guardada por el recolector."""
+    def note_game(self, tier: str | None = None, analyzed: bool = False) -> None:
+        """Una partida nueva guardada por el recolector (``tier``: el elo, para la gráfica de «Datos y API»; vuelve a
+        0 con cada subida a GitHub)."""
         n = every()
-        if n <= 0:
-            return
         with self.lock:
+            kind = "analizadas" if analyzed else "guardadas"
+            tiers = self.state.setdefault("tiers", {}).setdefault(kind, {})
+            key = (tier or "?").upper()
+            tiers[key] = int(tiers.get(key) or 0) + 1
+            if n <= 0:
+                return
             self.state["pending"] = pending = int(self.state.get("pending") or 0) + 1
             self._save()
             due = pending >= n and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
@@ -390,7 +395,16 @@ class AutoPush:
                 time.sleep(IN_GAME_WAIT_S)
         with self.lock:
             counted = int(self.state.get("pending") or 0)
+            counted_tiers = {k: dict(v) for k, v in (self.state.get("tiers") or {}).items()}
         self._step("report")
+        try:
+            from app.coach import ranking_stats
+
+            stats = ranking_stats.of(self.svc)
+            if stats is not None:
+                stats.flush()  # las medias del ranking, al día en la subida
+        except Exception:  # noqa: BLE001
+            log.debug("No se pudieron volcar las medias del ranking", exc_info=True)
         self._fresh_funnel()
         self._snapshot_log()
         self._write_log()
@@ -414,6 +428,15 @@ class AutoPush:
         with self.lock:
             # Las partidas que llegaron mientras se subía cuentan para la siguiente.
             self.state["pending"] = max(0, int(self.state.get("pending") or 0) - counted)
+            # La gráfica por elo vuelve a 0 (lo que llegó mientras se subía, cuenta para la siguiente).
+            for kind, done in counted_tiers.items():
+                now = self.state.setdefault("tiers", {}).setdefault(kind, {})
+                for tier, n_done in done.items():
+                    left = int(now.get(tier) or 0) - int(n_done)
+                    if left > 0:
+                        now[tier] = left
+                    else:
+                        now.pop(tier, None)
             self.state.update(last_error=None, last_error_at=None, last_check_at=time.time(), last_push_s=round(time.time() - t0))
             if result["pushed"]:
                 self.state.update(last_push_at=time.time(), last_push_games=counted, last_result="pushed")
@@ -431,13 +454,13 @@ class AutoPush:
 _warned = False
 
 
-def note_game(svc) -> None:
+def note_game(svc, tier: str | None = None, analyzed: bool = False) -> None:
     """Para el recolector: cuenta una partida nueva (no falla nunca: subir datos no puede parar la recogida)."""
     global _warned
     try:
         auto = AutoPush.of(svc)
         if auto is not None:
-            auto.note_game()
+            auto.note_game(tier, analyzed)
     except Exception:
         if not _warned:
             _warned = True

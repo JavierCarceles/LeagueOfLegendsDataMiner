@@ -1154,3 +1154,30 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 
 /* Separador de las reglas medibles dentro de la tabla de movimiento. */
 .elo-table tr.elo-subhead td { padding-top: 12px; border-bottom: 1px solid var(--line-2); }
+
+/* Gráfica de partidas por elo (Datos y API → Recolector) */
+.elo-chart-box { margin-bottom: 14px; }
+.elo-chart { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 10px; }
+.elo-chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.elo-chart-body { display: grid; grid-template-columns: 52px 1fr; height: 190px; }
+.elo-chart-y { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 8px;
+  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-0.5em); }
+.elo-chart-y span { line-height: 1; }
+.elo-chart-plot { position: relative; border-left: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+.elo-chart-grid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
+.elo-chart-bars { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
+.elo-chart-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.elo-chart-bar { width: 100%; max-width: 46px; background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-radius: 4px 4px 0 0;
+  transition: height 0.6s ease; min-height: 0; opacity: 0.85; }
+.elo-chart-col.top .elo-chart-bar { opacity: 1; box-shadow: 0 0 12px var(--gold-soft); }
+.elo-chart-n { font-size: 11px; color: var(--text-2); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+.elo-chart-x { display: grid; grid-template-columns: 52px 1fr; margin-top: 6px; }
+.elo-chart-logos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
+.elo-chart-logo { display: flex; justify-content: center; }
+.elo-chart-img { width: 34px; height: 34px; object-fit: contain; }
+@media (max-width: 640px) {
+  .elo-chart-img { width: 22px; height: 22px; }
+  .elo-chart-bars, .elo-chart-logos { gap: 3px; padding: 0 2px; }
+  .elo-chart-body { grid-template-columns: 40px 1fr; }
+  .elo-chart-x { grid-template-columns: 40px 1fr; }
+}

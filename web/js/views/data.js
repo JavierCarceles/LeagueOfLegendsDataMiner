@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, platformLabel, ROLE_LABEL, ROLES, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, modal, mount, multiSelect, notice, roleIcon, select, toast } from "../ui.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, modal, mount, multiSelect, notice, rankImg, roleIcon, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
@@ -332,16 +332,25 @@ function renderCrawler(c, key) {
     mount(sections.crawlerForm, crawlerPanel(c, key));
   }
   renderCrawlerStatus(c, key);
-  // Resultados: solo mientras se busca por campeones (al cargar o con el recolector parado no se enseña nada viejo).
-  const resultsFor = running && hasTargets(c.config) ? c.config.focus : null;
+  // Resultados: solo con el recolector en marcha (al cargar o parado no se enseña nada viejo). La gráfica por elo, siempre;
+  // la búsqueda (servidores, jugadores encontrados, GitHub), solo buscando por campeones o líneas.
+  const resultsFor = running ? (hasTargets(c.config) ? c.config.focus : "ranking") : null;
   if (resultsFor !== resultsMode) {
     resultsMode = resultsFor;
     otpsSig = null;
     otpsAt = 0;
+    eloSig = null;
     mount(
       sections.results,
       resultsFor
-        ? h("div", { style: { marginTop: "14px" } }, collapsible("datos.otps", [icon("crown"), RESULTS_TITLE[resultsFor]], sections.otps, { summary: "un panel por campeón; pulsa uno para ver sus jugadores", cls: "flat", open: true }))
+        ? h(
+            "div",
+            { style: { marginTop: "14px" } },
+            (eloBox = h("div.elo-chart-box", eloChartShell())),
+            resultsFor !== "ranking"
+              ? collapsible("datos.otps", [icon("crown"), RESULTS_TITLE[resultsFor]], sections.otps, { summary: "por servidor, jugadores encontrados y subida a GitHub", cls: "flat", open: true })
+              : null,
+          )
         : null,
     );
   }
@@ -1035,18 +1044,6 @@ async function loadOtps(c) {
         h("a.btn.btn-sm", { href: "#/otps" }, icon("crown"), "Ver todas las partidas analizadas"),
       ),
       otpFunnel(data),
-      h("div.otp-champ-grid", (data.by_champion || []).filter((ch) => ch.found).map((ch) => otpChampCard(ch, data))),
-      (() => {
-        const empty = (data.by_champion || []).filter((ch) => !ch.found);
-        if (!empty.length) return null;
-        return h(
-          "div.row-wrap.tiny.muted",
-          { style: { gap: "4px" }, title: empty.map((ch) => dd.name(ch.champ)).join(", ") },
-          `${empty.length} ${empty.length === 1 ? "campeón" : "campeones"} aún sin ${noun(data.focus)} (se buscan primero):`,
-          empty.slice(0, 16).map((ch) => champImg(ch.champ, "xs")),
-          empty.length > 16 ? h("span", `+${empty.length - 16}`) : null,
-        );
-      })(),
       ((liveSig = null), (filesBox = h("div", otpFilesBar(data)))),
     ),
   );
@@ -1058,7 +1055,7 @@ let filesBox = null;
 let liveBusy = false;
 let liveSig = null;
 async function loadLive() {
-  if (!filesBox?.isConnected || liveBusy) return;
+  if ((!filesBox?.isConnected && !eloBox?.isConnected) || liveBusy) return;
   liveBusy = true;
   try {
     const details = await api.get("/api/crawler/otps/live");
@@ -1067,11 +1064,63 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
+    if (eloBox?.isConnected) updateEloChart(eloBox, details.autopush, resultsMode !== "ranking");
   } catch {
     // sin conexión un momento: el siguiente refresco lo intenta otra vez
   } finally {
     liveBusy = false;
   }
+}
+
+// ------------------------------------------------------------------ gráfica por elo
+/** Partidas por elo desde la última subida a GitHub (vuelve a 0 al subir): barras con el icono de cada elo y el eje Y
+ *  con el máximo arriba y sus cuartos. Se construye una vez; cada refresco solo cambia alturas y números (se ve subir). */
+const ELO_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
+let eloBox = null;
+let eloSig = null;
+
+function eloChartShell() {
+  return h(
+    "div.elo-chart",
+    h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub")),
+    h(
+      "div.elo-chart-body",
+      h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q }, "0"))),
+      h(
+        "div.elo-chart-plot",
+        [4, 3, 2, 1].map((q) => h("div.elo-chart-grid", { style: { bottom: `${q * 25}%` } })),
+        h(
+          "div.elo-chart-bars",
+          ELO_ORDER.map((t) =>
+            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } })),
+          ),
+        ),
+      ),
+    ),
+    h("div.elo-chart-x", h("span"), h("div.elo-chart-logos", ELO_ORDER.map((t) => h("div.elo-chart-logo", { title: TIER_LABEL[t] || t }, rankImg(t, "elo-chart-img"))))),
+  );
+}
+
+function updateEloChart(box, autopush, analyzed) {
+  const counts = ((autopush || {}).tiers || {})[analyzed ? "analizadas" : "guardadas"] || {};
+  const sig = JSON.stringify([analyzed, counts]);
+  if (sig === eloSig) return;
+  eloSig = sig;
+  const max = Math.max(0, ...ELO_ORDER.map((t) => counts[t] || 0));
+  const total = ELO_ORDER.reduce((n, t) => n + (counts[t] || 0), 0);
+  const title = box.querySelector(".elo-chart-title");
+  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}`;
+  const sub = box.querySelector(".elo-chart-sub");
+  if (sub) sub.textContent = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
+  box.querySelectorAll(".elo-chart-y span").forEach((el) => {
+    el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
+  });
+  box.querySelectorAll(".elo-chart-col").forEach((col) => {
+    const n = counts[col.dataset.tier] || 0;
+    col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
+    col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
+    col.classList.toggle("top", !!max && n === max);
+  });
 }
 
 /** Embudo de la búsqueda: de los jugadores revisados, cuántos pasan cada filtro (para ver por qué salen pocos OTPs). */

@@ -125,8 +125,10 @@ def _files(data_dir: Path) -> list[Path]:
 
 
 def signature(data_dir: Path) -> str:
+    from app.coach import ranking_stats
+
     h = hashlib.sha1(str(VERSION).encode())
-    for f in _files(data_dir):
+    for f in [*_files(data_dir), Path(data_dir) / "otps" / ranking_stats.FILE]:
         try:
             st = f.stat()
         except OSError:
@@ -212,11 +214,39 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
             if blocks(groups, MIN_CHAMP_GAMES) or champ_refs.get((c, role))
         },
     }
+    _merge_ranking(out, Path(data_dir))
     # Referencias de campeones sin partidas propias en ningún elo con muestra (pero sí de Diamante+).
     for (c, role), ref in champ_refs.items():
         out["champs"].setdefault(f"{c}:{role}", {"tiers": {}, "ref": ref})
     log.info("Perfil de errores por elo: %d partidas en %.1f s.", len(records), time.monotonic() - t0)
     return out
+
+
+def _merge_ranking(out: dict, data_dir: Path) -> None:
+    """Las medias ``rl_*`` (estadísticas exactas de Riot) con las partidas del ranking sin analizar (``ranking_stats``):
+    mezcladas con las de las partidas analizadas, cada una pesando sus partidas. Solo en los elos que ya tienen bloque."""
+    from app.coach import ranking_stats
+
+    data = ranking_stats.load(data_dir)
+    if not data:
+        return
+    for role, groups in (data.get("roles") or {}).items():
+        tiers = (out.get("roles") or {}).get(role) or {}
+        for group, metrics in groups.items():
+            block = tiers.get(group)
+            if block is None:
+                continue
+            move = block.get("move") or {}
+            counts = block.setdefault("move_n", {})
+            for key, (n, s, _s2) in metrics.items():
+                if not n:
+                    continue
+                own_n = counts.get(key) or (block.get("games") or 0 if move.get(key) is not None else 0)
+                own_sum = (move.get(key) or 0.0) * own_n
+                total = own_n + n
+                move[key] = round((own_sum + s) / total, 2)
+                counts[key] = total
+            block["move"] = move
 
 
 class EloProfile:
