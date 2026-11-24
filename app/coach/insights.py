@@ -13,6 +13,7 @@ import math
 from collections import Counter, defaultdict
 
 from app.coach import learn
+from app.coach.rule_metrics import ROWS as RULE_ROWS
 from app.coach.benchmarks import CATEGORIES, METRICS, References, applies
 
 RECENT = 10
@@ -643,6 +644,8 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "tip": "Compra un guardián de control (75) en cada vuelta a base y ponlo en el río o junto al siguiente objetivo: en Aspirante casi nadie acaba una partida sin ninguno."},
     {"id": "few_wards", "kind": "vision", "need": ("few_wards",), "metric": "wards_pre14", "title": "Casi sin wards en la fase de líneas",
      "tip": "Usa el abalorio cada vez que se recargue: río, entrada de tu jungla y el campamento que el rival suele hacer."},
+    {"id": "no_sweep", "kind": "vision", "need": ("no_sweep",), "metric": "wards_killed", "title": "Partidas sin quitar ningún ward rival",
+     "tip": "Cambia al abalorio de lente cuando tu rol lo permita y úsalo antes de cada objetivo y al entrar en la jungla rival; la pink también quita los wards de su zona."},
     {"id": "slow_clear", "kind": "jungle", "need": ("slow_clear",), "metric": "jungle_cs10", "title": "Despejas la jungla más lento que los OTPs de tu campeón",
      "tip": "Practica tu ruta de 3 minutos en una partida personalizada hasta hacerla sin pararte; en partida, encadena campamentos y no esperes en el río sin un motivo concreto."},
     {"id": "low_kp", "kind": "jungle", "need": ("low_kp",), "metric": "kp", "title": "Participas en pocas kills de tu equipo",
@@ -916,17 +919,18 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "tiers": {g: tiers[g]["move"].get(elo_key) for g in ELO_GROUPS if g in tiers and elo_key and tiers[g]["move"].get(elo_key) is not None} or None,
             "unit": "%",
         })
-    for key, label, roles, unit in ROUTE_ROWS:
+    for key, label, roles, unit, field in [(*r, "route_macro") for r in ROUTE_ROWS] + [(*r, "rules") for r in RULE_ROWS]:
         if role not in roles:
             continue
-        vals = [v for g in mine if isinstance(v := (g.get("route_macro") or {}).get(key), (int, float))]
+        vals = [v for g in mine if isinstance(v := (g.get(field) or {}).get(key), (int, float))]
         if len(vals) < MIN_MOVE_GAMES:
             continue
         rows.append({
             "key": key,
             "label": label,
             "unit": unit,
-            "mine": round(sum(vals) / len(vals), 1),
+            "group": "rules" if field == "rules" else "routes",
+            "mine": round(sum(vals) / len(vals), 1 if unit == "%" else 2),
             "opp": None,
             "tiers": {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None,
         })
@@ -936,7 +940,8 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
 
 
 MOVE_TREND_REL = 0.10  # diferencia del elo más alto frente al más bajo para decir que «va en una dirección»…
-MOVE_TREND_ABS = 1.0  # …y en unidades (puntos o partidas), para no leer ruido en valores pequeños
+MOVE_TREND_ABS = 1.0  # …y en puntos de porcentaje, para no leer ruido en valores pequeños…
+MOVE_TREND_ABS_COUNT = 0.05  # …o en recuentos por partida (wards destruidos, kills en otras líneas: 0,04 → 0,13)
 
 
 def _move_trend(row: dict) -> dict:
@@ -949,7 +954,8 @@ def _move_trend(row: dict) -> dict:
         return {"trend": None, "standing": None}
     lo, hi = tiers[present[0]], tiers[present[-1]]
     diff = hi - lo
-    if abs(diff) < max(MOVE_TREND_ABS, MOVE_TREND_REL * max(abs(lo), abs(hi))):
+    min_abs = MOVE_TREND_ABS if row.get("unit") == "%" else MOVE_TREND_ABS_COUNT
+    if abs(diff) < max(min_abs, MOVE_TREND_REL * max(abs(lo), abs(hi))):
         return {"trend": None, "standing": None}
     trend = "up" if diff > 0 else "down"
     mine = row["mine"]

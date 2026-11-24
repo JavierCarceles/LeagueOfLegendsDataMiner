@@ -371,3 +371,45 @@ en todos los elos) y campamentos robados antes del 10 (0,6-0,7).
   en top de elos altos (Esmeralda 31 %, Aspirante 36 %: más split). La tabla de movimiento marca en cada fila hacia
   dónde van los elos altos (↑/↓) y dónde quedas tú.
 - Mid y support con menos de 50 partidas de Esmeralda: sin conclusiones todavía.
+
+## L) Reglas nuevas de las guías de 2026 y cómo las tienen en cuenta los análisis (24-11-2026)
+
+Búsqueda en internet de guías de macro de todos los roles: Dodge.gg (jungla, mid, ADC y support, 2026), MetaBot (vueltas a
+base y objetivos, 2026), Dignitas (seguir al jungla rival, contrajungla, macro por rol, vueltas a base, medio y final de
+partida, top), WeCoach y Boostroom (top) y las notas de los parches 26.1 y 26.2 de Riot. Mobalytics, Nerfplz y Sheep
+Esports bloquean las descargas (403). Se añadieron 20 reglas generales (39-58) y 63 por rol (top 16-25, jungla 19-34,
+mid 16-27, ADC 17-28, support 18-30); las fuentes están al final de `macro/macro_por_rol.txt`.
+
+Cada regla nueva se midió con las ~28.000 partidas de OTPs (retos y estadísticas de Riot de cada jugador, sin volver a
+analizar nada) para ver si separa elos antes de juzgarla:
+
+| Regla (fichero y número) | Cómo se tiene en cuenta | Datos (elo bajo → Aspirante) |
+|---|---|---|
+| Quitar visión antes de objetivos (general 46, jungla 31, ADC 26) | **Error nuevo** `no_sweep`: partida de 25+ min sin destruir ningún ward (top, jungla, mid y ADC), en «Errores que repites» y en las repeticiones | Jungla 12 % → 2,4 % de las partidas; top 19 % → 6 % |
+| Pink en cada vuelta (general 45, jungla 32, ADC 26, support 22) | Fila «Vueltas a base en las que compras una pink» de *Cómo te mueves por el mapa* (`rule_metrics`) | Top 3 % → 14 %, jungla 14 % → 31 %, ADC 7 % → 23 % |
+| Wards destruidos (las mismas) | Fila «Wards rivales que destruyes cada 10 min» | Top 0,5 → 0,85, jungla 0,8 → 1,6, ADC 1,1 → 2,2 |
+| Visión frente a tu rival (support 21, mid 22) | Fila «Ventaja de visión sobre tu rival directo» | Top 7 % → 15 %, jungla −8 % → 19 %, ADC 18 % → 43 % |
+| Roams y Teleports con kill (top 24, mid 19, support 19) | Fila «Kills en otras líneas al principio» | Top 0,04 → 0,14 por partida |
+| Placas y primera torre antes del 14 (general 40, 41, 57; top 23) | Fila «Torres antes del 14 en las que participas» | Top 0,15 → 0,28, jungla 0,01 → 0,05, ADC 0,18 → 0,42 |
+| Teleport (top 19-21) | Fila «Teletransportes usados» (top y mid que lo llevan) | Top 3,5 → 3,9 |
+| No volver sin oro para algo útil (general 42) | Fila «Vueltas a base antes del 20 sin oro para nada útil», sin flecha: **no separa** | 6-10 % de las vueltas en todos los elos de top y jungla |
+
+Las filas nuevas salen en *Mi progreso → Cómo te mueves por el mapa*, bajo «Reglas de las guías de macro que se pueden
+medir», con la misma flecha (hacia dónde van los elos altos) y el mismo color que el resto. Para recuentos pequeños
+(0,04 → 0,14 por partida) la flecha ya no exige una diferencia de 1 unidad: basta con 0,05 y un 10 %.
+
+**Sin volver a analizar:** las partidas nuevas guardan `riot_rules` (retos de Riot del jugador) en su análisis; las que
+ya tenías los sacan de la partida de Riot guardada al poner al día los resúmenes (`DIGEST_VERSION = 5`), y los OTPs, de
+su dossier. `ANALYSIS_VERSION` sigue en 14.
+
+**Ya cubiertas por detecciones anteriores:** vuelta tarde antes de un objetivo y visión 60 s antes (general 47; ADC 21;
+mid 24 → `late_recall`, `late`, `pink`), pelear con menos (general 51, 55, 56 → `fight_outnumbered`), barón y pelea
+ganada sin aprovechar (general 48, 52 → `baron_wasted`, `unconverted`), duelo con menos nivel u objetos (top 18, support
+25 → `duel_behind`), ritmo del primer objeto (ADC 23 → `item_tempo`), despeje lento (jungla 19, 23 → `slow_clear`),
+seguir al jungla rival y contraganks (jungla 24-26 → `tracking`, `rm_counter_*`), roams de mid con su jungla (mid 21 →
+`rm_mid_with_jg_pct`) y support que deja solo al ADC (support 20 → `rm_adc_alone_deaths`).
+
+**No medibles con los datos de Riot:** estados de la oleada, congelar y el reloj del cañón (general 39, 43, 44; top
+16-17, 21-22; mid 16-17; ADC 18-20), Castigo (jungla 22), dónde se pone cada ward (jungla 28-29; mid 22; support 21-22,
+24), avisos y pings (jungla 21; mid 20), intenciones en las peleas (support 27-28; general 49) y lo que se cede a
+propósito (general 53-54; support 26).

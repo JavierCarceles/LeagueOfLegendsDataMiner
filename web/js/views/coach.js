@@ -699,7 +699,7 @@ function recurringLine(r) {
   );
 }
 
-const moveVal = (r, v) => (r.unit === "%" ? `${fmt.num(v, 0)} %` : fmt.num(v, 1));
+const moveVal = (r, v) => (r.unit === "%" ? `${fmt.num(v, 0)} %` : fmt.num(v, v !== 0 && Math.abs(v) < 1 ? 2 : 1));
 
 function movementSummary(m) {
   const g = m.rows.find((r) => r.key === "grouped_late");
@@ -725,7 +725,10 @@ function movementCard(m) {
         h("thead", h("tr", h("th", "Qué"), h("th.num", "Tú"), h("th.num", m.role === "JUNGLE" ? "Su jungla" : "Tu rival"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)))),
         h(
           "tbody",
-          m.rows.map((r) =>
+          m.rows.flatMap((r, i) => [
+            r.group === "rules" && m.rows[i - 1]?.group !== "rules"
+              ? h("tr.elo-subhead", h("td", { colSpan: 3 + tiers.length }, h("span.tiny.muted", "Reglas de las guías de macro que se pueden medir: visión, vueltas a base, roams y teletransporte")))
+              : null,
             h(
               "tr",
               h(
@@ -737,7 +740,7 @@ function movementCard(m) {
               h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : moveVal(r, r.opp)),
               tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : moveVal(r, r.tiers[t]))),
             ),
-          ),
+          ]),
         ),
       ),
     ),
@@ -1254,6 +1257,7 @@ export const FLAG_CHIP = {
   slow_clear: "despeje lento",
   no_pinks: "sin pinks",
   few_wards: "pocos wards",
+  no_sweep: "sin quitar wards",
   low_kp: "KP baja",
 };
 

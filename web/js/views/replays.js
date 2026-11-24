@@ -70,6 +70,7 @@ const TAG_LABEL = {
   slow_clear: ["Despeje lento", "bad"],
   no_pinks: ["Sin pinks", "bad"],
   few_wards: ["Pocos wards", "bad"],
+  no_sweep: ["Sin quitar wards", "bad"],
   low_kp: ["Poca participación", "bad"],
 };
 // Consejos genéricos según lo que se detectó (no afirman nada que el análisis no haya visto).

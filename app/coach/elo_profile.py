@@ -23,12 +23,12 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from app.coach import champ_checks, route_macro
+from app.coach import champ_checks, route_macro, rule_metrics
 from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 3  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*)
+VERSION = 4  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*)
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
@@ -49,7 +49,7 @@ MOVE_KEYS = (
     "mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late",
     "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
     "rm_adc_alone_deaths",
-)
+) + rule_metrics.KEYS
 
 
 def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:
@@ -101,7 +101,7 @@ class _Agg:
             "severity": {s: round(self.sev[s] / n, 3) for s in COUNTED},
             "types": {mid: {"per_game": round(c / n, 3), "pct": round(100 * self.with_type[mid] / n, 1)} for mid, c in self.count.items()},
             # Medias de movimiento (posiciones reconstruidas; solo partidas analizadas con la versión 14 o más).
-            "move": {k: round(sum(v) / len(v), 1) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
+            "move": {k: round(sum(v) / len(v), 2) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
         }
 
 
@@ -153,6 +153,10 @@ def _records(data_dir: Path, throttle: bool = False):
                     try:
                         rec["move"].update(route_macro.from_dossier(d))
                     except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
+                        pass
+                    try:
+                        rec["move"].update(rule_metrics.from_dossier(d))
+                    except Exception:  # noqa: BLE001
                         pass
                     yield rec
         except (OSError, EOFError, gzip.BadGzipFile):
