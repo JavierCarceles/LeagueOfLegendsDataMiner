@@ -1298,7 +1298,7 @@ def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nad
     from app.ingest.crawler import tier_shares
 
     shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
-    assert round(shares["GOLD"], 3) == 0.875 and round(shares["DIAMOND"], 3) == 0.125  # inversa a lo analizado, con mínimo
+    assert round(shares["GOLD"], 3) == 0.967 and round(shares["DIAMOND"], 3) == 0.033  # inversa al cuadrado, con mínimo
     assert {t: round(v, 6) for t, v in tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]).items()} == {"GOLD": 0.5, "DIAMOND": 0.5}
     five = tier_shares({"IRON": 0, "GOLD": 100, "EMERALD": 900, "MASTER": 1000, "CHALLENGER": 1000}, ["IRON", "GOLD", "EMERALD", "MASTER", "CHALLENGER"])
     assert abs(sum(five.values()) - 1) < 1e-9 and five["IRON"] > five["GOLD"] > five["EMERALD"] > five["MASTER"]
@@ -1306,20 +1306,23 @@ def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nad
 
 def test_el_reparto_con_las_cifras_reales_da_mas_a_oro_que_a_maestro():
     """Lo que había el 24-11-2026: Oro (1.500) recibía casi lo mismo que Maestro (5.000) porque todo se medía frente a
-    Diamante (17.000). Ahora la parte es inversa a lo analizado."""
+    Diamante (17.000). Ahora la parte es inversa (al cuadrado) a lo analizado: los elos con pocos datos se recuperan antes."""
     from app.ingest.crawler import tier_shares
 
     real = {"CHALLENGER": 6800, "GRANDMASTER": 2800, "MASTER": 5000, "DIAMOND": 17000, "EMERALD": 2100, "PLATINUM": 1600,
             "GOLD": 1500, "SILVER": 1500, "BRONZE": 1300, "IRON": 1700}
     shares = tier_shares(real, list(real))
-    assert shares["GOLD"] > 2.5 * shares["MASTER"] and shares["PLATINUM"] > 2.5 * shares["MASTER"]
+    assert shares["GOLD"] > 6 * shares["MASTER"] and shares["PLATINUM"] > 6 * shares["MASTER"]
     assert max(shares, key=shares.get) == "BRONZE" and min(shares, key=shares.get) == "DIAMOND"
-    assert shares["DIAMOND"] >= 0.02  # ninguno se para
+    assert sum(shares[t] for t in ("IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM")) > 0.8
+    assert shares["DIAMOND"] >= 0.005  # ninguno se para
 
 
 def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
-    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva el 87,5 % de las partidas, Diamante el
-    resto (Diamante entra cuando Oro ya lleva más de 150 de 175: lo que le falta a cada uno, no quién tiene 0)."""
+    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva casi todas (~97 %) y Diamante entra solo
+    cuando a Oro le falta menos que a él (lo que le falta a cada uno, no quién tiene 0 recientes)."""
+    from app.ingest.crawler import ACTIVE_VISIT_GAMES, tier_need, tier_shares
+
     now = _now_s()
     db = keyed_svc.db
     lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
@@ -1337,16 +1340,21 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
     crawler = keyed_svc.crawler
     assert worker._next_otp()["tier"] == "GOLD"  # nadie visitado aún: el que va por detrás
-    crawler.note_visit_tier("GOLD")
-    crawler.note_visit_tier("GOLD")
-    assert worker._next_otp()["tier"] == "GOLD"  # 50 de Oro: aún le faltan más que a Diamante (37,5 frente a 12,5)
-    for _ in range(5):
+    shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
+    gold_visits = 0
+    while True:
+        need = tier_need({"GOLD": gold_visits * ACTIVE_VISIT_GAMES}, shares)
+        if need["DIAMOND"] > need["GOLD"]:
+            break
+        assert worker._next_otp()["tier"] == "GOLD"
         crawler.note_visit_tier("GOLD")
-    assert worker._next_otp()["tier"] == "DIAMOND"  # 175 de Oro: ya le faltan más a Diamante (28,1 frente a 21,9)
+        gold_visits += 1
+    assert gold_visits > 20  # Oro muy por delante antes de que Diamante reciba nada
+    assert worker._next_otp()["tier"] == "DIAMOND"
     crawler.note_visit_tier("DIAMOND")
     assert worker._next_otp()["tier"] == "GOLD"
     report = crawler.tier_report()
-    assert report["GOLD"]["parte_pct"] == 87.5 and report["DIAMOND"]["analizadas"] == 1000
+    assert report["GOLD"]["parte_pct"] == round(100 * shares["GOLD"], 1) > 95 and report["DIAMOND"]["analizadas"] == 1000
 
 
 def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, monkeypatch):

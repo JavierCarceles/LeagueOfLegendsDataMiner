@@ -91,7 +91,10 @@ ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (menos lo qu
 RECENT_META_KEY = "crawler_recent_games"
 VISIT_LOG_SIZE = 40  # últimas visitas en el embudo (``_busqueda.json``): elo, por qué se eligió, cuánto dio y por qué acabó
 PLAN_KIND = {0: "nuevo", 1: "partidas nuevas", 2: "historial", 3: "sin análisis"}
-FLOOR_SHARE = 0.1  # parte repartida a partes iguales (ninguno se para)
+FLOOR_SHARE = 0.05  # parte repartida a partes iguales (ninguno se para)
+# Inversa al cuadrado: los elos con pocos datos se recuperan antes (con las cifras del 24-11-2026, Hierro a Platino ~81 %
+# y Diamante 0,7 %; con la inversa simple, ~70 % y 2,3 %). Según se igualan, las partes se acercan solas.
+SHARE_POWER = 2
 SHARE_SMOOTH = 100  # partidas que se suman a cada elo al invertir (uno con 0 no se lo lleva todo)
 OTP_BACK_PAGES = 5  # páginas del historial por visita (las ya conocidas no gastan descargas)
 OTP_FORWARD_PAGES = 10  # partidas nuevas listadas por visita (hasta 1.000)
@@ -658,12 +661,12 @@ RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 
 
 
 def tier_shares(totals: dict[str, int], tiers: list[str]) -> dict[str, float]:
-    """Parte de las partidas de cada elo: ``FLOOR_SHARE`` a partes iguales y el resto inversa a las partidas analizadas
-    que ya tiene (con 1.500 frente a 5.000, el triple). Suma 1."""
+    """Parte de las partidas de cada elo: ``FLOOR_SHARE`` a partes iguales y el resto inversa al cuadrado de las
+    partidas analizadas que ya tiene (con 1.500 frente a 5.000, unas 10 veces más). Suma 1."""
     tiers = list(dict.fromkeys(tiers))
     if not tiers:
         return {}
-    inv = {t: 1.0 / (max(0, totals.get(t, 0)) + SHARE_SMOOTH) for t in tiers}
+    inv = {t: 1.0 / (max(0, totals.get(t, 0)) + SHARE_SMOOTH) ** SHARE_POWER for t in tiers}
     total = sum(inv.values())
     n = len(tiers)
     return {t: FLOOR_SHARE / n + (1 - FLOOR_SHARE) * inv[t] / total for t in tiers}
