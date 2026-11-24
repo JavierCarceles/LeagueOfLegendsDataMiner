@@ -17,6 +17,8 @@ from __future__ import annotations
 import contextvars
 import time
 
+from app.logbus import get_logger
+
 DEFAULT_SECONDS = 3.0
 _current: contextvars.ContextVar[Budget | None] = contextvars.ContextVar("tempu_budget", default=None)
 
@@ -73,6 +75,10 @@ def run_detached(fn, *args, **kwargs):
     return ctx.run(fn, *args, **kwargs)
 
 
+SLOW_REQUEST_S = 2.0
+_slow_log = get_logger("http")
+
+
 class BudgetMiddleware:
     """Middleware ASGI puro (compatible con respuestas en streaming como los logs SSE)."""
 
@@ -98,7 +104,13 @@ class BudgetMiddleware:
                 message = {**message, "headers": headers}
             await send(message)
 
+        t0 = time.monotonic()
         try:
             await self.app(scope, receive, send_wrapper)
         finally:
             _current.reset(token)
+            took = time.monotonic() - t0
+            # Peticiones lentas al registro (que se sube a GitHub): con el recolector a tope, «Datos y API» se quedaba
+            # congelado y no se sabía qué petición tardaba.
+            if took >= SLOW_REQUEST_S:
+                _slow_log.info("Petición lenta: %s %s tardó %.1f s", scope.get("method"), path, took)

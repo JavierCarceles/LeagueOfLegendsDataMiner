@@ -1977,6 +1977,15 @@ class Crawler:
                     for host, h in limiter.snapshot().items()
                 }
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
+            # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
+            from app import diag
+
+            funnel["diagnostico"] = diag.sampler.snapshot()
+            if hasattr(db, "slow_stats"):
+                funnel["db"]["lentas"] = db.slow_stats()
+            log.info("Dónde se va el tiempo (5 min): %s", diag.sampler.summary() or "sin muestras")
+            for item in (funnel["db"].get("lentas") or [])[:3]:
+                log.info("Base de datos lenta: %s — %d veces, %.1f s en total, la peor %.1f s", item["que"], item["veces"], item["s_total"], item["s_peor"])
             # Una línea por región en el registro (data/registro/app.log) cada 5 min: la evolución entre subidas.
             for region, w in funnel["workers"].items():
                 t = w.get("timing") or {}

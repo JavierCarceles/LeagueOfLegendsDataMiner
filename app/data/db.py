@@ -35,6 +35,10 @@ TRUNCATE_EVERY_ROUNDS = 10  # cada 5 min
 TRUNCATE_WAIT_MS = 10000
 TRUNCATE_ABOVE_MB = 256  # por encima, se recorta en cuanto se pueda (no cada 5 min)
 TRUNCATE_RETRY_S = 120
+# Consultas lentas y escrituras que tienen el candado mucho rato: quién (la línea del proyecto que las lanza), cuántas y
+# cuánto (``slow_stats``, en el embudo que se sube a GitHub). Para saber por qué va lento sin adivinar.
+SLOW_QUERY_S = 0.5
+SLOW_WRITE_S = 1.0
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -403,6 +407,8 @@ class Database:
         self.lock_stats: dict[str, list] = {}
         self._checkpointer: threading.Thread | None = None
         self.wal_stats: dict = {}
+        self._slow: dict[str, list] = {}  # «dónde · qué» -> [veces, s en total, s la peor]
+        self._slow_lock = threading.Lock()
         self._init_schema()
 
     def conn(self) -> sqlite3.Connection:
@@ -528,18 +534,54 @@ class Database:
                 group = "busquedas" if name.endswith("-otps") else name.rsplit("_", 1)[0]
                 st = self.lock_stats.setdefault(group, [0.0, 0.0, 0])
                 st[0] += t1 - t0
-                st[1] += time.monotonic() - t1
+                held = time.monotonic() - t1
+                st[1] += held
                 st[2] += 1
+                if held >= SLOW_WRITE_S:
+                    self._note_slow("escritura", "con el candado cogido", held)
 
     def query(self, sql: str, params: tuple | list = ()) -> list[sqlite3.Row]:
-        return self.conn().execute(sql, params).fetchall()
+        t0 = time.monotonic()
+        rows = self.conn().execute(sql, params).fetchall()
+        if (took := time.monotonic() - t0) >= SLOW_QUERY_S:
+            self._note_slow("lectura", sql, took)
+        return rows
 
     def one(self, sql: str, params: tuple | list = ()) -> sqlite3.Row | None:
-        return self.conn().execute(sql, params).fetchone()
+        t0 = time.monotonic()
+        row = self.conn().execute(sql, params).fetchone()
+        if (took := time.monotonic() - t0) >= SLOW_QUERY_S:
+            self._note_slow("lectura", sql, took)
+        return row
 
     def scalar(self, sql: str, params: tuple | list = (), default=None):
-        row = self.conn().execute(sql, params).fetchone()
+        row = self.one(sql, params)
         return row[0] if row and row[0] is not None else default
+
+    def _note_slow(self, kind: str, what: str, took: float) -> None:
+        """Apunta una consulta lenta (o una escritura larga) con la línea del proyecto que la lanzó."""
+        import sys
+
+        f = sys._getframe(1)
+        while f is not None and (f.f_code.co_filename.endswith(("db.py", "contextlib.py"))):
+            f = f.f_back
+        where = "?"
+        if f is not None:
+            path = f.f_code.co_filename.replace("\\", "/")
+            where = f"{path[path.rfind('/app/') + 5:] if '/app/' in path else path.rsplit('/', 1)[-1]}:{f.f_lineno} {f.f_code.co_name}"
+        head = " ".join(what.split())[:70]
+        key = f"{kind} · {where} · {head}"
+        with self._slow_lock:
+            st = self._slow.setdefault(key, [0, 0.0, 0.0])
+            st[0] += 1
+            st[1] += took
+            st[2] = max(st[2], took)
+
+    def slow_stats(self, top: int = 12) -> list[dict]:
+        """Lo que más tiempo ha costado (consultas de más de ``SLOW_QUERY_S`` y escrituras de más de ``SLOW_WRITE_S``)."""
+        with self._slow_lock:
+            items = sorted(self._slow.items(), key=lambda kv: -kv[1][1])[:top]
+        return [{"que": k, "veces": v[0], "s_total": round(v[1], 1), "s_peor": round(v[2], 1)} for k, v in items]
 
     def meta_get(self, key: str, default: str | None = None) -> str | None:
         row = self.one("SELECT value FROM meta WHERE key = ?", (key,))

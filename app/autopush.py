@@ -334,12 +334,16 @@ class AutoPush:
             threads = {}
             for ident, frame in sys._current_frames().items():
                 name = names.get(ident, str(ident))
+                if name in threads:  # varios hilos con el mismo nombre (los de la web): todos, no solo el último
+                    name = f"{name} #{ident}"
                 stack = traceback.format_stack(frame)[-6:]
                 threads[name] = [line.strip().replace("\n", " | ") for line in stack]
             entries = [
                 {**e, "hora": time.strftime("%H:%M:%S", time.localtime(e.get("ts", 0)))} for e in bus.recent(300)
             ]
-            out = {"at": int(time.time()), "registro": entries, "hilos": threads}
+            from app import diag
+
+            out = {"at": int(time.time()), "diagnostico": diag.sampler.snapshot(), "registro": entries, "hilos": threads}
             folder = self.data_dir / "otps"
             folder.mkdir(parents=True, exist_ok=True)
             tmp = folder / "_registro.json.tmp"

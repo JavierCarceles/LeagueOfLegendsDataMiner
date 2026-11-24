@@ -102,7 +102,7 @@ export async function render(container) {
   Object.values(sections).forEach((s) => mount(s, loading()));
   await refresh();
   clearInterval(timer);
-  timer = setInterval(() => root && !interacting() && refresh(), 2500);
+  timer = setInterval(() => root && !interacting() && refresh({ timer: true }), 2500);
 }
 
 /** Eligiendo en un desplegable o escribiendo en la vista: el refresco espera (repintar cerraría el desplegable). */
@@ -111,11 +111,43 @@ function interacting() {
   return !!a && a !== document.body && root?.contains(a) && /^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName);
 }
 
-async function refresh() {
-  const fresh = latest("datos.refresh"); // un refresco lento no pisa a uno más nuevo
+/** Un refresco cada vez y se pinta siempre lo que llega. Antes, una respuesta que llegaba cuando ya había salido otra
+ *  petición se tiraba: con el servidor cargado (cada una tardando más de 2,5 s) se tiraban todas y la vista se quedaba
+ *  congelada (el número de partidas parado, «Detener» sin «Deteniendo…»). El del temporizador se salta si hay uno en
+ *  marcha; uno pedido a mano (tras pulsar un botón) se hace en cuanto acaba el que está en marcha. */
+let refreshing = false;
+let refreshAgain = false;
+let sourcesLoading = false;
+async function refresh({ timer = false } = {}) {
+  if (refreshing) {
+    if (!timer) refreshAgain = true;
+    return;
+  }
+  refreshing = true;
   try {
-    const [status, sources] = await Promise.all([api.get("/api/system/status"), api.get("/api/sources/status").catch(() => null)]);
-    if (!root || !fresh()) return;
+    await refreshOnce();
+  } finally {
+    refreshing = false;
+    if (refreshAgain && root) {
+      refreshAgain = false;
+      refresh();
+    }
+  }
+}
+
+async function refreshOnce() {
+  try {
+    // Las fuentes, aparte (una cada vez): si tardan, no retrasan el estado del recolector.
+    if (!sourcesLoading) {
+      sourcesLoading = true;
+      api
+        .get("/api/sources/status")
+        .then((sources) => root && sources && renderSources(sources))
+        .catch(() => null)
+        .finally(() => (sourcesLoading = false));
+    }
+    const status = await api.get("/api/system/status");
+    if (!root) return;
     state.status = status;
     // No se repinta una sección mientras el usuario está escribiendo o eligiendo en ella.
     const busy = (el) => el.contains(document.activeElement) && document.activeElement !== document.body;
@@ -123,7 +155,6 @@ async function refresh() {
     renderWarmer(status.warmer);
     limitsNow = status.ratelimit || {};
     renderCrawler(status.crawler, status.key);
-    if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
     loadOtps(status.crawler);
     loadLive();
@@ -961,17 +992,23 @@ function roleBar(roles, total) {
 
 let otpsAt = 0;
 let otpsSig = null;
+let otpsLoading = false;
 async function loadOtps(c) {
   const box = sections.otps;
   const details = box.closest("details");
-  if (!details?.open || Date.now() - otpsAt < 10000) return;
+  // Una cada vez: con el servidor cargado tarda más de 10 s y se iban acumulando varias a la vez (lo frenaban más).
+  if (!details?.open || otpsLoading || Date.now() - otpsAt < 10000) return;
   otpsAt = Date.now();
   if (!c?.running || !hasTargets(c?.config)) return; // sin búsqueda en marcha, la sección ni se muestra
   let data;
+  otpsLoading = true;
   try {
     data = await api.get("/api/crawler/otps", { limit: 1 });
   } catch (err) {
     return mount(box, errorBox(err));
+  } finally {
+    otpsLoading = false;
+    otpsAt = Date.now();
   }
   const sig = JSON.stringify([data.found, data.complete, data.games, data.by_champion, data.details, data.funnel?.total]);
   if (sig === otpsSig) return;
@@ -1010,7 +1047,7 @@ async function loadOtps(c) {
           empty.length > 16 ? h("span", `+${empty.length - 16}`) : null,
         );
       })(),
-      (filesBox = h("div", otpFilesBar(data))),
+      ((liveSig = null), (filesBox = h("div", otpFilesBar(data)))),
     ),
   );
 }

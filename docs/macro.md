@@ -611,3 +611,14 @@ quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
 - **Detener:** responde al momento («Deteniendo…» en cuanto pulsas). Antes apuntaba en la base de datos que no arrancara
   solo antes de responder y esa escritura esperaba al candado del recolector. Si algún hilo tarda más de 15 s en parar,
   el registro dice cuál y en qué línea está (cada 30 s), y «Recolector detenido en N s» al acabar.
+- **«Datos y API» congelado (se quedaba en 47 partidas con el recolector guardando 55/min):** la vista pedía el estado
+  cada 2,5 s y tiraba la respuesta que llegaba cuando ya había salido otra; con el servidor cargado se tiraban todas.
+  Ahora un refresco cada vez y se pinta lo que llega; las fuentes y la lista de OTPs, también una petición cada vez (la
+  de OTPs se acumulaba cada 10 s y lo frenaba más). Las peticiones de más de 2 s quedan en el registro («Petición
+  lenta») y `_registro.json` guarda todos los hilos aunque se llamen igual.
+- **Para saber por qué va lento sin adivinar** (`app/diag.py`): dos veces por segundo se mira en qué línea del proyecto
+  está cada hilo y se suma por grupo (cada región del recolector, las búsquedas, la web, la precarga, la subida). El
+  embudo (`data/otps/_busqueda.json`, `diagnostico`) y `_registro.json` traen los últimos 5 min en %: esperando turno
+  de la key de Riot, a la red, un candado, la base de datos, analizando, ficheros, parado sin trabajo, y las líneas
+  donde más está. Cada 5 min el registro lo resume («Dónde se va el tiempo») junto con las consultas de más de 0,5 s y
+  las escrituras de más de 1 s con el candado cogido, con la línea que las lanza (`db.lentas`).

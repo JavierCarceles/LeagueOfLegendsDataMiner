@@ -337,3 +337,34 @@ def test_las_partidas_analizadas_se_cuentan_al_momento_sin_recorrer_la_tabla(tmp
     now = otp_details.live_counts(db)
     assert now["games"] == 2 and now["timelines"] == 1 and now["otp_games"] == 1 and now["tiers"]["GOLD"] == 2
     db.close()
+
+
+def test_las_peticiones_lentas_quedan_en_el_registro(monkeypatch, caplog):
+    """«Datos y API» se quedaba congelado con el recolector a tope y no se sabía qué petición tardaba."""
+    import logging
+    import time as _time
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app import budget
+
+    monkeypatch.setattr(budget, "SLOW_REQUEST_S", 0.05)
+    app = FastAPI()
+    app.add_middleware(budget.BudgetMiddleware)
+
+    @app.get("/api/lenta")
+    def lenta():
+        _time.sleep(0.1)
+        return {}
+
+    @app.get("/api/rapida")
+    def rapida():
+        return {}
+
+    with caplog.at_level(logging.INFO):
+        client = TestClient(app)
+        client.get("/api/lenta")
+        client.get("/api/rapida")
+    slow = [r.getMessage() for r in caplog.records if "Petición lenta" in r.getMessage()]
+    assert len(slow) == 1 and "/api/lenta" in slow[0]

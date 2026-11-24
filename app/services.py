@@ -89,6 +89,10 @@ class Services:
             self.startup_done.set()
         # El registro de escrituras de SQLite se vuelca al fichero principal en segundo plano (no dentro de cada escritura).
         self.db.start_checkpointer(getattr(self, "shutdown_event", None))
+        # Muestreo de dónde está cada hilo (por qué va lento: en el embudo y el registro que se suben a GitHub).
+        from app import diag
+
+        diag.sampler.start(getattr(self, "shutdown_event", None))
         # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
         self.tracker.start()
         # Draft en vivo: la selección de campeones del cliente de LoL, y al terminar, tu build al cliente.
