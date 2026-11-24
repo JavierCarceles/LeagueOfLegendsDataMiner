@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { calibrationChart } from "../charts.js";
 import { champPicker } from "../components/picker.js";
 import { dd, platformLabel, ROLE_LABEL, ROLES, state, TIER_LABEL } from "../state.js";
-import { champImg, collapsible, errorBox, fmt, h, icon, kpi, latest, loading, modal, mount, multiSelect, notice, rankImg, roleIcon, select, toast } from "../ui.js";
+import { champImg, collapsible, errorBox, fmt, h, icon, kpi, loading, modal, mount, multiSelect, notice, rankImg, roleIcon, select, toast } from "../ui.js";
 
 let root = null;
 let timer = null;
@@ -33,13 +33,6 @@ const SEARCH_LABEL = {
   waiting_key: "esperando API key",
   paused_game: "en pausa mientras juegas",
   stopped: "detenida",
-};
-const HISTORY_LABEL = {
-  queued: "historial en cola",
-  loading: "bajando historial",
-  done: "historial completo",
-  share: "historial completo (más atrás no lo jugaba)",
-  capped: "tope alcanzado (más cuando acabe la búsqueda)",
 };
 const REGION_GROUPS = [
   { id: "europe", label: "Europa" },
@@ -133,7 +126,7 @@ async function refresh({ timer = false } = {}) {
     refreshing = false;
     if (refreshAgain && root) {
       refreshAgain = false;
-      refresh();
+      void refresh();
     }
   }
 }
@@ -159,9 +152,9 @@ async function refreshOnce() {
     limitsNow = status.ratelimit || {};
     renderCrawler(status.crawler, status.key);
     renderLimits(status.ratelimit);
-    loadOtps(status.crawler);
-    loadPatterns(status.crawler);
-    loadLive();
+    void loadOtps(status.crawler);
+    void loadPatterns(status.crawler);
+    void loadLive();
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
   } catch (err) {
@@ -198,7 +191,7 @@ function renderKey(key) {
       input.blur();
       window.dispatchEvent(new Event("tempu:status"));
       keyRendered = null;
-      refresh();
+      void refresh();
     } catch (err) {
       toast(err.message, "error");
     }
@@ -208,7 +201,7 @@ function renderKey(key) {
       const res = await api.post("/api/system/validate-key");
       keyResultToast(res, "La key funciona");
       keyRendered = null;
-      refresh();
+      void refresh();
     } catch (err) {
       toast(err.message, "error");
     }
@@ -229,14 +222,21 @@ function renderKey(key) {
     sections.key,
     h("div.row-wrap", statusPill, key.masked ? h("code.small.muted", key.masked) : null, ageText ? h("span.small.muted", ageText) : null),
     key.detail ? h("div.small.bad", { style: { marginTop: "6px" } }, key.detail) : null,
-    key.rechecking
-      ? notice("Si la acabas de generar, Riot puede tardar unos minutos en activarla. Se vuelve a comprobar sola cada poco tiempo; no hace falta que hagas nada.", "info")
-      : key.status === "invalid"
-        ? h("p.small.muted", { style: { marginTop: "6px" } }, "Comprueba que has copiado la key completa y la última que generaste (al regenerar, la anterior deja de valer).")
-        : null,
+    keyHint(key),
     h("div.input-group", { style: { marginTop: "12px" } }, input, h("button.btn.btn-primary", { onclick: save }, "Guardar"), key.configured ? h("button.btn", { onclick: validate }, "Validar") : null),
     h("p.small.muted", { style: { marginTop: "10px" } }, "Consíguela en ", h("a", { href: "https://developer.riotgames.com/", target: "_blank", rel: "noopener" }, "developer.riotgames.com"), ". Se guarda en tu .env local y se recarga en caliente: no hace falta reiniciar. Sin key siguen funcionando el draft, los matchups y la tier list con OP.GG y Lolalytics."),
   );
+}
+
+/** Aviso bajo la key: si Riot aún la está activando o si la ha rechazado. */
+function keyHint(key) {
+  if (key.rechecking) {
+    return notice("Si la acabas de generar, Riot puede tardar unos minutos en activarla. Se vuelve a comprobar sola cada poco tiempo; no hace falta que hagas nada.", "info");
+  }
+  if (key.status === "invalid") {
+    return h("p.small.muted", { style: { marginTop: "6px" } }, "Comprueba que has copiado la key completa y la última que generaste (al regenerar, la anterior deja de valer).");
+  }
+  return null;
 }
 
 // ------------------------------------------------------------------ precarga
@@ -299,7 +299,7 @@ function renderWarmer(w) {
         bar("Todo", w.all_pct, `${fmt.int(plan.done || 0)}/${fmt.int(plan.total || 0)}`),
     h(
       "div.lanes",
-      lanes.map(([name, l]) =>
+      lanes.map(([, l]) =>
         h(
           "div.lane",
           h("div.row", h("b.small", l.label), h("span.spacer"), h("span.tiny.muted", laneCounts(l))),
@@ -326,7 +326,7 @@ async function setPaused(paused) {
   try {
     await api.post("/api/warmer/pause", { paused });
     toast(paused ? "Descargas en segundo plano en pausa" : "Descargas reanudadas", "success");
-    refresh();
+    void refresh();
   } catch (err) {
     toast(err.message, "error");
   }
@@ -336,7 +336,7 @@ async function replan() {
   try {
     await api.post("/api/warmer/replan");
     toast("Revisando qué falta por descargar…");
-    refresh();
+    void refresh();
   } catch (err) {
     toast(err.message, "error");
   }
@@ -347,7 +347,7 @@ function renderCrawler(c, key) {
   const running = !!c.running;
   const mode = running ? "running" : "stopped";
   if (!crawlerForm) {
-    crawlerForm = JSON.parse(JSON.stringify(c.config));
+    crawlerForm = structuredClone(c.config);
     // Buscando por partidas, los campeones de la configuración salen de las ventanas: no se enseñan como elegidos.
     if (crawlerForm.patterns?.length) Object.assign(crawlerForm, { champions: [], champion_roles: {} });
   }
@@ -372,16 +372,10 @@ function renderCrawler(c, key) {
     patternsSig = null;
     patternsAt = 0;
     eloSig = null;
+    if (resultsFor) eloBox = h("div.elo-chart-box", eloChartShell());
     mount(
       sections.results,
-      resultsFor
-        ? h(
-            "div",
-            { style: { marginTop: "14px" } },
-            (eloBox = h("div.elo-chart-box", eloChartShell())),
-            resultsSection(resultsFor),
-          )
-        : null,
+      resultsFor ? h("div", { style: { marginTop: "14px" } }, eloBox, resultsSection(resultsFor)) : null,
     );
   }
 }
@@ -412,7 +406,7 @@ function pushStepText(step) {
 }
 
 function renderPush(p, running) {
-  const show = p && p.running && !running; // en marcha, ya lo dice la línea de GitHub de los resultados
+  const show = p?.running && !running; // en marcha, ya lo dice la línea de GitHub de los resultados
   const sig = JSON.stringify(show ? [p.step?.key, p.step?.detail] : null);
   if (sig === pushSig) return;
   pushSig = sig;
@@ -495,7 +489,7 @@ function searchMode(cfg) {
 function windowsOf(cfg) {
   if (!cfg) return [];
   if (!cfg._matchups) {
-    const copy = (w) => JSON.parse(JSON.stringify({ kind: w.kind, name: w.name || "", a: w.a || [], b: w.b || [], min_a: w.min_a, min_b: w.min_b }));
+    const copy = (w) => structuredClone({ kind: w.kind, name: w.name || "", a: w.a || [], b: w.b || [], min_a: w.min_a, min_b: w.min_b });
     cfg._matchups = (cfg.patterns || []).filter((w) => w.kind !== "comp").map(copy);
     cfg._comps = (cfg.patterns || []).filter((w) => w.kind === "comp").map(copy);
   }
@@ -568,7 +562,7 @@ function champsText(cfg, poolSize = null) {
     parts.push(`${many ? "Líneas" : "Línea"} ${linesText(cfg.roles).toLowerCase()} completa${many ? "s" : ""}${pool}`);
   }
   const names = (cfg.champions || []).map((id) => {
-    const roles = (cfg.champion_roles || {})[String(id)] || [];
+    const roles = cfg.champion_roles?.[String(id)] || [];
     const which = roles.length ? " (" + roles.map((r) => ROLE_LABEL[r].toLowerCase()).join("/") + ")" : "";
     return dd.name(id) + which;
   });
@@ -608,6 +602,15 @@ function tiersPhrase(idx, contiguous) {
 
 const WHO_PLAYS = { games: "cualquiera que juegue", mastery: "jugadores con mucha maestría de", otp: "especialistas de" };
 
+/** Resumen de la búsqueda por partidas (matchups o composiciones). */
+function patternSentence(cfg, mode, { verb, when, servers }) {
+  const ws = activeWindows(cfg);
+  if (!ws.length) return mode === "comps" ? "Añade una composición: campeones del mismo equipo, con rol o sin él." : "Añade una partida: pon campeones contra campeones en su rol, como en un minidraft.";
+  const who = WHO_PLAYS[cfg.focus] || WHO_PLAYS.otp;
+  const which = ws.length === 1 ? `con ${windowLabel(ws[0])}` : `que encajen con alguna de estas ${ws.length}: ${ws.map(windowLabel).join("; ")}`;
+  return `${verb} partidas ${when} de todos los elos en ${servers} ${which}. Se visitan ${who} esos campeones; cada partida que encaja se guarda entera, con los 10 jugadores analizados minuto a minuto (y quién gana), y las demás que se bajan, en la base de datos.`;
+}
+
 function sentence(cfg, poolSize, running = false) {
   const verb = running ? "Se están recogiendo" : "Se recogerán";
   const all = state.meta?.platforms || [];
@@ -617,13 +620,7 @@ function sentence(cfg, poolSize, running = false) {
   const tiers = tiersPhrase(idx, contiguous);
   const when = WHEN[cfg.otp_depth] || WHEN.season;
   const mode = searchMode(cfg);
-  if (PATTERN_MODES.has(mode)) {
-    const ws = activeWindows(cfg);
-    if (!ws.length) return mode === "comps" ? "Añade una composición: campeones del mismo equipo, con rol o sin él." : "Añade una partida: pon campeones contra campeones en su rol, como en un minidraft.";
-    const who = WHO_PLAYS[cfg.focus] || WHO_PLAYS.otp;
-    const which = ws.length === 1 ? `con ${windowLabel(ws[0])}` : `que encajen con alguna de estas ${ws.length}: ${ws.map(windowLabel).join("; ")}`;
-    return `${verb} partidas ${when} de todos los elos en ${servers} ${which}. Se visitan ${who} esos campeones; cada partida que encaja se guarda entera, con los 10 jugadores analizados minuto a minuto (y quién gana), y las demás que se bajan, en la base de datos.`;
-  }
+  if (PATTERN_MODES.has(mode)) return patternSentence(cfg, mode, { verb, when, servers });
   const where = `de ${tiers} en ${servers}`;
   if (!hasTargets(cfg)) return `${verb} partidas de cualquier jugador del ranking ${where}: de cada uno, sus ${cfg.matches_per_player} más recientes ${when}.`;
   const poolText = poolSize ? ` (${poolSize})` : "";
@@ -650,6 +647,25 @@ function startBlocked(cfg, key) {
 }
 
 // ------------------------------------------------------------------ panel
+/** Con el recolector en marcha: el botón de detener, si está en pausa y a qué ritmo guarda partidas. */
+function runningControls(c) {
+  const rateNow = c.rate_recent !== null && c.rate_recent !== undefined ? ` · ahora ${fmt.num(c.rate_recent, 1)}/min` : "";
+  const rateAvg = c.rate_per_min ? ` · media ${fmt.num(c.rate_per_min, 1)}/min` : "";
+  return h(
+    "div.row-wrap",
+    h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
+    h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"),
+    h(
+      "span.small.muted",
+      { title: "«Ahora»: últimos 5 minutos. «Media»: desde que arrancó (arrastra el arranque, cuando aún busca jugadores)." },
+      `${fmt.int(c.stored)} partidas nuevas`,
+      rateNow,
+      rateAvg,
+    ),
+    regionsHint(c),
+  );
+}
+
 function crawlerPanel(c, key) {
   const running = !!c.running;
   const cfg = running ? c.config || {} : crawlerForm;
@@ -730,19 +746,7 @@ function crawlerPanel(c, key) {
       foot,
       h("p.filter-sentence", sentence(cfg, poolSize, running)),
       running
-        ? h(
-            "div.row-wrap",
-            h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
-            h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"),
-            h(
-              "span.small.muted",
-              { title: "«Ahora»: últimos 5 minutos. «Media»: desde que arrancó (arrastra el arranque, cuando aún busca jugadores)." },
-              `${fmt.int(c.stored)} partidas nuevas`,
-              c.rate_recent !== null && c.rate_recent !== undefined ? ` · ahora ${fmt.num(c.rate_recent, 1)}/min` : "",
-              c.rate_per_min ? ` · media ${fmt.num(c.rate_per_min, 1)}/min` : "",
-            ),
-            regionsHint(c),
-          )
+        ? runningControls(c)
         : h(
             "div.row-wrap",
             (() => {
@@ -833,7 +837,7 @@ function windowsEditor(cfg, changed) {
       list.length < MAX_WINDOWS
         ? h(
             "div",
-            h("button.btn.btn-sm", { type: "button", onclick: () => (list.push(emptyWindow(comps)), draw(), update()) }, icon("swords"), addLabel),
+            h("button.btn.btn-sm", { type: "button", onclick: () => { list.push(emptyWindow(comps)); draw(); update(); } }, icon("swords"), addLabel),
           )
         : h("div.tiny.muted", `Como mucho ${MAX_WINDOWS} ventanas.`),
     );
@@ -842,8 +846,8 @@ function windowsEditor(cfg, changed) {
     h(
       "div.window-head",
       h("b.small", title),
-      h("input.input.input-sm", { value: w.name || "", placeholder: "Nombre (opcional)", maxlength: 80, oninput: (e) => ((w.name = e.target.value), update()) }),
-      h("button.btn.btn-ghost.btn-sm", { type: "button", title: "Quitar esta ventana", onclick: () => (list.splice(i, 1), draw(), update()) }, icon("close")),
+      h("input.input.input-sm", { value: w.name || "", placeholder: "Nombre (opcional)", maxlength: 80, oninput: (e) => { w.name = e.target.value; update(); } }),
+      h("button.btn.btn-ghost.btn-sm", { type: "button", title: "Quitar esta ventana", onclick: () => { list.splice(i, 1); draw(); update(); } }, icon("close")),
     );
   function matchupCard(w, i) {
     const pick = (side, role) => {
@@ -881,8 +885,8 @@ function windowsEditor(cfg, changed) {
         h(
           "div.otp-champ",
           h("span.row", { style: { gap: "6px", minWidth: 0 } }, champImg(s.champ, "xs"), h("b.small.ellipsis", dd.name(s.champ))),
-          select([{ value: "", label: "Cualquier rol" }, ...ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))], s.role || "", (v) => ((s.role = v || null), update()), "select select-sm"),
-          h("button.btn.btn-ghost.btn-sm", { type: "button", title: `Quitar ${dd.name(s.champ)}`, onclick: () => (slots.splice(k, 1), (w[minKey] = null), draw(), update()) }, icon("close")),
+          select([{ value: "", label: "Cualquier rol" }, ...ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))], s.role || "", (v) => { s.role = v || null; update(); }, "select select-sm"),
+          h("button.btn.btn-ghost.btn-sm", { type: "button", title: `Quitar ${dd.name(s.champ)}`, onclick: () => { slots.splice(k, 1); w[minKey] = null; draw(); update(); } }, icon("close")),
         ),
       );
       const add =
@@ -901,7 +905,7 @@ function windowsEditor(cfg, changed) {
           : null;
       const n = slots.length;
       const minOptions = Array.from({ length: n }, (_, k) => n - k).map((m) => ({ value: m, label: minLabel(m, n) }));
-      const min = n > 1 ? select(minOptions, w[minKey] || n, (v) => ((w[minKey] = Number(v)), update()), "select select-sm") : null;
+      const min = n > 1 ? select(minOptions, w[minKey] || n, (v) => { w[minKey] = Number(v); update(); }, "select select-sm") : null;
       return h("div.col", { style: { gap: "6px" } }, h("div.small.muted", title), chips, add ? h("div", { style: { width: "220px", maxWidth: "100%" } }, add) : null, min);
     };
     return h("div.window-card", head(w, i, `Composición ${i + 1}`), team("a", "Equipo A"), team("b", "Equipo B (opcional: contra quién)"));
@@ -1037,7 +1041,8 @@ function playersEditor(cfg, changed) {
     cfg.min_share = share;
     cfg.focus = share > 0 ? "otp" : "mastery";
   };
-  const draw = () =>
+  const draw = () => {
+    const share = cfg.focus === "otp" ? Number(cfg.min_share) : 0;
     mount(
       box,
       choiceList(PLAYERS, isSpecialist(cfg.focus) ? "specialist" : "games", (v) => {
@@ -1058,7 +1063,7 @@ function playersEditor(cfg, changed) {
       isSpecialist(cfg.focus)
         ? inlineRow(
             "Y que juegue con él",
-            select(SHARES.map((x) => ({ value: x.value, label: x.label })), cfg.focus === "otp" ? Number(cfg.min_share) : 0, (v) => {
+            select(SHARES.map((x) => ({ value: x.value, label: x.label })), share, (v) => {
               setShare(Number(v));
               changed();
             }, "select select-sm"),
@@ -1071,6 +1076,7 @@ function playersEditor(cfg, changed) {
           : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta, así que cuánto lo juega se comprueba con sus partidas: tras revisar 20, si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
       ),
     );
+  };
   draw();
   return box;
 }
@@ -1208,49 +1214,59 @@ function searchRate(w) {
   return minutes >= 1 && w.mastery_checked ? ` (${fmt.num(w.mastery_checked / minutes, 0)}/min)` : "";
 }
 
+const WORKER_PILL = { running: "pill-good", waiting_key: "pill-warn", paused_game: "pill-warn" };
+
+/** Línea principal de una región: lo encontrado y guardado buscando, o lo guardado sin búsqueda. */
+function workerSummary(w, focus) {
+  if (!w.search) return `${fmt.int(w.stored)} partidas guardadas · ${fmt.int(w.players)} jugadores`;
+  const rate = w.rate_recent ? ` (${fmt.num(w.rate_recent, 1)}/min)` : "";
+  return `${fmt.int(w.otps_known)} ${noun(focus, w.otps_known)} · ${fmt.int(w.stored)} partidas nuevas${rate} · ${fmt.int(w.mastery_checked)} revisados${searchRate(w)}`;
+}
+
+/** Tarjeta de una región del recolector: lo esencial a la vista y el resto en «Detalle». */
+function workerCard(w, focus) {
+  const where = w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "";
+  const who = noun(focus);
+  const found = w.search
+    ? h("div.tiny.muted", `${who[0].toUpperCase()}${who.slice(1)}: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con todas sus partidas del periodo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
+    : null;
+  const skipped = w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : "";
+  const reviewed = w.mastery_checked || w.search
+    ? h("div.tiny.muted", `Revisados: ${fmt.int(w.mastery_checked)} jugadores del ranking · ${fmt.int(w.targets_found)} ${who} nuevos · ${fmt.int(w.target_games)} partidas con esos campeones${skipped}`)
+    : null;
+  return h(
+    "div.worker",
+    h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${WORKER_PILL[w.status] || ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", where)),
+    // Lo esencial a la vista; el resto, en «Detalle».
+    h("div.small", { style: { marginTop: "4px" } }, workerSummary(w, focus)),
+    sharedKeyLine(w),
+    w.last_error ? h("div.tiny.warn", w.last_error) : null,
+    collapsible(
+      `datos.recolector.detalle.${w.region}`,
+      "Detalle",
+      h(
+        "div.col",
+        { style: { gap: "2px" } },
+        h("div.tiny.muted", `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} jugadores del ranking`),
+        found,
+        reviewed,
+        w.details ? h("div.tiny.muted", `${fmt.int(w.details)} partidas analizadas minuto a minuto`) : null,
+      ),
+      { cls: "flat" },
+    ),
+  );
+}
+
 function renderCrawlerStatus(c, key) {
   // Solo con el recolector en marcha: parado, los números de la última vez confunden.
   const workers = c.running ? Object.values(c.workers || {}) : [];
   const focus = hasTargets(c.config) ? c.config.focus : null;
+  const idle = key.configured ? "Sin actividad todavía: revisa los filtros y pulsa «Iniciar recolector»." : "Sin actividad.";
   mount(
     sections.crawlerStatus,
     h(
       "div.col",
-      workers.length
-        ? workers.map((w) =>
-            h(
-              "div.worker",
-              h("div.row", h("b", { style: { textTransform: "capitalize" } }, w.region), h(`span.pill.${w.status === "running" ? "pill-good" : w.status === "waiting_key" || w.status === "paused_game" ? "pill-warn" : ""}`, STATUS_LABEL[w.status] || w.status), h("span.spacer"), h("span.tiny.muted", w.platform ? `${platformLabel(w.platform)} · ${TIER_LABEL[w.tier] || w.tier || ""}` : "")),
-              // Lo esencial a la vista; el resto, en «Detalle».
-              h(
-                "div.small",
-                { style: { marginTop: "4px" } },
-                w.search
-                  ? `${fmt.int(w.otps_known)} ${noun(focus, w.otps_known)} · ${fmt.int(w.stored)} partidas nuevas${w.rate_recent ? ` (${fmt.num(w.rate_recent, 1)}/min)` : ""} · ${fmt.int(w.mastery_checked)} revisados${searchRate(w)}`
-                  : `${fmt.int(w.stored)} partidas guardadas · ${fmt.int(w.players)} jugadores`,
-              ),
-              sharedKeyLine(w),
-              w.last_error ? h("div.tiny.warn", w.last_error) : null,
-              collapsible(
-                `datos.recolector.detalle.${w.region}`,
-                "Detalle",
-                h(
-                  "div.col",
-                  { style: { gap: "2px" } },
-                  h("div.tiny.muted", `${fmt.int(w.stored)} guardadas · ${fmt.int(w.duplicates)} repetidas · ${fmt.int(w.remakes)} remakes · ${fmt.int(w.players)} jugadores · ${fmt.int(w.seeds_added)} jugadores del ranking`),
-                  w.search
-                    ? h("div.tiny.muted", `${noun(focus)[0].toUpperCase()}${noun(focus).slice(1)}: ${fmt.int(w.otps_known)} encontrados · ${fmt.int(w.otps_complete)} con todas sus partidas del periodo · búsqueda ${SEARCH_LABEL[w.search] || w.search}`)
-                    : null,
-                  w.mastery_checked || w.search
-                    ? h("div.tiny.muted", `Revisados: ${fmt.int(w.mastery_checked)} jugadores del ranking · ${fmt.int(w.targets_found)} ${noun(focus)} nuevos · ${fmt.int(w.target_games)} partidas con esos campeones${w.other_champ_skipped ? ` · ${fmt.int(w.other_champ_skipped)} descartadas (otro campeón)` : ""}`)
-                    : null,
-                  w.details ? h("div.tiny.muted", `${fmt.int(w.details)} partidas analizadas minuto a minuto`) : null,
-                ),
-                { cls: "flat" },
-              ),
-            ),
-          )
-        : h("div.small.muted", key.configured ? "Sin actividad todavía: revisa los filtros y pulsa «Iniciar recolector»." : "Sin actividad."),
+      workers.length ? workers.map((w) => workerCard(w, focus)) : h("div.small.muted", idle),
       h("p.tiny.muted", { title: "Coste con la key gratuita: ~1 llamada por partida nueva (2 buscando por campeones: también su análisis minuto a minuto). Los jugadores salen de las ligas oficiales (205 por llamada) y se descartan partidas repetidas, remakes y colas que no son ranked. Se pausa solo mientras juegas." }, "Cuánto cuesta y cuándo se pausa ⓘ"),
     ),
   );
@@ -1262,7 +1278,7 @@ async function start(btn) {
     await api.post("/api/crawler/start", startPayload());
     toast("Recolector en marcha", "success");
     crawlerFormFor = null;
-    refresh();
+    void refresh();
   } catch (err) {
     toast(err.message, "error");
     btn.disabled = false;
@@ -1279,7 +1295,7 @@ async function stop(ev) {
   toast("Deteniendo el recolector: termina la partida que tiene entre manos y después sube lo recogido a GitHub…");
   try {
     await api.post("/api/crawler/stop");
-    refresh();
+    void refresh();
   } catch (err) {
     toast(err.message, "error");
     if (btn) btn.disabled = false;
@@ -1469,7 +1485,7 @@ function eloChartShell() {
 }
 
 function updateEloChart(box, autopush, analyzed) {
-  const counts = ((autopush || {}).tiers || {})[analyzed ? "analizadas" : "guardadas"] || {};
+  const counts = autopush?.tiers?.[analyzed ? "analizadas" : "guardadas"] || {};
   const sig = JSON.stringify([analyzed, counts]);
   if (sig === eloSig) return;
   eloSig = sig;
@@ -1493,20 +1509,23 @@ function updateEloChart(box, autopush, analyzed) {
 /** Embudo de la búsqueda: de los jugadores revisados, cuántos pasan cada filtro (para ver por qué salen pocos OTPs). */
 function otpFunnel(data) {
   const f = data.funnel;
-  if (!f?.total || !f.total.checked) return null;
+  if (!f?.total?.checked) return null;
   const champs = data.lines?.length ? `un campeón de ${linesText(data.lines).toLowerCase()}` : (data.champions || []).map((c) => dd.name(c)).join(" / ");
+  const who = noun(data.focus);
+  const activeWho = data.focus === "otp" ? "candidatos" : who;
   const label = {
     checked: "revisados",
     champ: `con ${champs} entre sus 3 más jugados`,
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
-    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()})${data.focus === "otp" ? " = candidatos" : ` = ${noun(data.focus)}`}`,
-    share: `comprobados con sus partidas: ≥ ${Math.round(100 * (data.min_share ?? 0.5))} % con él = ${noun(data.focus)}`,
+    active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${activeWho}`,
+    share: `comprobados con sus partidas: ≥ ${Math.round(100 * (data.min_share ?? 0.5))} % con él = ${who}`,
   };
   const last = f.stages.at(-1);
   const t = f.total;
   const steps = f.stages.map((k, i) => {
     const prev = i ? t[f.stages[i - 1]] : null;
-    const pct = prev ? ` (${fmt.pct((100 * t[k]) / prev, prev && t[k] / prev < 0.1 ? 1 : 0)})` : "";
+    const decimals = prev && t[k] / prev < 0.1 ? 1 : 0;
+    const pct = prev ? ` (${fmt.pct((100 * t[k]) / prev, decimals)})` : "";
     return h("div.funnel-step", h("b", fmt.int(t[k])), h("span.tiny.muted", ` ${label[k]}${pct}`));
   });
   const rows = Object.entries(f.platforms || {}).map(([p, b]) =>
@@ -1604,9 +1623,15 @@ function autopushLine(p) {
           "Subir ahora",
         )
       : null,
-    p.git_ok === false ? h("div.tiny.bad", `No se podrá subir: ${p.git}`) : p.git ? h("div.tiny.faint", p.git) : null,
+    gitLine(p),
     p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
   );
+}
+
+/** Estado de git para las subidas: avisa si no se podrá subir. */
+function gitLine(p) {
+  if (p.git_ok === false) return h("div.tiny.bad", `No se podrá subir: ${p.git}`);
+  return p.git ? h("div.tiny.faint", p.git) : null;
 }
 
 // ------------------------------------------------------------------ fuentes
@@ -1630,37 +1655,48 @@ function renderSources(src) {
       "div.source-row",
       h("div", h("div.row", h("b", info.label), s.enabled ? h("span.pill.pill-good.pill-dot", "Activa") : h("span.pill.pill-warn.pill-dot", "Desactivada")), h("div.tiny.muted", info.what)),
       h("div.small", `${fmt.int(entries)} en caché`, latest ? h("div.tiny.muted", `actualizado ${fmt.ago(latest)}`) : null),
-      h(
-        "div.small",
-        `${fmt.int(s.stats?.requests || 0)} descargas`,
-        s.stats?.circuit_open_for > 0
-          ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `En pausa ${fmt.duration(s.stats.circuit_open_for)}: la web pidió esperar (se usa lo guardado)`)
-          : s.stats?.errors
-            ? h("div.tiny.warn", { title: s.stats.last_error || "" }, `${s.stats.errors} errores`)
-            : h("div.tiny.muted", "sin errores"),
-      ),
+      h("div.small", `${fmt.int(s.stats?.requests || 0)} descargas`, sourceErrors(s.stats)),
     );
   });
   const opgg = state.opgg;
-  const sync = opgg?.sync || {};
-  const running = sync.status === "running";
   mount(
     sections.sources,
     h("div.col", rows),
     h("div.divider"),
     h("div.small", h("b", "Descarga completa de OP.GG para otro elo o región")),
     h("p.tiny.muted", "No hace falta para los filtros que usas (se precargan solos). Útil si vas a consultar un ámbito nuevo sin conexión."),
-    opgg
-      ? h(
-          "div.row-wrap",
-          select((opgg.tiers || []).map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (ch) => ch.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
-          select((opgg.regions || []).map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
-          running
-            ? h("button.btn.btn-danger.btn-sm", { onclick: async () => { await api.post("/api/opgg/sync/stop"); refreshOpgg(); } }, icon("stop"), "Parar")
-            : h("button.btn.btn-sm", { onclick: startOpggSync }, icon("download"), "Descargar"),
-          running || sync.status === "done" ? h("span.small.muted", `${sync.done || 0}/${sync.total || 0} páginas${running ? "" : " · completado"}`) : null,
-        )
-      : h("span.small.muted", "OP.GG no disponible."),
+    opgg ? opggSyncControls(opgg) : h("span.small.muted", "OP.GG no disponible."),
+  );
+}
+
+/** Errores de una fuente: en pausa (la web pidió esperar), con errores o sin ellos. */
+function sourceErrors(stats) {
+  const title = stats?.last_error || "";
+  if (stats?.circuit_open_for > 0) {
+    return h("div.tiny.warn", { title }, `En pausa ${fmt.duration(stats.circuit_open_for)}: la web pidió esperar (se usa lo guardado)`);
+  }
+  if (stats?.errors) return h("div.tiny.warn", { title }, `${stats.errors} errores`);
+  return h("div.tiny.muted", "sin errores");
+}
+
+/** Elo y región de la descarga completa de OP.GG, el botón para lanzarla o pararla y su progreso. */
+function opggSyncControls(opgg) {
+  const sync = opgg.sync || {};
+  const running = sync.status === "running";
+  const doneText = running ? "" : " · completado";
+  const progress = running || sync.status === "done" ? h("span.small.muted", `${sync.done || 0}/${sync.total || 0} páginas${doneText}`) : null;
+  const stopSync = async () => {
+    await api.post("/api/opgg/sync/stop");
+    await refreshOpgg();
+  };
+  return h(
+    "div.row-wrap",
+    select((opgg.tiers || []).map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (ch) => ch.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
+    select((opgg.regions || []).map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
+    running
+      ? h("button.btn.btn-danger.btn-sm", { onclick: stopSync }, icon("stop"), "Parar")
+      : h("button.btn.btn-sm", { onclick: startOpggSync }, icon("download"), "Descargar"),
+    progress,
   );
 }
 
@@ -1677,7 +1713,7 @@ async function startOpggSync() {
   try {
     await api.post("/api/opgg/sync", opggForm);
     toast("Descargando OP.GG en segundo plano…");
-    refreshOpgg();
+    void refreshOpgg();
   } catch (err) {
     toast(err.message, "error");
   }
@@ -1711,7 +1747,11 @@ function renderLimits(limits) {
   limitsSig = sig;
   if (!hosts.length) return mount(sections.limits, h("div.small.muted", "Sin peticiones a Riot todavía en esta sesión."));
   const regions = {};
-  for (const [host, info] of hosts) (regions[regionOfHost(host)] ||= []).push([host, info]);
+  for (const [host, info] of hosts) {
+    const region = regionOfHost(host);
+    regions[region] ||= [];
+    regions[region].push([host, info]);
+  }
   const shared = hosts.filter(([, i]) => (i.foreign || 0) >= FOREIGN_MIN);
   mount(
     sections.limits,
@@ -1729,11 +1769,12 @@ function renderLimits(limits) {
           const load = Math.max(...list.map(([, i]) => hostLoad(i)));
           const waiting = list.some(([, i]) => i.blocked_for > 0);
           const requests = list.reduce((n, [, i]) => n + (i.requests || 0), 0);
-          const [label, tone] = waiting ? ["Esperando a Riot", "warn"] : load >= 0.9 ? ["Al límite", "warn"] : load >= 0.5 ? ["Con uso", "good"] : ["Libre", ""];
+          const [label, tone] = limitState(waiting, load);
+          const pill = tone ? `span.pill.pill-${tone}` : "span.pill";
           return h(
             "button.limit-region",
             { type: "button", onclick: () => limitsDetail(region, list) },
-            h("div.row", h("b", REGION_NAME[region] || region), h("span.spacer"), h(`span.pill${tone ? `.pill-${tone}` : ""}`, label)),
+            h("div.row", h("b", REGION_NAME[region] || region), h("span.spacer"), h(pill, label)),
             h("div.track", h("span", { style: { width: `${Math.round(load * 100)}%` } })),
             h("div.tiny.muted", `${fmt.int(requests)} ${requests === 1 ? "petición" : "peticiones"} · ${list.length} ${list.length === 1 ? "servidor" : "servidores"}`),
           );
@@ -1743,33 +1784,62 @@ function renderLimits(limits) {
   );
 }
 
+/** Estado de una región según lo ocupado que esté su cupo: [texto, tono de la etiqueta]. */
+function limitState(waiting, load) {
+  if (waiting) return ["Esperando a Riot", "warn"];
+  if (load >= 0.9) return ["Al límite", "warn"];
+  if (load >= 0.5) return ["Con uso", "good"];
+  return ["Libre", ""];
+}
+
+/** Uso del cupo de un servidor de Riot (euw1, europe…): peticiones, esperas y cada ventana de límite. */
+function limitHost(host, info) {
+  const foreign = info.foreign ? ` · ${fmt.int(info.foreign)} de otra app` : "";
+  const limited = info.rate_limited ? ` · ${info.rate_limited} × 429` : "";
+  return h(
+    "div.limit-host",
+    h(
+      "div.row",
+      h("b.small", REGION_NAME[host] ? `${REGION_NAME[host]} (partidas y cuentas)` : `${platformLabel(host)} (${host})`),
+      h("span.spacer"),
+      h("span.tiny.muted", `${fmt.int(info.requests)} ${info.requests === 1 ? "petición" : "peticiones"}${foreign}${limited}`),
+      info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null,
+    ),
+    info.windows.map((w) => h("div.usage", h("span.tiny.muted", `${w.limit} / ${w.seconds}s`), h("div.track", h("span", { style: { width: `${Math.min(100, (w.used / w.limit) * 100)}%` } })), h("span.tiny.right", `${w.used}`))),
+  );
+}
+
 function limitsDetail(region, list) {
   modal(
     `Límite de la API · ${REGION_NAME[region] || region}`,
     h(
       "div.col",
       { style: { gap: "12px" } },
-      list
-        .sort((x, y) => hostLoad(y[1]) - hostLoad(x[1]))
-        .map(([host, info]) =>
-          h(
-            "div.limit-host",
-            h(
-              "div.row",
-              h("b.small", REGION_NAME[host] ? `${REGION_NAME[host]} (partidas y cuentas)` : `${platformLabel(host)} (${host})`),
-              h("span.spacer"),
-              h("span.tiny.muted", `${fmt.int(info.requests)} ${info.requests === 1 ? "petición" : "peticiones"}${info.foreign ? ` · ${fmt.int(info.foreign)} de otra app` : ""}${info.rate_limited ? ` · ${info.rate_limited} × 429` : ""}`),
-              info.blocked_for ? h("span.pill.pill-warn", `espera ${info.blocked_for}s`) : null,
-            ),
-            info.windows.map((w) => h("div.usage", h("span.tiny.muted", `${w.limit} / ${w.seconds}s`), h("div.track", h("span", { style: { width: `${Math.min(100, (w.used / w.limit) * 100)}%` } })), h("span.tiny.right", `${w.used}`))),
-          ),
-        ),
+      [...list].sort((x, y) => hostLoad(y[1]) - hostLoad(x[1])).map(([host, info]) => limitHost(host, info)),
       h("p.tiny.muted", { style: { margin: 0 } }, "Límites leídos de las cabeceras de Riot. Cada servidor (euw1, kr…) y cada región (europe, asia…) tienen su propio cupo. El recolector deja libre parte del cupo para tus búsquedas (más si estás usando la web)."),
     ),
   );
 }
 
 // ------------------------------------------------------------------ BD
+/** Pide confirmación y lanza en segundo plano la reimportación del histórico antiguo. */
+async function reimportLegacy() {
+  if (!confirm("¿Reimportar el histórico antiguo? Tarda unos minutos y se hace en segundo plano.")) return;
+  try {
+    await api.post("/api/system/legacy-import", null, { force: true });
+    toast("Reimportando histórico…");
+  } catch (err) {
+    toast(err.message, "error");
+  }
+}
+
+/** Estado de la importación del histórico antiguo. */
+function legacyState(legacy) {
+  if (legacy.running) return "importando…";
+  if (legacy.status === "done") return "importado";
+  return legacy.status || "";
+}
+
 function renderDb(s) {
   const db = s.db;
   const legacy = s.legacy || {};
@@ -1778,11 +1848,11 @@ function renderDb(s) {
     h(
       "div.kpis",
       kpi("Partidas propias", fmt.int(db.matches), `${fmt.int(db.stored_matches)} guardadas en total`),
-      kpi("Histórico antiguo", fmt.int(db.legacy_matches), legacy.running ? "importando…" : legacy.status === "done" ? "importado" : legacy.status || ""),
+      kpi("Histórico antiguo", fmt.int(db.legacy_matches), legacyState(legacy)),
       kpi("Jugadores", fmt.compact(db.players), `${fmt.compact(db.seeds)} semillas`),
       kpi("Tamaño", `${fmt.num(db.size_mb, 1)} MB`),
     ),
-    h("div.row", { style: { marginTop: "12px" } }, h("button.btn.btn-sm", { onclick: async () => { if (!confirm("¿Reimportar el histórico antiguo? Tarda unos minutos y se hace en segundo plano.")) return; try { await api.post("/api/system/legacy-import", null, { force: true }); toast("Reimportando histórico…"); } catch (err) { toast(err.message, "error"); } } }, icon("refresh"), "Reimportar histórico")),
+    h("div.row", { style: { marginTop: "12px" } }, h("button.btn.btn-sm", { onclick: reimportLegacy }, icon("refresh"), "Reimportar histórico")),
     h("p.tiny.muted", { style: { marginTop: "8px" } }, `Guías en ${s.guides_dir}`),
   );
 }
@@ -1802,7 +1872,7 @@ function renderModel(model) {
       const res = await api.post("/api/draft/backtest", null, { sample: 3000 });
       if (res.status === "insufficient") toast(`Hacen falta ${res.needed} partidas propias completas (hay ${res.matches}).`, "error", 6000);
       else toast(`Modelo calibrado: α = ${res.alpha}`, "success");
-      refresh();
+      void refresh();
     } catch (err) {
       toast(err.message, "error");
     } finally {

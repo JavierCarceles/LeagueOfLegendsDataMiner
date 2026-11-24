@@ -56,6 +56,26 @@ def pair_view(p: dict) -> dict:
     }
 
 
+def _round2(value: float | None) -> float | None:
+    """Redondeado a 2 decimales (``None`` si no hay valor)."""
+    return round(value, 2) if value is not None else None
+
+
+def _opgg_view(tl: dict | None, counts: dict) -> dict:
+    """Lo de OP.GG y Lolalytics del campeón: su fila de la tier list (si sale en ella) y las partidas de sus counters."""
+    row = tl or {}
+    return {
+        "wr": _round2(row.get("wr")) if row.get("source") != "lolalytics" else None,
+        "pick": _round2(row.get("pick")),
+        "ban": _round2(row.get("ban")),
+        "tier": row.get("tier"),
+        "rank": row.get("rank"),
+        "games": int(counts["ext"][0]) if counts["ext_kind"] == "counters" else None,
+        "lola_wr": _round2(row.get("lola_wr")),
+        "lola_games": row.get("lola_games"),
+    }
+
+
 def base_view(ev: Evidence, role: str, champ: int) -> dict:
     counts = ev.base_counts(role, champ)
     p, _, games = ev.base(role, champ)
@@ -65,18 +85,7 @@ def base_view(ev: Evidence, role: str, champ: int) -> dict:
         "champ": champ,
         "wr_adj": pct(p),
         "games": int(games),
-        "opgg": {
-            "wr": round(tl["wr"], 2) if tl and tl.get("wr") is not None and tl.get("source") != "lolalytics" else None,
-            "pick": round(tl["pick"], 2) if tl and tl.get("pick") is not None else None,
-            "ban": round(tl["ban"], 2) if tl and tl.get("ban") is not None else None,
-            "tier": tl.get("tier") if tl else None,
-            "rank": tl.get("rank") if tl else None,
-            "games": int(counts["ext"][0]) if counts["ext_kind"] == "counters" else None,
-            "lola_wr": round(tl["lola_wr"], 2) if tl and tl.get("lola_wr") is not None else None,
-            "lola_games": tl.get("lola_games") if tl else None,
-        }
-        if tl or counts["ext_kind"]
-        else None,
+        "opgg": _opgg_view(tl, counts) if tl or counts["ext_kind"] else None,
         "own": _source(own_games, own_wins),
     }
 
@@ -110,12 +119,8 @@ def matchup_list(svc, f: Filters, role: str, champ: int, min_games: int = 0, sor
     }
 
 
-def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: str = "all", with_guide: bool = True) -> dict:
-    ev = Evidence(svc, f, sources)
-    if ev.scope:
-        svc.opgg.prefetch([lambda: ev.counters(role, champ), lambda: ev.counters(role, opp)], timeout=20)
-    pair = pair_view(ev.pair(role, champ, opp))
-
+def _breakdown(svc, ev: Evidence, f: Filters, role: str, champ: int, opp: int) -> dict:
+    """El matchup en tu base de datos por elo, parche y región, y el de OP.GG por parche."""
     breakdown = {}
     for dim in ("tier", "patch", "platform"):
         out = []
@@ -127,8 +132,11 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
         out.sort(key=lambda x: x["games"], reverse=True)
         breakdown[dim] = out
     breakdown["opgg_patch"] = [{**row, "wr": pct(safe_div(row["wins"], row["games"]))} for row in ev.counters_by_patch(role, champ, opp)]
-    web_sources = {name: (_source(*value) if value else None) for name, value in ev.pair_sources(role, champ, opp).items()} if ev.scope else {}
+    return breakdown
 
+
+def _patch_changes(svc, champ: int, opp: int) -> dict:
+    """Los cambios de los dos campeones en los últimos parches (si las notas de parche están activadas)."""
     patch_changes = {}
     notes = getattr(svc, "patchnotes", None)
     if notes is not None and notes.enabled:
@@ -139,15 +147,29 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
             except Exception as exc:  # noqa: BLE001
                 log.warning("Notas de parche de %s: %s", c, exc)
                 patch_changes[str(c)] = []
+    return patch_changes
 
-    opgg_guide = None
-    if with_guide and ev.scope:
-        try:
-            opgg_guide = svc.opgg.matchup_guide(champ, opp, role)
-        # el MCP de OP.GG puede fallar; el resto del análisis sigue valiendo
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Guía de OP.GG de %s contra %s: %s", champ, opp, exc)
-            opgg_guide = None
+
+def _opgg_guide(svc, role: str, champ: int, opp: int) -> dict | None:
+    """La guía del matchup del MCP de OP.GG (``None`` si falla)."""
+    try:
+        return svc.opgg.matchup_guide(champ, opp, role)
+    # el MCP de OP.GG puede fallar; el resto del análisis sigue valiendo
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Guía de OP.GG de %s contra %s: %s", champ, opp, exc)
+        return None
+
+
+def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: str = "all", with_guide: bool = True) -> dict:
+    ev = Evidence(svc, f, sources)
+    if ev.scope:
+        svc.opgg.prefetch([lambda: ev.counters(role, champ), lambda: ev.counters(role, opp)], timeout=20)
+    pair = pair_view(ev.pair(role, champ, opp))
+
+    breakdown = _breakdown(svc, ev, f, role, champ, opp)
+    web_sources = {name: (_source(*value) if value else None) for name, value in ev.pair_sources(role, champ, opp).items()} if ev.scope else {}
+    patch_changes = _patch_changes(svc, champ, opp)
+    opgg_guide = _opgg_guide(svc, role, champ, opp) if with_guide and ev.scope else None
 
     return {
         "role": role,

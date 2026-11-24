@@ -155,44 +155,62 @@ def _route(a: tuple[int, int], b: tuple[int, int], wall: float) -> tuple[tuple[i
     a, b = _nearest_walkable(a), _nearest_walkable(b)
     if a == b or _line_clear(a, b):
         return (a, b)
+    path = _astar(a, b, wall)
+    if path is None:
+        return (a, b)
+    return _smooth(path)
+
+
+def _heuristic(x: int, y: int, bx: int, by: int) -> float:
+    """Distancia octil de (x, y) a (bx, by), con el peso del A* ponderado."""
+    dx, dy = abs(bx - x), abs(by - y)
+    return HEURISTIC_WEIGHT * (max(dx, dy) + 0.414 * min(dx, dy))
+
+
+def _astar(a: tuple[int, int], b: tuple[int, int], wall: float) -> list[tuple[int, int]] | None:
+    """Celdas del camino de a a b con A* (8 vecinos), o None si b no se alcanza."""
     bx, by = b
     start, goal = a[1] * N + a[0], by * N + bx
-    w = HEURISTIC_WEIGHT
-
-    def h(x: int, y: int) -> float:
-        dx, dy = abs(bx - x), abs(by - y)
-        return w * (max(dx, dy) + 0.414 * min(dx, dy))
-
-    openq = [(h(*a), 0.0, start)]
+    openq = [(_heuristic(a[0], a[1], bx, by), 0.0, start)]
     came: dict[int, int] = {}
     cost = {start: 0.0}
-    free, push, pop, inf = _FREE, heapq.heappush, heapq.heappop, math.inf
+    pop, inf = heapq.heappop, math.inf
     while openq:
-        _f, g, cur = pop(openq)
+        _, g, cur = pop(openq)
         if cur == goal:
             break
         if g > cost.get(cur, inf):
             continue
-        cy, cx = divmod(cur, N)
-        for dx, dy, step in _STEPS:
-            nx, ny = cx + dx, cy + dy
-            if not (0 <= nx < N and 0 <= ny < N):
-                continue
-            nxt = ny * N + nx
-            # En diagonal no se cortan esquinas: las dos celdas de al lado también tienen que ser suelo.
-            ok = free[nxt] and (dx == 0 or dy == 0 or (free[cy * N + nx] and free[ny * N + cx]))
-            ng = g + (step if ok else step * wall)
-            if ng < cost.get(nxt, inf):
-                cost[nxt] = ng
-                came[nxt] = cur
-                push(openq, (ng + h(nx, ny), ng, nxt))
+        _expand(cur, g, wall, b, openq, came, cost)
     if goal not in came:
-        return (a, b)
+        return None
     idx = [goal]
     while idx[-1] != start:
         idx.append(came[idx[-1]])
-    path = [(i % N, i // N) for i in reversed(idx)]
-    # Suavizado: de cada punto, avanza mientras el siguiente se vea en línea recta.
+    return [(i % N, i // N) for i in reversed(idx)]
+
+
+def _expand(cur: int, g: float, wall: float, b: tuple[int, int], openq: list, came: dict[int, int], cost: dict[int, float]) -> None:
+    """Abre los 8 vecinos de la celda ``cur`` del A*: apunta los que mejoran su coste y los mete en la cola."""
+    bx, by = b
+    free, push, inf = _FREE, heapq.heappush, math.inf
+    cy, cx = divmod(cur, N)
+    for dx, dy, step in _STEPS:
+        nx, ny = cx + dx, cy + dy
+        if not (0 <= nx < N and 0 <= ny < N):
+            continue
+        nxt = ny * N + nx
+        # En diagonal no se cortan esquinas: las dos celdas de al lado también tienen que ser suelo.
+        ok = free[nxt] and (dx == 0 or dy == 0 or (free[cy * N + nx] and free[ny * N + cx]))
+        ng = g + (step if ok else step * wall)
+        if ng < cost.get(nxt, inf):
+            cost[nxt] = ng
+            came[nxt] = cur
+            push(openq, (ng + _heuristic(nx, ny, bx, by), ng, nxt))
+
+
+def _smooth(path: list[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
+    """Suavizado: de cada punto, avanza mientras el siguiente se vea en línea recta."""
     out = [path[0]]
     i = 0
     while i < len(path) - 1:

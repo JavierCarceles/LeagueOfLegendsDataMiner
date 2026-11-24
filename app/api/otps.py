@@ -227,7 +227,7 @@ def player(puuid: str, champ: int = Query(...), role: str | None = None, svc=Dep
     # Referencia: el resto de OTPs de ese campeón y rol en su mismo elo (medias de su resumen).
     ref = _reference(svc, champ, role, tier)
     catalog = getattr(getattr(svc, "dd", None), "item_catalog", None)
-    item_name = catalog.name if catalog is not None and getattr(catalog, "items", None) else (lambda i: None)
+    item_name = catalog.name if catalog is not None and getattr(catalog, "items", None) else (lambda _: None)
     wins = sum(1 for g in games if g["win"])
     return {
         "player": dict(info) if info else {"puuid": puuid},

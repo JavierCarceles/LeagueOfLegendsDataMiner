@@ -363,7 +363,7 @@ def _top_build_keys(games: list[dict]) -> list[tuple]:
     for g in games:
         if g.get("build"):
             counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
-    return [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
+    return [key for key, _ in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
 
 
 @router.get("/coach/summary")

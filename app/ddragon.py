@@ -47,6 +47,18 @@ def norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(text or "").lower())
 
 
+def _rune_map(runes) -> dict[int, dict]:
+    """Árboles y runas de ``runesReforged.json`` por id (cada runa con su árbol y su fila)."""
+    rune_map: dict[int, dict] = {}
+    for style in runes or []:
+        rune_map[int(style["id"])] = {"name": style.get("name", ""), "icon": style.get("icon", "")}
+        for row, slot in enumerate(style.get("slots", [])):
+            for rune in slot.get("runes", []):
+                # Árbol y fila de cada runa: hacen falta para crear la página en el cliente (árbol principal y secundario).
+                rune_map[int(rune["id"])] = {"name": rune.get("name", ""), "icon": rune.get("icon", ""), "style": int(style["id"]), "row": row}
+    return rune_map
+
+
 class DDragon:
     def __init__(self, cache_dir: Path, lang: str = "es_ES") -> None:
         self.cache_dir = Path(cache_dir)
@@ -83,7 +95,7 @@ class DDragon:
             items = self._fetch(version, f"data/{self.lang}/item.json", allow_network, required=False)
             spells = self._fetch(version, f"data/{self.lang}/summoner.json", allow_network, required=False)
             runes = self._fetch(version, f"data/{self.lang}/runesReforged.json", allow_network, required=False)
-        except (requests.RequestException, OSError, ValueError) as exc:  # sin red y sin caché, o un fichero dañado
+        except (OSError, ValueError) as exc:  # sin red y sin caché (requests.RequestException es un OSError), o un fichero dañado
             log.error("Error cargando Data Dragon %s: %s", version, exc)
             return False
         self._index(version, champions, items, spells, runes)
@@ -176,13 +188,7 @@ class DDragon:
             for v in ((spells or {}).get("data") or {}).values()
             if str(v.get("key", "")).isdigit()
         }
-        rune_map: dict[int, dict] = {}
-        for style in runes or []:
-            rune_map[int(style["id"])] = {"name": style.get("name", ""), "icon": style.get("icon", "")}
-            for row, slot in enumerate(style.get("slots", [])):
-                for rune in slot.get("runes", []):
-                    # Árbol y fila de cada runa: hacen falta para crear la página en el cliente (árbol principal y secundario).
-                    rune_map[int(rune["id"])] = {"name": rune.get("name", ""), "icon": rune.get("icon", ""), "style": int(style["id"]), "row": row}
+        rune_map = _rune_map(runes)
 
         with self._lock:
             self.version = version

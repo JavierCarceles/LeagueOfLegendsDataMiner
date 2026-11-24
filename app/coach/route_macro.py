@@ -80,73 +80,127 @@ def features(
     out: dict = {}
     lane = geo.ROLE_LANE.get(role)
     if lane:
-        points, _half = geo.LANES[lane]
-        away = []
-        for t in range(90_000, EARLY_MS, STEP_MS):
-            p = pos(t)
-            away.append(bool(p is not None and geo.dist_polyline(p, points) > ROAM_FROM_LANE and not geo.zone(p).startswith("base")))
-        episodes, i = [], 0
-        while i < len(away):
-            if away[i]:
-                j = i
-                while j + 1 < len(away) and (away[j + 1] or (j + 2 < len(away) and away[j + 2])):
-                    j += 1
-                if j - i + 1 >= ROAM_MIN_SAMPLES:
-                    episodes.append((90_000 + i * STEP_MS, 90_000 + j * STEP_MS))
-                i = j + 1
-            else:
-                i += 1
-        success = died = cost = 0
-        for s, e in episodes:
-            ks = [k for k in kills if s - 5_000 <= k[0] * 1000 <= e + 15_000]
-            if any(_involved(k, me) for k in ks):
-                success += 1
-            elif any(k[2] == me for k in ks):
-                died += 1
-            m0, m1 = int(s // 60_000), int(e // 60_000) + 1
-            if cs and opp_cs and m1 < len(cs) and m1 < len(opp_cs) and None not in (cs[m0], cs[m1], opp_cs[m0], opp_cs[m1]):
-                cost += (opp_cs[m1] - opp_cs[m0]) - (cs[m1] - cs[m0])
-        out["rm_roams"] = len(episodes)
-        # Adónde vas (el punto más lejos de tu línea): el support de Aspirante sale el doble que el de Platino, pero
-        # sobre todo a otras líneas (0,45 → 1,0) y al río (0,7 → 1,2); el mid de Aspirante va más a otras líneas
-        # (0,6 → 1,2) y menos al río (0,55 → 0,35).
-        dest = {"lane": 0, "river": 0, "own_jg": 0, "enemy_jg": 0}
-        for s0, e0 in episodes:
-            far = max(((p, geo.dist_polyline(p, points)) for t in range(s0, e0 + 1, STEP_MS) if (p := pos(t)) is not None),
-                      key=lambda x: x[1], default=None)
-            if far is not None and (d := _place(far[0], team)) in dest:
-                dest[d] += 1
-        out.update({f"rm_roam_{k}": v for k, v in dest.items()})
-        if episodes:
-            out["rm_roam_success_pct"] = round(100 * success / len(episodes), 1)
-            out["rm_roam_died"] = died
-            out["rm_roam_cs_cost"] = cost
+        out.update(_roams(pos, lane, kills, me, cs, opp_cs, team))
     if role == "JUNGLE" and enemy_jungler:
-        events = [k for k in kills if k[0] * 1000 < EARLY_MS and _involved(k, enemy_jungler)]
-        if events:
-            near = answered = 0
-            for k in events:
-                t = int(k[0] * 1000)
-                p = pos(t)
-                if p is not None and geo.dist(p, (k[3], k[4])) <= NEAR:
-                    near += 1
-                if any(t - 2_000 <= k2[0] * 1000 <= t + RESPONSE_S * 1000 and _involved(k2, me) and geo.dist((k2[3], k2[4]), (k[3], k[4])) <= NEAR for k2 in kills):
-                    answered += 1
-            out["rm_jg_events"] = len(events)
-            out["rm_counter_near_pct"] = round(100 * near / len(events), 1)
-            out["rm_counter_pct"] = round(100 * answered / len(events), 1)
+        out.update(_counter_jungle(pos, kills, me, enemy_jungler))
     if role == "MID" and ally_jungler:
-        fights = [k for k in kills if k[0] * 1000 < EARLY_MS and (_involved(k, ally_jungler) or k[2] == ally_jungler) and not geo.is_lane(geo.zone((k[3], k[4])))]
-        if fights:
-            near = sum(1 for k in fights if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) <= NEAR)
-            out["rm_mid_with_jg_pct"] = round(100 * near / len(fights), 1)
+        out.update(_mid_with_jungler(pos, kills, ally_jungler))
     out.update(_vision(pos, team, wards, objectives))
     if role == "SUPPORT" and adc:
-        deaths = [k for k in kills if k[0] * 1000 < EARLY_MS and k[2] == adc]
-        out["rm_adc_alone_deaths"] = sum(
-            1 for k in deaths if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) > SUPPORT_FAR
-        )
+        out["rm_adc_alone_deaths"] = _adc_alone_deaths(pos, kills, adc)
     return out
+
+
+def _roams(pos, lane: str, kills: list, me: int, cs: list | None, opp_cs: list | None, team: int | None) -> dict:
+    """Roams antes del 14 (20 s o más fuera de tu línea): cuántos, adónde, cómo acaban y el CS que te cuestan."""
+    points, _ = geo.LANES[lane]
+    episodes = _roam_episodes(_away_from_lane(pos, points))
+    success, died, cost = _roam_outcomes(episodes, kills, me, cs, opp_cs)
+    out: dict = {"rm_roams": len(episodes)}
+    # Adónde vas (el punto más lejos de tu línea): el support de Aspirante sale el doble que el de Platino, pero
+    # sobre todo a otras líneas (0,45 → 1,0) y al río (0,7 → 1,2); el mid de Aspirante va más a otras líneas
+    # (0,6 → 1,2) y menos al río (0,55 → 0,35).
+    dest = {"lane": 0, "river": 0, "own_jg": 0, "enemy_jg": 0}
+    for s0, e0 in episodes:
+        d = _roam_destination(pos, points, s0, e0, team)
+        if d in dest:
+            dest[d] += 1
+    out.update({f"rm_roam_{k}": v for k, v in dest.items()})
+    if episodes:
+        out["rm_roam_success_pct"] = round(100 * success / len(episodes), 1)
+        out["rm_roam_died"] = died
+        out["rm_roam_cs_cost"] = cost
+    return out
+
+
+def _away_from_lane(pos, points) -> list[bool]:
+    """Cada 5 s del 1:30 al 14: ¿estabas fuera de tu línea (lejos de ella, ni en base ni muerto)?"""
+    away = []
+    for t in range(90_000, EARLY_MS, STEP_MS):
+        p = pos(t)
+        away.append(bool(p is not None and geo.dist_polyline(p, points) > ROAM_FROM_LANE and not geo.zone(p).startswith("base")))
+    return away
+
+
+def _roam_episodes(away: list[bool]) -> list[tuple[int, int]]:
+    """(inicio, fin) en ms de cada salida de la línea de al menos ``ROAM_MIN_SAMPLES`` muestras."""
+    episodes, i = [], 0
+    while i < len(away):
+        if away[i]:
+            j = _episode_end(away, i)
+            if j - i + 1 >= ROAM_MIN_SAMPLES:
+                episodes.append((90_000 + i * STEP_MS, 90_000 + j * STEP_MS))
+            i = j + 1
+        else:
+            i += 1
+    return episodes
+
+
+def _episode_end(away: list[bool], i: int) -> int:
+    """Última muestra fuera de la línea de la salida que empieza en ``i`` (un hueco de una sola muestra no la corta)."""
+    j = i
+    while j + 1 < len(away) and (away[j + 1] or (j + 2 < len(away) and away[j + 2])):
+        j += 1
+    return j
+
+
+def _roam_outcomes(episodes: list[tuple[int, int]], kills: list, me: int, cs: list | None, opp_cs: list | None) -> tuple:
+    """(roams con kill o asistencia tuya, roams en los que mueres, CS que pierdes frente a tu rival mientras tanto)."""
+    success = died = cost = 0
+    for s, e in episodes:
+        ks = [k for k in kills if s - 5_000 <= k[0] * 1000 <= e + 15_000]
+        if any(_involved(k, me) for k in ks):
+            success += 1
+        elif any(k[2] == me for k in ks):
+            died += 1
+        m0, m1 = int(s // 60_000), int(e // 60_000) + 1
+        if cs and opp_cs and m1 < len(cs) and m1 < len(opp_cs) and None not in (cs[m0], cs[m1], opp_cs[m0], opp_cs[m1]):
+            cost += (opp_cs[m1] - opp_cs[m0]) - (cs[m1] - cs[m0])
+    return success, died, cost
+
+
+def _roam_destination(pos, points, start: int, end: int, team: int | None) -> str | None:
+    """Zona del punto del roam más lejos de tu línea (``None`` si no hay ninguna posición)."""
+    positions = (p for p in map(pos, range(start, end + 1, STEP_MS)) if p is not None)
+    far = max(((p, geo.dist_polyline(p, points)) for p in positions), key=lambda x: x[1], default=None)
+    return None if far is None else _place(far[0], team)
+
+
+def _counter_jungle(pos, kills: list, me: int, enemy_jungler: int) -> dict:
+    """Jugadas del jungla rival antes del 14: cuántas, en cuántas estabas cerca y a cuántas respondiste (kill o asistencia)."""
+    events = [k for k in kills if k[0] * 1000 < EARLY_MS and _involved(k, enemy_jungler)]
+    if not events:
+        return {}
+    near = answered = 0
+    for k in events:
+        t = int(k[0] * 1000)
+        p = pos(t)
+        if p is not None and geo.dist(p, (k[3], k[4])) <= NEAR:
+            near += 1
+        if any(t - 2_000 <= k2[0] * 1000 <= t + RESPONSE_S * 1000 and _involved(k2, me) and geo.dist((k2[3], k2[4]), (k[3], k[4])) <= NEAR for k2 in kills):
+            answered += 1
+    return {
+        "rm_jg_events": len(events),
+        "rm_counter_near_pct": round(100 * near / len(events), 1),
+        "rm_counter_pct": round(100 * answered / len(events), 1),
+    }
+
+
+def _mid_with_jungler(pos, kills: list, ally_jungler: int) -> dict:
+    """% de las peleas de tu jungla antes del 14 fuera de las líneas en las que estabas cerca."""
+    fights = [k for k in kills if k[0] * 1000 < EARLY_MS and (_involved(k, ally_jungler) or k[2] == ally_jungler) and not geo.is_lane(geo.zone((k[3], k[4])))]
+    if not fights:
+        return {}
+    near = sum(1 for k in fights if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) <= NEAR)
+    return {"rm_mid_with_jg_pct": round(100 * near / len(fights), 1)}
+
+
+def _adc_alone_deaths(pos, kills: list, adc: int) -> int:
+    """Muertes de tu ADC antes del 14 estando tú lejos (a más de ``SUPPORT_FAR``)."""
+    deaths = [k for k in kills if k[0] * 1000 < EARLY_MS and k[2] == adc]
+    return sum(
+        1 for k in deaths if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) > SUPPORT_FAR
+    )
 
 
 def _vision(pos, team: int | None, wards: list | None, objectives: list | None) -> dict:
@@ -156,10 +210,7 @@ def _vision(pos, team: int | None, wards: list | None, objectives: list | None) 
     (56 % → 43 %) y más en total antes del 14 (8,7 → 12). En top, mid y ADC el ward del objetivo no cambia (~20 %)."""
     if wards is None or not team:
         return {}
-    placed = []
-    for w in wards:
-        if w[1] in WARD_TYPES and (p := pos(int(w[0] * 1000))) is not None:
-            placed.append((w[0], w[1], p, _place(p, team)))
+    placed = _placed_wards(pos, team, wards)
     out: dict = {}
     early = [w for w in placed if w[0] * 1000 < EARLY_MS]
     out["rm_wards_pre14"] = sum(1 for w in wards if w[1] in WARD_TYPES and w[0] * 1000 < EARLY_MS)
@@ -170,18 +221,38 @@ def _vision(pos, team: int | None, wards: list | None, objectives: list | None) 
     out["rm_pink_obj"] = sum(
         1 for w in placed if w[1] == "CONTROL_WARD" and min(geo.dist(w[2], geo.PITS["dragon"]), geo.dist(w[2], geo.PITS["baron"])) <= OBJ_WARD_NEAR
     )
+    out.update(_objective_wards(placed, objectives))
+    return out
+
+
+def _placed_wards(pos, team: int, wards: list) -> list[tuple]:
+    """(segundo, tipo, posición, zona) de cada ward que pusiste estando vivo (los de ``WARD_TYPES``)."""
+    placed = []
+    for w in wards:
+        if w[1] in WARD_TYPES and (p := pos(int(w[0] * 1000))) is not None:
+            placed.append((w[0], w[1], p, _place(p, team)))
+    return placed
+
+
+def _objective_wards(placed: list[tuple], objectives: list | None) -> dict:
+    """% de objetivos (dragón, barón…) con un ward tuyo junto al foso puesto entre 2 min y 5 s antes de que caigan."""
     seen, n, covered = set(), 0, 0
     for o in objectives or []:
         if o[1] not in OBJECTIVES or (o[1], int(o[0] // 60)) in seen:
             continue
         seen.add((o[1], int(o[0] // 60)))
         n += 1
-        pit = (o[3], o[4]) if len(o) >= 5 and o[3] is not None else geo.PITS["dragon" if o[1] in ("dragon", "elder") else "baron"]
+        pit = _objective_pit(o)
         if any(o[0] - OBJ_WARD_BEFORE_S[0] <= w[0] <= o[0] - OBJ_WARD_BEFORE_S[1] and geo.dist(w[2], pit) <= OBJ_WARD_NEAR for w in placed):
             covered += 1
-    if n:
-        out["rm_obj_ward_pct"] = round(100 * covered / n, 1)
-    return out
+    return {"rm_obj_ward_pct": round(100 * covered / n, 1)} if n else {}
+
+
+def _objective_pit(o: list) -> tuple:
+    """Dónde cayó el objetivo: su posición si viene; si no, el foso del dragón (dragones y anciano) o el del barón."""
+    if len(o) >= 5 and o[3] is not None:
+        return (o[3], o[4])
+    return geo.PITS["dragon" if o[1] in ("dragon", "elder") else "baron"]
 
 
 def from_analysis(a: dict) -> dict:

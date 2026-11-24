@@ -96,19 +96,25 @@ class TierCalibrator:
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         done = 0
         for puuid in self._players(platform, tier, games * 2, kw):
-            for match_id in svc.riot.match_ids(platform, puuid, queue=QUEUE_SOLO, count=IDS_PER_PLAYER, **kw):
-                if store.has_peer_match(svc.db, match_id):
-                    continue
-                if self._sample(match_id, source, kw):
-                    done += 1
-                    self.state.update(games=have + done)
-                if done >= games or have + done >= TARGET_GAMES:
-                    break
-            if done >= games or have + done >= TARGET_GAMES:
+            done = self._sample_player(platform, puuid, source, kw, games, have, done)
+            if _batch_full(done, games, have):
                 break
         self.state.update(status="done" if have + done >= TARGET_GAMES else "idle", last_error=None)
         if done:
             log.info("Referencias de %s: %d partidas reales analizadas (%d de %d).", tier, done, have + done, TARGET_GAMES)
+        return done
+
+    def _sample_player(self, platform: str, puuid: str, source: str, kw: dict, games: int, have: int, done: int) -> int:
+        """Analiza las partidas nuevas de un jugador hasta llenar la tanda. Devuelve las guardadas en la tanda hasta ahora."""
+        svc = self.svc
+        for match_id in svc.riot.match_ids(platform, puuid, queue=QUEUE_SOLO, count=IDS_PER_PLAYER, **kw):
+            if store.has_peer_match(svc.db, match_id):
+                continue
+            if self._sample(match_id, source, kw):
+                done += 1
+                self.state.update(games=have + done)
+            if _batch_full(done, games, have):
+                break
         return done
 
     def _players(self, platform: str, tier: str, n: int, kw: dict) -> list[str]:
@@ -137,16 +143,28 @@ class TierCalibrator:
         timeline = svc.riot.timeline(match_id, **kw)
         rows: list[dict] = []
         if timeline:
-            items = svc.tracker.items_for(match) or svc.tracker.items()
-            for p in info.get("participants") or []:
-                pid = int(p.get("participantId") or 0)
-                if not pid:
-                    continue
-                try:
-                    a = analyze_game(match, timeline, pid=pid, items=items)
-                except NotInMatch:
-                    continue
-                rows.append({"pid": pid, "role": a.get("role"), "reliable": reliable(a) and bool(a.get("role")), "metrics": a.get("metrics") or {}})
+            rows = self._peer_rows(match, timeline, info)
         start = int(info.get("gameStartTimestamp") or 0) or None
         store.save_peer_samples(svc.db, match_id, start, ANALYSIS_VERSION, rows, source=source)
         return bool(rows)
+
+    def _peer_rows(self, match: dict, timeline: dict, info: dict) -> list[dict]:
+        """Las métricas de los 10 jugadores de la partida, analizados con el mismo código que tus partidas."""
+        svc = self.svc
+        rows: list[dict] = []
+        items = svc.tracker.items_for(match) or svc.tracker.items()
+        for p in info.get("participants") or []:
+            pid = int(p.get("participantId") or 0)
+            if not pid:
+                continue
+            try:
+                a = analyze_game(match, timeline, pid=pid, items=items)
+            except NotInMatch:
+                continue
+            rows.append({"pid": pid, "role": a.get("role"), "reliable": reliable(a) and bool(a.get("role")), "metrics": a.get("metrics") or {}})
+        return rows
+
+
+def _batch_full(done: int, games: int, have: int) -> bool:
+    """La tanda ya tiene sus ``games`` partidas o se llegó al objetivo de partidas del elo."""
+    return done >= games or have + done >= TARGET_GAMES

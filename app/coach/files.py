@@ -54,6 +54,24 @@ def _slug(text: str) -> str:
     return re.sub(r"[^\w.#-]+", "_", text, flags=re.UNICODE).strip("_") or "sin_nombre"
 
 
+def _digest_metrics(digests: dict, match_id: str) -> dict:
+    """Las métricas del resumen guardado (``digest``) de una partida ({} si no hay o está dañado)."""
+    try:
+        return (json.loads(digests.get(match_id) or "{}").get("m")) or {}
+    except ValueError:
+        return {}
+
+
+def _averages(digests: dict, subset) -> dict:
+    """La media de cada métrica numérica en esas partidas."""
+    sums: dict[str, list[float]] = defaultdict(list)
+    for r in subset:
+        for k, v in _digest_metrics(digests, r["match_id"]).items():
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                sums[k].append(float(v))
+    return {k: round(sum(v) / len(v), 2) for k, v in sorted(sums.items())}
+
+
 class MyGamesFiles:
     def __init__(self, svc) -> None:
         self.svc = svc
@@ -174,18 +192,30 @@ class MyGamesFiles:
             json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
         tmp.replace(path)
 
+    def _role_summary(self, rs: list, digests: dict) -> dict:
+        """Lo de un rol en el resumen: partidas, victorias, campeones y medias de las métricas (todas y las 20 últimas)."""
+        champs: dict[str, dict] = defaultdict(lambda: {"games": 0, "wins": 0})
+        for r in rs:
+            c = champs[self._champ_name(r["champ"])]
+            c["games"] += 1
+            c["wins"] += int(bool(r["win"]))
+        recent = sorted(rs, key=lambda r: -(r["game_start"] or 0))[:20]
+        wins = sum(1 for r in rs if r["win"])
+        return {
+            "games": len(rs),
+            "wins": wins,
+            "wr": round(100 * wins / len(rs), 1),
+            "champions": dict(sorted(champs.items(), key=lambda kv: -kv[1]["games"])),
+            "metrics_mean": _averages(digests, rs),
+            "metrics_mean_last20": _averages(digests, recent),
+        }
+
     def _write_summary(self, rows, games: dict) -> None:
         db = self.svc.db
         digests = {
             r["match_id"]: r["digest"]
             for r in db.query(f"SELECT match_id, digest FROM my_games WHERE status IN ({','.join('?' * len(READY))})", READY)
         }
-
-        def metrics_of(match_id: str) -> dict:
-            try:
-                return (json.loads(digests.get(match_id) or "{}").get("m")) or {}
-            except ValueError:
-                return {}
 
         by_role: dict[str, dict] = {}
         role_rows: dict[str, list] = defaultdict(list)
@@ -197,30 +227,8 @@ class MyGamesFiles:
             q["games"] += 1
             q["wins"] += int(bool(r["win"]))
 
-        def averages(subset) -> dict:
-            sums: dict[str, list[float]] = defaultdict(list)
-            for r in subset:
-                for k, v in metrics_of(r["match_id"]).items():
-                    if isinstance(v, (int, float)) and not isinstance(v, bool):
-                        sums[k].append(float(v))
-            return {k: round(sum(v) / len(v), 2) for k, v in sorted(sums.items())}
-
         for role, rs in sorted(role_rows.items(), key=lambda kv: -len(kv[1])):
-            champs: dict[str, dict] = defaultdict(lambda: {"games": 0, "wins": 0})
-            for r in rs:
-                c = champs[self._champ_name(r["champ"])]
-                c["games"] += 1
-                c["wins"] += int(bool(r["win"]))
-            recent = sorted(rs, key=lambda r: -(r["game_start"] or 0))[:20]
-            wins = sum(1 for r in rs if r["win"])
-            by_role[role] = {
-                "games": len(rs),
-                "wins": wins,
-                "wr": round(100 * wins / len(rs), 1),
-                "champions": dict(sorted(champs.items(), key=lambda kv: -kv[1]["games"])),
-                "metrics_mean": averages(rs),
-                "metrics_mean_last20": averages(recent),
-            }
+            by_role[role] = self._role_summary(rs, digests)
         profile = get_profile(db) or {}
         wins = sum(1 for r in rows if r["win"])
         summary = {

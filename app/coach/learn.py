@@ -7,13 +7,15 @@ público de YouTube; no se añade ninguna URL que no esté verificada allí.
 
 from __future__ import annotations
 
+SKILL_CAPPED = "Skill Capped"  # canal con varios vídeos en la lista
+
 VIDEOS: dict[str, dict] = {
     "cs_impact": {"title": "FARMEAR o IMPACTAR el MAPA", "channel": "PochiPoom", "lang": "ES", "url": "https://www.youtube.com/watch?v=vHNSfy3mTkU"},
-    "cs_truth": {"title": "The TRUTH Behind 10 CS Per Minute", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=BhLOZeO9tGM"},
-    "track_jungler": {"title": "How to Track the Enemy Jungler as a LANER", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=MOmyQIs2Am4"},
+    "cs_truth": {"title": "The TRUTH Behind 10 CS Per Minute", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=BhLOZeO9tGM"},
+    "track_jungler": {"title": "How to Track the Enemy Jungler as a LANER", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=MOmyQIs2Am4"},
     "warding_ganks": {"title": "COMPLETE WARDING GUIDE - Never Die to Ganks Again", "channel": "Coach Chippys", "lang": "EN", "url": "https://www.youtube.com/watch?v=8b-PM_PR5Js"},
-    "vision_master": {"title": "EVERYTHING you NEED to KNOW to become a VISION MASTER!", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=6cXqzH2vMH8"},
-    "ward_mistakes": {"title": "The 10 WORST WARD MISTAKES", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=U-uju2fG15k"},
+    "vision_master": {"title": "EVERYTHING you NEED to KNOW to become a VISION MASTER!", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=6cXqzH2vMH8"},
+    "ward_mistakes": {"title": "The 10 WORST WARD MISTAKES", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=U-uju2fG15k"},
     "jungle_mistakes": {"title": "#1 Jungle Coaching - Fixing the Biggest Jungle Mistakes", "channel": "Coach Kirei", "lang": "EN", "url": "https://www.youtube.com/watch?v=pr9GOmrhpWQ"},
     "jungle_s16": {"title": "Season 16 Jungle guide (Faelights, Objectives, Midgame)", "channel": "Coach Kirei", "lang": "EN", "url": "https://www.youtube.com/watch?v=wHWcWtbWc1c"},
     "macro_dishake": {"title": "Cómo subir de elo jugando ADC, Support y Jungla", "channel": "Dishake", "lang": "ES", "url": "https://www.youtube.com/watch?v=VifY8Eucr2Y"},
@@ -23,9 +25,9 @@ VIDEOS: dict[str, dict] = {
     "waves_dishake": {"title": "Tu ELO está estancado por esto", "channel": "Dishake", "lang": "ES", "url": "https://www.youtube.com/watch?v=YLgMgbuZ0Zk"},
     "waves_iceberg": {"title": "The Wave Management Iceberg", "channel": "Coach Rogue", "lang": "EN", "url": "https://www.youtube.com/watch?v=qaZGJAADRsk"},
     "back_waves": {"title": "GUÍA de CONTROL de OLEADAS para el BACK PERFECTO", "channel": "PochiPoom", "lang": "ES", "url": "https://www.youtube.com/watch?v=GVeV7BWykic"},
-    "recall": {"title": "How to Recall like a CHALLENGER", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=8CAAejEoGNg"},
+    "recall": {"title": "How to Recall like a CHALLENGER", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=8CAAejEoGNg"},
     "trades_koi": {"title": "GUÍA DEFINITIVA DE TRADES #1", "channel": "Movistar KOI", "lang": "ES", "url": "https://www.youtube.com/watch?v=pSe5rUcc_0k"},
-    "trades": {"title": "The ONLY TRADING GUIDE You'll EVER NEED", "channel": "Skill Capped", "lang": "EN", "url": "https://www.youtube.com/watch?v=L7qPSGmS9ik"},
+    "trades": {"title": "The ONLY TRADING GUIDE You'll EVER NEED", "channel": SKILL_CAPPED, "lang": "EN", "url": "https://www.youtube.com/watch?v=L7qPSGmS9ik"},
     "tilt_pochi": {"title": "Sigue la CIENCIA para NO sentir TILT", "channel": "PochiPoom", "lang": "ES", "url": "https://www.youtube.com/watch?v=k_8NLsjQC5U"},
     "tilt_bbc": {"title": "Why Emerald players Tilt and Rage so easily", "channel": "Broken By Concept", "lang": "EN", "url": "https://www.youtube.com/shorts/W2CmZxHSO7Q"},
 }

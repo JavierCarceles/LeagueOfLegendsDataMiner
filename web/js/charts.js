@@ -10,6 +10,12 @@ function el(name, attrs = {}, text = null) {
   return node;
 }
 
+/** Color del indicador de victoria: verde desde 52,5 %, rojo hasta 47,5 % y dorado entre medias. */
+function gaugeColor(v) {
+  if (v >= 52.5) return "var(--good)";
+  return v <= 47.5 ? "var(--bad)" : "var(--gold)";
+}
+
 /** Semicírculo 0-100 % con zona central neutra. */
 export function gauge(value, { label = "", low = null, high = null } = {}) {
   const v = Math.max(0, Math.min(100, value ?? 50));
@@ -23,7 +29,7 @@ export function gauge(value, { label = "", low = null, high = null } = {}) {
     const [x2, y2] = point(to, rad);
     return `M ${x1} ${y1} A ${rad} ${rad} 0 0 1 ${x2} ${y2}`;
   };
-  const color = v >= 52.5 ? "var(--good)" : v <= 47.5 ? "var(--bad)" : "var(--gold)";
+  const color = gaugeColor(v);
   const root = el("svg", { viewBox: "0 0 210 118" });
   root.append(el("path", { d: arc(0, 100), stroke: "var(--line)", "stroke-width": 14, fill: "none", "stroke-linecap": "round" }));
   if (low !== null && high !== null) {

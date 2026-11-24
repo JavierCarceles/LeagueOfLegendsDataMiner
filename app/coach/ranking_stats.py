@@ -62,6 +62,30 @@ def participant_metrics(match: dict) -> list[tuple[str, dict]]:
     return out
 
 
+def _add_rounded(data: dict, pending: dict) -> None:
+    """Suma lo pendiente a los acumulados del fichero (``data["roles"]``), con las sumas redondeadas a 4 decimales."""
+    for role, groups in pending.items():
+        for group, metrics in groups.items():
+            block = data["roles"].setdefault(role, {}).setdefault(group, {})
+            for key, (n, s, s2) in metrics.items():
+                acc = block.setdefault(key, [0, 0.0, 0.0])
+                acc[0] += n
+                acc[1] = round(acc[1] + s, 4)
+                acc[2] = round(acc[2] + s2, 4)
+
+
+def _add_back(target: dict, pending: dict) -> None:
+    """Devuelve lo pendiente al acumulado en memoria (sin redondear) para reintentarlo en el siguiente volcado."""
+    for role, groups in pending.items():
+        for group, metrics in groups.items():
+            block = target.setdefault(role, {}).setdefault(group, {})
+            for key, (n, s, s2) in metrics.items():
+                acc = block.setdefault(key, [0, 0.0, 0.0])
+                acc[0] += n
+                acc[1] += s
+                acc[2] += s2
+
+
 class RankingStats:
     """Acumulado en memoria (por rol, elo y métrica: [partidas, suma, suma de cuadrados]) que se vuelca al fichero."""
 
@@ -103,14 +127,7 @@ class RankingStats:
         try:
             data = _upgrade(load(self.path.parent.parent) or {"version": VERSION, "games": 0, "roles": {}})
             data["games"] = int(data.get("games") or 0) + games
-            for role, groups in pending.items():
-                for group, metrics in groups.items():
-                    block = data["roles"].setdefault(role, {}).setdefault(group, {})
-                    for key, (n, s, s2) in metrics.items():
-                        acc = block.setdefault(key, [0, 0.0, 0.0])
-                        acc[0] += n
-                        acc[1] = round(acc[1] + s, 4)
-                        acc[2] = round(acc[2] + s2, 4)
+            _add_rounded(data, pending)
             data["updated_at"] = int(time.time())
             self.path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.path.with_suffix(".json.tmp")
@@ -119,14 +136,7 @@ class RankingStats:
         except OSError:
             log.debug("No se pudieron guardar las medias del ranking", exc_info=True)
             with self._lock:  # se reintenta en el siguiente volcado
-                for role, groups in pending.items():
-                    for group, metrics in groups.items():
-                        block = self._pending.setdefault(role, {}).setdefault(group, {})
-                        for key, (n, s, s2) in metrics.items():
-                            acc = block.setdefault(key, [0, 0.0, 0.0])
-                            acc[0] += n
-                            acc[1] += s
-                            acc[2] += s2
+                _add_back(self._pending, pending)
                 self._games += games
 
 

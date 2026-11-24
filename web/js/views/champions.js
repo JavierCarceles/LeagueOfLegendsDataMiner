@@ -23,11 +23,11 @@ export async function render(container, args = []) {
     mode = "list";
     role = ROLES.includes((args[0] || "").toUpperCase()) ? args[0].toUpperCase() : role || "TOP";
   }
-  load();
+  void load(); // trata sus errores (los pinta en la vista)
 }
 
 export function onFilters() {
-  load();
+  void load();
 }
 
 async function load() {
@@ -38,7 +38,7 @@ async function load() {
   mount(
     root,
     h("div.section-head", h("div", h("h2", "Tier list"), h("p", { title: "Fuerza de cada campeón por rol combinando OP.GG, Lolalytics y tu base de datos. El tier (S+…D) sale del WR ajustado por tamaño de muestra; también se muestra el tier oficial de OP.GG." }, "Fuerza de cada campeón por rol (OP.GG + Lolalytics + tu BD). ⓘ"))),
-    h("div.row", { style: { marginBottom: "14px" } }, roleTabs(role, (r) => { role = r; history.replaceState(null, "", `#/campeones/${r}`); load(); })),
+    h("div.row", { style: { marginBottom: "14px" } }, roleTabs(role, (r) => { role = r; history.replaceState(null, "", `#/campeones/${r}`); void load(); })),
     body,
   );
   mount(body, loading("Cargando campeones…"));
@@ -49,7 +49,7 @@ async function load() {
     if (!rows.length) return mount(body, h("section.card", empty("Sin datos para estos filtros", "Prueba otro elo, región o parche.")));
     const cols = [
       { key: "rank", label: "#", sort: false, class: "rank", render: (_, i) => i + 1 },
-      { key: "champ", label: "Campeón", sort: (c) => dd.name(c.champ), render: (c) => champ(c.champ, { sub: c.source === "own" ? "solo tu BD" : c.opgg?.role_rate ? `${fmt.num(c.opgg.role_rate, 0)} % de sus partidas en ${ROLE_LABEL[role]}` : null }) },
+      { key: "champ", label: "Campeón", sort: (c) => dd.name(c.champ), render: (c) => champ(c.champ, { sub: champSub(c) }) },
       { key: "tier", label: "Tier", sort: (c) => c.wr_adj, render: (c) => h("div.row", tierBadge(c.tier), c.opgg?.tier ? h("span.opgg-tier", { title: "Tier de OP.GG (1 = mejor)" }, `T${c.opgg.tier}`) : null) },
       { key: "wr_adj", label: "WR ajustado", render: (c) => h("div", { title: wrDetail(c) }, wrCell(c.wr_adj)) },
       { key: "pick", label: "Pick / Ban", sort: (c) => c.opgg?.pick, render: (c) => h("div.col", { style: { gap: "1px" } }, h("span.num", fmt.pct(c.opgg?.pick)), c.opgg?.ban != null ? h("span.tiny.muted", `ban ${fmt.pct(c.opgg.ban)}`) : null) },
@@ -60,7 +60,7 @@ async function load() {
       table(cols, rows, { sortKey: "wr_adj", onRow: (c) => (location.hash = `#/campeon/${c.champ}/${role}`) }),
       h(
         "p.tiny.muted",
-        { style: { marginTop: "10px", cursor: "help" }, title: `OP.GG: ${data.evidence?.opgg ? `${data.evidence.opgg.tier}, ${data.evidence.opgg.region}, parche de referencia ${data.evidence.ref_patches?.[role] || "—"}` : "no disponible"}. Prior de campeón: ${fmt.int(data.priors.champ)} partidas virtuales.` },
+        { style: { marginTop: "10px", cursor: "help" }, title: sourcesTitle(data) },
         "Fuentes y parámetros ⓘ · pasa el ratón por el WR para ver el desglose",
       ),
     );
@@ -69,11 +69,27 @@ async function load() {
   }
 }
 
+/** Subtítulo de un campeón en la tier list: si solo sale de tu BD o qué parte de sus partidas juega en el rol. */
+function champSub(c) {
+  if (c.source === "own") return "solo tu BD";
+  return c.opgg?.role_rate ? `${fmt.num(c.opgg.role_rate, 0)} % de sus partidas en ${ROLE_LABEL[role]}` : null;
+}
+
+/** Tooltip de «Fuentes y parámetros»: de dónde salen los datos de OP.GG y el prior de campeón. */
+function sourcesTitle(data) {
+  const ev = data.evidence;
+  const opgg = ev?.opgg ? `${ev.opgg.tier}, ${ev.opgg.region}, parche de referencia ${ev.ref_patches?.[role] || "—"}` : "no disponible";
+  return `OP.GG: ${opgg}. Prior de campeón: ${fmt.int(data.priors.champ)} partidas virtuales.`;
+}
+
 // Texto del tooltip del WR ajustado: el detalle por fuente que antes ocupaba columnas propias.
 function wrDetail(c) {
   const parts = [];
   if (c.opgg?.wr != null) parts.push(`OP.GG ${fmt.pct(c.opgg.wr, 2)}`);
-  if (c.opgg?.lola_wr != null) parts.push(`Lolalytics ${fmt.pct(c.opgg.lola_wr, 2)}${c.opgg.lola_games ? ` (${fmt.compact(c.opgg.lola_games)} part.)` : ""}`);
+  if (c.opgg?.lola_wr != null) {
+    const games = c.opgg.lola_games ? ` (${fmt.compact(c.opgg.lola_games)} part.)` : "";
+    parts.push(`Lolalytics ${fmt.pct(c.opgg.lola_wr, 2)}${games}`);
+  }
   if (c.own) parts.push(`tu BD ${fmt.pct(c.own.wr)} (${fmt.compact(c.own.games)} part.)`);
   if (c.own?.kda != null) parts.push(`KDA ${fmt.num(c.own.kda, 2)}`);
   return parts.length ? parts.join(" · ") : "Sin desglose por fuente";
@@ -111,9 +127,7 @@ function detailView(d) {
         "div.kpis",
         { style: { flex: "1 1 420px" } },
         kpi("WR ajustado", h(`span.${wrClass(b.wr_adj)}`, fmt.pct(b.wr_adj)), `${fmt.compact(b.games)} partidas`),
-        b.opgg && b.opgg.wr !== null ? kpi("OP.GG", fmt.pct(b.opgg.wr), b.opgg.tier ? `Tier ${b.opgg.tier} · #${b.opgg.rank}` : "") : null,
-        b.opgg?.lola_wr != null ? kpi("Lolalytics", fmt.pct(b.opgg.lola_wr), b.opgg.lola_games ? `${fmt.compact(b.opgg.lola_games)} partidas` : "") : null,
-        b.opgg ? kpi("Pick / Ban", fmt.pct(b.opgg.pick), `ban ${fmt.pct(b.opgg.ban)}`) : null,
+        sourceKpis(b.opgg),
       ),
     ),
     h(
@@ -133,7 +147,7 @@ function detailView(d) {
     ),
   );
 
-  const muList = (title, items, cls) =>
+  const muList = (title, items) =>
     h(
       "section.card",
       h("h3.card-title", title),
@@ -159,15 +173,7 @@ function detailView(d) {
     h(
       "section.card",
       h("h3.card-title", roleIcon(partnerRole), `Con ${ROLE_LABEL[partnerRole]}`),
-      s.best.length
-        ? h(
-            "div.col",
-            { style: { gap: "6px" } },
-            s.best.map((x) => h("div.row", champ(x.champ, { size: "sm" }), h("span.spacer"), sourceBadges(x.sources), h(`b.small.${x.delta >= 0 ? "good" : "bad"}`, fmt.signed(x.delta, 1, " pp")))),
-            s.worst.length ? h("div.divider") : null,
-            s.worst.map((x) => h("div.row", champ(x.champ, { size: "sm" }), h("span.spacer"), sourceBadges(x.sources), h(`b.small.${x.delta >= 0 ? "good" : "bad"}`, fmt.signed(x.delta, 1, " pp")))),
-          )
-        : h("div.muted.small", "Sin datos de sinergia."),
+      s.best.length ? synergyList(s) : h("div.muted.small", "Sin datos de sinergia."),
     ),
   );
 
@@ -243,7 +249,7 @@ function detailView(d) {
               breakdown.map((k) =>
                 table(
                   [
-                    { key: "key", label: { tier: "Elo", patch: "Parche", platform: "Región" }[k], render: (r) => (r.key === "legacy" ? "Histórico" : k === "platform" ? r.key.toUpperCase() : r.key) },
+                    { key: "key", label: { tier: "Elo", patch: "Parche", platform: "Región" }[k], render: (r) => breakdownKey(r, k) },
                     { key: "games", label: "Partidas", render: (r) => fmt.int(r.games) },
                     { key: "wr", label: "WR", render: (r) => h(`b.${wrClass(r.wr)}`, fmt.pct(r.wr)) },
                   ],
@@ -256,5 +262,33 @@ function detailView(d) {
         )
       : null,
   );
+}
+
+/** KPIs de las webs en la cabecera del campeón: OP.GG, Lolalytics y pick/ban (solo los que tienen dato). */
+function sourceKpis(opgg) {
+  if (!opgg) return [];
+  const opggSub = opgg.tier ? `Tier ${opgg.tier} · #${opgg.rank}` : "";
+  const lolaSub = opgg.lola_games ? `${fmt.compact(opgg.lola_games)} partidas` : "";
+  return [
+    opgg.wr !== null ? kpi("OP.GG", fmt.pct(opgg.wr), opggSub) : null,
+    opgg.lola_wr != null ? kpi("Lolalytics", fmt.pct(opgg.lola_wr), lolaSub) : null,
+    kpi("Pick / Ban", fmt.pct(opgg.pick), `ban ${fmt.pct(opgg.ban)}`),
+  ];
+}
+
+/** Fila de una sinergia: el campeón, sus fuentes y cuánto suma o resta sobre lo esperado. */
+function synergyRow(x) {
+  return h("div.row", champ(x.champ, { size: "sm" }), h("span.spacer"), sourceBadges(x.sources), h(`b.small.${x.delta >= 0 ? "good" : "bad"}`, fmt.signed(x.delta, 1, " pp")));
+}
+
+/** Sinergias con un rol: las mejores, un separador y las peores. */
+function synergyList(s) {
+  return h("div.col", { style: { gap: "6px" } }, s.best.map(synergyRow), s.worst.length ? h("div.divider") : null, s.worst.map(synergyRow));
+}
+
+/** Clave de una fila del desglose de tu BD: «Histórico», la región en mayúsculas o el valor tal cual. */
+function breakdownKey(r, k) {
+  if (r.key === "legacy") return "Histórico";
+  return k === "platform" ? r.key.toUpperCase() : r.key;
 }
 

@@ -61,9 +61,7 @@ class RiotClient:
         timeout: float = 15.0,
         validate_on_403: bool = True,
     ):
-        key = self.keys.get()
-        if not key:
-            raise RiotKeyError(0, "No hay RIOT_API_KEY configurada")
+        key = self._api_key()
         url = f"https://{host}.api.riotgames.com{path}"
         failures = 0
         throttles = 0
@@ -74,9 +72,7 @@ class RiotClient:
                 response = self._session().get(url, params=params, headers={"X-Riot-Token": key}, timeout=timeout)
             except requests.RequestException as exc:
                 failures += 1
-                if failures > retries:
-                    raise RiotAPIError(0, f"Error de red con {host}: {exc}") from exc
-                self._sleep(min(2**failures, 15), stop)
+                self._retry_network_error(exc, host, failures, retries, stop)
                 continue
 
             status = response.status_code
@@ -89,28 +85,56 @@ class RiotClient:
                 return None
             if status == 429:
                 throttles += 1
-                if throttles > 8:
-                    raise RiotAPIError(429, "Demasiados 429 seguidos")
-                log.warning("429 en %s (%s). Esperando lo que indica Riot…", host, method)
+                self._check_throttles(throttles, host, method)
                 continue
-            if status == 401:
-                detail = f"401 {self._riot_message(response) or 'Unauthorized'}"
-                self.keys.mark_invalid(detail)
-                raise RiotKeyError(401, f"Riot no reconoce la API key ({detail})")
-            if status == 403:
-                # 403 suele ser key caducada, pero también endpoint no permitido:
-                # se confirma con un endpoint barato antes de invalidar la key.
-                if validate_on_403 and self.validate_key():
-                    raise RiotAPIError(403, f"Acceso denegado a {method}")
-                detail = f"403 {self._riot_message(response) or 'Forbidden'}"
-                raise RiotKeyError(403, f"Riot rechaza la API key ({detail}): caducada, mal copiada o aún sin activar")
             if status >= 500:
                 failures += 1
-                if failures > retries:
-                    raise RiotAPIError(status, f"Riot devolvió {status} en {method}")
-                self._sleep(min(2**failures, 15), stop)
+                self._retry_server_error(status, method, failures, retries, stop)
                 continue
-            raise RiotAPIError(status, f"HTTP {status} en {method}: {response.text[:160]}")
+            raise self._status_error(response, status, method, validate_on_403)
+
+    def _api_key(self) -> str:
+        """La API key configurada; ``RiotKeyError`` si no hay ninguna."""
+        key = self.keys.get()
+        if not key:
+            raise RiotKeyError(0, "No hay RIOT_API_KEY configurada")
+        return key
+
+    def _retry_network_error(
+        self, exc: requests.RequestException, host: str, failures: int, retries: int, stop: threading.Event | None
+    ) -> None:
+        """Error de red: espera antes de reintentar (2, 4, 8… s, hasta 15) o lanza si ya no quedan reintentos."""
+        if failures > retries:
+            raise RiotAPIError(0, f"Error de red con {host}: {exc}") from exc
+        self._sleep(min(2**failures, 15), stop)
+
+    def _retry_server_error(self, status: int, method: str, failures: int, retries: int, stop: threading.Event | None) -> None:
+        """Error 5xx de Riot: espera antes de reintentar (2, 4, 8… s, hasta 15) o lanza si ya no quedan reintentos."""
+        if failures > retries:
+            raise RiotAPIError(status, f"Riot devolvió {status} en {method}")
+        self._sleep(min(2**failures, 15), stop)
+
+    @staticmethod
+    def _check_throttles(throttles: int, host: str, method: str) -> None:
+        """429: se reintenta (el limitador ya espera lo que indica Riot) salvo si ya van demasiados en esta petición."""
+        if throttles > 8:
+            raise RiotAPIError(429, "Demasiados 429 seguidos")
+        log.warning("429 en %s (%s). Esperando lo que indica Riot…", host, method)
+
+    def _status_error(self, response, status: int, method: str, validate_on_403: bool) -> RiotAPIError:
+        """Error de una respuesta que no se reintenta: 401 (marca la key como no válida), 403 y los demás códigos."""
+        if status == 401:
+            detail = f"401 {self._riot_message(response) or 'Unauthorized'}"
+            self.keys.mark_invalid(detail)
+            return RiotKeyError(401, f"Riot no reconoce la API key ({detail})")
+        if status == 403:
+            # 403 suele ser key caducada, pero también endpoint no permitido:
+            # se confirma con un endpoint barato antes de invalidar la key.
+            if validate_on_403 and self.validate_key():
+                return RiotAPIError(403, f"Acceso denegado a {method}")
+            detail = f"403 {self._riot_message(response) or 'Forbidden'}"
+            return RiotKeyError(403, f"Riot rechaza la API key ({detail}): caducada, mal copiada o aún sin activar")
+        return RiotAPIError(status, f"HTTP {status} en {method}: {response.text[:160]}")
 
     @staticmethod
     def _sleep(seconds: float, stop: threading.Event | None) -> None:

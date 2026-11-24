@@ -244,6 +244,93 @@ def _benchmark(svc, role: str, champ: int, tier: str | None, mine: dict) -> dict
     return {"role": role, "champ": champ, "scope": scope, "tier": tier if scope == "tier" else None, "sample": row.get("dgames"), "metrics": items}
 
 
+def _active_platform(svc, puuid: str, platform: str) -> tuple[str, str | None]:
+    """La región en la que juega de verdad la cuenta y, si no es la pedida, la nota que lo explica."""
+    note = None
+    try:
+        actual = svc.riot.active_platform(puuid, platform)
+        if actual in PLATFORMS and actual != platform:
+            note = f"La cuenta juega en {PLATFORMS[actual][1]}; mostrando datos de esa región."
+            platform = actual
+    except RiotAPIError as exc:
+        log.debug("No se pudo resolver la región activa: %s", exc.message)
+    return platform, note
+
+
+def _save_profile(svc, puuid: str, game_name: str, tag_line: str, platform: str, solo: dict | None, summoner: dict) -> None:
+    """Guarda el Riot ID, la región, el rango de SoloQ y el icono y nivel del jugador."""
+    ts = now_s()
+    rank = solo or {}
+    upsert_player_profile(
+        svc.db,
+        puuid,
+        game_name=game_name,
+        tag_line=tag_line,
+        platform=platform,
+        tier=rank.get("tier"),
+        division=rank.get("rank"),
+        lp=rank.get("leaguePoints"),
+        ranked_wins=rank.get("wins"),
+        ranked_losses=rank.get("losses"),
+        rank_checked_at=ts if solo else None,
+        profile_icon=summoner.get("profileIconId"),
+        summoner_level=summoner.get("summonerLevel"),
+        profile_checked_at=ts,
+    )
+
+
+def _player_games(ids: list[str], matches: dict, parts: dict, puuid: str) -> list[dict]:
+    """Las partidas del jugador (en el orden de ``ids``) que están en la base de datos con sus participantes."""
+    games = []
+    for match_id in ids:
+        if match_id in matches and parts.get(match_id):
+            item = _player_match(matches[match_id], parts[match_id], puuid)
+            if item:
+                games.append(item)
+    return games
+
+
+def _main_role(gs: list[dict]) -> str | None:
+    """El rol más jugado en esas partidas."""
+    return max({g["role"] for g in gs}, key=lambda r: sum(1 for g in gs if g["role"] == r))
+
+
+def _champion_list(champs: dict[int, list[dict]]) -> list[dict]:
+    """Resumen de cada campeón con su rol principal, del más jugado al que menos."""
+    champ_list = []
+    for champ, gs in champs.items():
+        summary = _summary(gs)
+        champ_list.append({"champ": champ, "main_role": _main_role(gs), **summary})
+    champ_list.sort(key=lambda c: (c["games"], c["wins"]), reverse=True)
+    return champ_list
+
+
+def _champion_benchmarks(svc, champ_list: list[dict], champs: dict[int, list[dict]], tier: str | None) -> list[dict]:
+    """Sus 3 campeones más jugados (en su rol principal) frente a la media del dataset."""
+    benchmarks = []
+    for champ_item in champ_list[:3]:
+        if not champ_item["main_role"]:
+            continue
+        mine_games = [g for g in champs[champ_item["champ"]] if g["role"] == champ_item["main_role"]]
+        bench = _benchmark(svc, champ_item["main_role"], champ_item["champ"], tier, _summary(mine_games))
+        if bench:
+            benchmarks.append(bench)
+    return benchmarks
+
+
+def _streak(valid: list[dict]) -> int:
+    """Racha de la partida más reciente hacia atrás: victorias seguidas (positiva) o derrotas (negativa)."""
+    streak = 0
+    for g in valid:
+        if not streak:
+            streak = 1 if g["win"] else -1
+        elif (streak > 0) == g["win"]:
+            streak += 1 if streak > 0 else -1
+        else:
+            break
+    return streak
+
+
 def get_profile(svc, platform: str, game_name: str, tag_line: str, count: int = 20, queue: str = "solo") -> dict:
     platform = platform.lower()
     if platform not in PLATFORMS:
@@ -254,50 +341,22 @@ def get_profile(svc, platform: str, game_name: str, tag_line: str, count: int = 
         raise NotFound(f"No existe el Riot ID {game_name}#{tag_line}")
     puuid = account["puuid"]
     game_name, tag_line = account.get("gameName") or game_name, account.get("tagLine") or tag_line
-
-    note = None
-    try:
-        actual = svc.riot.active_platform(puuid, platform)
-        if actual in PLATFORMS and actual != platform:
-            note = f"La cuenta juega en {PLATFORMS[actual][1]}; mostrando datos de esa región."
-            platform = actual
-    except RiotAPIError as exc:
-        log.debug("No se pudo resolver la región activa: %s", exc.message)
+    platform, note = _active_platform(svc, puuid, platform)
 
     summoner = svc.riot.summoner_by_puuid(platform, puuid) or {}
     entries = svc.riot.league_entries_by_puuid(platform, puuid)
     solo = next((e for e in entries if e.get("queueType") == "RANKED_SOLO_5x5"), None)
     flex = next((e for e in entries if e.get("queueType") == "RANKED_FLEX_SR"), None)
-    ts = now_s()
-    upsert_player_profile(
-        svc.db,
-        puuid,
-        game_name=game_name,
-        tag_line=tag_line,
-        platform=platform,
-        tier=(solo or {}).get("tier"),
-        division=(solo or {}).get("rank"),
-        lp=(solo or {}).get("leaguePoints"),
-        ranked_wins=(solo or {}).get("wins"),
-        ranked_losses=(solo or {}).get("losses"),
-        rank_checked_at=ts if solo else None,
-        profile_icon=summoner.get("profileIconId"),
-        summoner_level=summoner.get("summonerLevel"),
-        profile_checked_at=ts,
-    )
+    _save_profile(svc, puuid, game_name, tag_line, platform, solo, summoner)
+    tier = (solo or {}).get("tier")
 
     qf = QUEUE_FILTERS.get(queue, QUEUE_FILTERS["solo"])
     ids = svc.riot.match_ids(platform, puuid, queue=qf["queue"], ranked_only=qf["ranked_only"], count=count)
     already = len(known_match_ids(svc.db, ids))
-    fetched = fetch_matches(svc, ids, (solo or {}).get("tier"))
+    fetched = fetch_matches(svc, ids, tier)
     matches, parts = load_match_rows(svc, ids)
 
-    games = []
-    for match_id in ids:
-        if match_id in matches and parts.get(match_id):
-            item = _player_match(matches[match_id], parts[match_id], puuid)
-            if item:
-                games.append(item)
+    games = _player_games(ids, matches, parts, puuid)
     valid = [g for g in games if not g["remake"]]
 
     roles: dict[str, list[dict]] = defaultdict(list)
@@ -310,29 +369,9 @@ def get_profile(svc, platform: str, game_name: str, tag_line: str, count: int = 
         key=lambda x: x["games"],
         reverse=True,
     )
-    champ_list = []
-    for champ, gs in champs.items():
-        summary = _summary(gs)
-        champ_list.append({"champ": champ, "main_role": max({g["role"] for g in gs}, key=lambda r: sum(1 for g in gs if g["role"] == r)), **summary})
-    champ_list.sort(key=lambda c: (c["games"], c["wins"]), reverse=True)
-
-    benchmarks = []
-    for champ_item in champ_list[:3]:
-        if not champ_item["main_role"]:
-            continue
-        mine_games = [g for g in champs[champ_item["champ"]] if g["role"] == champ_item["main_role"]]
-        bench = _benchmark(svc, champ_item["main_role"], champ_item["champ"], (solo or {}).get("tier"), _summary(mine_games))
-        if bench:
-            benchmarks.append(bench)
-
-    streak = 0
-    for g in valid:
-        if not streak:
-            streak = 1 if g["win"] else -1
-        elif (streak > 0) == g["win"]:
-            streak += 1 if streak > 0 else -1
-        else:
-            break
+    champ_list = _champion_list(champs)
+    benchmarks = _champion_benchmarks(svc, champ_list, champs, tier)
+    streak = _streak(valid)
 
     public_games = [{k: v for k, v in g.items() if not k.startswith("_")} for g in games]
     return {
@@ -369,6 +408,51 @@ def search_known(svc, query: str, limit: int = 8) -> list[dict]:
     return [dict(r) for r in svc.db.query(sql, params)]
 
 
+def _role_reference(role_ref: dict) -> dict:
+    """Las medias del rol en el dataset: KDA, daño, oro, visión y CS por minuto y participación en kills."""
+    ref_minutes = role_ref["minutes"]
+    return {
+        "kda": safe_div(role_ref["kills"] + role_ref["assists"], max(1, role_ref["deaths"])),
+        "dmg_min": role_ref["dmg"] / ref_minutes,
+        "gold_min": role_ref["gold"] / ref_minutes,
+        "vision_min": role_ref["vision"] / ref_minutes,
+        "cs_min": role_ref["cs"] / ref_minutes,
+        "kp": safe_div(role_ref["kp_sum"], role_ref["kp_n"]),
+    }
+
+
+def _player_values(r: dict, minutes: float) -> dict:
+    """Los mismos valores de un jugador en la partida."""
+    return {
+        "kda": safe_div((r["kills"] or 0) + (r["assists"] or 0), max(1, r["deaths"] or 0)),
+        "dmg_min": (r["dmg"] or 0) / minutes,
+        "gold_min": (r["gold"] or 0) / minutes,
+        "vision_min": (r["vision"] or 0) / minutes,
+        "cs_min": (r["cs"] or 0) / minutes,
+        "kp": r["kp"],
+    }
+
+
+def _score(role: str | None, avg: dict, mine: dict, weights: dict) -> float | None:
+    """Nota 0-10 de un jugador: media ponderada de cuánto se aleja de la media de su rol (``None`` si no hay con qué)."""
+    total = weight_sum = 0.0
+    for key, weight in weights.items():
+        value, average = mine.get(key), avg.get(key)
+        if value is None or not average:
+            continue
+        if key == "kp":
+            term = max(-1.0, min(1.0, (value - average) / 0.2))
+        else:
+            term = max(-1.0, min(1.0, math.log2(max(value, 1e-3) / average)))
+        if role == "SUPPORT" and key == "cs_min":
+            continue
+        total += weight * term
+        weight_sum += weight
+    if weight_sum:
+        return round(max(0.0, min(10.0, 5 + 4 * total / weight_sum)), 1)
+    return None
+
+
 def performance_scores(svc, rows: list[dict], duration: int) -> dict[int, float]:
     """Nota 0-10 por jugador frente a la media de su rol (5 = media)."""
     ref = svc.agg.role_totals(Filters.parse(svc.db, patch="recent"))
@@ -382,36 +466,7 @@ def performance_scores(svc, rows: list[dict], duration: int) -> dict[int, float]
         role_ref = ref.get(r["role"] or "")
         if not role_ref or not role_ref.get("dgames") or not role_ref.get("minutes"):
             continue
-        ref_minutes = role_ref["minutes"]
-        avg = {
-            "kda": safe_div(role_ref["kills"] + role_ref["assists"], max(1, role_ref["deaths"])),
-            "dmg_min": role_ref["dmg"] / ref_minutes,
-            "gold_min": role_ref["gold"] / ref_minutes,
-            "vision_min": role_ref["vision"] / ref_minutes,
-            "cs_min": role_ref["cs"] / ref_minutes,
-            "kp": safe_div(role_ref["kp_sum"], role_ref["kp_n"]),
-        }
-        mine = {
-            "kda": safe_div((r["kills"] or 0) + (r["assists"] or 0), max(1, r["deaths"] or 0)),
-            "dmg_min": (r["dmg"] or 0) / minutes,
-            "gold_min": (r["gold"] or 0) / minutes,
-            "vision_min": (r["vision"] or 0) / minutes,
-            "cs_min": (r["cs"] or 0) / minutes,
-            "kp": r["kp"],
-        }
-        total = weight_sum = 0.0
-        for key, weight in weights.items():
-            value, average = mine.get(key), avg.get(key)
-            if value is None or not average:
-                continue
-            if key == "kp":
-                term = max(-1.0, min(1.0, (value - average) / 0.2))
-            else:
-                term = max(-1.0, min(1.0, math.log2(max(value, 1e-3) / average)))
-            if r["role"] == "SUPPORT" and key == "cs_min":
-                continue
-            total += weight * term
-            weight_sum += weight
-        if weight_sum:
-            scores[r["pid"]] = round(max(0.0, min(10.0, 5 + 4 * total / weight_sum)), 1)
+        score = _score(r["role"], _role_reference(role_ref), _player_values(r, minutes), weights)
+        if score is not None:
+            scores[r["pid"]] = score
     return scores

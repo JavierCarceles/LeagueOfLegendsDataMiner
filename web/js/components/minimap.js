@@ -36,11 +36,17 @@ export function minimap(...children) {
 
 function dot(x, y, { cls = "", title = "", size = 10, onClick = null } = {}) {
   const p = pct(x, y);
-  return h(`span.map-dot${cls ? "." + cls.split(" ").join(".") : ""}`, { title, style: { left: `${p.left}%`, top: `${p.top}%`, width: `${size}px`, height: `${size}px` }, onclick: onClick });
+  return h(`span.map-dot${cls ? "." + cls.replaceAll(" ", ".") : ""}`, { title, style: { left: `${p.left}%`, top: `${p.top}%`, width: `${size}px`, height: `${size}px` }, onclick: onClick });
 }
 
-const DEATH_KIND = (tags) =>
-  tags.includes("gank") || tags.includes("jungler") ? "gank" : tags.includes("enemy_jungle") ? "invade" : tags.includes("solo") ? "solo" : tags.includes("isolated") ? "isolated" : "fight";
+/** Tipo de muerte para el mapa, según sus etiquetas. */
+function deathKind(tags) {
+  if (tags.includes("gank") || tags.includes("jungler")) return "gank";
+  if (tags.includes("enemy_jungle")) return "invade";
+  if (tags.includes("solo")) return "solo";
+  if (tags.includes("isolated")) return "isolated";
+  return "fight";
+}
 export const DEATH_KINDS = {
   gank: "Gank / jungla rival",
   solo: "1 contra 1",
@@ -53,7 +59,7 @@ export const DEATH_KINDS = {
 export function deathMap(points, { onPick = null } = {}) {
   const dots = points.map((d) => {
     const [x, y] = d.team === 200 ? mirror(d.x, d.y) : [d.x, d.y];
-    const kind = DEATH_KIND(d.tags || []);
+    const kind = deathKind(d.tags || []);
     return dot(x, y, {
       cls: `death ${kind}`,
       size: 11,
@@ -79,7 +85,7 @@ export function pathMap(paths) {
       }),
     );
     if (i === 0) {
-      pts.forEach((p, j) => labels.push(h("span.map-step", { style: { left: `${p.left}%`, top: `${p.top}%` } }, String((g.path[j] || {}).minute ?? j + 1))));
+      pts.forEach((p, j) => labels.push(h("span.map-step", { style: { left: `${p.left}%`, top: `${p.top}%` } }, String(g.path[j]?.minute ?? j + 1))));
     }
   });
   return minimap(svg, h("div.map-layer", labels));
@@ -128,6 +134,88 @@ export function trackPos(track, t) {
 
 export const OBJ_ICON = { dragon: "🐉", elder: "🐉", baron: "👾", herald: "🦀", grubs: "🪲", atakhan: "💀" };
 
+/** Icono de un campeón en la repetición: borde del color de su equipo y el tuyo marcado. */
+export function champIcon(pid, p, me) {
+  const team = p.team === 100 ? "blue" : "red";
+  const mine = Number(pid) === me ? ".me" : "";
+  const title = p.name ? `${dd.name(p.champ)} · ${p.name}` : String(dd.name(p.champ));
+  return h(`div.map-champ.${team}${mine}`, { title }, champImg(p.champ));
+}
+
+/** Marcas sobre la barra de la repetición: tus muertes, tus kills y los objetivos de cada equipo. */
+function addReplayMarks(mark, r, players, me, myTeam) {
+  for (const [time, killer, victim] of r.kills) {
+    if (victim === me) mark(time, "death", `Mueres (${dd.name(players[killer]?.champ) || "torre"})`);
+    else if (killer === me) mark(time, "kill", `Matas a ${dd.name(players[victim]?.champ)}`);
+  }
+  for (const [time, kind, team] of r.objectives) {
+    const ours = team === myTeam;
+    mark(time, `obj.${ours ? "ally" : "enemy"}`, `${kind} (${ours ? "tu equipo" : "rival"})`);
+  }
+}
+
+/**
+ * Coloca cada icono en su posición del segundo t (oculto si no hay; translúcido si es reconstruida).
+ * focus: Set de pids que se resaltan (opcional).
+ */
+export function placeIcons(icons, tracks, t, focus = null) {
+  for (const [pid, el] of Object.entries(icons)) {
+    const pos = trackPos(tracks[pid], t);
+    if (pos?.x === undefined || pos.x === null) {
+      el.style.display = "none";
+      continue;
+    }
+    el.style.display = "";
+    const p = pct(pos.x, pos.y);
+    el.style.left = `${p.left}%`;
+    el.style.top = `${p.top}%`;
+    el.classList.toggle("dead", !!pos.dead);
+    el.classList.toggle("estimated", !pos.dead && !pos.sure);
+    if (focus) el.classList.toggle("focus", focus.has(Number(pid)));
+  }
+}
+
+/** Clase de una kill en el mapa: tu muerte, tu kill o ninguna. */
+function killClass(killer, victim, me) {
+  if (victim === me) return ".my-death";
+  return killer === me ? ".my-kill" : "";
+}
+
+/** Kills de los últimos 10 s (se desvanecen); unknown: cómo se llama al que mata si no es un campeón. */
+export function killEffects(kills, t, players, me, unknown = "?") {
+  const out = [];
+  for (const [time, killer, victim, x, y] of kills) {
+    if (x === null || time > t || t - time > 10) continue;
+    const p = pct(x, y);
+    const title = `${dd.name(players[killer]?.champ) || unknown} → ${dd.name(players[victim]?.champ)}`;
+    out.push(h(`span.map-fx.kill${killClass(killer, victim, me)}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 10) }, title }, "✕"));
+  }
+  return out;
+}
+
+/** Objetivos de los últimos 25 s, del color de quien los cogió; nameOf: su nombre para el título. */
+export function objectiveEffects(objectives, t, nameOf = (kind) => kind) {
+  const out = [];
+  for (const [time, kind, team, x, y] of objectives) {
+    if (time > t || t - time > 25) continue;
+    const p = pct(x, y);
+    out.push(h(`span.map-fx.obj.${team === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 25) }, title: nameOf(kind) }, OBJ_ICON[kind] || "★"));
+  }
+  return out;
+}
+
+/** Torres e inhibidores ya destruidos en el segundo t. */
+export function buildingEffects(buildings, t) {
+  const out = [];
+  for (const [time, owner, kind, lane, x, y] of buildings) {
+    if (x === null || time > t) continue;
+    const p = pct(x, y);
+    const what = kind === "tower" ? "Torre" : "Inhibidor";
+    out.push(h(`span.map-fx.building.${owner === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%` }, title: `${what} destruido (${lane})` }));
+  }
+  return out;
+}
+
 /**
  * Repetición 2D: analysis = respuesta de /api/coach/games/{id}.
  * Devuelve { el, seek(t), pause() }.
@@ -141,12 +229,7 @@ export function replay(analysis) {
   const layer = h("div.map-layer");
   const fx = h("div.map-layer");
   for (const pid of Object.keys(r.tracks)) {
-    const p = players[pid] || {};
-    const el = h(
-      `div.map-champ.${p.team === 100 ? "blue" : "red"}${Number(pid) === me ? ".me" : ""}`,
-      { title: `${dd.name(p.champ)}${p.name ? ` · ${p.name}` : ""}` },
-      champImg(p.champ),
-    );
+    const el = champIcon(pid, players[pid] || {}, me);
     icons[pid] = el;
     layer.append(el);
   }
@@ -169,44 +252,11 @@ export function replay(analysis) {
   // Marcas sobre la barra: tus muertes, tus kills y objetivos.
   const marks = h("div.replay-marks");
   const mark = (time, cls, title) => marks.append(h(`span.replay-mark.${cls}`, { title: `${fmt.duration(time)} · ${title}`, style: { left: `${(time / duration) * 100}%` }, onclick: () => seek(time - 4) }));
-  for (const [time, killer, victim] of r.kills) {
-    if (victim === me) mark(time, "death", `Mueres (${dd.name(players[killer]?.champ) || "torre"})`);
-    else if (killer === me) mark(time, "kill", `Matas a ${dd.name(players[victim]?.champ)}`);
-  }
-  for (const [time, kind, team] of r.objectives) mark(time, `obj.${team === analysis.team ? "ally" : "enemy"}`, `${kind} (${team === analysis.team ? "tu equipo" : "rival"})`);
+  addReplayMarks(mark, r, players, me, analysis.team);
 
   const draw = () => {
-    for (const [pid, el] of Object.entries(icons)) {
-      const pos = trackPos(r.tracks[pid], t);
-      if (!pos || pos.x === null || pos.x === undefined) {
-        el.style.display = "none";
-        continue;
-      }
-      el.style.display = "";
-      const p = pct(pos.x, pos.y);
-      el.style.left = `${p.left}%`;
-      el.style.top = `${p.top}%`;
-      el.classList.toggle("dead", !!pos.dead);
-      el.classList.toggle("estimated", !pos.dead && !pos.sure);
-    }
-    const recent = [];
-    for (const [time, killer, victim, x, y] of r.kills) {
-      if (x === null || time > t || t - time > 10) continue;
-      const p = pct(x, y);
-      const mine = victim === me ? "my-death" : killer === me ? "my-kill" : "";
-      recent.push(h(`span.map-fx.kill${mine ? "." + mine : ""}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 10) }, title: `${dd.name(players[killer]?.champ) || "?"} → ${dd.name(players[victim]?.champ)}` }, "✕"));
-    }
-    for (const [time, kind, team, x, y] of r.objectives) {
-      if (time > t || t - time > 25) continue;
-      const p = pct(x, y);
-      recent.push(h(`span.map-fx.obj.${team === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 25) }, title: kind }, OBJ_ICON[kind] || "★"));
-    }
-    for (const [time, owner, kind, lane, x, y] of r.buildings) {
-      if (x === null || time > t) continue;
-      const p = pct(x, y);
-      recent.push(h(`span.map-fx.building.${owner === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%` }, title: `${kind === "tower" ? "Torre" : "Inhibidor"} destruido (${lane})` }));
-    }
-    fx.replaceChildren(...recent);
+    placeIcons(icons, r.tracks, t);
+    fx.replaceChildren(...killEffects(r.kills, t, players, me), ...objectiveEffects(r.objectives, t), ...buildingEffects(r.buildings, t));
     clock.textContent = `${fmt.duration(Math.max(1, t))} / ${fmt.duration(duration)}`;
     slider.value = String(Math.round(t));
   };

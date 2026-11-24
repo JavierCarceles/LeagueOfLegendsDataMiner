@@ -199,7 +199,7 @@ def push_data(repo: Path, data_dir: Path, locks=(), progress=None) -> dict:
     ``locks``: cerrojos de los escritores de partidas, para no hacer el commit con un fichero a medio escribir.
     ``progress(fase, detalle=None)``: en qué va (``STEPS``).
     """
-    progress = progress or (lambda step, detail=None: None)
+    progress = progress or (lambda *_: None)
     branch, rel = _check_repo(repo, data_dir)
     # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el merge y el
     # autostash nunca tiene que mezclar partidas a medio escribir.

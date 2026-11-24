@@ -131,7 +131,7 @@ def signature(data_dir: Path) -> str:
     from app.coach import ranking_stats
     from app.ingest import patterns
 
-    h = hashlib.sha1(str(VERSION).encode())
+    h = hashlib.sha1(str(VERSION).encode(), usedforsecurity=False)  # firma de la caché, no seguridad
     for f in [*_files(data_dir), *patterns.files(data_dir), Path(data_dir) / "otps" / ranking_stats.FILE]:
         try:
             st = f.stat()
@@ -178,7 +178,7 @@ def _folder_dossiers(data_dir: Path):
                         yield json.loads(line), role, player
                     except ValueError:
                         continue  # una línea a medio escribir
-        except (OSError, EOFError, gzip.BadGzipFile):
+        except (OSError, EOFError):  # gzip.BadGzipFile deriva de OSError
             log.debug("No se pudo leer %s", f, exc_info=True)
 
 
@@ -212,12 +212,38 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
     """Lee todas las partidas guardadas y devuelve el perfil de errores por rol, elo y campeón."""
     t0 = time.monotonic()
     records = list(_records(Path(data_dir), throttle))
+    champ_refs = _champ_refs(records, catalog)
+    roles, champs = _aggregate(records, champ_refs, catalog, champ_name)
+    out = {
+        "version": VERSION,
+        "built_at": int(time.time()),
+        "games": len(records),
+        "roles": {role: b for role, groups in roles.items() if (b := _blocks(groups, MIN_GROUP_GAMES))},
+        "champs": {
+            f"{c}:{role}": {"tiers": _blocks(groups, MIN_CHAMP_GAMES), "ref": champ_refs.get((c, role))}
+            for (c, role), groups in champs.items()
+            if _blocks(groups, MIN_CHAMP_GAMES) or champ_refs.get((c, role))
+        },
+    }
+    _merge_ranking(out, Path(data_dir))
+    # Referencias de campeones sin partidas propias en ningún elo con muestra (pero sí de Diamante+).
+    for (c, role), ref in champ_refs.items():
+        out["champs"].setdefault(f"{c}:{role}", {"tiers": {}, "ref": ref})
+    log.info("Perfil de errores por elo: %d partidas en %.1f s.", len(records), time.monotonic() - t0)
+    return out
+
+
+def _champ_refs(records: list[dict], catalog) -> dict[tuple, dict]:
+    """Referencias de ``champ_checks`` por (campeón, rol), con las partidas de los elos de referencia (Diamante+)."""
     refs: dict[tuple, champ_checks.RefBuilder] = defaultdict(champ_checks.RefBuilder)
     for r in records:
         if r.get("tier") in champ_checks.REF_TIERS and r.get("champ") and r.get("role"):
             refs[(r["champ"], r["role"])].add(r, catalog)
-    champ_refs = {k: b.ref() for k, b in refs.items()}
+    return {k: b.ref() for k, b in refs.items()}
 
+
+def _aggregate(records: list[dict], champ_refs: dict[tuple, dict], catalog, champ_name) -> tuple[dict, dict]:
+    """Errores por partida de cada grupo de elo: por rol y por (campeón, rol), con los de ``champ_checks`` sumados."""
     roles: dict[str, dict[str, _Agg]] = defaultdict(lambda: defaultdict(_Agg))
     champs: dict[tuple, dict[str, _Agg]] = defaultdict(lambda: defaultdict(_Agg))
     for r in records:
@@ -231,27 +257,12 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
         roles[r["role"]][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
         if r.get("champ"):
             champs[key][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
+    return roles, champs
 
-    def blocks(groups: dict[str, _Agg], min_games: int) -> dict:
-        return {g: groups[g].public() for g in GROUPS if g in groups and groups[g].games >= min_games}
 
-    out = {
-        "version": VERSION,
-        "built_at": int(time.time()),
-        "games": len(records),
-        "roles": {role: b for role, groups in roles.items() if (b := blocks(groups, MIN_GROUP_GAMES))},
-        "champs": {
-            f"{c}:{role}": {"tiers": blocks(groups, MIN_CHAMP_GAMES), "ref": champ_refs.get((c, role))}
-            for (c, role), groups in champs.items()
-            if blocks(groups, MIN_CHAMP_GAMES) or champ_refs.get((c, role))
-        },
-    }
-    _merge_ranking(out, Path(data_dir))
-    # Referencias de campeones sin partidas propias en ningún elo con muestra (pero sí de Diamante+).
-    for (c, role), ref in champ_refs.items():
-        out["champs"].setdefault(f"{c}:{role}", {"tiers": {}, "ref": ref})
-    log.info("Perfil de errores por elo: %d partidas en %.1f s.", len(records), time.monotonic() - t0)
-    return out
+def _blocks(groups: dict[str, _Agg], min_games: int) -> dict:
+    """Bloque público de cada grupo de elo con partidas suficientes, de menos a más elo."""
+    return {g: groups[g].public() for g in GROUPS if g in groups and groups[g].games >= min_games}
 
 
 def _merge_ranking(out: dict, data_dir: Path) -> None:
@@ -266,19 +277,23 @@ def _merge_ranking(out: dict, data_dir: Path) -> None:
         tiers = (out.get("roles") or {}).get(role) or {}
         for group, metrics in groups.items():
             block = tiers.get(group)
-            if block is None:
-                continue
-            move = block.get("move") or {}
-            counts = block.setdefault("move_n", {})
-            for key, (n, s, _s2) in metrics.items():
-                if not n:
-                    continue
-                own_n = counts.get(key) or (block.get("games") or 0 if move.get(key) is not None else 0)
-                own_sum = (move.get(key) or 0.0) * own_n
-                total = own_n + n
-                move[key] = round((own_sum + s) / total, 2)
-                counts[key] = total
-            block["move"] = move
+            if block is not None:
+                _merge_block(block, metrics)
+
+
+def _merge_block(block: dict, metrics: dict) -> None:
+    """Mezcla en el bloque de un elo las medias del ranking de cada métrica, cada parte pesando sus partidas."""
+    move = block.get("move") or {}
+    counts = block.setdefault("move_n", {})
+    for key, (n, s, _) in metrics.items():
+        if not n:
+            continue
+        own_n = counts.get(key) or (block.get("games") or 0 if move.get(key) is not None else 0)
+        own_sum = (move.get(key) or 0.0) * own_n
+        total = own_n + n
+        move[key] = round((own_sum + s) / total, 2)
+        counts[key] = total
+    block["move"] = move
 
 
 class EloProfile:

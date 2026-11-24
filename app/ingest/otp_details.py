@@ -49,6 +49,8 @@ EARLY_S = 15 * 60
 FILES_DIR = "otps"  # solo OTPs: lo que usan «Tú frente a los OTPs», sus resúmenes, la página de OTPs y el draft
 PLAYERS_DIR = "partidas_campeon"  # cualquier otro jugador («Cualquiera que lo juegue»): no son datos de OTPs
 KIND_DIRS = {"otp": FILES_DIR, "player": PLAYERS_DIR}
+GAMES_FILE = "partidas.jsonl.gz"  # en la carpeta de cada jugador: una línea por partida (el dossier entero)
+FORMAT_MARKER = ".formato"  # en la raíz de cada carpeta: la versión de su formato (``LAYOUT_VERSION``)
 # Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, con al menos estos puntos y
 # 1,5 veces los del segundo; o estar en la tabla de los mejores de ese campeón (OP.GG).
 OTP_RATIO = 1.5
@@ -89,13 +91,6 @@ def catalog_for(svc, match: dict):
             return catalog
     catalog = getattr(dd, "item_catalog", None)
     return catalog or None
-
-
-def _pid_of(match: dict, puuid: str) -> int | None:
-    for p in (match.get("info") or {}).get("participants") or []:
-        if p.get("puuid") == puuid:
-            return int(p.get("participantId") or 0) or None
-    return None
 
 
 def _runes(p: dict) -> dict:
@@ -146,6 +141,23 @@ def _frames(timeline: dict | None, pid: int | None) -> list[dict]:
     return out
 
 
+def _own_event(ev: dict, pid: int) -> tuple[str, list] | None:
+    """(lista, fila) de un evento del timeline si es del propio jugador y de los que se guardan; si no, ``None``."""
+    kind = ev.get("type")
+    t = round(int(ev.get("timestamp") or 0) / 1000, 1)
+    if kind in ("ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO", "ITEM_DESTROYED") and ev.get("participantId") == pid:
+        return "items", [t, kind.removeprefix("ITEM_").lower(), ev.get("itemId") or ev.get("beforeId") or 0]
+    if kind == "SKILL_LEVEL_UP" and ev.get("participantId") == pid:
+        return "skills", [t, ev.get("skillSlot"), ev.get("levelUpType")]
+    if kind == "WARD_PLACED" and ev.get("creatorId") == pid:
+        return "wards_placed", [t, ev.get("wardType")]
+    if kind == "WARD_KILL" and ev.get("killerId") == pid:
+        return "wards_killed", [t, ev.get("wardType")]
+    if kind == "LEVEL_UP" and ev.get("participantId") == pid:
+        return "level_ups", [t, ev.get("level")]
+    return None
+
+
 def _events(timeline: dict | None, pid: int | None) -> dict:
     """Eventos propios que el análisis no guarda tal cual: compras/ventas, habilidades y wards."""
     out = {"items": [], "skills": [], "wards_placed": [], "wards_killed": [], "level_ups": []}
@@ -153,26 +165,14 @@ def _events(timeline: dict | None, pid: int | None) -> dict:
         return out
     for fr in (timeline.get("info") or {}).get("frames") or []:
         for ev in fr.get("events") or []:
-            kind = ev.get("type")
-            t = round(int(ev.get("timestamp") or 0) / 1000, 1)
-            if kind in ("ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO", "ITEM_DESTROYED") and ev.get("participantId") == pid:
-                out["items"].append([t, kind.removeprefix("ITEM_").lower(), ev.get("itemId") or ev.get("beforeId") or 0])
-            elif kind == "SKILL_LEVEL_UP" and ev.get("participantId") == pid:
-                out["skills"].append([t, ev.get("skillSlot"), ev.get("levelUpType")])
-            elif kind == "WARD_PLACED" and ev.get("creatorId") == pid:
-                out["wards_placed"].append([t, ev.get("wardType")])
-            elif kind == "WARD_KILL" and ev.get("killerId") == pid:
-                out["wards_killed"].append([t, ev.get("wardType")])
-            elif kind == "LEVEL_UP" and ev.get("participantId") == pid:
-                out["level_ups"].append([t, ev.get("level")])
+            hit = _own_event(ev, pid)
+            if hit is not None:
+                out[hit[0]].append(hit[1])
     return out
 
 
-def _game_context(match: dict, timeline: dict | None, team: int) -> dict:
-    """Lo que hace falta para planes de partida: cómo fue cada línea (quién contra quién y ventaja de oro, XP y CS a los
-    5/10/15/20 min), por dónde anduvo cada jungla los primeros 15 min (y en qué líneas mató), la primera torre y todos
-    los objetivos, desde el punto de vista del equipo ``team`` (``ally`` = el equipo del OTP)."""
-    info = match.get("info") or {}
+def _slots(info: dict) -> tuple[dict[tuple[int, str], int], dict[int, int], dict[int, int]]:
+    """Los participantes por (equipo, rol) → id, y por id su campeón y su equipo."""
     slot: dict[tuple[int, str], int] = {}
     champ_of: dict[int, int] = {}
     team_of: dict[int, int] = {}
@@ -183,70 +183,99 @@ def _game_context(match: dict, timeline: dict | None, team: int) -> dict:
         role = TEAM_POSITION_TO_ROLE.get((p.get("teamPosition") or "").upper())
         if role:
             slot[(team_of[pid], role)] = pid
-    enemy = 300 - team
-    frames = (timeline or {}).get("info", {}).get("frames") or []
+    return slot, champ_of, team_of
 
-    def fval(pid: int, minute: int, key: str):
-        if minute >= len(frames):
-            return None
-        pf = (frames[minute].get("participantFrames") or {}).get(str(pid)) or {}
-        if key == "cs":
-            return int(pf.get("minionsKilled") or 0) + int(pf.get("jungleMinionsKilled") or 0) if pf else None
-        return pf.get(key)
 
-    events = [ev for fr in frames for ev in fr.get("events") or []]
-    kills = [ev for ev in events if ev.get("type") == "CHAMPION_KILL"]
-    lanes = {}
-    for role in ROLES:
-        a, e = slot.get((team, role)), slot.get((enemy, role))
-        if not a or not e:
-            continue
-        diff = {}
-        for m in LANE_MINUTES:
-            vals = {"gold": (fval(a, m, "totalGold"), fval(e, m, "totalGold")), "xp": (fval(a, m, "xp"), fval(e, m, "xp")), "cs": (fval(a, m, "cs"), fval(e, m, "cs"))}
-            if all(x is not None and y is not None for x, y in vals.values()):
-                diff[str(m)] = {k: x - y for k, (x, y) in vals.items()}
-        early = [k for k in kills if int(k.get("timestamp") or 0) < EARLY_S * 1000]
-        lanes[role] = {
-            "ally": champ_of.get(a),
-            "enemy": champ_of.get(e),
-            "diff": diff,  # aliado − rival en esa línea
-            "kills_pre15": sum(1 for k in early if k.get("killerId") == a),
-            "deaths_pre15": sum(1 for k in early if k.get("victimId") == a),
+def _frame_value(frames: list, pid: int, minute: int, key: str):
+    """Un dato de un jugador al final del minuto ``minute`` (``cs``: súbditos + jungla); ``None`` si no lo hay."""
+    if minute >= len(frames):
+        return None
+    pf = (frames[minute].get("participantFrames") or {}).get(str(pid)) or {}
+    if key == "cs":
+        return int(pf.get("minionsKilled") or 0) + int(pf.get("jungleMinionsKilled") or 0) if pf else None
+    return pf.get(key)
+
+
+def _lane_entry(frames: list, kills: list[dict], champ_of: dict[int, int], a: int, e: int) -> dict:
+    """Una línea: quién contra quién, ventaja de oro, XP y CS a los 5/10/15/20 min y kills y muertes antes del 15."""
+    diff = {}
+    for m in LANE_MINUTES:
+        vals = {
+            "gold": (_frame_value(frames, a, m, "totalGold"), _frame_value(frames, e, m, "totalGold")),
+            "xp": (_frame_value(frames, a, m, "xp"), _frame_value(frames, e, m, "xp")),
+            "cs": (_frame_value(frames, a, m, "cs"), _frame_value(frames, e, m, "cs")),
         }
+        if all(x is not None and y is not None for x, y in vals.values()):
+            diff[str(m)] = {k: x - y for k, (x, y) in vals.items()}
+    early = [k for k in kills if int(k.get("timestamp") or 0) < EARLY_S * 1000]
+    return {
+        "ally": champ_of.get(a),
+        "enemy": champ_of.get(e),
+        "diff": diff,  # aliado − rival en esa línea
+        "kills_pre15": sum(1 for k in early if k.get("killerId") == a),
+        "deaths_pre15": sum(1 for k in early if k.get("victimId") == a),
+    }
 
-    def presence(pid: int | None) -> dict | None:
-        """Minutos 2-14: dónde estaba al final de cada minuto (líneas, río, su jungla, la rival, base) y en qué zona
-        consiguió kills o asistencias antes del 15 (ganks)."""
-        if not pid or not frames:
-            return None
-        own = team_of.get(pid)
-        where = Counter()
-        for m in range(2, min(15, len(frames))):
-            pos = ((frames[m].get("participantFrames") or {}).get(str(pid)) or {}).get("position") or {}
-            if pos.get("x") is None:
-                continue
-            z = geo.zone((pos["x"], pos["y"]))
-            if z.startswith("jungle_"):
-                z = "own_jungle" if z.startswith(f"jungle_{own}_") else "enemy_jungle"
-            elif z.startswith("base_"):
-                z = "base"
-            where[z] += 1
-        ganks = Counter()
-        first = None
-        for k in kills:
-            t = int(k.get("timestamp") or 0)
-            if t >= EARLY_S * 1000 or team_of.get(k.get("victimId")) == own:
-                continue
-            if k.get("killerId") == pid or pid in (k.get("assistingParticipantIds") or []):
-                pos = k.get("position") or {}
-                z = geo.zone((pos.get("x", 0), pos.get("y", 0))) if pos else "?"
-                lane = z if geo.is_lane(z) else ("river" if z == "river" else "jungle")
-                ganks[lane] += 1
-                if first is None:
-                    first = {"t": round(t / 1000), "where": lane}
-        return {"positions": dict(where), "takedowns_pre15": dict(ganks), "first_takedown": first}
 
+def _presence_zone(z: str, own: int | None) -> str:
+    """La zona de un jungla agrupada: su jungla, la rival o la base (líneas y río, tal cual)."""
+    if z.startswith("jungle_"):
+        return "own_jungle" if z.startswith(f"jungle_{own}_") else "enemy_jungle"
+    if z.startswith("base_"):
+        return "base"
+    return z
+
+
+def _jungle_positions(frames: list, pid: int, own: int | None) -> Counter:
+    """Minutos 2-14: en qué zona estaba el jungla al final de cada minuto."""
+    where = Counter()
+    for m in range(2, min(15, len(frames))):
+        pos = ((frames[m].get("participantFrames") or {}).get(str(pid)) or {}).get("position") or {}
+        if pos.get("x") is None:
+            continue
+        where[_presence_zone(geo.zone((pos["x"], pos["y"])), own)] += 1
+    return where
+
+
+def _takedown_lane(k: dict) -> str:
+    """Dónde fue un kill para contar los ganks: la línea, el río o la jungla."""
+    pos = k.get("position") or {}
+    z = geo.zone((pos.get("x", 0), pos.get("y", 0))) if pos else "?"
+    if geo.is_lane(z):
+        return z
+    return "river" if z == "river" else "jungle"
+
+
+def _jungle_takedowns(kills: list[dict], pid: int, team_of: dict[int, int], own: int | None) -> tuple[Counter, dict | None]:
+    """Kills o asistencias del jungla antes del 15 por zona (ganks) y la primera de ellas."""
+    ganks = Counter()
+    first = None
+    for k in kills:
+        t = int(k.get("timestamp") or 0)
+        if t >= EARLY_S * 1000 or team_of.get(k.get("victimId")) == own:
+            continue
+        if k.get("killerId") != pid and pid not in (k.get("assistingParticipantIds") or []):
+            continue  # ni lo mató ni asistió
+        lane = _takedown_lane(k)
+        ganks[lane] += 1
+        if first is None:
+            first = {"t": round(t / 1000), "where": lane}
+    return ganks, first
+
+
+def _jungle_presence(pid: int | None, frames: list, kills: list[dict], team_of: dict[int, int]) -> dict | None:
+    """Minutos 2-14: dónde estaba al final de cada minuto (líneas, río, su jungla, la rival, base) y en qué zona
+    consiguió kills o asistencias antes del 15 (ganks)."""
+    if not pid or not frames:
+        return None
+    own = team_of.get(pid)
+    where = _jungle_positions(frames, pid, own)
+    ganks, first = _jungle_takedowns(kills, pid, team_of, own)
+    return {"positions": dict(where), "takedowns_pre15": dict(ganks), "first_takedown": first}
+
+
+def _objective_events(events: list[dict], team: int, enemy: int) -> tuple[list[dict], dict | None]:
+    """Los objetivos (dragones, barones…) con quién los cogió y la primera torre, desde el equipo ``team``."""
     objectives = []
     first_tower = None
     for ev in events:
@@ -259,14 +288,51 @@ def _game_context(match: dict, timeline: dict | None, team: int) -> dict:
         elif kind == "BUILDING_KILL" and ev.get("buildingType") == "TOWER_BUILDING" and first_tower is None:
             # ``teamId`` es el dueño de la torre: si es del rival, la tiró el equipo del OTP.
             first_tower = {"t": t, "lane": (ev.get("laneType") or "").replace("_LANE", "").lower(), "ally": ev.get("teamId") == enemy}
+    return objectives, first_tower
+
+
+def _game_context(match: dict, timeline: dict | None, team: int) -> dict:
+    """Lo que hace falta para planes de partida: cómo fue cada línea (quién contra quién y ventaja de oro, XP y CS a los
+    5/10/15/20 min), por dónde anduvo cada jungla los primeros 15 min (y en qué líneas mató), la primera torre y todos
+    los objetivos, desde el punto de vista del equipo ``team`` (``ally`` = el equipo del OTP)."""
+    info = match.get("info") or {}
+    slot, champ_of, team_of = _slots(info)
+    enemy = 300 - team
+    frames = (timeline or {}).get("info", {}).get("frames") or []
+    events = [ev for fr in frames for ev in fr.get("events") or []]
+    kills = [ev for ev in events if ev.get("type") == "CHAMPION_KILL"]
+    lanes = {}
+    for role in ROLES:
+        a, e = slot.get((team, role)), slot.get((enemy, role))
+        if not a or not e:
+            continue
+        lanes[role] = _lane_entry(frames, kills, champ_of, a, e)
+    objectives, first_tower = _objective_events(events, team, enemy)
     first_of = {}
     for o in objectives:
         first_of.setdefault(o["type"], o)
     return {
         "lanes": lanes,
-        "jungle": {"ally": presence(slot.get((team, "JUNGLE"))), "enemy": presence(slot.get((enemy, "JUNGLE")))},
+        "jungle": {
+            "ally": _jungle_presence(slot.get((team, "JUNGLE")), frames, kills, team_of),
+            "enemy": _jungle_presence(slot.get((enemy, "JUNGLE")), frames, kills, team_of),
+        },
         "objectives": objectives,
         "first": {k: {"t": v["t"], "ally": v["ally"]} for k, v in first_of.items()} | ({"tower": first_tower} if first_tower else {}),
+    }
+
+
+def _teams_by_pid(info: dict) -> dict[int, int]:
+    """Equipo (100 o 200) de cada participante por su id."""
+    return {int(p.get("participantId") or 0): int(p.get("teamId") or 0) for p in info.get("participants") or []}
+
+
+def _lineup(info: dict, team: int) -> dict:
+    """Campeón de cada rol de un equipo (``?<id>`` el que no tiene rol)."""
+    return {
+        TEAM_POSITION_TO_ROLE.get((p.get("teamPosition") or "").upper()) or f"?{p.get('participantId')}": int(p.get("championId") or 0)
+        for p in info.get("participants") or []
+        if int(p.get("teamId") or 0) == team
     }
 
 
@@ -281,25 +347,18 @@ def build_dossier(match: dict, timeline: dict | None, puuid: str, items=None, *,
     opp = analysis.get("opponent")
     replay = analysis.pop("replay", None) or {}
     me_track = (replay.get("tracks") or {}).get(str(pid))
-    team_of = {int(p.get("participantId") or 0): int(p.get("teamId") or 0) for p in info.get("participants") or []}
-
-    def lineup(team: int) -> dict:
-        return {
-            TEAM_POSITION_TO_ROLE.get((p.get("teamPosition") or "").upper()) or f"?{p.get('participantId')}": int(p.get("championId") or 0)
-            for p in info.get("participants") or []
-            if int(p.get("teamId") or 0) == team
-        }
-
+    team_of = _teams_by_pid(info)
     challenges = raw.get("challenges") or {}
+    elo_then = elo or {}
     return {
         "dossier_version": DOSSIER_VERSION,
         "analysis_version": ANALYSIS_VERSION,
         "match_id": analysis["match_id"],
         "platform": str(analysis["match_id"] or "").split("_")[0].lower(),
         # Elo del OTP cuando se bajó la partida (el de la liga en ese momento).
-        "tier": (elo or {}).get("tier"),
-        "division": (elo or {}).get("division"),
-        "lp": (elo or {}).get("lp"),
+        "tier": elo_then.get("tier"),
+        "division": elo_then.get("division"),
+        "lp": elo_then.get("lp"),
         "patch": analysis["patch"],
         "game_start": analysis["game_start"],
         "duration": analysis["duration"],
@@ -309,8 +368,8 @@ def build_dossier(match: dict, timeline: dict | None, puuid: str, items=None, *,
         "team": analysis["team"],
         "side": "blue" if analysis["team"] == 100 else "red",
         "opponent_champ": next((p["champ"] for p in analysis["players"] if p["pid"] == opp), None) if opp else None,
-        "allies": lineup(analysis["team"]),
-        "enemies": lineup(300 - analysis["team"]),
+        "allies": _lineup(info, analysis["team"]),
+        "enemies": _lineup(info, 300 - analysis["team"]),
         "spells": [raw.get("summoner1Id"), raw.get("summoner2Id")],
         "runes": _runes(raw),
         # Estadísticas de Riot que el análisis no usa (todas las de ``challenges`` son del propio jugador).
@@ -425,9 +484,9 @@ def reclassify(db) -> list[tuple[str, int]]:
             conn.executemany("UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ?", changes)
         log.info(
             "Reclasificados por lo que juegan de verdad: %d jugador-campeón (%d dejan de contar como OTP).",
-            len(changes), sum(1 for k, _p, _c in changes if k == "player"),
+            len(changes), sum(1 for k, _, _ in changes if k == "player"),
         )
-    return [(p, c) for _k, p, c in changes]
+    return [(p, c) for _, p, c in changes]
 
 
 def classify_pending(db) -> int:
@@ -438,7 +497,7 @@ def classify_pending(db) -> int:
     kinds = [(classify(db, r["puuid"], int(r["champ"])), r["puuid"], int(r["champ"])) for r in pairs]
     with db.write() as conn:
         conn.executemany("UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ? AND kind IS NULL", kinds)
-    moved = sum(1 for k, _p, _c in kinds if k == "player")
+    moved = sum(1 for k, _, _ in kinds if k == "player")
     log.info("Partidas analizadas clasificadas: %d jugadores (%d OTPs, %d jugadores normales).", len(kinds), len(kinds) - moved, moved)
     return len(kinds)
 
@@ -611,6 +670,33 @@ def outdated(db) -> int:
     return int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE version != ?", (DOSSIER_VERSION * 1000 + ANALYSIS_VERSION,)) or 0)
 
 
+def _stopped(stop: threading.Event | None) -> bool:
+    """Si se ha pedido parar (al cerrar la app)."""
+    return stop is not None and stop.is_set()
+
+
+def _pause_or_stop(stop: threading.Event | None, pause) -> bool:
+    """Espera mientras ``pause()`` devuelva ``True`` (estás en partida); ``True`` si hay que parar (antes o después)."""
+    if _stopped(stop):
+        return True
+    while pause is not None and pause():
+        if stop is None:
+            time.sleep(5)
+        elif stop.wait(5):
+            break
+    return _stopped(stop)
+
+
+def _resave(db, svc, r, match: dict, timeline: dict | None) -> bool:
+    """Vuelve a analizar y guardar una partida con el elo de entonces; ``True`` si se guardó (un fallo se registra)."""
+    elo = {"tier": r["tier"], "division": r["division"], "lp": r["lp"]}
+    try:
+        return bool(match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False, kind=r["kind"]))
+    except Exception:
+        log.exception("No se pudo re-analizar la partida %s del OTP", r["match_id"])
+        return False
+
+
 def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None = None, pause=None) -> int:
     """Rehace los dossiers con el análisis actual a partir del bruto guardado (sin llamadas a Riot) y la carpeta.
 
@@ -624,29 +710,45 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
     )
     done = 0
     for r in rows:
-        if stop is not None and stop.is_set():
-            break
-        while pause is not None and pause():
-            if stop is None:
-                time.sleep(5)
-            elif stop.wait(5):
-                break
-        if stop is not None and stop.is_set():
+        if _pause_or_stop(stop, pause):
             break
         match, timeline = load_raw(db, svc, r["match_id"], r["puuid"])
         if match is None:
             continue
-        elo = {"tier": r["tier"], "division": r["division"], "lp": r["lp"]}
-        try:
-            if match and save(db, svc, match, timeline, r["puuid"], elo, write_files=False, kind=r["kind"]):
-                done += 1
-        except Exception:
-            log.exception("No se pudo re-analizar la partida %s del OTP", r["match_id"])
+        if _resave(db, svc, r, match, timeline):
+            done += 1
         if stop is not None:
             stop.wait(0.01)  # suelta el GIL: la web sigue respondiendo mientras tanto
     if done:
         rebuild_all(svc)
     return done
+
+
+def _write_games(db, folder: Path, champ: int, role: str | None, puuid: str, kind: str) -> None:
+    """Reescribe ``partidas.jsonl.gz`` de un jugador con ese campeón y rol desde la base de datos (mtime=0: el mismo
+    contenido da los mismos bytes)."""
+    with gzip.GzipFile(folder / GAMES_FILE, "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
+        for g in db.query(
+            "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
+            (champ, role, puuid, kind),
+        ):
+            d = unpack(g["dossier"])
+            if d:
+                fh.write(json.dumps(d, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def _relocate_in(db, f: Files, kind: str, puuid: str, champ: int, r, info: dict) -> None:
+    """Carpeta de un jugador (campeón y rol de ``r``) en la carpeta ``f``: reescrita si es la que le toca, si no borrada."""
+    with f.lock:  # un jugador cada vez: el recolector solo espera milisegundos
+        folder = f._player_dir(f.base, champ, r["role"], info)
+        if kind != r["kind"]:
+            shutil.rmtree(folder, ignore_errors=True)
+            f.dirty.add(champ)
+            return
+        folder.mkdir(parents=True, exist_ok=True)
+        _write_games(db, folder, champ, r["role"], puuid, kind)
+        f._profile(folder, champ, r["role"], info)
+        f.dirty.add(champ)
 
 
 def relocate(svc, pairs: list[tuple[str, int]]) -> int:
@@ -662,23 +764,7 @@ def relocate(svc, pairs: list[tuple[str, int]]) -> int:
         info = player_info(db, puuid)
         for r in db.query("SELECT DISTINCT role, kind FROM otp_games WHERE puuid = ? AND champ = ?", (puuid, champ)):
             for kind, f in files.items():
-                with f.lock:  # un jugador cada vez: el recolector solo espera milisegundos
-                    folder = f._player_dir(f.base, champ, r["role"], info)
-                    if kind != r["kind"]:
-                        shutil.rmtree(folder, ignore_errors=True)
-                        f.dirty.add(champ)
-                        continue
-                    folder.mkdir(parents=True, exist_ok=True)
-                    with gzip.GzipFile(folder / "partidas.jsonl.gz", "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
-                        for g in db.query(
-                            "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
-                            (champ, r["role"], puuid, kind),
-                        ):
-                            d = unpack(g["dossier"])
-                            if d:
-                                fh.write(json.dumps(d, ensure_ascii=False, separators=(",", ":")) + "\n")
-                    f._profile(folder, champ, r["role"], info)
-                    f.dirty.add(champ)
+                _relocate_in(db, f, kind, puuid, champ, r, info)
             moved += 1
     for f in files.values():
         f.maybe_summarize(force=True)  # los resúmenes de esos campeones, en segundo plano
@@ -716,29 +802,34 @@ def start_reanalysis(svc) -> threading.Thread | None:
             return thread
         return None
     stop = getattr(svc, "shutdown_event", None)
-
-    def in_game() -> bool:
-        tracker = getattr(svc, "tracker", None)
-        return bool(tracker is not None and tracker.state.get("in_game"))
-
-    def run() -> None:
-        try:
-            # Primero, separar OTPs de otros jugadores en lo guardado antes de la marca (solo SQL).
-            classified = classify_pending(db) if unclassified else 0
-            if (classified or stale) and not pending:
-                rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
-            elif moved and not pending:
-                relocate(svc, moved)
-            if pending:
-                log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
-                done = reanalyze(db, svc, stop=stop, pause=in_game)
-                log.info("Partidas re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
-        except Exception:
-            log.exception("Fallo re-analizando o clasificando las partidas guardadas")
-
-    thread = threading.Thread(target=run, name="otp-reanalyze", daemon=True)
+    thread = threading.Thread(
+        target=_reanalysis_run, args=(svc, db, stop, pending, unclassified, stale, moved), name="otp-reanalyze", daemon=True
+    )
     thread.start()
     return thread
+
+
+def _in_game(svc) -> bool:
+    """Si estás en partida (lo dice el seguimiento en vivo): mientras, el re-análisis espera."""
+    tracker = getattr(svc, "tracker", None)
+    return bool(tracker is not None and tracker.state.get("in_game"))
+
+
+def _reanalysis_run(svc, db, stop, pending: int, unclassified: int, stale: bool, moved: list[tuple[str, int]]) -> None:
+    """El hilo de ``start_reanalysis``: clasifica lo guardado sin marca, pone las carpetas al día y rehace los dossiers."""
+    try:
+        # Primero, separar OTPs de otros jugadores en lo guardado antes de la marca (solo SQL).
+        classified = classify_pending(db) if unclassified else 0
+        if (classified or stale) and not pending:
+            rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
+        elif moved and not pending:
+            relocate(svc, moved)
+        if pending:
+            log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
+            done = reanalyze(db, svc, stop=stop, pause=lambda: _in_game(svc))
+            log.info("Partidas re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
+    except Exception:
+        log.exception("Fallo re-analizando o clasificando las partidas guardadas")
 
 
 # ------------------------------------------------------------------ resumen
@@ -765,6 +856,13 @@ def _tier_key(tier: str) -> int:
     return TIER_ORDER.index(tier) if tier in TIER_ORDER else 99
 
 
+def _damage_kind(magic: float) -> str:
+    """``ap``, ``ad`` o ``mixed`` según la parte media de daño mágico del equipo rival (0-1)."""
+    if magic >= 0.5:
+        return "ap"
+    return "ad" if magic <= 0.3 else "mixed"
+
+
 def enemy_profile(d: dict, champ_info) -> list[str]:
     """Grupos del equipo rival de una partida: ``ap``/``ad``/``mixed`` por su daño, y ``healers``/``tanks``."""
     enemies = [int(c) for c in (d.get("enemies") or {}).values() if c]
@@ -773,7 +871,7 @@ def enemy_profile(d: dict, champ_info) -> list[str]:
     if not infos:
         return []
     magic = sum(i["magic"] for i in infos) / len(infos)
-    out = ["ap" if magic >= 0.5 else "ad" if magic <= 0.3 else "mixed"]
+    out = [_damage_kind(magic)]
     if any(i["name"] in HEAVY_HEAL for i in infos):
         out.append("healers")
     if sum(1 for i in infos if "Tank" in i["tags"]) >= 2:
@@ -783,105 +881,138 @@ def enemy_profile(d: dict, champ_info) -> list[str]:
     return out
 
 
+def _add_item(groups: dict[str, dict], group: str, kind: str, item: int, win: bool) -> None:
+    """Una partida (y su victoria, si la hubo) más con ese objeto (``items``) o botas (``boots``) en ese grupo."""
+    g = groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})
+    cur = g[kind].setdefault(str(item), [0, 0])
+    cur[0] += 1
+    cur[1] += int(win)
+
+
+def _count_build(groups: dict[str, dict], d: dict, champ_info) -> None:
+    """Suma los objetos completos y botas de una partida a ``all`` y a los grupos de su equipo rival."""
+    build = (d.get("analysis") or {}).get("build") or {}
+    order = build.get("order") or []
+    if not order:
+        return
+    legend = {o["item"] for o in order if o.get("kind") == "legendary"}
+    boots = {o["item"] for o in order if o.get("kind") == "boots"}
+    for group in ["all", *enemy_profile(d, champ_info)]:
+        groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})["games"] += 1
+        for i in legend:
+            _add_item(groups, group, "items", i, d["win"])
+        for i in boots:
+            _add_item(groups, group, "boots", i, d["win"])
+
+
 def _items_block(rows: list[dict], champ_info) -> dict:
     """Objetos completos y botas que compran (partidas y victorias), en total y según cómo era el equipo rival."""
     if champ_info is None:
         return {}
     groups: dict[str, dict] = {}
-
-    def add(group: str, kind: str, item: int, win: bool) -> None:
-        g = groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})
-        cur = g[kind].setdefault(str(item), [0, 0])
-        cur[0] += 1
-        cur[1] += int(win)
-
     for d in rows:
-        build = (d.get("analysis") or {}).get("build") or {}
-        order = build.get("order") or []
-        if not order:
-            continue
-        legend = {o["item"] for o in order if o.get("kind") == "legendary"}
-        boots = {o["item"] for o in order if o.get("kind") == "boots"}
-        for group in ["all", *enemy_profile(d, champ_info)]:
-            groups.setdefault(group, {"games": 0, "items": {}, "boots": {}})["games"] += 1
-            for i in legend:
-                add(group, "items", i, d["win"])
-            for i in boots:
-                add(group, "boots", i, d["win"])
+        _count_build(groups, d, champ_info)
     for g in groups.values():
         for kind in ("items", "boots"):
             g[kind] = {k: v for k, v in sorted(g[kind].items(), key=lambda kv: -kv[1][0]) if v[0] >= 3}
     return {"items_by_enemy": groups} if groups else {}
 
 
-def _role_block(role: str, rows: list[dict], name_champ=None, name_item=None, champ_info=None) -> dict:
-    """Lo agregado de unas partidas de un rol: medias, ganadas contra perdidas, builds, runas, rivales y avisos."""
+def _numeric_block(rows: list[dict], section: str) -> dict:
+    """Media, mediana y n de cada dato numérico de ``analysis[section]`` (``metrics`` o ``jungle``) en esas partidas."""
+    keys = sorted({k for d in rows for k, v in (d["analysis"].get(section) or {}).items() if isinstance(v, (int, float))})
+    return {k: s for k in keys if (s := _stats([(d["analysis"].get(section) or {}).get(k) for d in rows]))}
 
-    def metric_block(rows: list[dict]) -> dict:
-        keys = sorted({k for d in rows for k, v in (d["analysis"].get("metrics") or {}).items() if isinstance(v, (int, float))})
-        return {k: s for k in keys if (s := _stats([(d["analysis"].get("metrics") or {}).get(k) for d in rows]))}
 
-    def jungle_block(rows: list[dict]) -> dict:
-        keys = sorted({k for d in rows for k, v in (d["analysis"].get("jungle") or {}).items() if isinstance(v, (int, float))})
-        return {k: s for k in keys if (s := _stats([(d["analysis"].get("jungle") or {}).get(k) for d in rows]))}
+# Lo que se cuenta (partidas y victorias por clave) en las partidas de un rol.
+ROLE_TALLIES = ("first_items", "paths", "skill_max", "keystones", "spells", "first_camp", "opponents")
+DIGITS = re.compile(r"\d+", re.ASCII)  # solo 0-9: los números de los títulos de los avisos
 
-    w = [d for d in rows if d["win"]]
-    l_ = [d for d in rows if not d["win"]]
-    first_items, paths, skill_max, keystones, spells, first_camp, opponents = (Counter() for _ in range(7))
-    first_items_w, paths_w, skill_max_w, keystones_w, spells_w, first_camp_w, opponents_w = (Counter() for _ in range(7))
+
+def _row_keys(d: dict) -> list[tuple[str, object]]:
+    """Las claves que aporta una partida a cada recuento de su rol: primer objeto, build, habilidades, runas…"""
+    build = d["analysis"].get("build") or {}
+    legend = [o["item"] for o in build.get("order") or [] if o.get("kind") == "legendary"]
+    out: list[tuple[str, object]] = []
+    if legend:
+        out.append(("first_items", legend[0]))
+        out.append(("paths", " > ".join(str(i) for i in legend[:3])))
+    if build.get("skill_max"):
+        out.append(("skill_max", ">".join(build["skill_max"])))
+    ks = (d.get("runes") or {}).get("keystone")
+    if ks:
+        out.append(("keystones", ks))
+    out.append(("spells", "+".join(str(s) for s in sorted(x for x in d.get("spells") or [] if x))))
+    path_j = (d["analysis"].get("jungle") or {}).get("path") or []
+    first = next((p.get("camp") for p in path_j if p.get("camp")), None)
+    if first:
+        out.append(("first_camp", first))
+    if d.get("opponent_champ"):
+        out.append(("opponents", d["opponent_champ"]))
+    return out
+
+
+def _count_flags(d: dict, moments: Counter, moments_games: Counter) -> None:
+    """Suma los avisos del análisis de una partida: cada vez que salen y una vez por partida."""
+    seen = set()
+    for m in d["analysis"].get("moments") or []:
+        key = f"{m.get('severity')} · {m.get('kind')} · {DIGITS.sub('N', m.get('title') or '')}"
+        moments[key] += 1
+        seen.add(key)
+    for key in seen:
+        moments_games[key] += 1
+
+
+def _role_tallies(rows: list[dict]) -> tuple[dict[str, tuple[Counter, Counter]], Counter, Counter]:
+    """(partidas, victorias) por clave de cada recuento de ``ROLE_TALLIES`` y los avisos del análisis (veces y partidas)."""
+    tallies = {name: (Counter(), Counter()) for name in ROLE_TALLIES}
     moments, moments_games = Counter(), Counter()
     for d in rows:
-        build = d["analysis"].get("build") or {}
-        legend = [o["item"] for o in build.get("order") or [] if o.get("kind") == "legendary"]
         win = 1 if d["win"] else 0
-        if legend:
-            first_items[legend[0]] += 1
-            first_items_w[legend[0]] += win
-            path = " > ".join(str(i) for i in legend[:3])
-            paths[path] += 1
-            paths_w[path] += win
-        if build.get("skill_max"):
-            key = ">".join(build["skill_max"])
-            skill_max[key] += 1
-            skill_max_w[key] += win
-        ks = (d.get("runes") or {}).get("keystone")
-        if ks:
-            keystones[ks] += 1
-            keystones_w[ks] += win
-        sp = "+".join(str(s) for s in sorted(x for x in d.get("spells") or [] if x))
-        spells[sp] += 1
-        spells_w[sp] += win
-        path_j = (d["analysis"].get("jungle") or {}).get("path") or []
-        first = next((p.get("camp") for p in path_j if p.get("camp")), None)
-        if first:
-            first_camp[first] += 1
-            first_camp_w[first] += win
-        if d.get("opponent_champ"):
-            opponents[d["opponent_champ"]] += 1
-            opponents_w[d["opponent_champ"]] += win
-        seen = set()
-        for m in d["analysis"].get("moments") or []:
-            key = f"{m.get('severity')} · {m.get('kind')} · {re.sub(r'[0-9]+', 'N', m.get('title') or '')}"
-            moments[key] += 1
-            seen.add(key)
-        for key in seen:
-            moments_games[key] += 1
+        for name, key in _row_keys(d):
+            games, wins = tallies[name]
+            games[key] += 1
+            wins[key] += win
+        _count_flags(d, moments, moments_games)
+    return tallies, moments, moments_games
+
+
+def _role_tops(tallies: dict[str, tuple[Counter, Counter]], jungle: bool, name_champ=None, name_item=None) -> dict:
+    """Lo más repetido de un rol con su winrate: primer objeto, builds, habilidades, runas, hechizos, campamento, rivales."""
     item_name = (lambda i: name_item(i) or i) if name_item else None
+    path_name = (lambda p: " > ".join(str(name_item(int(i)) or i) for i in p.split(" > "))) if name_item else None
+    return {
+        "first_legendary": _top_of(tallies, "first_items", name=item_name),
+        "build_paths": _top_of(tallies, "paths", name=path_name),
+        "skill_max": _top_of(tallies, "skill_max", 5),
+        "keystones": _top_of(tallies, "keystones", 5),
+        "summoner_spells": _top_of(tallies, "spells", 5),
+        "first_camp": _top_of(tallies, "first_camp", 6) if jungle else None,
+        "opponents": _top_of(tallies, "opponents", 15, name=(lambda c: name_champ(c) or c) if name_champ else None),
+    }
+
+
+def _top_of(tallies: dict[str, tuple[Counter, Counter]], key: str, n: int = 8, name=None) -> list[dict]:
+    """``_top`` de uno de los recuentos de ``_role_tallies`` (partidas y victorias por clave)."""
+    games, wins = tallies[key]
+    return _top(games, wins, n, name)
+
+
+def _role_block(role: str, rows: list[dict], name_champ=None, name_item=None, champ_info=None) -> dict:
+    """Lo agregado de unas partidas de un rol: medias, ganadas contra perdidas, builds, runas, rivales y avisos."""
+    w = [d for d in rows if d["win"]]
+    l_ = [d for d in rows if not d["win"]]
+    tallies, moments, moments_games = _role_tallies(rows)
+    jungle = role == "JUNGLE"
     return {
         "games": len(rows),
         "wins": len(w),
         "wr": round(100 * len(w) / len(rows), 1) if rows else None,
-        "metrics": metric_block(rows),
-        "metrics_wins": metric_block(w),
-        "metrics_losses": metric_block(l_),
-        "jungle": jungle_block(rows) if role == "JUNGLE" else None,
-        "first_legendary": _top(first_items, first_items_w, name=item_name),
-        "build_paths": _top(paths, paths_w, name=(lambda p: " > ".join(str(name_item(int(i)) or i) for i in p.split(" > "))) if name_item else None),
-        "skill_max": _top(skill_max, skill_max_w, 5),
-        "keystones": _top(keystones, keystones_w, 5),
-        "summoner_spells": _top(spells, spells_w, 5),
-        "first_camp": _top(first_camp, first_camp_w, 6) if role == "JUNGLE" else None,
-        "opponents": _top(opponents, opponents_w, 15, name=(lambda c: name_champ(c) or c) if name_champ else None),
+        "metrics": _numeric_block(rows, "metrics"),
+        "metrics_wins": _numeric_block(w, "metrics"),
+        "metrics_losses": _numeric_block(l_, "metrics"),
+        "jungle": _numeric_block(rows, "jungle") if jungle else None,
+        **_role_tops(tallies, jungle, name_champ, name_item),
         # Avisos que el análisis de «Mi progreso» les marca: en jugadores de este nivel, lo muy repetido apunta
         # a umbrales a revisar (posibles falsos positivos).
         "analysis_flags": [
@@ -899,45 +1030,58 @@ def _wr(rows: list[dict]) -> dict:
     return {"games": len(rows), "wr": round(100 * sum(1 for d in rows if d["win"]) / len(rows), 1) if rows else None}
 
 
-def _draft_block(role: str, rows: list[dict], name_champ=None) -> dict:
-    """Para planes de partida: cómo le va contra cada rival de línea, qué pasa con cada línea por delante o por
-    detrás, a qué objetivos juega su equipo primero y (si es jungla) por dónde anda según qué línea va ganando."""
-    ctx = [d for d in rows if d.get("context")]
-    if not ctx:
-        return {}
-    name = (lambda c: name_champ(c) or c) if name_champ else (lambda c: c)
+def _lane_diff(d: dict, r: str, minute: str, key: str = "gold"):
+    """Ventaja (aliado − rival) de la línea ``r`` a ese minuto en una partida; ``None`` si no se sabe."""
+    return (((d["context"]["lanes"].get(r) or {}).get("diff") or {}).get(minute) or {}).get(key)
 
-    def lane_diff(d: dict, r: str, minute: str, key: str = "gold"):
-        return (((d["context"]["lanes"].get(r) or {}).get("diff") or {}).get(minute) or {}).get(key)
 
-    # Contra cada rival de su línea: winrate y ventaja media a los 10 y 15.
+def _matchup_diffs(ds: list[dict], role: str) -> dict:
+    """Ventaja media de oro, XP y CS de su línea a los 10 y 15 en esas partidas (``None`` sin datos)."""
+    out = {}
+    for m in ("10", "15"):
+        for key in ("gold", "xp", "cs"):
+            st = _stats([_lane_diff(d, role, m, key) for d in ds])
+            out[f"{key}_diff{m}"] = st["mean"] if st else None
+    return out
+
+
+def _matchups(ctx: list[dict], role: str, name) -> list[dict]:
+    """Contra cada rival de su línea (los 25 más vistos): winrate y ventaja media a los 10 y 15."""
     by_opp: dict[int, list[dict]] = defaultdict(list)
     for d in ctx:
         opp = (d["context"]["lanes"].get(role) or {}).get("enemy")
         if opp:
             by_opp[opp].append(d)
-    matchups = []
-    for opp, ds in sorted(by_opp.items(), key=lambda kv: -len(kv[1]))[:25]:
-        entry = {"enemy": name(opp), "enemy_id": opp, **_wr(ds)}
-        for m in ("10", "15"):
-            for key in ("gold", "xp", "cs"):
-                st = _stats([lane_diff(d, role, m, key) for d in ds])
-                entry[f"{key}_diff{m}"] = st["mean"] if st else None
-        matchups.append(entry)
+    return [
+        {"enemy": name(opp), "enemy_id": opp, **_wr(ds), **_matchup_diffs(ds, role)}
+        for opp, ds in sorted(by_opp.items(), key=lambda kv: -len(kv[1]))[:25]
+    ]
 
-    # Cada línea por delante / igualada / por detrás a los 15: winrate (qué línea decide más sus partidas).
+
+def _lane_state(gold: float) -> str:
+    """``ahead``, ``behind`` o ``even`` según la ventaja de oro de una línea a los 15."""
+    if gold > AHEAD_GOLD:
+        return "ahead"
+    return "behind" if gold < -AHEAD_GOLD else "even"
+
+
+def _lanes_impact(ctx: list[dict]) -> dict:
+    """Cada línea por delante / igualada / por detrás a los 15: winrate (qué línea decide más sus partidas)."""
     lanes_impact = {}
     for r in ROLES:
         groups = {"ahead": [], "even": [], "behind": []}
         for d in ctx:
-            g = lane_diff(d, r, "15")
+            g = _lane_diff(d, r, "15")
             if g is None:
                 continue
-            groups["ahead" if g > AHEAD_GOLD else "behind" if g < -AHEAD_GOLD else "even"].append(d)
+            groups[_lane_state(g)].append(d)
         if any(groups.values()):
             lanes_impact[r] = {k: _wr(v) for k, v in groups.items()}
+    return lanes_impact
 
-    # Objetivos: quién coge el primero de cada uno, cuándo y cómo acaba la partida.
+
+def _objectives_first(ctx: list[dict]) -> dict:
+    """Objetivos: quién coge el primero de cada uno, cuándo y cómo acaba la partida."""
     objectives = {}
     for kind in ("dragon", "horde", "riftherald", "baron_nashor", "atakhan", "tower"):
         got = [d for d in ctx if kind in d["context"]["first"]]
@@ -952,31 +1096,52 @@ def _draft_block(role: str, rows: list[dict], name_champ=None) -> dict:
             "wr_enemy_first": _wr([d for d in got if not d["context"]["first"][kind]["ally"]])["wr"],
             "games": len(got),
         }
+    return objectives
+
+
+def _presence_stats(ds: list[dict]) -> dict:
+    """Jungla en esas partidas: minutos de media en cada zona (2-14), kills o asistencias antes del 15 y winrate."""
+    keys = ("top", "mid", "bot", "river", "own_jungle", "enemy_jungle", "base")
+    pos = {k: _stats([((d["context"]["jungle"]["ally"] or {}).get("positions") or {}).get(k, 0) for d in ds]) for k in keys}
+    take = {k: _stats([((d["context"]["jungle"]["ally"] or {}).get("takedowns_pre15") or {}).get(k, 0) for d in ds]) for k in ("top", "mid", "bot", "river", "jungle")}
+    return {
+        "minutes_at": {k: v["mean"] for k, v in pos.items() if v},
+        "takedowns_pre15": {k: v["mean"] for k, v in take.items() if v},
+        **_wr(ds),
+    }
+
+
+def _jungle_draft(ctx: list[dict]) -> dict:
+    """Por dónde anda (minutos 2-14) y dónde consigue kills antes del 15; también según qué línea va ganando a los 10."""
+    jungle = [d for d in ctx if d["context"]["jungle"].get("ally")]
+    return {
+        "jungle_presence": _presence_stats(jungle) if jungle else None,
+        "jungle_presence_when_lane_ahead10": {
+            r: _presence_stats(ds)
+            for r in ("TOP", "MID", "ADC")
+            if (ds := [d for d in jungle if (_lane_diff(d, r, "10") or 0) > AHEAD_GOLD / 2])
+        },
+        "first_takedown_where": dict(
+            Counter(((d["context"]["jungle"]["ally"] or {}).get("first_takedown") or {}).get("where") or "ninguna" for d in jungle)
+        ),
+    }
+
+
+def _draft_block(role: str, rows: list[dict], name_champ=None) -> dict:
+    """Para planes de partida: cómo le va contra cada rival de línea, qué pasa con cada línea por delante o por
+    detrás, a qué objetivos juega su equipo primero y (si es jungla) por dónde anda según qué línea va ganando."""
+    ctx = [d for d in rows if d.get("context")]
+    if not ctx:
+        return {}
+    name = (lambda c: name_champ(c) or c) if name_champ else (lambda c: c)
+    matchups = _matchups(ctx, role, name)
+    lanes_impact = _lanes_impact(ctx)
+    objectives = _objectives_first(ctx)
     first_tower_lane = Counter(d["context"]["first"]["tower"]["lane"] for d in ctx if (d["context"]["first"].get("tower") or {}).get("ally"))
 
     out = {"matchups": matchups, "lanes_impact": lanes_impact, "objectives_first": objectives, "first_tower_lane": dict(first_tower_lane)}
     if role == "JUNGLE":
-        # Por dónde anda (minutos 2-14) y dónde consigue kills antes del 15; también según qué línea va ganando a los 10.
-        def presence(ds: list[dict]) -> dict:
-            keys = ("top", "mid", "bot", "river", "own_jungle", "enemy_jungle", "base")
-            pos = {k: _stats([((d["context"]["jungle"]["ally"] or {}).get("positions") or {}).get(k, 0) for d in ds]) for k in keys}
-            take = {k: _stats([((d["context"]["jungle"]["ally"] or {}).get("takedowns_pre15") or {}).get(k, 0) for d in ds]) for k in ("top", "mid", "bot", "river", "jungle")}
-            return {
-                "minutes_at": {k: v["mean"] for k, v in pos.items() if v},
-                "takedowns_pre15": {k: v["mean"] for k, v in take.items() if v},
-                **_wr(ds),
-            }
-
-        jungle = [d for d in ctx if d["context"]["jungle"].get("ally")]
-        out["jungle_presence"] = presence(jungle) if jungle else None
-        out["jungle_presence_when_lane_ahead10"] = {
-            r: presence(ds)
-            for r in ("TOP", "MID", "ADC")
-            if (ds := [d for d in jungle if (lane_diff(d, r, "10") or 0) > AHEAD_GOLD / 2])
-        }
-        out["first_takedown_where"] = dict(
-            Counter(((d["context"]["jungle"]["ally"] or {}).get("first_takedown") or {}).get("where") or "ninguna" for d in jungle)
-        )
+        out.update(_jungle_draft(ctx))
     return out
 
 
@@ -1050,7 +1215,7 @@ KEEP_ON_REBUILD = frozenset({"_busqueda.json", "_busqueda.json.tmp", "_medias_ra
 REPLACE_RETRIES = 4
 
 
-def _retry(action, path: Path) -> bool:
+def _retry(action) -> bool:
     """Ejecuta ``action`` con reintentos cortos (un antivirus o el indexador sueltan el fichero en un momento)."""
     for attempt in range(REPLACE_RETRIES):
         try:
@@ -1076,29 +1241,36 @@ def replace_tree(src: Path, dst: Path, keep: frozenset[str] = KEEP_ON_REBUILD) -
     wanted = {path.relative_to(src) for path in src.rglob("*")}
     dst.mkdir(parents=True, exist_ok=True)
     for rel in sorted(wanted, key=lambda r: len(r.parts)):
-        source, target = src / rel, dst / rel
-        if source.is_dir():
-            if target.exists() and not target.is_dir() and not _retry(target.unlink, target):
-                failed.append(str(rel))
-                continue
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-        if target.is_dir():
-            _retry(lambda t=target: shutil.rmtree(t), target)
-        if not _retry(lambda s=source, d=target: os.replace(s, d), target) and not _retry(lambda s=source, d=target: shutil.copyfile(s, d), target):
+        if not _put_entry(src / rel, dst / rel):
             failed.append(str(rel))
     # Lo que sobra (de más profundo a menos): ficheros y carpetas que ya no existen en la versión nueva.
     for path in sorted(dst.rglob("*"), key=lambda p: len(p.parts), reverse=True):
         rel = path.relative_to(dst)
         if rel.parts[0] in keep or rel in wanted:
             continue
-        if path.is_dir():
-            if not any(path.iterdir()) and not _retry(path.rmdir, path):
-                failed.append(str(rel))
-        elif not _retry(path.unlink, path):
+        if not _drop_entry(path):
             failed.append(str(rel))
     shutil.rmtree(src, ignore_errors=True)
     return failed
+
+
+def _put_entry(source: Path, target: Path) -> bool:
+    """Pone ``source`` (carpeta o fichero) en ``target``; ``False`` si no se pudo (bloqueado por otro programa)."""
+    if source.is_dir():
+        if target.exists() and not target.is_dir() and not _retry(target.unlink):
+            return False
+        target.mkdir(parents=True, exist_ok=True)
+        return True
+    if target.is_dir():
+        _retry(lambda: shutil.rmtree(target))
+    return _retry(lambda: os.replace(source, target)) or _retry(lambda: shutil.copyfile(source, target))
+
+
+def _drop_entry(path: Path) -> bool:
+    """Borra de la carpeta un fichero o una carpeta vacía que ya no está; ``False`` si no se pudo (bloqueado)."""
+    if path.is_dir():
+        return any(path.iterdir()) or _retry(path.rmdir)
+    return _retry(path.unlink)
 
 
 class Files:
@@ -1218,14 +1390,14 @@ class Files:
             folder = self._player_dir(self.base, dossier["champ"], dossier["role"], info)
             folder.mkdir(parents=True, exist_ok=True)
             # Un «miembro» gzip por partida: el fichero se lee entero con cualquier lector de gzip.
-            with gzip.open(folder / "partidas.jsonl.gz", "at", encoding="utf-8") as fh:
+            with gzip.open(folder / GAMES_FILE, "at", encoding="utf-8") as fh:
                 fh.write(json.dumps(dossier, ensure_ascii=False, separators=(",", ":")) + "\n")
             self._profile(folder, dossier["champ"], dossier["role"], info)
             self.dirty.add(dossier["champ"])
         self.maybe_summarize()
 
     def _ensure_layout_locked(self) -> None:
-        marker = self.base / ".formato"
+        marker = self.base / FORMAT_MARKER
         # Por la marca, no por la carpeta: el informe de la búsqueda (_busqueda.json) puede haberla creado antes.
         if not marker.exists():
             self.base.mkdir(parents=True, exist_ok=True)
@@ -1236,7 +1408,7 @@ class Files:
         """La carpeta falta, es de otro formato o tiene menos partidas que la base de datos."""
         if not self.svc.db.scalar("SELECT 1 FROM otp_games WHERE kind = ? LIMIT 1", (self.kind,)):
             return False
-        marker = self.base / ".formato"
+        marker = self.base / FORMAT_MARKER
         try:
             return marker.read_text(encoding="utf-8").strip() != str(LAYOUT_VERSION)
         except OSError:
@@ -1250,7 +1422,7 @@ class Files:
                 self.force_again = self.force_again or force  # al terminar la tanda en curso, otra con lo pendiente
                 return
             now = time.time()
-            due = [c for c in list(self.dirty) if force or now - self.last_summary.get(c, 0) >= SUMMARY_EVERY_S]
+            due = [c for c in tuple(self.dirty) if force or now - self.last_summary.get(c, 0) >= SUMMARY_EVERY_S]
             if not due:
                 return
             self.thread = threading.Thread(target=self._summaries, args=(due,), name="otp-summaries", daemon=True)
@@ -1336,7 +1508,7 @@ class Files:
                 folder = self._player_dir(tmp, int(g["champ"]), g["role"], info)
                 folder.mkdir(parents=True, exist_ok=True)
                 # mtime=0: el mismo contenido da los mismos bytes (al regenerar, git solo ve lo que cambió de verdad).
-                with gzip.GzipFile(folder / "partidas.jsonl.gz", "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
+                with gzip.GzipFile(folder / GAMES_FILE, "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
                     for r in db.query(
                         "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
                         (g["champ"], g["role"], g["puuid"], self.kind),
@@ -1352,13 +1524,13 @@ class Files:
             for champ in champs:
                 self.write_summary(champ, tmp)
             (tmp / "LEEME.md").write_text(self._readme(), encoding="utf-8")
-            (tmp / ".formato").write_text(str(LAYOUT_VERSION), encoding="utf-8")
+            (tmp / FORMAT_MARKER).write_text(str(LAYOUT_VERSION), encoding="utf-8")
             # Restos de versiones anteriores (que sí renombraban la carpeta y en Windows podían quedarse a medias).
             shutil.rmtree(self.base.with_name(self.base.name + ".old"), ignore_errors=True)
             failed = replace_tree(tmp, self.base)
             if failed:
                 # Algo bloqueado por otro programa: sin la marca de formato, se vuelve a intentar al arrancar.
-                (self.base / ".formato").unlink(missing_ok=True)
+                (self.base / FORMAT_MARKER).unlink(missing_ok=True)
                 log.warning(
                     "Carpeta %s regenerada a medias: %d ficheros los tenía abiertos otro programa (%s…). Se reintentará al arrancar.",
                     self.base, len(failed), ", ".join(failed[:3]),

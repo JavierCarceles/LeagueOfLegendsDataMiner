@@ -52,7 +52,7 @@ def _external_matchup_samples(opgg) -> list[tuple[float, float, float]]:
     samples = []
     for key, data in opgg.cached_entries("counters"):
         try:
-            _champ, position, tier, region, patch = key.split("|")
+            _, position, tier, region, patch = key.split("|")
         except ValueError:
             continue
         table = tiers.get(f"{position}|{tier}|{region}|{patch}")

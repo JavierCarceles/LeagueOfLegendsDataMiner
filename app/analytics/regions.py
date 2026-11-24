@@ -44,22 +44,8 @@ def overview(svc, f: Filters) -> dict:
     return {"filters": f.public(), "platforms": platforms, "legacy_matches": legacy}
 
 
-def region_detail(svc, f: Filters, platform: str) -> dict:
-    # La región la decide la ruta (``all`` = todas); el filtro global de región no aplica.
-    f = Filters.parse(svc.db, patch=f.label_patch, tier=f.label_tier, platform=platform)
-    where, params = f.match_clause("m")
-    base = svc.db.one(
-        f"SELECT COUNT(*) AS n, SUM(m.winner = 100) AS blue, AVG(m.duration) / 60.0 AS minutes, AVG(m.surrender) AS surrender, "
-        f"AVG(m.blue_dragons + m.red_dragons) AS dragons, AVG(m.blue_barons + m.red_barons) AS barons, "
-        f"AVG(m.blue_towers + m.red_towers) AS towers, AVG(m.blue_grubs + m.red_grubs) AS grubs, "
-        f"AVG(m.blue_kills + m.red_kills) AS kills "
-        f"FROM matches m WHERE {where}",
-        params,
-    )
-    n = base["n"] or 0
-    remake_where = where.replace("m.aggregated = 1 AND ", "")
-    remakes = svc.db.scalar(f"SELECT COUNT(*) FROM matches m WHERE m.is_remake = 1 AND {remake_where}", params, default=0)
-
+def _objectives(svc, where: str, params, n: int) -> list[dict]:
+    """Cada primer objetivo: cuántas veces se coge, cuántas gana quien lo coge y cuántas lo coge el azul."""
     objectives = []
     for key, label in OBJECTIVES:
         row = svc.db.one(
@@ -82,16 +68,59 @@ def region_detail(svc, f: Filters, platform: str) -> dict:
             }
         )
     objectives.sort(key=lambda o: o["win_rate"] or 0, reverse=True)
+    return objectives
 
+
+def _duration_label(b: int) -> str:
+    """Etiqueta de un tramo de 5 minutos de duración (el 3 junta lo de menos de 20 y el 9 lo de 45 o más)."""
+    start = b * 5
+    if b == 3:
+        return f"< {start + 5} min"
+    return f"≥ {start} min" if b == 9 else f"{start}-{start + 5} min"
+
+
+def _duration(svc, where: str, params, n: int) -> list[dict]:
+    """Partidas y winrate del azul por tramos de 5 minutos de duración."""
     duration = []
     for r in svc.db.query(
         f"SELECT MIN(MAX(CAST(m.duration / 300 AS INTEGER), 3), 9) AS b, COUNT(*) AS n, AVG(m.winner = 100) AS blue "
         f"FROM matches m WHERE {where} GROUP BY b ORDER BY b",
         params,
     ):
-        start = r["b"] * 5
-        label = f"< {start + 5} min" if r["b"] == 3 else f"≥ {start} min" if r["b"] == 9 else f"{start}-{start + 5} min"
+        label = _duration_label(r["b"])
         duration.append({"label": label, "matches": r["n"], "share": pct(safe_div(r["n"], n)), "blue_wr": pct(r["blue"])})
+    return duration
+
+
+def _per_match(base) -> dict:
+    """Kills, dragones, barones, torres y larvas de media por partida."""
+    return {
+        "kills": round(base["kills"] or 0, 1),
+        "dragons": round(base["dragons"] or 0, 2),
+        "barons": round(base["barons"] or 0, 2),
+        "towers": round(base["towers"] or 0, 1),
+        "grubs": round(base["grubs"] or 0, 2),
+    }
+
+
+def region_detail(svc, f: Filters, platform: str) -> dict:
+    # La región la decide la ruta (``all`` = todas); el filtro global de región no aplica.
+    f = Filters.parse(svc.db, patch=f.label_patch, tier=f.label_tier, platform=platform)
+    where, params = f.match_clause("m")
+    base = svc.db.one(
+        f"SELECT COUNT(*) AS n, SUM(m.winner = 100) AS blue, AVG(m.duration) / 60.0 AS minutes, AVG(m.surrender) AS surrender, "
+        f"AVG(m.blue_dragons + m.red_dragons) AS dragons, AVG(m.blue_barons + m.red_barons) AS barons, "
+        f"AVG(m.blue_towers + m.red_towers) AS towers, AVG(m.blue_grubs + m.red_grubs) AS grubs, "
+        f"AVG(m.blue_kills + m.red_kills) AS kills "
+        f"FROM matches m WHERE {where}",
+        params,
+    )
+    n = base["n"] or 0
+    remake_where = where.replace("m.aggregated = 1 AND ", "")
+    remakes = svc.db.scalar(f"SELECT COUNT(*) FROM matches m WHERE m.is_remake = 1 AND {remake_where}", params, default=0)
+
+    objectives = _objectives(svc, where, params, n)
+    duration = _duration(svc, where, params, n)
 
     tiers = {r[0]: r[1] for r in svc.db.query(f"SELECT m.tier, COUNT(*) FROM matches m WHERE {where} GROUP BY m.tier", params)}
     tier_dist = [{"tier": t, "matches": tiers[t], "share": pct(safe_div(tiers[t], n))} for t in sorted(tiers, key=lambda t: TIER_INDEX.get(t, -1), reverse=True)]
@@ -119,13 +148,7 @@ def region_detail(svc, f: Filters, platform: str) -> dict:
         "blue_wr": pct(safe_div(base["blue"] or 0, n)),
         "blue_ci": [pct(blue_lo), pct(blue_hi)] if n else None,
         "surrender": pct(base["surrender"]),
-        "per_match": {
-            "kills": round(base["kills"] or 0, 1),
-            "dragons": round(base["dragons"] or 0, 2),
-            "barons": round(base["barons"] or 0, 2),
-            "towers": round(base["towers"] or 0, 1),
-            "grubs": round(base["grubs"] or 0, 2),
-        },
+        "per_match": _per_match(base),
         "objectives": objectives,
         "duration": duration,
         "tiers": tier_dist,

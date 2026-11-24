@@ -80,11 +80,8 @@ def raw_fields(participant: dict) -> dict:
     }
 
 
-def metrics(raw: dict | None, backs: list[dict] | None, minutes: float | None, role: str | None) -> dict:
-    """Las métricas ``rl_*`` de una partida (vacío si es demasiado corta o no hay datos)."""
-    if not raw or not minutes or minutes < MIN_MINUTES:
-        return {}
-    ch, riot = raw.get("ch") or {}, raw.get("riot") or {}
+def _vision_lane_metrics(raw: dict, ch: dict, riot: dict, minutes: float, role: str | None) -> dict:
+    """Las de todos los roles: wards destruidos, visión, roams, torres, TP, wards quitados antes del 20 y pinks."""
     out: dict = {}
     if (v := _num(riot.get("wardsKilled"))) is not None:
         out["rl_wards_killed10"] = round(10 * v / minutes, 2)
@@ -102,6 +99,12 @@ def metrics(raw: dict | None, backs: list[dict] | None, minutes: float | None, r
         out["rl_pinks10"] = round(10 * v / minutes, 2)
     if (v := _num(ch.get("visionScorePerMinute"))) is not None:
         out["rl_vision_min"] = round(v, 2)
+    return out
+
+
+def _jungle_support_metrics(ch: dict, minutes: float, role: str | None) -> dict:
+    """Las de jungla y support: wards protegidos, barridos, emboscadas, campamentos rivales y cangrejos."""
+    out: dict = {}
     if role in ("JUNGLE", "SUPPORT"):
         for key, name in (("rl_wards_guarded", "wardsGuarded"), ("rl_two_wards_sweep", "twoWardsOneSweeperCount"),
                           ("rl_hidden_kills", "killAfterHiddenWithAlly")):
@@ -112,12 +115,29 @@ def metrics(raw: dict | None, backs: list[dict] | None, minutes: float | None, r
             out["rl_enemy_camps10"] = round(10 * v / minutes, 2)
         if (v := _num(ch.get("scuttleCrabKills"))) is not None:
             out["rl_scuttles"] = v
+    return out
+
+
+def _back_metrics(backs: list[dict] | None) -> dict:
+    """Las de las vueltas a base sin haber muerto: con pink y, antes del 20, sin oro para nada útil."""
+    out: dict = {}
     alive = [b for b in backs or [] if (b.get("t") or 0) > 60 and not b.get("dead")]
     if alive:
         out["rl_pink_back_pct"] = round(100 * sum(1 for b in alive if CONTROL_WARD in (b.get("items") or [])) / len(alive), 1)
     early = [b for b in alive if b["t"] < CHEAP_RECALL_UNTIL_S]
     if early:
         out["rl_cheap_recall_pct"] = round(100 * sum(1 for b in early if (b.get("gold") or 0) < CHEAP_RECALL_GOLD) / len(early), 1)
+    return out
+
+
+def metrics(raw: dict | None, backs: list[dict] | None, minutes: float | None, role: str | None) -> dict:
+    """Las métricas ``rl_*`` de una partida (vacío si es demasiado corta o no hay datos)."""
+    if not raw or not minutes or minutes < MIN_MINUTES:
+        return {}
+    ch, riot = raw.get("ch") or {}, raw.get("riot") or {}
+    out = _vision_lane_metrics(raw, ch, riot, minutes, role)
+    out.update(_jungle_support_metrics(ch, minutes, role))
+    out.update(_back_metrics(backs))
     return out
 
 

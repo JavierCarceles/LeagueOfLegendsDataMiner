@@ -52,6 +52,17 @@ ESSENTIAL = P_CORE  # lo de prioridad <= P_CORE cuenta como «esencial» en el p
 
 WARM_GAP_WHILE_CRAWLING_S = 10.0  # pausa entre tareas de precarga mientras recoge el recolector
 
+
+def _enabled(source) -> bool:
+    """¿Fuente externa (OP.GG, Lolalytics, notas de parche) presente y activada?"""
+    return source is not None and source.enabled
+
+
+def _scope_patches(scopes: list):
+    """(ámbito, parche) de cada parche de cada ámbito, en orden."""
+    return ((scope, patch) for scope in scopes for patch in scope.patches)
+
+
 class Lane:
     def __init__(self, name: str, workers: int) -> None:
         self.name = name
@@ -338,145 +349,187 @@ class Warmer:
 
     def _plan_sources(self, tasks: list) -> None:
         svc = self.svc
-        from app.analytics.evidence import ext_scope
-        from app.analytics.filters import Filters
-
         opgg = getattr(svc, "opgg", None)
         lola = getattr(svc, "lolalytics", None)
         notes = getattr(svc, "patchnotes", None)
-        champs_known = bool(getattr(svc.dd, "champions", None))
-        if not champs_known:
-            # Primer arranque sin internet: se reintenta Data Dragon en cada ciclo hasta que haya conexión.
-            try:
-                if svc.dd.load():
-                    log.info("Data Dragon cargado: ya hay nombres de campeones y objetos.")
-                    svc.priors.invalidate()
-            except Exception:
-                log.debug("Data Dragon sigue sin estar disponible", exc_info=True)
-            if not getattr(svc.dd, "champions", None):
-                return
+        if not self._ddragon_ready():
+            return
 
         # Notas de parche: índice y las tres últimas (en el carril de Riot).
-        if notes is not None and notes.enabled:
+        if _enabled(notes):
             tasks.append(("riot-web", ("notes",), lambda: notes.recent(3), P_EXTRA, "Notas de parche"))
 
         # Ámbitos externos (OP.GG/Lolalytics) a partir de los filtros usados.
-        scopes = []
+        scopes: list = []
         user = self._user_champions()
-        web_on = (opgg is not None and opgg.enabled) or (lola is not None and lola.enabled)
-        if web_on:
-            token = inline_refresh.set(True)
-            try:
-                self._phase("Comprobando el parche actual…")
-                if opgg is not None and opgg.enabled:
-                    opgg.versions()
-                for raw in self.scopes():
-                    try:
-                        f = Filters.parse(svc.db, patch=raw["patch"], tier=raw["tier"], platform=raw["platform"])
-                        scope = ext_scope(svc, f)
-                    # un filtro guardado que ya no vale no para la precarga
-                    except Exception as exc:  # noqa: BLE001
-                        log.warning("Ámbito de precarga %s descartado: %s", raw, exc)
-                        scope = None
-                    if scope is not None and scope not in scopes:
-                        scopes.append(scope)
-                # Lo que hace falta para planificar el resto se baja ya (son pocas páginas):
-                # tier lists de cada ámbito y los counters de tus campeones.
-                for scope in scopes:
-                    for patch in scope.patches:
-                        for role in ROLES:
-                            if self.stop_event.is_set() or self.paused_reason():
-                                return
-                            self._phase(f"Tier list {role.lower()} · parche {patch}")
-                            if opgg is not None and opgg.enabled:
-                                opgg.tier_list(role, scope.tier, scope.region, patch)
-                            elif lola is not None and lola.enabled:
-                                lola.tier_list(role, scope.tier, scope.region, patch)
-                if scopes and opgg is not None and opgg.enabled:
-                    for champ, role in user:
-                        self._phase(f"Tus counters: {svc.dd.name(champ)}")
-                        opgg.counters(champ, role, scopes[0].tier, scopes[0].region, scopes[0].patches[0])
-            finally:
-                inline_refresh.reset(token)
+        if (_enabled(opgg) or _enabled(lola)) and not self._warm_scopes(scopes, user, opgg, lola):
+            return  # en pausa o cerrando: en esta vuelta no se planifica nada más
 
         primary = scopes[0] if scopes else None
 
         # ----- 1) Tú: tus campeones, tus builds y tus matchups.
         for champ, role in user:
-            name = svc.dd.name(champ)
-            if opgg is not None and opgg.enabled:
-                tasks.append(("opgg-mcp", ("build", champ, role), lambda c=champ, r=role: opgg.champion_build(c, r), P_USER, f"Build de {name}"))
-                for scope in scopes[:2]:
-                    for patch in scope.patches:
-                        tasks.append(
-                            ("opgg-web", ("counters", champ, role, scope.tier, scope.region, patch),
-                             lambda c=champ, r=role, s=scope, p=patch: opgg.counters(c, r, s.tier, s.region, p), P_USER, f"Counters de {name}")
-                        )
-                if primary is not None:
-                    for opp in self._top_opponents(champ, role, primary, limit=8):
-                        tasks.append(
-                            ("opgg-mcp", ("guide", champ, opp, role),
-                             lambda c=champ, o=opp, r=role: opgg.matchup_guide(c, o, r), P_USER, f"Guía {name} vs {svc.dd.name(opp)}")
-                        )
-            if lola is not None and lola.enabled and primary is not None:
-                tasks.append(
-                    ("lolalytics", ("counters", champ, role, primary.tier, primary.region, primary.patches[0]),
-                     lambda c=champ, r=role, s=primary: lola.counters(c, r, s.tier, s.region, s.patches[0]), P_USER, f"Lolalytics {name}")
-                )
+            self._plan_user_champion(tasks, champ, role, scopes, primary, opgg, lola)
 
         # ----- 2) Lo esencial de cada ámbito: tier lists y counters.
-        opgg_on = opgg is not None and opgg.enabled
-        for index, scope in enumerate(scopes):
-            prio = P_CORE if index == 0 else P_EXTRA
-            for patch in scope.patches if opgg_on else ():
-                for role in ROLES:
-                    tasks.append(
-                        ("opgg-web", ("tier", role, scope.tier, scope.region, patch),
-                         lambda r=role, s=scope, p=patch: opgg.tier_list(r, s.tier, s.region, p), prio - 1, f"Tier list {role} {patch}")
-                    )
-            for patch_index, patch in enumerate(scope.patches if opgg_on else ()):
-                for role in ROLES:
-                    for champ in self._role_champions(scope, role, patch):
-                        tasks.append(
-                            ("opgg-web", ("counters", champ, role, scope.tier, scope.region, patch),
-                             lambda c=champ, r=role, s=scope, p=patch: opgg.counters(c, r, s.tier, s.region, p),
-                             prio + patch_index, f"Counters {svc.dd.name(champ)} {role} {patch}")
-                        )
-            if lola is not None and lola.enabled:
-                patch = scope.patches[0]
-                for role in ROLES:
-                    tasks.append(
-                        ("lolalytics", ("tier", role, scope.tier, scope.region, patch),
-                         lambda r=role, s=scope, p=patch: lola.tier_list(r, s.tier, s.region, p), prio, f"Lolalytics tier list {role}")
-                    )
-                    for champ in self._role_champions(scope, role, patch):
-                        tasks.append(
-                            ("lolalytics", ("counters", champ, role, scope.tier, scope.region, patch),
-                             lambda c=champ, r=role, s=scope, p=patch: lola.counters(c, r, s.tier, s.region, p),
-                             prio + 5, f"Lolalytics {svc.dd.name(champ)} {role}")
-                        )
+        self._plan_core(tasks, scopes, opgg, lola)
 
         # ----- 3) Extras: tipo de daño y builds (draft y tu build), sinergias y guías populares.
-        if opgg is not None and opgg.enabled and primary is not None:
+        if _enabled(opgg) and primary is not None:
             patch = primary.patches[0]
             for role in ROLES:
-                ranked = self._role_champions(primary, role, patch)
-                for champ in ranked:
-                    tasks.append(("opgg-mcp", ("champion", champ, role), lambda c=champ, r=role: opgg.champion_info(c, r), P_EXTRA, f"Tipo de daño {svc.dd.name(champ)}"))
-                    tasks.append(("opgg-mcp", ("build", champ, role), lambda c=champ, r=role: opgg.champion_build(c, r), P_EXTRA + 2, f"Build {svc.dd.name(champ)}"))
-                for champ in ranked[:25]:
-                    for partner in ROLES:
-                        if partner != role:
-                            tasks.append(
-                                ("opgg-mcp", ("synergy", champ, role, partner),
-                                 lambda c=champ, r=role, p=partner: opgg.synergies(c, r, p), P_BACKGROUND, f"Sinergias {svc.dd.name(champ)}")
-                            )
-                for champ in ranked[:12]:
-                    for opp in self._top_opponents(champ, role, primary, limit=4):
-                        tasks.append(
-                            ("opgg-mcp", ("guide", champ, opp, role),
-                             lambda c=champ, o=opp, r=role: opgg.matchup_guide(c, o, r), P_BACKGROUND + 2, f"Guía {svc.dd.name(champ)} vs {svc.dd.name(opp)}")
-                        )
+                self._plan_role_extras(tasks, primary, role, patch, opgg)
+
+    def _ddragon_ready(self) -> bool:
+        """¿Hay campeones de Data Dragon? Si no (primer arranque sin internet), lo reintenta en cada ciclo."""
+        svc = self.svc
+        if getattr(svc.dd, "champions", None):
+            return True
+        # Primer arranque sin internet: se reintenta Data Dragon en cada ciclo hasta que haya conexión.
+        try:
+            if svc.dd.load():
+                log.info("Data Dragon cargado: ya hay nombres de campeones y objetos.")
+                svc.priors.invalidate()
+        except Exception:
+            log.debug("Data Dragon sigue sin estar disponible", exc_info=True)
+        return bool(getattr(svc.dd, "champions", None))
+
+    def _warm_scopes(self, scopes: list, user: list, opgg, lola) -> bool:
+        """Rellena ``scopes`` y baja ya lo que hace falta para planificar el resto; False si hay que parar (pausa o cierre)."""
+        token = inline_refresh.set(True)
+        try:
+            self._phase("Comprobando el parche actual…")
+            if _enabled(opgg):
+                opgg.versions()
+            scopes.extend(self._ext_scopes())
+            # Lo que hace falta para planificar el resto se baja ya (son pocas páginas):
+            # tier lists de cada ámbito y los counters de tus campeones.
+            if not self._fetch_tier_lists(scopes, opgg, lola):
+                return False
+            if scopes and _enabled(opgg):
+                for champ, role in user:
+                    self._phase(f"Tus counters: {self.svc.dd.name(champ)}")
+                    opgg.counters(champ, role, scopes[0].tier, scopes[0].region, scopes[0].patches[0])
+        finally:
+            inline_refresh.reset(token)
+        return True
+
+    def _ext_scopes(self) -> list:
+        """Ámbitos de OP.GG/Lolalytics de los filtros a precargar, sin repetir (uno que ya no vale se descarta)."""
+        from app.analytics.evidence import ext_scope
+        from app.analytics.filters import Filters
+
+        svc = self.svc
+        scopes: list = []
+        for raw in self.scopes():
+            try:
+                f = Filters.parse(svc.db, patch=raw["patch"], tier=raw["tier"], platform=raw["platform"])
+                scope = ext_scope(svc, f)
+            # un filtro guardado que ya no vale no para la precarga
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Ámbito de precarga %s descartado: %s", raw, exc)
+                scope = None
+            if scope is not None and scope not in scopes:
+                scopes.append(scope)
+        return scopes
+
+    def _fetch_tier_lists(self, scopes: list, opgg, lola) -> bool:
+        """Baja ya las tier lists de cada ámbito (OP.GG o, sin él, Lolalytics); False si hay que parar (pausa o cierre)."""
+        for scope, patch in _scope_patches(scopes):
+            for role in ROLES:
+                if self.stop_event.is_set() or self.paused_reason():
+                    return False
+                self._phase(f"Tier list {role.lower()} · parche {patch}")
+                if _enabled(opgg):
+                    opgg.tier_list(role, scope.tier, scope.region, patch)
+                elif _enabled(lola):
+                    lola.tier_list(role, scope.tier, scope.region, patch)
+        return True
+
+    def _plan_user_champion(self, tasks: list, champ: int, role: str, scopes: list, primary, opgg, lola) -> None:
+        """Tareas de uno de tus campeones: su build, sus counters (dos primeros ámbitos) y las guías de sus matchups."""
+        name = self.svc.dd.name(champ)
+        if _enabled(opgg):
+            tasks.append(("opgg-mcp", ("build", champ, role), lambda c=champ, r=role: opgg.champion_build(c, r), P_USER, f"Build de {name}"))
+            for scope, patch in _scope_patches(scopes[:2]):
+                tasks.append(
+                    ("opgg-web", ("counters", champ, role, scope.tier, scope.region, patch),
+                     lambda c=champ, r=role, s=scope, p=patch: opgg.counters(c, r, s.tier, s.region, p), P_USER, f"Counters de {name}")
+                )
+            if primary is not None:
+                for opp in self._top_opponents(champ, role, primary, limit=8):
+                    tasks.append(
+                        ("opgg-mcp", ("guide", champ, opp, role),
+                         lambda c=champ, o=opp, r=role: opgg.matchup_guide(c, o, r), P_USER, f"Guía {name} vs {self.svc.dd.name(opp)}")
+                    )
+        if _enabled(lola) and primary is not None:
+            tasks.append(
+                ("lolalytics", ("counters", champ, role, primary.tier, primary.region, primary.patches[0]),
+                 lambda c=champ, r=role, s=primary: lola.counters(c, r, s.tier, s.region, s.patches[0]), P_USER, f"Lolalytics {name}")
+            )
+
+    def _plan_core(self, tasks: list, scopes: list, opgg, lola) -> None:
+        """Lo esencial de cada ámbito: tier lists y counters (los del primer ámbito, los más urgentes)."""
+        opgg_on = _enabled(opgg)
+        for index, scope in enumerate(scopes):
+            prio = P_CORE if index == 0 else P_EXTRA
+            if opgg_on:
+                self._plan_opgg_scope(tasks, scope, prio, opgg)
+            if _enabled(lola):
+                self._plan_lola_scope(tasks, scope, prio, lola)
+
+    def _plan_opgg_scope(self, tasks: list, scope, prio: int, opgg) -> None:
+        """Tier lists y counters de OP.GG de un ámbito (los counters de cada parche siguiente, un punto menos urgentes)."""
+        for patch in scope.patches:
+            for role in ROLES:
+                tasks.append(
+                    ("opgg-web", ("tier", role, scope.tier, scope.region, patch),
+                     lambda r=role, s=scope, p=patch: opgg.tier_list(r, s.tier, s.region, p), prio - 1, f"Tier list {role} {patch}")
+                )
+        for patch_index, patch in enumerate(scope.patches):
+            for role in ROLES:
+                for champ in self._role_champions(scope, role, patch):
+                    tasks.append(
+                        ("opgg-web", ("counters", champ, role, scope.tier, scope.region, patch),
+                         lambda c=champ, r=role, s=scope, p=patch: opgg.counters(c, r, s.tier, s.region, p),
+                         prio + patch_index, f"Counters {self.svc.dd.name(champ)} {role} {patch}")
+                    )
+
+    def _plan_lola_scope(self, tasks: list, scope, prio: int, lola) -> None:
+        """Tier lists y counters de Lolalytics de un ámbito (solo su primer parche)."""
+        patch = scope.patches[0]
+        for role in ROLES:
+            tasks.append(
+                ("lolalytics", ("tier", role, scope.tier, scope.region, patch),
+                 lambda r=role, s=scope, p=patch: lola.tier_list(r, s.tier, s.region, p), prio, f"Lolalytics tier list {role}")
+            )
+            for champ in self._role_champions(scope, role, patch):
+                tasks.append(
+                    ("lolalytics", ("counters", champ, role, scope.tier, scope.region, patch),
+                     lambda c=champ, r=role, s=scope, p=patch: lola.counters(c, r, s.tier, s.region, p),
+                     prio + 5, f"Lolalytics {self.svc.dd.name(champ)} {role}")
+                )
+
+    def _plan_role_extras(self, tasks: list, primary, role: str, patch: str, opgg) -> None:
+        """Extras de OP.GG de un rol en el ámbito principal: tipo de daño, builds, sinergias y guías de matchups."""
+        svc = self.svc
+        ranked = self._role_champions(primary, role, patch)
+        for champ in ranked:
+            tasks.append(("opgg-mcp", ("champion", champ, role), lambda c=champ, r=role: opgg.champion_info(c, r), P_EXTRA, f"Tipo de daño {svc.dd.name(champ)}"))
+            tasks.append(("opgg-mcp", ("build", champ, role), lambda c=champ, r=role: opgg.champion_build(c, r), P_EXTRA + 2, f"Build {svc.dd.name(champ)}"))
+        for champ in ranked[:25]:
+            for partner in ROLES:
+                if partner != role:
+                    tasks.append(
+                        ("opgg-mcp", ("synergy", champ, role, partner),
+                         lambda c=champ, r=role, p=partner: opgg.synergies(c, r, p), P_BACKGROUND, f"Sinergias {svc.dd.name(champ)}")
+                    )
+        for champ in ranked[:12]:
+            for opp in self._top_opponents(champ, role, primary, limit=4):
+                tasks.append(
+                    ("opgg-mcp", ("guide", champ, opp, role),
+                     lambda c=champ, o=opp, r=role: opgg.matchup_guide(c, o, r), P_BACKGROUND + 2, f"Guía {svc.dd.name(champ)} vs {svc.dd.name(opp)}")
+                )
 
     # --------------------------------------------------------------- helpers
     def _phase(self, text: str | None) -> None:
@@ -564,6 +617,6 @@ class budget_free:
         self._token = budget._current.set(None)
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *_):
         budget._current.reset(self._token)
         return False

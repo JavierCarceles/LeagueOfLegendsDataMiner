@@ -138,29 +138,7 @@ async function refreshStatus() {
     const status = await api.get("/api/system/status");
     state.status = status;
     const pill = document.getElementById("key-pill");
-    const key = status.key;
-    pill.className = "status-pill";
-    let text = "Sin API key";
-    if (key.configured && key.status === "valid") {
-      pill.classList.add("ok");
-      const left = key.age_hours !== null ? 24 - key.age_hours : null;
-      text = left !== null && left > 0 ? `Riot API · ${left < 1 ? "< 1" : Math.round(left)} h` : "Riot API OK";
-      pill.title = left !== null && left > 0 ? `Key ${key.masked} válida. Las development keys caducan a las 24 h de generarlas.` : `Key ${key.masked} válida.`;
-    } else if (key.configured && key.status === "invalid" && key.rechecking) {
-      pill.classList.add("warn");
-      text = "Key activándose…";
-      pill.title = "Riot aún no acepta la key nueva; se vuelve a comprobar sola.";
-    } else if (key.configured && key.status === "invalid") {
-      pill.classList.add("bad");
-      text = "Key rechazada";
-      pill.title = key.detail || "La key ha caducado o no es válida.";
-    } else if (key.configured) {
-      pill.classList.add("warn");
-      text = "Key sin validar";
-    } else {
-      pill.classList.add("warn");
-      pill.title = "Sin key solo funcionan OP.GG y tus datos guardados.";
-    }
+    let text = keyPill(pill, status.key);
     if (status.crawler?.running) text += " · recolectando";
     pill.lastChild.textContent = text;
     renderProfilePill(status.tracker);
@@ -168,6 +146,39 @@ async function refreshStatus() {
   } catch {
     /* el servidor puede estar arrancando */
   }
+}
+
+/** Pone el color y el aviso de la píldora de la API key según su estado y devuelve su texto. */
+function keyPill(pill, key) {
+  pill.className = "status-pill";
+  if (key.configured && key.status === "valid") return validKeyPill(pill, key);
+  if (key.configured && key.status === "invalid" && key.rechecking) {
+    pill.classList.add("warn");
+    pill.title = "Riot aún no acepta la key nueva; se vuelve a comprobar sola.";
+    return "Key activándose…";
+  }
+  if (key.configured && key.status === "invalid") {
+    pill.classList.add("bad");
+    pill.title = key.detail || "La key ha caducado o no es válida.";
+    return "Key rechazada";
+  }
+  pill.classList.add("warn");
+  if (key.configured) return "Key sin validar";
+  pill.title = "Sin key solo funcionan OP.GG y tus datos guardados.";
+  return "Sin API key";
+}
+
+/** Píldora de una key válida: las horas que le quedan (las development keys caducan a las 24 h). */
+function validKeyPill(pill, key) {
+  pill.classList.add("ok");
+  const left = key.age_hours !== null ? 24 - key.age_hours : null;
+  const counting = left !== null && left > 0; // sin edad conocida (o ya pasadas las 24 h) no se cuentan las horas
+  if (!counting) {
+    pill.title = `Key ${key.masked} válida.`;
+    return "Riot API OK";
+  }
+  pill.title = `Key ${key.masked} válida. Las development keys caducan a las 24 h de generarlas.`;
+  return `Riot API · ${left < 1 ? "< 1" : Math.round(left)} h`;
 }
 
 function renderProfilePill(tracker) {
@@ -181,9 +192,16 @@ function renderProfilePill(tracker) {
     el.title = "Guarda tu Riot ID para que tus partidas se recojan y analicen solas";
     return;
   }
-  const extra = tracker.status === "syncing" ? h("span.spinner.sm", { title: "Descargando partidas" }) : tracker.in_game ? h("span.pill.pill-warn", "en partida") : !p.linked ? h("span.dot.warn") : null;
+  const extra = profileExtra(tracker, p);
   mount(el, p.profile_icon != null ? h("img", { src: dd.profileIcon(p.profile_icon), alt: "" }) : icon("user"), h("span.name", p.game_name), extra);
   el.title = `${p.game_name}#${p.tag_line} · Mi progreso${tracker.in_game ? " (estás en partida: se analizará al terminar)" : ""}`;
+}
+
+/** Indicador junto a tu nombre: descargando partidas, en partida o cuenta sin vincular con Riot. */
+function profileExtra(tracker, p) {
+  if (tracker.status === "syncing") return h("span.spinner.sm", { title: "Descargando partidas" });
+  if (tracker.in_game) return h("span.pill.pill-warn", "en partida");
+  return p.linked ? null : h("span.dot.warn");
 }
 
 function renderDataPill(w) {
@@ -365,7 +383,7 @@ async function watchChampSelect() {
 
 async function boot() {
   renderSidebar();
-  setupLogs();
+  void setupLogs(); // trata sus errores (sin servidor, el panel de actividad se queda vacío)
   try {
     const [meta, opgg] = await Promise.all([api.get("/api/meta"), api.get("/api/opgg/status").catch(() => null)]);
     setMeta(meta);
@@ -378,7 +396,7 @@ async function boot() {
   onFilters(() => {
     filtersSummary();
     if (current.module?.onFilters) current.module.onFilters();
-    else route();
+    else void route(); // trata sus errores (los pinta en la vista)
   });
   // Cerrar el panel de filtros al pulsar fuera de él.
   document.addEventListener("click", (e) => {
@@ -393,11 +411,11 @@ async function boot() {
   ft.onclick = () => document.body.classList.toggle("filters-open");
   window.addEventListener("tempu:pending", onPending);
   window.addEventListener("hashchange", () => route());
-  refreshStatus();
+  void refreshStatus(); // trata sus errores (el servidor puede estar arrancando)
   setInterval(refreshStatus, 15000);
   setInterval(watchChampSelect, 3000);
   window.addEventListener("tempu:status", refreshStatus); // p. ej. al guardar o quitar tu perfil
-  route();
+  void route();
   // Data Dragon puede tardar la primera vez (o no haber internet al abrir): se reintenta solo hasta que llegue.
   if (!state.champList.length) {
     const retryMeta = async () => {
@@ -406,7 +424,7 @@ async function boot() {
         if (meta.ddragon?.champions?.length) {
           setMeta(meta);
           renderFilters();
-          route();
+          void route();
           return;
         }
       } catch {
@@ -418,4 +436,5 @@ async function boot() {
   }
 }
 
-boot();
+// Este módulo es el punto de entrada y nadie lo importa: esperar al arranque no retrasa nada más.
+await boot();

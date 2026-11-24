@@ -425,7 +425,7 @@ def _trend(m, pairs: list[tuple[float, float, str | None]]) -> dict | None:
     """
     if len(pairs) < TREND_MIN:
         return None
-    role = Counter(r for _v, _ref, r in pairs).most_common(1)[0][0]
+    role = Counter(r for _, _, r in pairs).most_common(1)[0][0]
     same = [(v, ref) for v, ref, r in pairs if r == role]
     if len(same) < TREND_MIN:
         return None
@@ -448,46 +448,62 @@ def metric_table(games: list[dict], refs: References) -> list[dict]:
     games = [g for g in games if reliable(g)]
     rows = []
     for key, m in METRICS.items():
-        pairs = []
-        for g in games:
-            if not applies(m, g["role"]):
-                continue
-            value = (g["metrics"] or {}).get(key)
-            ref = game_refs(refs, g).get(key)
-            if value is None or ref is None:
-                continue
-            pairs.append((value, ref, g["role"]))
+        pairs = _metric_pairs(games, refs, key, m)
         if not pairs:
             continue
         # Muestra de la referencia (si es calibrada en todos los roles de estas partidas): su incertidumbre también cuenta.
         sizes = [refs.sample_size(r, key) if hasattr(refs, "sample_size") else None for r in {r for _, _, r in pairs}]
         ref_n = min(sizes) if sizes and all(sizes) else None
-        values = [v for v, _, _ in pairs]
-        value = _mean(values)
-        ref = _mean([r for _, r, _ in pairs])
-        dev = deviation(key, value, ref)
-        status = "good" if dev <= -0.05 else "bad" if dev >= 0.15 else "ok"
-        trend = _trend(m, pairs)
-        rows.append(
-            {
-                "key": key,
-                "label": m.label,
-                "category": m.category,
-                "unit": m.unit,
-                "decimals": m.decimals,
-                "better": m.better,
-                "value": _round(value, m.decimals + 1),
-                "ref": _round(ref, m.decimals + 1),
-                "dev": round(dev, 3),
-                "status": status,
-                "games": len(pairs),
-                "ref_n": ref_n,
-                "sd": _round(math.sqrt(_var(values)), m.decimals + 2) if len(values) >= 2 else None,
-                "trend": trend,
-                "series": [_round(v, m.decimals + 1) for v, _, _ in pairs[:20]],
-            }
-        )
+        rows.append(_metric_row(key, m, pairs, ref_n))
     return rows
+
+
+def _metric_pairs(games: list[dict], refs: References, key: str, m) -> list[tuple]:
+    """(valor, referencia, rol) de esa métrica en las partidas en las que aplica a su rol y tienen los dos datos."""
+    pairs = []
+    for g in games:
+        if not applies(m, g["role"]):
+            continue
+        value = (g["metrics"] or {}).get(key)
+        ref = game_refs(refs, g).get(key)
+        if value is None or ref is None:
+            continue
+        pairs.append((value, ref, g["role"]))
+    return pairs
+
+
+def _dev_status(dev: float) -> str:
+    """Estado de una media frente a su referencia por su desviación: «good», «ok» o «bad»."""
+    if dev <= -0.05:
+        return "good"
+    return "bad" if dev >= 0.15 else "ok"
+
+
+def _metric_row(key: str, m, pairs: list[tuple], ref_n: int | None) -> dict:
+    """Fila de la tabla de una métrica: tu media, la referencia, la desviación, la tendencia y la serie."""
+    values = [v for v, _, _ in pairs]
+    value = _mean(values)
+    ref = _mean([r for _, r, _ in pairs])
+    dev = deviation(key, value, ref)
+    status = _dev_status(dev)
+    trend = _trend(m, pairs)
+    return {
+        "key": key,
+        "label": m.label,
+        "category": m.category,
+        "unit": m.unit,
+        "decimals": m.decimals,
+        "better": m.better,
+        "value": _round(value, m.decimals + 1),
+        "ref": _round(ref, m.decimals + 1),
+        "dev": round(dev, 3),
+        "status": status,
+        "games": len(pairs),
+        "ref_n": ref_n,
+        "sd": _round(math.sqrt(_var(values)), m.decimals + 2) if len(values) >= 2 else None,
+        "trend": trend,
+        "series": [_round(v, m.decimals + 1) for v, _, _ in pairs[:20]],
+    }
 
 
 def _count_beyond(value: float, ref: float, n: int, better: str, ref_n: int | None = None) -> bool:
@@ -528,42 +544,64 @@ def weaknesses(table: list[dict], death_tags: dict, limit: int = 8) -> list[dict
         m = METRICS[rule["metric"]]
         value, ref, n = row["value"], row["ref"], row["games"]
         dev = row["dev"] * n / (n + SHRINK_GAMES)  # con pocas partidas la desviación pesa menos
-        if "min_abs" in rule:
-            if (m.better == "higher" and value > -rule["min_abs"]) or (m.better == "lower" and value < rule["min_abs"]):
-                continue
-            if not _consistent(row, m):
-                continue
-        elif dev < 0.15:
+        if not _is_weak(rule, row, m, value, ref, dev):
             continue
-        if m.count and not _count_beyond(value, ref, n, m.better, row.get("ref_n")):
-            continue
-        if not m.count and "min_abs" not in rule and not _mean_beyond(row, ref, m):
-            continue  # una o dos partidas malas no bastan: la media tiene que quedar fuera con claridad
         if any(s in found for s in rule.get("skip_if", [])):
             continue
-        # Escala saturante: conserva el orden aunque te alejes mucho de la referencia.
-        severity = round(100 * (1 - math.exp(-max(0.0, dev) * rule["weight"])), 1)
-        detail = rule["detail"].replace("{v}", _fmt(value, m.decimals)).replace("{ref}", _fmt(ref, m.decimals))
-        extra = _death_context(rule["metric"], death_tags)
-        found[rule["metric"]] = {
-            "id": rule["metric"],
-            "category": m.category,
-            "category_label": CATEGORIES.get(m.category, m.category),
-            "severity": severity,
-            "level": "high" if severity >= 50 else "medium" if severity >= 25 else "low",
-            "title": rule["title"],
-            "detail": detail + (f" {extra}" if extra else ""),
-            "tip": rule["tip"],
-            "metric": rule["metric"],
-            "value": value,
-            "ref": ref,
-            "unit": m.unit,
-            "games": row["games"],
-            "trend": row["trend"],
-            "goal": _suggested_goal(rule, row, by_key),
-            "learn": learn.for_metric(rule["metric"]),
-        }
+        found[rule["metric"]] = _weakness(rule, row, m, dev, death_tags, by_key)
     return sorted(found.values(), key=lambda w: w["severity"], reverse=True)[:limit]
+
+
+def _below_min_abs(rule: dict, m, value: float) -> bool:
+    """¿La diferencia frente al rival no llega al mínimo de la regla (``min_abs``)? Entonces no es un punto débil."""
+    return (m.better == "higher" and value > -rule["min_abs"]) or (m.better == "lower" and value < rule["min_abs"])
+
+
+def _is_weak(rule: dict, row: dict, m, value: float, ref: float, dev: float) -> bool:
+    """¿Es esa fila un punto débil claro según su regla (con la desviación ya encogida por las pocas partidas)?"""
+    if "min_abs" in rule:
+        if _below_min_abs(rule, m, value) or not _consistent(row, m):
+            return False
+    elif dev < 0.15:
+        return False
+    if m.count and not _count_beyond(value, ref, row["games"], m.better, row.get("ref_n")):
+        return False
+    # Una o dos partidas malas no bastan: la media tiene que quedar fuera con claridad.
+    return m.count or "min_abs" in rule or _mean_beyond(row, ref, m)
+
+
+def _level(severity: float) -> str:
+    """Nivel de un punto débil por su gravedad: «high», «medium» o «low»."""
+    if severity >= 50:
+        return "high"
+    return "medium" if severity >= 25 else "low"
+
+
+def _weakness(rule: dict, row: dict, m, dev: float, death_tags: dict, by_key: dict) -> dict:
+    """Punto débil listo para la web: gravedad, texto con tus números, consejo, propósito sugerido y material."""
+    value, ref = row["value"], row["ref"]
+    # Escala saturante: conserva el orden aunque te alejes mucho de la referencia.
+    severity = round(100 * (1 - math.exp(-max(0.0, dev) * rule["weight"])), 1)
+    detail = rule["detail"].replace("{v}", _fmt(value, m.decimals)).replace("{ref}", _fmt(ref, m.decimals))
+    extra = _death_context(rule["metric"], death_tags)
+    return {
+        "id": rule["metric"],
+        "category": m.category,
+        "category_label": CATEGORIES.get(m.category, m.category),
+        "severity": severity,
+        "level": _level(severity),
+        "title": rule["title"],
+        "detail": detail + (f" {extra}" if extra else ""),
+        "tip": rule["tip"],
+        "metric": rule["metric"],
+        "value": value,
+        "ref": ref,
+        "unit": m.unit,
+        "games": row["games"],
+        "trend": row["trend"],
+        "goal": _suggested_goal(rule, row, by_key),
+        "learn": learn.for_metric(rule["metric"]),
+    }
 
 
 # ------------------------------------------------------------ errores que repites
@@ -721,7 +759,6 @@ def dropped(moment: dict, role: str | None, champ: int | None = None) -> bool:
     return False
 
 
-_mistake_type = mistake_type
 
 
 # ------------------------------------------------------------------ errores frente a cada elo
@@ -774,49 +811,72 @@ def recurring_mistakes(games: list[dict], elo: dict | None = None) -> dict:
     for g in pool:
         for kind, severity, t, tags, title in g["mistakes"]:
             mt = mistake_type(kind, set(tags or []), g.get("role"))
-            if mt is None:
-                continue
-            grp = groups.setdefault(mt["id"], {"type": mt, "count": 0, "games": set(), "weight": 0.0, "examples": [], "roles": Counter()})
-            grp["roles"][g.get("role")] += 1
-            grp["count"] += 1
-            grp["games"].add(g["match_id"])
-            grp["weight"] += SEVERITY_WEIGHT.get(severity, 1.0)
-            if len(grp["examples"]) < RECURRING_EXAMPLES and not any(e["match_id"] == g["match_id"] for e in grp["examples"]):
-                grp["examples"].append({"match_id": g["match_id"], "t": t, "title": title, "champ": g["champ"], "win": g["win"]})
+            if mt is not None:
+                _add_mistake(groups, mt, g, severity, t, title)
     n = len(pool)
     out = []
     for grp in groups.values():
-        games_with = len(grp["games"])
-        rate = games_with / n if n else 0.0
-        if games_with < RECURRING_MIN_GAMES or rate < RECURRING_MIN_RATE:
-            continue
-        mt = grp["type"]
-        rule = RULE_BY_METRIC.get(mt["metric"]) if mt["metric"] else None
-        role = grp["roles"].most_common(1)[0][0]
-        tiers = (elo or {}).get(role) or {}
-        sep = separation(tiers, mt["id"]) if tiers else None
-        weight = (RISE_WEIGHT if sep["rises"] else FLAT_WEIGHT if sep["flat"] else 1.0) if sep else 1.0
-        out.append(
-            {
-                "id": mt["id"],
-                "title": mt["title"],
-                "tip": mt.get("tip") or (rule or {}).get("tip") or "",
-                "metric": mt["metric"],
-                "games": games_with,
-                "count": grp["count"],
-                "of": n,
-                "rate": round(rate * 100),
-                "severity": round(grp["weight"] / grp["count"], 2),
-                "score": round(weight * rate * grp["weight"] / grp["count"], 3),
-                "elo": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers} or None,
-                "separates": (not sep["flat"]) if sep else None,
-                "rises": bool(sep and sep["rises"]),
-                "examples": grp["examples"],
-                "learn": learn.for_mistake(mt["id"]),
-            }
-        )
+        item = _recurring_item(grp, n, elo)
+        if item is not None:
+            out.append(item)
     out.sort(key=lambda x: x["score"], reverse=True)
     return {"items": out, "sample": n}
+
+
+def _add_mistake(groups: dict[str, dict], mt: dict, g: dict, severity: str, t, title: str) -> None:
+    """Suma un error de la partida ``g`` al grupo de su tipo (con un ejemplo por partida, hasta ``RECURRING_EXAMPLES``)."""
+    grp = groups.setdefault(mt["id"], {"type": mt, "count": 0, "games": set(), "weight": 0.0, "examples": [], "roles": Counter()})
+    grp["roles"][g.get("role")] += 1
+    grp["count"] += 1
+    grp["games"].add(g["match_id"])
+    grp["weight"] += SEVERITY_WEIGHT.get(severity, 1.0)
+    if len(grp["examples"]) < RECURRING_EXAMPLES and not any(e["match_id"] == g["match_id"] for e in grp["examples"]):
+        grp["examples"].append({"match_id": g["match_id"], "t": t, "title": title, "champ": g["champ"], "win": g["win"]})
+
+
+def _tier_pcts(tiers: dict, mistake_id: str) -> dict:
+    """% de partidas con ese tipo de error en cada elo con datos (de más bajo a más alto)."""
+    return {g: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers}
+
+
+def _elo_weight(sep: dict | None) -> float:
+    """Peso de un error repetido según los elos: un cuarto si el más alto lo comete más, la mitad si igual, 1 si separa."""
+    if not sep:
+        return 1.0
+    if sep["rises"]:
+        return RISE_WEIGHT
+    return FLAT_WEIGHT if sep["flat"] else 1.0
+
+
+def _recurring_item(grp: dict, n: int, elo: dict | None) -> dict | None:
+    """Tipo de error repetido listo para la web (None si no llega al mínimo de partidas o de porcentaje)."""
+    games_with = len(grp["games"])
+    rate = games_with / n if n else 0.0
+    if games_with < RECURRING_MIN_GAMES or rate < RECURRING_MIN_RATE:
+        return None
+    mt = grp["type"]
+    rule = RULE_BY_METRIC.get(mt["metric"]) if mt["metric"] else None
+    role = grp["roles"].most_common(1)[0][0]
+    tiers = (elo or {}).get(role) or {}
+    sep = separation(tiers, mt["id"]) if tiers else None
+    weight = _elo_weight(sep)
+    return {
+        "id": mt["id"],
+        "title": mt["title"],
+        "tip": mt.get("tip") or (rule or {}).get("tip") or "",
+        "metric": mt["metric"],
+        "games": games_with,
+        "count": grp["count"],
+        "of": n,
+        "rate": round(rate * 100),
+        "severity": round(grp["weight"] / grp["count"], 2),
+        "score": round(weight * rate * grp["weight"] / grp["count"], 3),
+        "elo": _tier_pcts(tiers, mt["id"]) or None,
+        "separates": (not sep["flat"]) if sep else None,
+        "rises": bool(sep and sep["rises"]),
+        "examples": grp["examples"],
+        "learn": learn.for_mistake(mt["id"]),
+    }
 
 
 def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
@@ -834,64 +894,19 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
     if len(mine) < MIN_ELO_GAMES or not tiers:
         return None
     n = len(mine)
-    count, with_type, sev = Counter(), Counter(), Counter()
-    total = 0
-    for g in mine:
-        ids = []
-        for kind, severity, _t, tags, _title in g["mistakes"]:
-            mt = mistake_type(kind, set(tags or []), role)
-            if mt is None:
-                continue
-            ids.append(mt["id"])
-            sev[severity] += 1
-        total += len(ids)
-        count.update(ids)
-        with_type.update(set(ids))
+    count, with_type, sev, total = _count_mistakes(mine, role)
     per_game = total / n
-    rows = []
-    titles = {mt["id"]: mt["title"] for mt in MISTAKE_TYPES}
     all_ids = set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}
     sep_ids = {mid for mid in all_ids if (sep := separation(tiers, mid)) and not sep["flat"]}
-    for mid in all_ids:
-        sep = separation(tiers, mid)
-        mine_pct = 100 * with_type[mid] / n
-        top = sep["top_pct"] if sep else None
-        # Ruido: con n partidas, una diferencia menor que ~1,5 errores típicos de una proporción no dice nada.
-        p = max(min((top or 0) / 100, 0.99), 0.01)
-        noise = 150 * math.sqrt(p * (1 - p) / n)
-        status = None
-        if top is not None:
-            status = "worse" if with_type[mid] >= 2 and mine_pct - top > max(5.0, noise) else "better" if top - mine_pct > max(5.0, noise) else "even"
-        if not with_type[mid] and (top is None or top < 5):
-            continue
-        rows.append(
-            {
-                "id": mid,
-                "title": titles.get(mid, mid),
-                "mine_pct": round(mine_pct, 1),
-                "mine_per_game": round(count[mid] / n, 2),
-                "tiers": {g: ((tiers[g].get("types") or {}).get(mid) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers},
-                "separates": (not sep["flat"]) if sep else None,
-                "rises": bool(sep and sep["rises"]),
-                "status": status,
-            }
-        )
-    order = {"worse": 0, "even": 1, None: 2, "better": 3}
-    rows.sort(key=lambda r: (order[r["status"]], not r["separates"], -r["mine_pct"]))
-    levels = [
-        {
-            "tier": g, "label": ELO_LABEL[g], "games": tiers[g]["games"], "players": tiers[g].get("players"),
-            "per_game": tiers[g]["per_game"], "severity": tiers[g].get("severity"),
-        }
-        for g in ELO_GROUPS if g in tiers
-    ]
+    rows = _elo_type_rows(all_ids, tiers, count, with_type, n)
+    levels = _elo_levels(tiers)
     # Solo los tipos que separan elos (el más alto los comete claramente menos): lo que de verdad te falta para subir.
     sep_mine = sum(count[mid] for mid in sep_ids) / n
     for lv in levels:
         types = tiers[lv["tier"]].get("types") or {}
         lv["per_game_sep"] = round(sum((types.get(mid) or {}).get("per_game", 0.0) for mid in sep_ids), 2)
-    closest = min(levels, key=lambda lv: abs(lv["per_game"] - per_game))["tier"] if levels else None
-    closest_sep = min(levels, key=lambda lv: abs(lv["per_game_sep"] - sep_mine))["tier"] if levels else None
+    closest = _closest(levels, "per_game", per_game)
+    closest_sep = _closest(levels, "per_game_sep", sep_mine)
     normals = sum(1 for g in mine if g.get("queue") not in (420, 440))
     return {
         "role": role,
@@ -906,6 +921,80 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
         "closest_sep": closest_sep,
         "types": rows,
     }
+
+
+def _count_mistakes(mine: list[dict], role: str) -> tuple[Counter, Counter, Counter, int]:
+    """Tus errores por tipo: veces, partidas con ese tipo, veces por gravedad y total de errores."""
+    count, with_type, sev = Counter(), Counter(), Counter()
+    total = 0
+    for g in mine:
+        ids = []
+        for kind, severity, _, tags, _ in g["mistakes"]:
+            mt = mistake_type(kind, set(tags or []), role)
+            if mt is None:
+                continue
+            ids.append(mt["id"])
+            sev[severity] += 1
+        total += len(ids)
+        count.update(ids)
+        with_type.update(set(ids))
+    return count, with_type, sev, total
+
+
+def _elo_status(mine_pct: float, top: float | None, games_with: int, n: int) -> str | None:
+    """Cómo quedas en un tipo de error frente al elo más alto: «worse», «better» o «even» (None sin datos del elo)."""
+    if top is None:
+        return None
+    # Ruido: con n partidas, una diferencia menor que ~1,5 errores típicos de una proporción no dice nada.
+    p = max(min((top or 0) / 100, 0.99), 0.01)
+    noise = 150 * math.sqrt(p * (1 - p) / n)
+    if games_with >= 2 and mine_pct - top > max(5.0, noise):
+        return "worse"
+    return "better" if top - mine_pct > max(5.0, noise) else "even"
+
+
+def _elo_type_rows(all_ids: set, tiers: dict, count: Counter, with_type: Counter, n: int) -> list[dict]:
+    """Una fila por tipo de error: tu % de partidas con él frente al de cada elo (primero en lo que estás peor)."""
+    titles = {mt["id"]: mt["title"] for mt in MISTAKE_TYPES}
+    rows = []
+    for mid in all_ids:
+        sep = separation(tiers, mid)
+        mine_pct = 100 * with_type[mid] / n
+        top = sep["top_pct"] if sep else None
+        status = _elo_status(mine_pct, top, with_type[mid], n)
+        if not with_type[mid] and (top is None or top < 5):
+            continue
+        rows.append(
+            {
+                "id": mid,
+                "title": titles.get(mid, mid),
+                "mine_pct": round(mine_pct, 1),
+                "mine_per_game": round(count[mid] / n, 2),
+                "tiers": _tier_pcts(tiers, mid),
+                "separates": (not sep["flat"]) if sep else None,
+                "rises": bool(sep and sep["rises"]),
+                "status": status,
+            }
+        )
+    order = {"worse": 0, "even": 1, None: 2, "better": 3}
+    rows.sort(key=lambda r: (order[r["status"]], not r["separates"], -r["mine_pct"]))
+    return rows
+
+
+def _elo_levels(tiers: dict) -> list[dict]:
+    """Cada elo con datos (de más bajo a más alto): partidas, jugadores, errores por partida y su gravedad."""
+    return [
+        {
+            "tier": g, "label": ELO_LABEL[g], "games": tiers[g]["games"], "players": tiers[g].get("players"),
+            "per_game": tiers[g]["per_game"], "severity": tiers[g].get("severity"),
+        }
+        for g in ELO_GROUPS if g in tiers
+    ]
+
+
+def _closest(levels: list[dict], key: str, value: float) -> str | None:
+    """Elo cuyo ``key`` (errores por partida) queda más cerca de tu valor (None si no hay elos)."""
+    return min(levels, key=lambda lv: abs(lv[key] - value))["tier"] if levels else None
 
 
 # ------------------------------------------------------------------ movimiento (posiciones reconstruidas)
@@ -970,6 +1059,19 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
     champ = Counter(g["champ"] for g in mine).most_common(1)[0][0]
     tiers, scope = elo_tiers(profile, role, champ)
     tiers = {t: b for t, b in tiers.items() if b.get("move")}
+    rows = _move_rows(mine, role, tiers) + _route_rows(mine, role, tiers)
+    for r in rows:
+        r.update(_move_trend(r))
+    return {"role": role, "champ": champ if scope == "champ" and tiers else None, "games": len(mine), "rows": rows, "elo": bool(tiers)}
+
+
+def _elo_move(tiers: dict, key: str) -> dict | None:
+    """Valor de esa medida en cada elo que la tiene (None si no la tiene ninguno)."""
+    return {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None
+
+
+def _move_rows(mine: list[dict], role: str, tiers: dict) -> list[dict]:
+    """Filas de dónde pasas el tiempo (``MOVE_ROWS`` de tu rol): tu %, el de tu rival directo y el de cada elo."""
     rows = []
     for key, phase, field, label, roles, elo_key in MOVE_ROWS:
         if roles is not None and role not in roles:
@@ -983,9 +1085,22 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "label": label,
             "mine": round(sum(me_vals) / len(me_vals), 1),
             "opp": round(sum(opp_vals) / len(opp_vals), 1) if len(opp_vals) >= MIN_MOVE_GAMES else None,
-            "tiers": {g: tiers[g]["move"].get(elo_key) for g in ELO_GROUPS if g in tiers and elo_key and tiers[g]["move"].get(elo_key) is not None} or None,
+            "tiers": _elo_move(tiers, elo_key) if elo_key else None,
             "unit": "%",
         })
+    return rows
+
+
+def _route_group(field: str, key: str) -> str:
+    """Grupo de una fila de roams y visión: «rules» (reglas medibles), «vision» o «routes»."""
+    if field == "rules":
+        return "rules"
+    return "vision" if key in VISION_KEYS else "routes"
+
+
+def _route_rows(mine: list[dict], role: str, tiers: dict) -> list[dict]:
+    """Filas de roams, visión y reglas medibles de tu rol (``ROUTE_ROWS`` y ``rule_metrics.ROWS``): tu media y la de cada elo."""
+    rows = []
     for key, label, roles, unit, field in [(*r, "route_macro") for r in ROUTE_ROWS] + [(*r, "rules") for r in RULE_ROWS]:
         if role not in roles:
             continue
@@ -996,14 +1111,12 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "key": key,
             "label": label,
             "unit": unit,
-            "group": "rules" if field == "rules" else "vision" if key in VISION_KEYS else "routes",
+            "group": _route_group(field, key),
             "mine": round(sum(vals) / len(vals), 1 if unit == "%" else 2),
             "opp": None,
-            "tiers": {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None,
+            "tiers": _elo_move(tiers, key),
         })
-    for r in rows:
-        r.update(_move_trend(r))
-    return {"role": role, "champ": champ if scope == "champ" and tiers else None, "games": len(mine), "rows": rows, "elo": bool(tiers)}
+    return rows
 
 
 MOVE_TREND_REL = 0.10  # diferencia del elo más alto frente al más bajo para decir que «va en una dirección»…
@@ -1073,15 +1186,7 @@ def tilt_report(games: list[dict]) -> dict | None:
     sessions = sessions_of(games)
     if not sessions:
         return None
-    after: list[bool] = []
-    by_index: dict[int, list[bool]] = defaultdict(list)
-    for s in sessions:
-        streak = 0
-        for i, g in enumerate(s):
-            by_index[min(i + 1, 4)].append(bool(g["win"]))
-            if streak >= TILT_STREAK:
-                after.append(bool(g["win"]))
-            streak = 0 if g["win"] else streak + 1
+    after, by_index = _after_losses(sessions)
     results = [bool(g["win"]) for s in sessions for g in s]
     overall = sum(results) / len(results)
     wr_after = sum(after) / len(after) if after else None
@@ -1089,15 +1194,7 @@ def tilt_report(games: list[dict]) -> dict | None:
     drop = (overall - wr_after) * 100 if wr_after is not None else None
     tilted = bool(after) and len(after) >= TILT_MIN_GAMES and drop >= max(TILT_MIN_DROP, Z_80 * se * 100)
     long_sessions = [s for s in sessions if len(s) >= LONG_SESSION]
-    if tilted:
-        message = (
-            f"Tras {TILT_STREAK} derrotas seguidas ganas el {round(wr_after * 100)} % ({len(after)} partidas), frente al {round(overall * 100)} % "
-            "general: después de 2 derrotas, para al menos 15 minutos antes de la siguiente."
-        )
-    elif len(after) >= TILT_MIN_GAMES:
-        message = f"Tras {TILT_STREAK} derrotas seguidas: {round(wr_after * 100)} % de victorias en {len(after)} partidas (general {round(overall * 100)} %). No hay una caída clara."
-    else:
-        message = f"Aún hay pocas partidas jugadas tras {TILT_STREAK} derrotas seguidas ({len(after)}) para saber si te afecta."
+    message = _tilt_message(tilted, after, wr_after, overall)
     return {
         "games": len(results),
         "sessions": len(sessions),
@@ -1109,6 +1206,43 @@ def tilt_report(games: list[dict]) -> dict | None:
         "message": message,
         "learn": learn.topic("tilt") if tilted else None,
     }
+
+
+def _after_losses(sessions: list[list[dict]]) -> tuple[list[bool], dict[int, list[bool]]]:
+    """Victorias en las partidas jugadas tras ``TILT_STREAK`` derrotas seguidas y por número de partida en la sesión."""
+    after: list[bool] = []
+    by_index: dict[int, list[bool]] = defaultdict(list)
+    for s in sessions:
+        streak = 0
+        for i, g in enumerate(s):
+            by_index[min(i + 1, 4)].append(bool(g["win"]))
+            if streak >= TILT_STREAK:
+                after.append(bool(g["win"]))
+            streak = 0 if g["win"] else streak + 1
+    return after, by_index
+
+
+def _tilt_message(tilted: bool, after: list[bool], wr_after: float | None, overall: float) -> str:
+    """Texto del aviso de tilt: caída clara, sin caída clara o aún pocas partidas tras 2 derrotas seguidas."""
+    if tilted:
+        return (
+            f"Tras {TILT_STREAK} derrotas seguidas ganas el {round(wr_after * 100)} % ({len(after)} partidas), frente al {round(overall * 100)} % "
+            "general: después de 2 derrotas, para al menos 15 minutos antes de la siguiente."
+        )
+    if len(after) >= TILT_MIN_GAMES:
+        return f"Tras {TILT_STREAK} derrotas seguidas: {round(wr_after * 100)} % de victorias en {len(after)} partidas (general {round(overall * 100)} %). No hay una caída clara."
+    return f"Aún hay pocas partidas jugadas tras {TILT_STREAK} derrotas seguidas ({len(after)}) para saber si te afecta."
+
+
+def _pool_message(champions: int, games: int, wide: bool) -> str:
+    """Texto del pool de un rol: aviso si juegas demasiados campeones distintos o cuántos juegas."""
+    if wide:
+        return (
+            f"Has jugado {champions} campeones distintos en tus últimas {games} partidas de este rol: los coaches recomiendan un núcleo "
+            "de 2-3 para dominar sus matchups y picos de poder."
+        )
+    noun = "campeón" if champions == 1 else "campeones"
+    return f"Juegas {champions} {noun} en tus últimas {games} partidas de este rol."
 
 
 def pool_report(games: list[dict]) -> list[dict]:
@@ -1134,11 +1268,7 @@ def pool_report(games: list[dict]) -> list[dict]:
                 "champions": len(champs),
                 "wide": wide,
                 "core": core,
-                "message": (
-                    f"Has jugado {len(champs)} campeones distintos en tus últimas {len(items)} partidas de este rol: los coaches recomiendan un núcleo "
-                    "de 2-3 para dominar sus matchups y picos de poder."
-                    if wide else f"Juegas {len(champs)} {'campeón' if len(champs) == 1 else 'campeones'} en tus últimas {len(items)} partidas de este rol."
-                ),
+                "message": _pool_message(len(champs), len(items), wide),
             }
         )
     out.sort(key=lambda r: r["games"], reverse=True)
@@ -1229,7 +1359,6 @@ def _suggested_goal(rule: dict, row: dict, by_key: dict) -> dict | None:
         else:  # otra métrica (p. ej. muertes sin visión → wards antes del 14)
             other = by_key.get(target)
             metric = target
-            m = METRICS[metric]
             base = other["ref"] if other else 4
             target = max(1, round(base or 4))
     return {"metric": metric, "op": op, "target": target, "label": goal_label(label, target, metric)}
@@ -1388,13 +1517,7 @@ def readiness(games: list[dict], refs: References, goals: list[dict], elo: dict 
     rated = [g["rate"] for g in goals if g.get("active", True) and g.get("rate") is not None and g.get("games", 0) >= MIN_GOAL_GAMES]
     goals_rate = round(sum(rated) / len(rated)) if rated else None
     errs = errors_score(elo, getattr(refs, "tier", None))
-    parts = []  # (peso, nota 0-100)
-    if goals_rate is not None:
-        parts.append((0.5 if errs else 0.6, goals_rate))
-    if fundamentals is not None:
-        parts.append((0.25 if goals_rate is not None and errs else 0.4 if goals_rate is not None else 0.5 if errs else 1.0, fundamentals * 10))
-    if errs:
-        parts.append((0.25 if goals_rate is not None else 0.5 if fundamentals is not None else 1.0, errs["score"]))
+    parts = _readiness_parts(goals_rate, fundamentals, errs)  # (peso, nota 0-100)
     total = sum(w for w, _ in parts)
     score = round(sum(w * v for w, v in parts) / total) if parts else None
     missing = max(0, MIN_GAMES_READY - len(games))
@@ -1405,24 +1528,9 @@ def readiness(games: list[dict], refs: References, goals: list[dict], elo: dict 
     elif missing:
         message = f"Te faltan {missing} partidas analizadas para valorarlo con fiabilidad."
     elif ready:
-        message = (
-            "Cumples tus propósitos y juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
-            if goals_rate is not None
-            else "Juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias. Ponte un propósito para seguir mejorando."
-        )
-    elif goals_rate is not None and goals_rate < READY_SCORE:
-        message = f"Cumples tus propósitos en el {goals_rate} % de tus últimas partidas. Llega al 70 % antes de saltar a clasificatorias."
-    elif errs and errs["score"] < READY_SCORE:
-        message = (
-            f"Cometes {_fmt(errs['mine'], 1)} errores que separan elos por partida y en {tier} se cometen {_fmt(errs['target'], 1)}: "
-            "baja de ahí con los que más repites (mira «Tus errores frente a cada elo»)."
-        )
-    elif fundamentals is not None and fundamentals >= 5:
-        message = "Tus medias ya están a la altura de tu elo objetivo, pero aún sin margen: sigue unas partidas más o súbelo un elo para ver qué te falta."
+        message = _ready_message(goals_rate, elo)
     else:
-        message = "Tus medias aún están por debajo de tu elo objetivo: céntrate en tus puntos débiles (abajo)."
-    if ready and elo and elo.get("games") and (elo.get("normals") or 0) >= 0.8 * elo["games"]:
-        message += " Ojo: casi todas tus partidas son normales, donde los rivales suelen ser más flojos; confírmalo con unas pocas clasificatorias."
+        message = _not_ready_message(goals_rate, errs, fundamentals, tier)
     return {
         "score": score,
         "ready": ready,
@@ -1434,6 +1542,57 @@ def readiness(games: list[dict], refs: References, goals: list[dict], elo: dict 
         "message": message,
         "threshold": READY_SCORE,
     }
+
+
+def _readiness_parts(goals_rate: int | None, fundamentals: float | None, errs: dict | None) -> list[tuple[float, float]]:
+    """Partes de la nota (peso, nota 0-100) que haya: propósitos, fundamentos y errores que separan elos."""
+    parts = []
+    if goals_rate is not None:
+        parts.append((0.5 if errs else 0.6, goals_rate))
+    if fundamentals is not None:
+        parts.append((_fundamentals_weight(goals_rate is not None, errs), fundamentals * 10))
+    if errs:
+        parts.append((_errors_weight(goals_rate is not None, fundamentals is not None), errs["score"]))
+    return parts
+
+
+def _fundamentals_weight(has_goals: bool, errs: dict | None) -> float:
+    """Peso de los fundamentos en la nota, según haya propósitos y errores por elo."""
+    if has_goals:
+        return 0.25 if errs else 0.4
+    return 0.5 if errs else 1.0
+
+
+def _errors_weight(has_goals: bool, has_fundamentals: bool) -> float:
+    """Peso de los errores que separan elos en la nota, según haya propósitos y fundamentos."""
+    if has_goals:
+        return 0.25
+    return 0.5 if has_fundamentals else 1.0
+
+
+def _ready_message(goals_rate: int | None, elo: dict | None) -> str:
+    """Texto cuando estás listo para clasificatorias (con un aviso si casi todas tus partidas son normales)."""
+    if goals_rate is not None:
+        message = "Cumples tus propósitos y juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias."
+    else:
+        message = "Juegas al nivel de tu elo objetivo: es buen momento para jugar clasificatorias. Ponte un propósito para seguir mejorando."
+    if elo and elo.get("games") and (elo.get("normals") or 0) >= 0.8 * elo["games"]:
+        message += " Ojo: casi todas tus partidas son normales, donde los rivales suelen ser más flojos; confírmalo con unas pocas clasificatorias."
+    return message
+
+
+def _not_ready_message(goals_rate: int | None, errs: dict | None, fundamentals: float | None, tier: str) -> str:
+    """Qué te falta para jugar clasificatorias: cumplir tus propósitos, cometer menos errores que separan elos o tus medias."""
+    if goals_rate is not None and goals_rate < READY_SCORE:
+        return f"Cumples tus propósitos en el {goals_rate} % de tus últimas partidas. Llega al 70 % antes de saltar a clasificatorias."
+    if errs and errs["score"] < READY_SCORE:
+        return (
+            f"Cometes {_fmt(errs['mine'], 1)} errores que separan elos por partida y en {tier} se cometen {_fmt(errs['target'], 1)}: "
+            "baja de ahí con los que más repites (mira «Tus errores frente a cada elo»)."
+        )
+    if fundamentals is not None and fundamentals >= 5:
+        return "Tus medias ya están a la altura de tu elo objetivo, pero aún sin margen: sigue unas partidas más o súbelo un elo para ver qué te falta."
+    return "Tus medias aún están por debajo de tu elo objetivo: céntrate en tus puntos débiles (abajo)."
 
 
 def champion_stats(games: list[dict], refs: References) -> list[dict]:
@@ -1468,20 +1627,7 @@ def compare_build(mine: dict | None, ref: dict | None) -> dict | None:
     legendary = list(mine.get("items") or [])
     core = list(ref.get("core") or [])
     popular = {p["id"]: p.get("pick_rate") for p in ref.get("popular") or [] if p.get("id")}
-    first = legendary[0] if legendary else None
-    notes: list[dict] = []
-    overlap = len(set(legendary[:3]) & set(core)) if core else None
-    if first and core:
-        if first == core[0]:
-            notes.append({"ok": True, "text": "Primer objeto: el mismo que la build más jugada."})
-        elif first in core:
-            notes.append({"ok": True, "text": "Empiezas por otro de los objetos clave de la build más jugada (cambia el orden).", "items": [first, core[0]]})
-        elif first in popular:
-            notes.append({"ok": True, "text": f"Primer objeto distinto al más habitual, pero lo lleva un {round((popular[first] or 0) * 100)} % de las builds.", "items": [first, core[0]]})
-        else:
-            notes.append({"ok": False, "text": "Tu primer objeto no está entre los habituales de tu campeón en este rol.", "items": [first, core[0]]})
-    if overlap is not None and len(legendary) >= 3:
-        notes.append({"ok": overlap >= 2, "text": f"Coincides en {overlap} de {len(core)} objetos clave con la build más jugada."})
+    first, overlap, notes = _item_notes(legendary, core, popular)
     boots = mine.get("boots")
     ref_boots = ref.get("boots") or []
     if boots and ref_boots and boots not in ref_boots:
@@ -1489,9 +1635,37 @@ def compare_build(mine: dict | None, ref: dict | None) -> dict | None:
     skill_max = "".join(mine.get("skill_max") or [])[:3]
     ref_max = "".join(ref.get("skill_max") or [])[:3]
     if skill_max and ref_max:
-        same = skill_max == ref_max
-        notes.append({"ok": same, "text": f"Habilidades: maximizas {' > '.join(skill_max)}" + ("" if same else f"; lo habitual es {' > '.join(ref_max)}") + "."})
+        notes.append(_skills_note(skill_max, ref_max))
     return {"core": core, "boots": ref_boots, "skill_max": list(ref_max), "popular": ref.get("popular") or [], "overlap": overlap, "first": first, "notes": notes}
+
+
+def _item_notes(legendary: list, core: list, popular: dict) -> tuple:
+    """Tu primer objeto, cuántos de tus 3 primeros están en el núcleo de la build más jugada y las notas de ambos."""
+    first = legendary[0] if legendary else None
+    notes: list[dict] = []
+    overlap = len(set(legendary[:3]) & set(core)) if core else None
+    if first and core:
+        notes.append(_first_item_note(first, core, popular))
+    if overlap is not None and len(legendary) >= 3:
+        notes.append({"ok": overlap >= 2, "text": f"Coincides en {overlap} de {len(core)} objetos clave con la build más jugada."})
+    return first, overlap, notes
+
+
+def _first_item_note(first, core: list, popular: dict) -> dict:
+    """Nota sobre tu primer objeto frente al de la build más jugada (y lo habitual que es en otras builds)."""
+    if first == core[0]:
+        return {"ok": True, "text": "Primer objeto: el mismo que la build más jugada."}
+    if first in core:
+        return {"ok": True, "text": "Empiezas por otro de los objetos clave de la build más jugada (cambia el orden).", "items": [first, core[0]]}
+    if first in popular:
+        return {"ok": True, "text": f"Primer objeto distinto al más habitual, pero lo lleva un {round((popular[first] or 0) * 100)} % de las builds.", "items": [first, core[0]]}
+    return {"ok": False, "text": "Tu primer objeto no está entre los habituales de tu campeón en este rol.", "items": [first, core[0]]}
+
+
+def _skills_note(skill_max: str, ref_max: str) -> dict:
+    """Nota sobre el orden en que maximizas las habilidades frente al habitual."""
+    same = skill_max == ref_max
+    return {"ok": same, "text": f"Habilidades: maximizas {' > '.join(skill_max)}" + ("" if same else f"; lo habitual es {' > '.join(ref_max)}") + "."}
 
 
 def build_summary(games: list[dict], refs: dict) -> list[dict]:
@@ -1502,45 +1676,59 @@ def build_summary(games: list[dict], refs: dict) -> list[dict]:
             by[(g["champ"], g["role"])].append(g)
     out = []
     for (champ, role), items in sorted(by.items(), key=lambda kv: len(kv[1]), reverse=True)[:4]:
-        firsts: Counter = Counter()
-        cores: Counter = Counter()
-        boots: Counter = Counter()
-        maxes: Counter = Counter()
-        minutes = []
-        for g in items:
-            b = g["build"]
-            legend = list(b.get("items") or [])
-            if legend:
-                firsts[legend[0]] += 1
-            if len(legend) >= 3:
-                cores[tuple(legend[:3])] += 1
-            if b.get("boots"):
-                boots[b["boots"]] += 1
-            if b.get("skill_max"):
-                maxes["".join(b["skill_max"])[:3]] += 1
-            if (g["metrics"] or {}).get("first_item_min") is not None:
-                minutes.append(g["metrics"]["first_item_min"])
-        first = firsts.most_common(1)[0] if firsts else None
-        core = cores.most_common(1)[0] if cores else None
-        mine = {
-            "items": list(core[0]) if core else ([first[0]] if first else []),
-            "boots": boots.most_common(1)[0][0] if boots else None,
-            "skill_max": list(maxes.most_common(1)[0][0]) if maxes else [],
-        }
-        out.append(
-            {
-                "champ": champ,
-                "role": role,
-                "games": len(items),
-                "first_item": {"id": first[0], "games": first[1]} if first else None,
-                "core": {"ids": list(core[0]), "games": core[1]} if core else None,
-                "boots": {"id": mine["boots"], "games": boots.most_common(1)[0][1]} if boots else None,
-                "skill_max": mine["skill_max"],
-                "first_item_min": round(_mean(minutes), 1) if minutes else None,
-                "compare": compare_build(mine, refs.get((champ, role))),
-            }
-        )
+        out.append(_champ_build(champ, role, items, refs))
     return out
+
+
+def _count_build(b: dict, firsts: Counter, cores: Counter, boots: Counter, maxes: Counter) -> None:
+    """Suma una build (objetos terminados, botas y orden de habilidades) a los recuentos de su campeón."""
+    legend = list(b.get("items") or [])
+    if legend:
+        firsts[legend[0]] += 1
+    if len(legend) >= 3:
+        cores[tuple(legend[:3])] += 1
+    if b.get("boots"):
+        boots[b["boots"]] += 1
+    if b.get("skill_max"):
+        maxes["".join(b["skill_max"])[:3]] += 1
+
+
+def _my_items(core: tuple | None, first: tuple | None) -> list:
+    """Tus objetos más repetidos: el núcleo de 3 si lo hay; si no, solo el primero."""
+    if core:
+        return list(core[0])
+    return [first[0]] if first else []
+
+
+def _champ_build(champ: int, role: str | None, items: list[dict], refs: dict) -> dict:
+    """Tu build más repetida con un campeón y rol (primer objeto, núcleo, botas, habilidades y tiempos) frente a la más jugada."""
+    firsts: Counter = Counter()
+    cores: Counter = Counter()
+    boots: Counter = Counter()
+    maxes: Counter = Counter()
+    minutes = []
+    for g in items:
+        _count_build(g["build"], firsts, cores, boots, maxes)
+        if (g["metrics"] or {}).get("first_item_min") is not None:
+            minutes.append(g["metrics"]["first_item_min"])
+    first = firsts.most_common(1)[0] if firsts else None
+    core = cores.most_common(1)[0] if cores else None
+    mine = {
+        "items": _my_items(core, first),
+        "boots": boots.most_common(1)[0][0] if boots else None,
+        "skill_max": list(maxes.most_common(1)[0][0]) if maxes else [],
+    }
+    return {
+        "champ": champ,
+        "role": role,
+        "games": len(items),
+        "first_item": {"id": first[0], "games": first[1]} if first else None,
+        "core": {"ids": list(core[0]), "games": core[1]} if core else None,
+        "boots": {"id": mine["boots"], "games": boots.most_common(1)[0][1]} if boots else None,
+        "skill_max": mine["skill_max"],
+        "first_item_min": round(_mean(minutes), 1) if minutes else None,
+        "compare": compare_build(mine, refs.get((champ, role))),
+    }
 
 
 def summarize(games: list[dict], refs: References, goals: list[dict], build_refs: dict | None = None, elo_profile: dict | None = None) -> dict:

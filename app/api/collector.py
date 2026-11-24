@@ -246,7 +246,7 @@ def _otp_summary(svc, cfg, cap: int) -> dict:
     los únicos que pueden tener partidas o el historial completo, y los siguientes por visitar; se rehace sola cada
     minuto en segundo plano) y del embudo que escribe cada 5 min. Antes, cada petición contaba las partidas de cada
     jugador con cada campeón: ~26 s con 30.000 jugadores, pedida cada ~10 s (24-11-2026)."""
-    rows, _at = svc.crawler.otp_rows_cached(cfg)
+    rows, _ = svc.crawler.otp_rows_cached(cfg)
     list_key = otp_list_key(cfg)
     depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
     states = [otp_history_state(row, list_key, depth_start) for row, _ in rows]

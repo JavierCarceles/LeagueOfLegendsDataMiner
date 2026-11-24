@@ -42,6 +42,7 @@ from __future__ import annotations
 import bisect
 import math
 from collections import Counter
+from itertools import permutations
 
 from app.coach import clocks as clk
 from app.coach import geometry as geo
@@ -185,6 +186,7 @@ OBJ_LABEL = {
     "grubs": "las larvas",
     "atakhan": "Atakhan",
 }
+SOUL_LABEL = "el alma"  # así empieza la etiqueta del alma del dragón (``_obj_label``)
 # Valor aproximado en oro de equipo (para comparar cambios de objetivos).
 OBJ_VALUE = {"dragon": 1000, "elder": 3000, "baron": 3000, "herald": 900, "grubs": 250, "atakhan": 1500}
 # Desde la temporada 2026 (parche 16.1) las placas no caen al 14: hay placas toda la partida, también en las
@@ -277,7 +279,10 @@ def _plural(n: int, one: str, many: str) -> str:
 
 def _sentence(text: str) -> str:
     text = text.strip()
-    return (text[:1].upper() + text[1:] + ("" if text.endswith(".") else ".")) if text else ""
+    if not text:
+        return ""
+    end = "" if text.endswith(".") else "."
+    return text[:1].upper() + text[1:] + end
 
 
 def _join(parts: list[str]) -> str:
@@ -298,14 +303,47 @@ def find_me(match: dict, *, pid: int | None = None, puuid: str | None = None, ga
         if found:
             return found
     if game_name:
-        name, tag = game_name.casefold(), (tag_line or "").casefold()
-        found = next(
-            (p for p in parts if (p.get("riotIdGameName") or "").casefold() == name and (not tag or (p.get("riotIdTagline") or "").casefold() == tag)),
-            None,
-        )
+        found = _by_riot_id(parts, game_name, tag_line)
         if found:
             return found
     raise NotInMatch("El jugador no aparece en esta partida")
+
+
+def _by_riot_id(parts: list[dict], game_name: str, tag_line: str | None) -> dict | None:
+    """Participante con ese Riot ID (sin etiqueta, vale cualquiera); ``None`` si no está."""
+    name, tag = game_name.casefold(), (tag_line or "").casefold()
+    return next(
+        (p for p in parts if (p.get("riotIdGameName") or "").casefold() == name and (not tag or (p.get("riotIdTagline") or "").casefold() == tag)),
+        None,
+    )
+
+
+def _player_entry(pid: int, p: dict, role: str | None, team: int) -> dict:
+    """Datos de un jugador para el análisis: equipo, campeón, rol, Riot ID y si lleva Castigo."""
+    return {
+        "pid": pid,
+        "team": team,
+        "champ": _num(p.get("championId")),
+        "role": role,
+        "name": p.get("riotIdGameName") or p.get("summonerName") or "",
+        "tag": p.get("riotIdTagline") or "",
+        "smite": SMITE in (_num(p.get("summoner1Id")), _num(p.get("summoner2Id"))),
+    }
+
+
+def _monster_kind(e: dict) -> str | None:
+    """Objetivo de un ELITE_MONSTER_KILL («elder» aparte de los dragones); ``None`` si no es uno de los que se miran."""
+    monster = MONSTERS.get((e.get("monsterType") or "").upper())
+    if monster == "dragon" and (e.get("monsterSubType") or "").upper() == "ELDER_DRAGON":
+        return "elder"
+    return monster
+
+
+def _building_kind(e: dict) -> str:
+    """Placa, torre o inhibidor según el evento de estructura."""
+    if e.get("type") == "TURRET_PLATE_DESTROYED":
+        return "plate"
+    return "tower" if e.get("buildingType") == "TOWER_BUILDING" else "inhibitor"
 
 
 class _Game:
@@ -320,6 +358,37 @@ class _Game:
         self.duration = duration_seconds(info)
         self.duration_ms = self.duration * 1000
         self.minutes = max(self.duration, 60) / 60
+        me_pid = self._load_players(info, me)
+        self.me = self.players[me_pid]
+        self.team = self.me["team"]
+        self.role = self.me["role"]
+        self.won = bool(me.get("win"))
+        self.allies = [p for p in self.players if self.players[p]["team"] == self.team and p != self.me["pid"]]
+        self.enemies = [p for p in self.players if self.players[p]["team"] != self.team]
+        self.opponent = self._by_role(300 - self.team, self.role) if self.role else None
+        self.enemy_jungler = self._jungler(300 - self.team)
+        self.ally_jungler = self._jungler(self.team)
+
+        self._load_frames(timeline)
+        self.catalog = catalog if catalog else None
+        self._index_events()
+        self._detect_afk()
+        # Relojes de los objetivos (cuándo apareció cada uno). Si no cuadran con la partida, nada de lo que
+        # depende de ellos se juzga (``clocks_ok`` False).
+        self.clocks = clk.clocks_for(info) if self.has_timeline else None
+        self.clocks_ok = clk.assign_spawns(self.objectives, self.clocks)
+        self.flagged: set[int] = set()  # objetivos que ``_objectives`` ya señaló (no repetir el mismo momento)
+        self.used_gains: set[int] = set()  # kills, estructuras y objetivos que ya compensaron un objetivo rival
+        self.inv = Inventory(self.catalog, self.item_events[me_pid]) if self.catalog and self.has_timeline else None
+        # Oro y build solo se juzgan si el inventario se puede reconstruir con fiabilidad: catálogo de la
+        # misma temporada que la partida y ningún objeto desconocido (si no, los huecos y precios no cuadran).
+        self.items_reliable = self.inv is not None and not self.inv.unknown and _same_season(self.catalog, info)
+        self.gold_rows: dict[int, dict] = {}
+        self.hoard_frames: set[int] = set()
+        self._invs: dict[int, Inventory | None] = {me_pid: self.inv}
+
+    def _load_players(self, info: dict, me: dict) -> int:
+        """Los 10 jugadores (``raw`` y ``players``, sin rol si se repite en su equipo); devuelve el ``pid`` de ``me``."""
         self.raw = {}
         self.players: dict[int, dict] = {}
         roles_seen: Counter = Counter()
@@ -331,15 +400,7 @@ class _Game:
             if p is me:
                 me_pid = pid
             self.raw[pid] = p
-            self.players[pid] = {
-                "pid": pid,
-                "team": team,
-                "champ": _num(p.get("championId")),
-                "role": role,
-                "name": p.get("riotIdGameName") or p.get("summonerName") or "",
-                "tag": p.get("riotIdTagline") or "",
-                "smite": SMITE in (_num(p.get("summoner1Id")), _num(p.get("summoner2Id"))),
-            }
+            self.players[pid] = _player_entry(pid, p, role, team)
             if role:
                 roles_seen[(team, role)] += 1
         for pl in self.players.values():  # rol duplicado en un equipo: no es fiable
@@ -347,16 +408,10 @@ class _Game:
                 pl["role"] = None
         if me_pid is None:
             raise NotInMatch("El jugador no aparece en esta partida")
-        self.me = self.players[me_pid]
-        self.team = self.me["team"]
-        self.role = self.me["role"]
-        self.won = bool(me.get("win"))
-        self.allies = [p for p in self.players if self.players[p]["team"] == self.team and p != self.me["pid"]]
-        self.enemies = [p for p in self.players if self.players[p]["team"] != self.team]
-        self.opponent = self._by_role(300 - self.team, self.role) if self.role else None
-        self.enemy_jungler = self._jungler(300 - self.team)
-        self.ally_jungler = self._jungler(self.team)
+        return me_pid
 
+    def _load_frames(self, timeline: dict | None) -> None:
+        """Frames del timeline: sus tiempos, el frame de cada jugador y todos los eventos ordenados por tiempo."""
         tl_info = (timeline or {}).get("info") or {}
         frames = [f for f in (tl_info.get("frames") or []) if isinstance(f, dict)]
         if self.team not in geo.FOUNTAIN:  # equipo desconocido: no se puede situar nada en el mapa
@@ -375,22 +430,6 @@ class _Game:
         events = [e for f in frames for e in (f.get("events") or []) if isinstance(e, dict)]
         events.sort(key=lambda e: _num(e.get("timestamp")))
         self.events = events
-        self.catalog = catalog if catalog else None
-        self._index_events()
-        self._detect_afk()
-        # Relojes de los objetivos (cuándo apareció cada uno). Si no cuadran con la partida, nada de lo que
-        # depende de ellos se juzga (``clocks_ok`` False).
-        self.clocks = clk.clocks_for(info) if self.has_timeline else None
-        self.clocks_ok = clk.assign_spawns(self.objectives, self.clocks)
-        self.flagged: set[int] = set()  # objetivos que ``_objectives`` ya señaló (no repetir el mismo momento)
-        self.used_gains: set[int] = set()  # kills, estructuras y objetivos que ya compensaron un objetivo rival
-        self.inv = Inventory(self.catalog, self.item_events[me_pid]) if self.catalog and self.has_timeline else None
-        # Oro y build solo se juzgan si el inventario se puede reconstruir con fiabilidad: catálogo de la
-        # misma temporada que la partida y ningún objeto desconocido (si no, los huecos y precios no cuadran).
-        self.items_reliable = self.inv is not None and not self.inv.unknown and _same_season(self.catalog, info)
-        self.gold_rows: dict[int, dict] = {}
-        self.hoard_frames: set[int] = set()
-        self._invs: dict[int, Inventory | None] = {me_pid: self.inv}
 
     def inventory(self, pid: int) -> Inventory | None:
         """Inventario reconstruido de cualquier jugador (``None`` sin catálogo o con objetos que no conoce)."""
@@ -442,112 +481,151 @@ class _Game:
         self.purchases: dict[int, list[tuple[int, int]]] = {pid: [] for pid in self.players}
         self.item_events: dict[int, list[dict]] = {pid: [] for pid in self.players}
         self.skill_ups: dict[int, list[tuple[int, int, str]]] = {pid: [] for pid in self.players}
+        handlers = {
+            "LEVEL_UP": self._on_level_up,
+            "SKILL_LEVEL_UP": self._on_skill_up,
+            "CHAMPION_KILL": self._on_kill,
+            "CHAMPION_SPECIAL_KILL": self._on_special_kill,
+            "ELITE_MONSTER_KILL": self._on_monster,
+            "BUILDING_KILL": self._on_building,
+            "TURRET_PLATE_DESTROYED": self._on_building,
+            "WARD_PLACED": self._on_ward_placed,
+            "WARD_KILL": self._on_ward_kill,
+            "ITEM_PURCHASED": self._on_item,
+            "ITEM_SOLD": self._on_item,
+            "ITEM_UNDO": self._on_item,
+            "ITEM_DESTROYED": self._on_item,
+        }
         for e in self.events:
             kind = e.get("type")
-            t = _num(e.get("timestamp"))
-            if kind == "LEVEL_UP":
-                pid = _num(e.get("participantId"))
-                if pid in self.levels:
-                    self.levels[pid].append((t, _num(e.get("level"), 1)))
-            elif kind == "SKILL_LEVEL_UP":
-                pid = _num(e.get("participantId"))
-                if pid in self.skill_ups:
-                    self.skill_ups[pid].append((t, _num(e.get("skillSlot")), e.get("levelUpType") or "NORMAL"))
-            elif kind == "CHAMPION_KILL":
-                victim = _num(e.get("victimId"))
-                if victim not in self.players:
-                    continue
-                bounty = _num(e.get("bounty")) + _num(e.get("shutdownBounty"))
-                # Quien le hizo daño (o recibió el suyo) en sus últimos segundos estaba a distancia de combate, aunque no
-                # figure como asistencia: un punto más para reconstruir dónde estaba cada uno.
-                damagers = {
-                    _num(d.get("participantId")) for d in (e.get("victimDamageReceived") or []) + (e.get("victimDamageDealt") or [])
-                    if (d.get("type") or "OTHER") == "OTHER" and _num(d.get("participantId")) in self.players
-                }
-                self.kills.append(
-                    {
-                        "t": t,
-                        "killer": _num(e.get("killerId")),
-                        "victim": victim,
-                        "damagers": damagers - {victim},
-                        "assists": [_num(a) for a in e.get("assistingParticipantIds") or []],
-                        "pos": _pos(e),
-                        "value": max(300, min(1000, bounty)) if bounty else 300,
-                        "shutdown": _num(e.get("shutdownBounty")),  # recompensa extra por la racha de la víctima
-                    }
-                )
-            elif kind == "CHAMPION_SPECIAL_KILL":
-                killer = _num(e.get("killerId"))
-                if killer in self.players and _pos(e):
-                    self.special_kills.append((t, killer, _pos(e)))
-            elif kind == "ELITE_MONSTER_KILL":
-                monster = MONSTERS.get((e.get("monsterType") or "").upper())
-                if not monster:
-                    continue
-                if monster == "dragon" and (e.get("monsterSubType") or "").upper() == "ELDER_DRAGON":
-                    monster = "elder"
-                killer = _num(e.get("killerId"))
-                team = _num(e.get("killerTeamId")) or (self.players[killer]["team"] if killer in self.players else 0)
-                if team not in (100, 200):
-                    continue
-                assists = [_num(a) for a in e.get("assistingParticipantIds") or []]
-                last = self.objectives[-1] if self.objectives else None
-                if monster == "grubs" and last and last["kind"] == "grubs" and last["team"] == team and t - last["t_end"] <= 120_000:
-                    last["t_end"] = t
-                    last["count"] += 1
-                    last["takers"].update([killer, *assists])
-                    continue
-                self.objectives.append(
-                    {
-                        "t": t,
-                        "t_end": t,
-                        "kind": monster,
-                        "team": team,
-                        "pos": _pos(e) or (geo.PITS["baron"] if monster in ("baron", "herald", "grubs") else geo.PITS["dragon"]),
-                        "takers": {killer, *assists},
-                        "sub": e.get("monsterSubType"),
-                        "assists_known": "assistingParticipantIds" in e,
-                        "count": 1,
-                    }
-                )
-            elif kind in ("BUILDING_KILL", "TURRET_PLATE_DESTROYED"):
-                owner = _num(e.get("teamId"))
-                self.buildings.append(
-                    {
-                        "t": t,
-                        "owner": owner,
-                        "kind": "plate" if kind == "TURRET_PLATE_DESTROYED" else ("tower" if e.get("buildingType") == "TOWER_BUILDING" else "inhibitor"),
-                        "lane": (e.get("laneType") or "").replace("_LANE", "").lower(),
-                        "tower_type": e.get("towerType"),
-                        "takers": {_num(e.get("killerId")), *[_num(a) for a in e.get("assistingParticipantIds") or []]},
-                        "pos": _pos(e),
-                    }
-                )
-            elif kind == "WARD_PLACED":
-                creator = _num(e.get("creatorId"))
-                ward_type = (e.get("wardType") or "").upper()
-                if creator in self.wards and ward_type not in ("UNDEFINED", "TEEMO_MUSHROOM", ""):
-                    self.wards[creator].append(t)
-                    self.ward_events[creator].append((t, ward_type))
-                    if ward_type == "CONTROL_WARD":
-                        self.control_wards_placed[creator] += 1
-            elif kind == "WARD_KILL":
-                killer = _num(e.get("killerId"))
-                if killer in self.players:
-                    self.wards_killed[killer] += 1
-                    self.ward_kills[killer].append(t)
-                    self.ward_kill_events.append((t, killer, (e.get("wardType") or "").upper()))
-                    victim_team = 300 - self.players[killer]["team"]
-                    if (e.get("wardType") or "").upper() == "CONTROL_WARD" and victim_team in self.pinks_lost:
-                        self.pinks_lost[victim_team].append(t)
-            elif kind in ("ITEM_PURCHASED", "ITEM_SOLD", "ITEM_UNDO", "ITEM_DESTROYED"):
-                pid = _num(e.get("participantId"))
-                if pid in self.item_events:
-                    self.item_events[pid].append(e)
-                    if kind == "ITEM_PURCHASED":
-                        self.purchases[pid].append((t, _num(e.get("itemId"))))
+            handler = handlers.get(kind) if isinstance(kind, str) else None
+            if handler is not None:
+                handler(e, _num(e.get("timestamp")))
         self._deaths()
         self._tracks()
+
+    def _on_level_up(self, e: dict, t: int) -> None:
+        """LEVEL_UP: nivel de cada jugador con su momento."""
+        pid = _num(e.get("participantId"))
+        if pid in self.levels:
+            self.levels[pid].append((t, _num(e.get("level"), 1)))
+
+    def _on_skill_up(self, e: dict, t: int) -> None:
+        """SKILL_LEVEL_UP: habilidad que sube cada jugador (y si es normal o una evolución)."""
+        pid = _num(e.get("participantId"))
+        if pid in self.skill_ups:
+            self.skill_ups[pid].append((t, _num(e.get("skillSlot")), e.get("levelUpType") or "NORMAL"))
+
+    def _on_kill(self, e: dict, t: int) -> None:
+        """CHAMPION_KILL: la kill con su posición, quién mató, asistió o hizo daño, y lo que valía."""
+        victim = _num(e.get("victimId"))
+        if victim not in self.players:
+            return
+        bounty = _num(e.get("bounty")) + _num(e.get("shutdownBounty"))
+        # Quien le hizo daño (o recibió el suyo) en sus últimos segundos estaba a distancia de combate, aunque no
+        # figure como asistencia: un punto más para reconstruir dónde estaba cada uno.
+        damagers = {
+            _num(d.get("participantId")) for d in (e.get("victimDamageReceived") or []) + (e.get("victimDamageDealt") or [])
+            if (d.get("type") or "OTHER") == "OTHER" and _num(d.get("participantId")) in self.players
+        }
+        self.kills.append(
+            {
+                "t": t,
+                "killer": _num(e.get("killerId")),
+                "victim": victim,
+                "damagers": damagers - {victim},
+                "assists": [_num(a) for a in e.get("assistingParticipantIds") or []],
+                "pos": _pos(e),
+                "value": max(300, min(1000, bounty)) if bounty else 300,
+                "shutdown": _num(e.get("shutdownBounty")),  # recompensa extra por la racha de la víctima
+            }
+        )
+
+    def _on_special_kill(self, e: dict, t: int) -> None:
+        """CHAMPION_SPECIAL_KILL: otra posición exacta de quien mató."""
+        killer = _num(e.get("killerId"))
+        if killer in self.players and _pos(e):
+            self.special_kills.append((t, killer, _pos(e)))
+
+    def _on_monster(self, e: dict, t: int) -> None:
+        """ELITE_MONSTER_KILL: objetivo con su equipo, su sitio y quién lo cogió (las larvas seguidas, juntas)."""
+        monster = _monster_kind(e)
+        if not monster:
+            return
+        killer = _num(e.get("killerId"))
+        team = _num(e.get("killerTeamId")) or (self.players[killer]["team"] if killer in self.players else 0)
+        if team not in (100, 200):
+            return
+        assists = [_num(a) for a in e.get("assistingParticipantIds") or []]
+        if monster == "grubs" and self._merge_grubs(team, t, [killer, *assists]):
+            return
+        self.objectives.append(
+            {
+                "t": t,
+                "t_end": t,
+                "kind": monster,
+                "team": team,
+                "pos": _pos(e) or (geo.PITS["baron"] if monster in ("baron", "herald", "grubs") else geo.PITS["dragon"]),
+                "takers": {killer, *assists},
+                "sub": e.get("monsterSubType"),
+                "assists_known": "assistingParticipantIds" in e,
+                "count": 1,
+            }
+        )
+
+    def _merge_grubs(self, team: int, t: int, takers: list[int]) -> bool:
+        """Larvas del mismo equipo ≤ 2 min después de las anteriores: se suman a ese objetivo (``True``) en vez de otro."""
+        last = self.objectives[-1] if self.objectives else None
+        if last and last["kind"] == "grubs" and last["team"] == team and t - last["t_end"] <= 120_000:
+            last["t_end"] = t
+            last["count"] += 1
+            last["takers"].update(takers)
+            return True
+        return False
+
+    def _on_building(self, e: dict, t: int) -> None:
+        """BUILDING_KILL y TURRET_PLATE_DESTROYED: torre, inhibidor o placa con su dueño, línea y quién la tiró."""
+        owner = _num(e.get("teamId"))
+        self.buildings.append(
+            {
+                "t": t,
+                "owner": owner,
+                "kind": _building_kind(e),
+                "lane": (e.get("laneType") or "").replace("_LANE", "").lower(),
+                "tower_type": e.get("towerType"),
+                "takers": {_num(e.get("killerId")), *[_num(a) for a in e.get("assistingParticipantIds") or []]},
+                "pos": _pos(e),
+            }
+        )
+
+    def _on_ward_placed(self, e: dict, t: int) -> None:
+        """WARD_PLACED: wards de cada jugador con su tipo (sin setas de Teemo ni tipos desconocidos)."""
+        creator = _num(e.get("creatorId"))
+        ward_type = (e.get("wardType") or "").upper()
+        if creator in self.wards and ward_type not in ("UNDEFINED", "TEEMO_MUSHROOM", ""):
+            self.wards[creator].append(t)
+            self.ward_events[creator].append((t, ward_type))
+            if ward_type == "CONTROL_WARD":
+                self.control_wards_placed[creator] += 1
+
+    def _on_ward_kill(self, e: dict, t: int) -> None:
+        """WARD_KILL: wards que quita cada jugador (y las pinks que pierde cada equipo)."""
+        killer = _num(e.get("killerId"))
+        if killer in self.players:
+            self.wards_killed[killer] += 1
+            self.ward_kills[killer].append(t)
+            self.ward_kill_events.append((t, killer, (e.get("wardType") or "").upper()))
+            victim_team = 300 - self.players[killer]["team"]
+            if (e.get("wardType") or "").upper() == "CONTROL_WARD" and victim_team in self.pinks_lost:
+                self.pinks_lost[victim_team].append(t)
+
+    def _on_item(self, e: dict, t: int) -> None:
+        """ITEM_*: eventos de objetos de cada jugador (para su inventario) y sus compras."""
+        pid = _num(e.get("participantId"))
+        if pid in self.item_events:
+            self.item_events[pid].append(e)
+            if e.get("type") == "ITEM_PURCHASED":
+                self.purchases[pid].append((t, _num(e.get("itemId"))))
 
     def level_at(self, pid: int, t: int) -> int:
         level = 1
@@ -588,21 +666,7 @@ class _Game:
         self.afk: dict[int, list[tuple[int, int]]] = {pid: [] for pid in self.players}
         for pid in self.players:
             own = sorted([t for t, _ in self.purchases[pid]] + self.wards[pid] + [t for t, *_ in self.skill_ups[pid]])
-            still = []
-            for i in range(1, len(self.ts)):
-                t0, t1 = self.ts[i - 1], self.ts[i]
-                if t1 - t0 < 30_000:  # último frame (fin de partida)
-                    continue
-                a, b = self.frame_pos(pid, i - 1), self.frame_pos(pid, i)
-                xp0, xp1 = self.fval(pid, i - 1, "xp"), self.fval(pid, i, "xp")
-                if not a or not b or xp0 is None or xp1 is None:
-                    continue
-                if geo.dist(a, b) > 60 or xp1 - xp0 > 20 or self.dead_overlap(pid, t0, t1) > 0:
-                    continue
-                j = bisect.bisect_right(own, t0)
-                if j < len(own) and own[j] <= t1:
-                    continue
-                still.append(i)
+            still = [i for i in range(1, len(self.ts)) if self._still(pid, i, own)]
             for run in _runs(still):
                 if len(run) < AFK_MIN_FRAMES:
                     continue
@@ -610,6 +674,20 @@ class _Game:
                 if run[-1] >= len(self.ts) - 2:  # quieto hasta el final
                     end = max(end, self.duration_ms)
                 self.afk[pid].append((self.ts[run[0] - 1], end))
+
+    def _still(self, pid: int, i: int, own: list[int]) -> bool:
+        """¿Pasó ``pid`` el minuto que acaba en el frame ``i`` vivo, sin moverse, sin experiencia y sin eventos propios?"""
+        t0, t1 = self.ts[i - 1], self.ts[i]
+        if t1 - t0 < 30_000:  # último frame (fin de partida)
+            return False
+        a, b = self.frame_pos(pid, i - 1), self.frame_pos(pid, i)
+        xp0, xp1 = self.fval(pid, i - 1, "xp"), self.fval(pid, i, "xp")
+        if not a or not b or xp0 is None or xp1 is None:
+            return False
+        if geo.dist(a, b) > 60 or xp1 - xp0 > 20 or self.dead_overlap(pid, t0, t1) > 0:
+            return False
+        j = bisect.bisect_right(own, t0)
+        return not (j < len(own) and own[j] <= t1)
 
     def is_afk(self, pid: int, t: int) -> bool:
         return any(start <= t < end for start, end in self.afk.get(pid) or [])
@@ -622,7 +700,7 @@ class _Game:
 
     def respawn_buy(self, pid: int, t: int) -> bool:
         """Compra al reaparecer (con margen por la estimación del tiempo de muerte): no es volver a base."""
-        return any(end - 5_000 <= t <= end + RESPAWN_BUY_MS for _s, end, _p in self.dead.get(pid) or [])
+        return any(end - 5_000 <= t <= end + RESPAWN_BUY_MS for _, end, _ in self.dead.get(pid) or [])
 
     def buys_in_base(self, pid: int) -> bool:
         """¿Sus compras le sitúan en la base? (Ornn compra en cualquier parte del mapa)."""
@@ -632,7 +710,7 @@ class _Game:
         """Vueltas a base entre ``t0`` y ``t1``: compras estando vivo que no son las de al reaparecer."""
         if not self.buys_in_base(pid):
             return []
-        return [t for t, _item in self.purchases[pid] if t0 <= t <= t1 and not self.is_dead(pid, t) and not self.respawn_buy(pid, t)]
+        return [t for t, _ in self.purchases[pid] if t0 <= t <= t1 and not self.is_dead(pid, t) and not self.respawn_buy(pid, t)]
 
     def health_ratio(self, pid: int, i: int | None) -> float | None:
         """Vida actual / máxima en el frame ``i`` (``None`` si el frame no la trae)."""
@@ -648,43 +726,10 @@ class _Game:
     def _tracks(self) -> None:
         """Puntos de paso de cada jugador: frames + eventos con posición + tienda y reapariciones."""
         anchors: dict[int, list[tuple[int, int, int, int]]] = {pid: [] for pid in self.players}
-
-        def add(pid, t, p, kind):
-            if pid in anchors and p is not None:
-                anchors[pid].append((t, int(p[0]), int(p[1]), kind))
-
         for pid in self.players:
-            fountain = geo.FOUNTAIN.get(self.players[pid]["team"])  # None con un equipo raro: sin anclas de base
-            for i, t in enumerate(self.ts):
-                p = _pos(self.pf[pid][i])
-                if p and not self.is_dead(pid, t):
-                    add(pid, t, p, 0)
-            for t, _item in self.purchases[pid] if self.buys_in_base(pid) else []:
-                if not self.is_dead(pid, t):
-                    add(pid, t, fountain, 2)
-            for start, end, pos in self.dead.get(pid) or []:
-                add(pid, start, pos, 3)
-                if end < self.duration_ms:
-                    add(pid, end, fountain, 2)
-        for k in self.kills:
-            for pid in (k["killer"], *k["assists"]):
-                if pid in self.players and not self.is_dead(pid, k["t"]):
-                    add(pid, k["t"], k["pos"], 1)
-            for pid in k.get("damagers") or ():
-                if pid not in (k["killer"], *k["assists"]) and not self.is_dead(pid, k["t"]):
-                    add(pid, k["t"], k["pos"], 5)
-        for t, pid, pos in self.special_kills:
-            if not self.is_dead(pid, t):
-                add(pid, t, pos, 1)
-        for o in self.objectives:
-            if o["assists_known"]:
-                for pid in o["takers"]:
-                    if pid in self.players and not self.is_dead(pid, o["t"]):
-                        add(pid, o["t"], o["pos"], 1)
-        for b in self.buildings:
-            for pid in b["takers"]:
-                if pid in self.players and not self.is_dead(pid, b["t"]):
-                    add(pid, b["t"], b["pos"], 1)
+            self._own_anchors(anchors, pid)
+        self._kill_anchors(anchors)
+        self._event_anchors(anchors)
         for pid, camps in infer_camps(self, anchors).items():
             anchors[pid].extend(camps)
         for pid, spots in infer_lane_farm(self, anchors).items():
@@ -698,6 +743,46 @@ class _Game:
             fixed = _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"]))
             self.anchors[pid] = _walk(fixed, self.players[pid].get("champ")) if self.route_all or pid == me_pid else fixed
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
+
+    def _own_anchors(self, anchors: dict[int, list], pid: int) -> None:
+        """Puntos de paso propios de ``pid``: sus frames, sus compras (en la fuente), sus muertes y sus reapariciones."""
+        fountain = geo.FOUNTAIN.get(self.players[pid]["team"])  # None con un equipo raro: sin anclas de base
+        for i, t in enumerate(self.ts):
+            p = _pos(self.pf[pid][i])
+            if p and not self.is_dead(pid, t):
+                _add_anchor(anchors, pid, t, p, 0)
+        for t, _ in self.purchases[pid] if self.buys_in_base(pid) else []:
+            if not self.is_dead(pid, t):
+                _add_anchor(anchors, pid, t, fountain, 2)
+        for start, end, pos in self.dead.get(pid) or []:
+            _add_anchor(anchors, pid, start, pos, 3)
+            if end < self.duration_ms:
+                _add_anchor(anchors, pid, end, fountain, 2)
+
+    def _kill_anchors(self, anchors: dict[int, list]) -> None:
+        """Puntos de paso de las kills: quien mató o asistió y quien hizo o recibió daño (a distancia de combate)."""
+        for k in self.kills:
+            self._taker_anchors(anchors, k["t"], (k["killer"], *k["assists"]), k["pos"])
+            for pid in k.get("damagers") or ():
+                if pid not in (k["killer"], *k["assists"]) and not self.is_dead(pid, k["t"]):
+                    _add_anchor(anchors, pid, k["t"], k["pos"], 5)
+
+    def _event_anchors(self, anchors: dict[int, list]) -> None:
+        """Puntos de paso de las kills especiales, los objetivos (si se sabe quién participó) y las estructuras."""
+        for t, pid, pos in self.special_kills:
+            if not self.is_dead(pid, t):
+                _add_anchor(anchors, pid, t, pos, 1)
+        for o in self.objectives:
+            if o["assists_known"]:
+                self._taker_anchors(anchors, o["t"], o["takers"], o["pos"])
+        for b in self.buildings:
+            self._taker_anchors(anchors, b["t"], b["takers"], b["pos"])
+
+    def _taker_anchors(self, anchors: dict[int, list], t: int, takers, pos) -> None:
+        """Puntos de paso de quienes participaron en un evento (si son jugadores de la partida y estaban vivos)."""
+        for pid in takers:
+            if pid in self.players and not self.is_dead(pid, t):
+                _add_anchor(anchors, pid, t, pos, 1)
 
     def anchor_gap(self, pid: int | None, t: int) -> float | None:
         """Segundos de ``t`` al punto real más cercano de ``pid`` (frame, evento propio, fuente o muerte): cuánto se fía
@@ -790,6 +875,12 @@ NEAR_BASE = 1500
 # esperar» en vez de la línea recta empeoraban; el umbral del teletransporte y los puntos de daño apenas cambian nada.
 
 
+def _add_anchor(anchors: dict[int, list], pid: int, t: int, p, kind: int) -> None:
+    """Añade un punto de paso a ``pid`` (si es de la partida y hay posición)."""
+    if pid in anchors and p is not None:
+        anchors[pid].append((t, int(p[0]), int(p[1]), kind))
+
+
 def interpolate(items: list[tuple[int, int, int, int]], t: int, times: list[int] | None = None) -> tuple[float, float] | None:
     """Posición en ``t`` con los puntos de paso (ordenados): en línea recta entre dos, quieto antes de morir o de un salto."""
     if not items:
@@ -824,18 +915,25 @@ def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, 
     for t, x, y, kind in anchors:
         prev = out[-1] if out else None
         if prev is not None and prev[3] != ANCHOR_DEATH and t > prev[0]:
-            gap = t - prev[0]
-            far = geo.dist((prev[1], prev[2]), (x, y))
-            recall = kind == ANCHOR_BASE and fountain is not None and prev[3] != ANCHOR_BASE and far > NEAR_BASE
-            teleport = not recall and kind != ANCHOR_BASE and far / gap > MAX_SPEED and far > NEAR_BASE
-            if recall or teleport:
-                start = t - (RECALL_MS if recall else 1_000)
-                if start > prev[0]:
-                    out.append([start, prev[1], prev[2], ANCHOR_HOLD])
-                elif prev[3] not in (ANCHOR_BASE,):
-                    prev[3] = ANCHOR_HOLD
+            start = _jump_start(prev, (t, x, y, kind), fountain)
+            if start is not None and start > prev[0]:
+                out.append([start, prev[1], prev[2], ANCHOR_HOLD])
+            elif start is not None and prev[3] not in (ANCHOR_BASE,):
+                prev[3] = ANCHOR_HOLD
         out.append([t, x, y, kind])
     return [tuple(a) for a in out]
+
+
+def _jump_start(prev: list[int], anchor: tuple[int, int, int, int], fountain: tuple[int, int] | None) -> int | None:
+    """Si de ``prev`` a ``anchor`` hubo vuelta a base o teletransporte, desde cuándo se queda quieto (si no, ``None``)."""
+    t, x, y, kind = anchor
+    gap = t - prev[0]
+    far = geo.dist((prev[1], prev[2]), (x, y))
+    recall = kind == ANCHOR_BASE and fountain is not None and prev[3] != ANCHOR_BASE and far > NEAR_BASE
+    teleport = not recall and kind != ANCHOR_BASE and far / gap > MAX_SPEED and far > NEAR_BASE
+    if recall or teleport:
+        return t - (RECALL_MS if recall else 1_000)
+    return None
 
 
 # ---------------------------------------------------------------- campamentos de jungla deducidos
@@ -890,8 +988,6 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
 
     ``hidden``: {(jugador, índice de frame)} cuya posición se da por desconocida (para validar la reconstrucción).
     """
-    from itertools import permutations
-
     sites = _camp_sites()
     killed: dict[str, int] = {}  # campamento -> último momento en que se hizo (de cualquiera de los dos junglas)
     out: dict[int, list] = {}
@@ -907,68 +1003,95 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
         (g.ts[a], g.ts[b], pid, a, b)
         for pid in junglers for a, b in zip(visible[pid], visible[pid][1:])
     )
-    for t0, t1, pid, a, b in spans:
-        c = [g.fval(pid, i, "jungleMinionsKilled") for i in range(a, b + 1)]
-        if any(v is None for v in c):
-            continue
-        k = round((c[-1] - c[0]) / CAMP_CS)
-        if k <= 0:
-            continue
-        p0, p1 = g.frame_pos(pid, a), g.frame_pos(pid, b)
-        # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias.
-        if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known[pid]):
-            continue
-        g.camp_minutes += 1
-        last = (out.get(pid) or [None])[-1]
-        if c[-1] - c[0] < CAMP_CS and last and t0 - last[0] <= 2 * CAMP_CLEAR_MS and geo.dist(p0, last[1:3]) <= NEAR_CAMP_REST:
-            continue  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
-        k = min(k, CAMP_MAX)
-        alive = [
-            (name, pos) for name, pos in sites
-            if t1 >= CAMP_SPAWN_MS and (name not in killed or killed[name] + CAMP_RESPAWN_MS <= t1)
-        ]
-        alive.sort(key=lambda s: geo._dist_segment(s[1], p0, p1))
-        alive = alive[:CAMP_CANDIDATES]
-        best = None
-        for combo in permutations(alive, min(k, len(alive))):
-            length, here = 0.0, p0
-            for _name, pos in combo:
-                length += geo.dist(here, pos)
-                here = pos
-            length += geo.dist(here, p1)
-            if best is None or length < best[0]:
-                best = (length, combo)
-        if best is None:
-            g.camp_misses += 1
-            continue
-        length, combo = best
-        fits = None
-        for clear_ms, max_speed in _camp_paces(g, pid, a, b):
-            walk = (t1 - t0) - len(combo) * clear_ms
-            if walk > 0 and length / walk <= max_speed:
-                fits = clear_ms, walk
-                break
-        if fits is None:
-            g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
-            continue
-        clear_ms, walk = fits
-        # Con minutos intermedios conocidos (su CS), cada campamento cae en el minuto en que subió el CS.
-        due = []
-        for j in range(1, len(c)):
-            due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
-        speed = length / walk
-        t, here = t0, p0
-        for n, (name, pos) in enumerate(combo):
-            t += geo.dist(here, pos) / speed if speed > 0 else 0
-            t = max(t, CAMP_SPAWN_MS)
-            if n < len(due) and t + clear_ms > due[n]:
-                t = max(t0, due[n] - clear_ms)  # el CS dice que ya lo había hecho a esa hora
-            out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
-            t += clear_ms
-            out[pid].append((int(min(t, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
-            killed[name] = int(t)
-            here = pos
+    for span in spans:
+        _camp_span(g, sites, killed, out, known[span[2]], span)
     return out
+
+
+def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], known: list[int], span: tuple) -> None:
+    """Un tramo de un jungla entre dos frames: lo coloca en los campamentos que encajan con su CS (o lo da por «sin cuadrar»)."""
+    t0, t1, pid, a, b = span
+    c = [g.fval(pid, i, "jungleMinionsKilled") for i in range(a, b + 1)]
+    if any(v is None for v in c):
+        return
+    k = round((c[-1] - c[0]) / CAMP_CS)
+    if k <= 0:
+        return
+    p0, p1 = g.frame_pos(pid, a), g.frame_pos(pid, b)
+    # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias.
+    if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known):
+        return
+    g.camp_minutes += 1
+    last = (out.get(pid) or [None])[-1]
+    if c[-1] - c[0] < CAMP_CS and last and t0 - last[0] <= 2 * CAMP_CLEAR_MS and geo.dist(p0, last[1:3]) <= NEAR_CAMP_REST:
+        return  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
+    best = _camp_route(sites, killed, (p0, p1), t1, min(k, CAMP_MAX))
+    fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
+    if fits is None:
+        g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
+        return
+    # Con minutos intermedios conocidos (su CS), cada campamento cae en el minuto en que subió el CS.
+    due = []
+    for j in range(1, len(c)):
+        due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
+    _place_camps(out, killed, span, p0, best, fits, due)
+
+
+def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int) -> tuple[float, tuple] | None:
+    """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos)."""
+    p0, p1 = ends
+    alive = [
+        (name, pos) for name, pos in sites
+        if t1 >= CAMP_SPAWN_MS and (name not in killed or killed[name] + CAMP_RESPAWN_MS <= t1)
+    ]
+    alive.sort(key=lambda s, p0=p0, p1=p1: geo._dist_segment(s[1], p0, p1))
+    alive = alive[:CAMP_CANDIDATES]
+    best = None
+    for combo in permutations(alive, min(k, len(alive))):
+        length = _route_length(p0, combo, p1)
+        if best is None or length < best[0]:
+            best = (length, combo)
+    return best
+
+
+def _route_length(start, combo: tuple, end) -> float:
+    """Longitud del camino de ``start`` a ``end`` pasando en orden por los campamentos de ``combo``."""
+    length, here = 0.0, start
+    for _, pos in combo:
+        length += geo.dist(here, pos)
+        here = pos
+    return length + geo.dist(here, end)
+
+
+def _camp_fit(paces: list[tuple[int, float]], span_ms: int, route: tuple[float, tuple]) -> tuple[int, int] | None:
+    """(limpieza por campamento, ms andando) con el primer ritmo al que da tiempo a hacer la ruta; ``None`` si no da."""
+    length, combo = route
+    for clear_ms, max_speed in paces:
+        walk = span_ms - len(combo) * clear_ms
+        if walk > 0 and length / walk <= max_speed:
+            return clear_ms, walk
+    return None
+
+
+def _place_camps(
+    out: dict[int, list], killed: dict[str, int], span: tuple, p0, route: tuple[float, tuple], fits: tuple[int, int], due: list[int]
+) -> None:
+    """Coloca al jungla en cada campamento de la ruta a su hora (entrada y salida) y apunta cuándo se hizo cada uno."""
+    t0, t1, pid = span[0], span[1], span[2]
+    length, combo = route
+    clear_ms, walk = fits
+    speed = length / walk
+    t, here = t0, p0
+    for n, (name, pos) in enumerate(combo):
+        t += geo.dist(here, pos) / speed if speed > 0 else 0
+        t = max(t, CAMP_SPAWN_MS)
+        if n < len(due) and t + clear_ms > due[n]:
+            t = max(t0, due[n] - clear_ms)  # el CS dice que ya lo había hecho a esa hora
+        out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+        t += clear_ms
+        out[pid].append((int(min(t, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+        killed[name] = int(t)
+        here = pos
 
 
 # ---------------------------------------------------------------- paso por la línea deducido del CS de súbditos
@@ -998,29 +1121,36 @@ def infer_lane_farm(g, anchors: dict[int, list]) -> dict[int, list[tuple[int, in
     out: dict[int, list] = {}
     if not g.has_timeline:
         return out
-    lanes = [pts for pts, _half in geo.LANES.values()]
+    lanes = [pts for pts, _ in geo.LANES.values()]
     for pid in g.players:
         others = sorted(a[0] for a in anchors.get(pid) or [] if a[3] != 0)
         for i in range(1, len(g.ts)):
-            t0, t1 = g.ts[i - 1], g.ts[i]
-            cs0, cs1 = g.fval(pid, i - 1, "minionsKilled"), g.fval(pid, i, "minionsKilled")
-            p0, p1 = g.frame_pos(pid, i - 1), g.frame_pos(pid, i)
-            if None in (cs0, cs1) or not p0 or not p1 or cs1 - cs0 < LANE_FARM_CS:
-                continue
-            if g.dead_overlap(pid, t0, t1):
-                continue
-            j = bisect.bisect_right(others, t0)
-            if j < len(others) and others[j] < t1:
-                continue  # hay otros puntos (kills, compras, campamentos): ya se sabe por dónde fue
-            path = navgrid.route(p0, p1, g.players[pid].get("champ"))  # por donde se anda (rodeando muros)
-            samples = [navgrid.along(path, f) for f in (0.1, 0.3, 0.5, 0.7, 0.9)]
-            near = sum(1 for q in samples if min(geo.dist_polyline(q, pts) for pts in lanes) <= LANE_REACH)
-            if near / len(samples) >= LANE_FARM_SHARE:
-                continue
-            mid = navgrid.along(path, 0.5)
-            spot = min((_closest_on(pts, mid) for pts in lanes), key=lambda q: geo.dist(q, mid))
-            out.setdefault(pid, []).append(((t0 + t1) // 2, int(spot[0]), int(spot[1]), ANCHOR_LANE))
+            spot = _lane_farm_spot(g, pid, i, others, lanes)
+            if spot is not None:
+                t0, t1 = g.ts[i - 1], g.ts[i]
+                out.setdefault(pid, []).append(((t0 + t1) // 2, int(spot[0]), int(spot[1]), ANCHOR_LANE))
     return out
+
+
+def _lane_farm_spot(g, pid: int, i: int, others: list[int], lanes: list) -> tuple[float, float] | None:
+    """Punto de línea por el que tuvo que pasar ``pid`` para su CS de súbditos del minuto que acaba en ``i`` (o ``None``)."""
+    t0, t1 = g.ts[i - 1], g.ts[i]
+    cs0, cs1 = g.fval(pid, i - 1, "minionsKilled"), g.fval(pid, i, "minionsKilled")
+    p0, p1 = g.frame_pos(pid, i - 1), g.frame_pos(pid, i)
+    if None in (cs0, cs1) or not p0 or not p1 or cs1 - cs0 < LANE_FARM_CS:
+        return None
+    if g.dead_overlap(pid, t0, t1):
+        return None
+    j = bisect.bisect_right(others, t0)
+    if j < len(others) and others[j] < t1:
+        return None  # hay otros puntos (kills, compras, campamentos): ya se sabe por dónde fue
+    path = navgrid.route(p0, p1, g.players[pid].get("champ"))  # por donde se anda (rodeando muros)
+    samples = [navgrid.along(path, f) for f in (0.1, 0.3, 0.5, 0.7, 0.9)]
+    near = sum(1 for q in samples if min(geo.dist_polyline(q, pts) for pts in lanes) <= LANE_REACH)
+    if near / len(samples) >= LANE_FARM_SHARE:
+        return None
+    mid = navgrid.along(path, 0.5)
+    return min((_closest_on(pts, mid) for pts in lanes), key=lambda q, mid=mid: geo.dist(q, mid))
 
 
 MOVE_STEP_MS = 5_000
@@ -1049,36 +1179,46 @@ def _movement(g: _Game) -> dict:
     for pid in g.players:
         if g.afk_ms(pid) >= 60_000:
             continue  # sus posiciones no dicen nada de cómo juega
-        phases = {"early": Counter(), "late": Counter()}
-        grouped = alone_side = late_alive = 0
-        for t in range(0, g.duration_ms, MOVE_STEP_MS):
-            phase = "early" if t < EARLY_MS else "late"
-            if g.is_dead(pid, t):
-                phases[phase]["dead"] += 1
-                continue
-            p = g.pos_at(pid, t)
-            if p is None:
-                continue
-            zone = _move_zone(g, pid, p)
-            phases[phase][zone] += 1
-            if phase == "late" and zone != "base":
-                late_alive += 1
-                allies = [a for a in g.players if a != pid and g.players[a]["team"] == g.players[pid]["team"]]
-                near = sum(1 for a in allies if (q := g.pos_at(a, t)) is not None and geo.dist(p, q) <= MOVE_GROUP_RADIUS)
-                if near >= 2:
-                    grouped += 1
-                elif near == 0 and geo.zone(p) in ("top", "bot"):
-                    alone_side += 1
-        entry = {}
-        for phase, c in phases.items():
-            total = sum(c.values())
-            if total:
-                entry[phase] = {z: round(100 * c[z] / total, 1) for z in MOVE_ZONES if c[z]}
-        if late_alive:
-            entry["grouped_late"] = round(100 * grouped / late_alive, 1)
-            entry["side_alone_late"] = round(100 * alone_side / late_alive, 1)
-        out[str(pid)] = entry
+        out[str(pid)] = _player_movement(g, pid)
     return out
+
+
+def _player_movement(g: _Game, pid: int) -> dict:
+    """% del tiempo de un jugador en cada zona antes y después del 14 y, pasado el 14, agrupado o solo en una banda."""
+    phases = {"early": Counter(), "late": Counter()}
+    late = Counter()  # muestras pasado el 14 vivo y fuera de la base: en total, agrupado y solo en una línea lateral
+    for t in range(0, g.duration_ms, MOVE_STEP_MS):
+        _movement_sample(g, pid, t, phases, late)
+    entry = {}
+    for phase, c in phases.items():
+        total = sum(c.values())
+        if total:
+            entry[phase] = {z: round(100 * c[z] / total, 1) for z in MOVE_ZONES if c[z]}
+    if late["alive"]:
+        entry["grouped_late"] = round(100 * late["grouped"] / late["alive"], 1)
+        entry["side_alone_late"] = round(100 * late["alone_side"] / late["alive"], 1)
+    return entry
+
+
+def _movement_sample(g: _Game, pid: int, t: int, phases: dict[str, Counter], late: Counter) -> None:
+    """Cuenta dónde estaba ``pid`` en ``t`` (su zona o muerto) y, pasado el 14, si iba agrupado o solo en una banda."""
+    phase = "early" if t < EARLY_MS else "late"
+    if g.is_dead(pid, t):
+        phases[phase]["dead"] += 1
+        return
+    p = g.pos_at(pid, t)
+    if p is None:
+        return
+    zone = _move_zone(g, pid, p)
+    phases[phase][zone] += 1
+    if phase == "late" and zone != "base":
+        late["alive"] += 1
+        allies = [a for a in g.players if a != pid and g.players[a]["team"] == g.players[pid]["team"]]
+        near = sum(1 for a in allies if (q := g.pos_at(a, t)) is not None and geo.dist(p, q) <= MOVE_GROUP_RADIUS)
+        if near >= 2:
+            late["grouped"] += 1
+        elif near == 0 and geo.zone(p) in ("top", "bot"):
+            late["alone_side"] += 1
 
 
 def analyze_game(
@@ -1095,29 +1235,68 @@ def analyze_game(
     me_raw = find_me(match, pid=pid, puuid=puuid, game_name=game_name, tag_line=tag_line)
     g = _Game(match, timeline, me_raw, items, route_all=route_all)
     me = g.me["pid"]
-    info = g.info
-    ch = me_raw.get("challenges") or {}
-    team_obj = next((t.get("objectives") or {} for t in info.get("teams") or [] if _num(t.get("teamId")) == g.team), {})
 
     deaths = [_classify_death(g, k) for k in g.kills if k["victim"] == me]
     moments: list[dict] = [d["moment"] for d in deaths]
     enemy_pinks = _enemy_pinks(g, moments)
+    metrics = _summary_metrics(g, me_raw)
+    result = _summary_result(g, match, me_raw, metrics, deaths, moments)
 
+    if not g.has_timeline:
+        for key in ("deaths_pre14", "deaths_solo", "deaths_ganked", "deaths_to_jungler_pre14", "deaths_no_vision_pre14"):
+            metrics[key] = None
+        return result
+
+    metrics.update(_death_metrics(g, deaths, enemy_pinks))
+
+    _afk_moments(g, moments)
+    _lane_phase(g, metrics, moments)
+    _objectives(g, metrics, moments)
+    _priority_stats(g, metrics)
+    _macro(g, metrics, moments)
+    _gold_use(g, metrics, moments)
+    _time_use(g, metrics, moments)
+    if g.role == "JUNGLE":
+        result["jungle"] = _jungle(g, metrics, moments)
+    else:
+        _roaming(g, metrics)
+    build = _build(g, metrics, moments)
+    if build:
+        result["build"] = build
+
+    moments.sort(key=lambda m: m["t"])
+    # Con qué certeza se decidió cada detección (segundos a una posición real tuya y, en las muertes, de los rivales
+    # implicados): la auditoría (``calibration_audit``) separa así lo que no cambia entre elos de lo que el ruido iguala.
+    for m in moments:
+        m.setdefault("ev", {})["gap_tu_s"] = g.anchor_gap(me, int((m.get("t") or 0) * 1000))
+    result["afk"] = [{"start": round(s / 1000, 1), "end": round(e / 1000, 1)} for s, e in g.afk[me]]
+    result["series"] = _series(g)
+    _gold_lead(result["series"], metrics)
+    result["replay"] = _replay(g)
+    # Coherencia de la reconstrucción: tramos de jungla sin otros datos y cuántos no cuadraban con el CS (sin inventar).
+    # Estadísticas de Riot para las reglas medibles de las guías (``rule_metrics``): pinks, visión, roams, TP.
+    result["riot_rules"] = rule_metrics.raw_fields(me_raw)
+    # Tus wards (segundo y tipo) para la visión útil de ``route_macro`` (objetivos, jungla rival, pinks).
+    result["my_wards"] = [[round(t / 1000, 1), kind] for t, kind in g.ward_events.get(me) or []]
+    result["reconstruction"] = {"camp_spans": getattr(g, "camp_minutes", 0), "camp_misses": getattr(g, "camp_misses", 0)}
+    _movement_metrics(g, result, metrics)
+    return result
+
+
+def _summary_metrics(g: _Game, me_raw: dict) -> dict:
+    """Métricas que da el resumen de la partida (sin timeline): KDA, farm, oro, visión, muertes y objetivos."""
+    info = g.info
+    ch = me_raw.get("challenges") or {}
     kills = _num(me_raw.get("kills"))
     n_deaths = _num(me_raw.get("deaths"))
     assists = _num(me_raw.get("assists"))
     cs = _num(me_raw.get("totalMinionsKilled")) + _num(me_raw.get("neutralMinionsKilled"))
     team_kills = sum(_num(p.get("kills")) for p in info.get("participants") or [] if _num(p.get("teamId")) == g.team)
-    kp = ch.get("killParticipation")
-    kp = float(kp) * 100 if kp is not None else ((kills + assists) / team_kills * 100 if team_kills else None)
+    kp = _kill_participation(ch, kills + assists, team_kills)
     dmg_share = ch.get("teamDamagePercentage")
     time_dead = _num(me_raw.get("totalTimeSpentDead"))
-
-    def count(tag: str, early_only: bool = False, unless: tuple[str, ...] = ()) -> int:
-        return sum(1 for d in deaths if tag in d["tags"] and (not early_only or d["early"]) and not any(u in d["tags"] for u in unless))
-
     # Por minuto jugado: los minutos de desconexión no cuentan (no son falta de farm ni de visión).
-    active = max(g.minutes - g.afk_ms(me) / 60_000, 1.0)
+    active = max(g.minutes - g.afk_ms(g.me["pid"]) / 60_000, 1.0)
     metrics: dict[str, float | int | None] = {
         "win": int(bool(me_raw.get("win"))),
         "minutes": round(g.minutes, 2),
@@ -1139,13 +1318,30 @@ def analyze_game(
         "riot_afk": sum(1 for p in info.get("participants") or [] if p.get("wasAfk")),
         "plates": _num(ch.get("turretPlatesTaken")) if "turretPlatesTaken" in ch else None,
     }
+    metrics["obj_participation"] = _summary_obj_participation(g, ch)
+    return metrics
 
-    # Objetivos (sin timeline, con lo que trae el resumen de la partida).
+
+def _kill_participation(ch: dict, takedowns: int, team_kills: int) -> float | None:
+    """Participación en kills (%): la de Riot si viene; si no, kills y asistencias entre las kills del equipo."""
+    kp = ch.get("killParticipation")
+    if kp is not None:
+        return float(kp) * 100
+    return takedowns / team_kills * 100 if team_kills else None
+
+
+def _summary_obj_participation(g: _Game, ch: dict) -> float | None:
+    """Objetivos (sin timeline, con lo que trae el resumen de la partida): % de dragones, barones y heraldos de tu equipo."""
+    team_obj = next((t.get("objectives") or {} for t in g.info.get("teams") or [] if _num(t.get("teamId")) == g.team), {})
     team_total = sum(_num((team_obj.get(k) or {}).get("kills")) for k in ("dragon", "baron", "riftHerald"))
     mine_total = _num(ch.get("dragonTakedowns")) + _num(ch.get("baronTakedowns")) + _num(ch.get("riftHeraldTakedowns"))
-    metrics["obj_participation"] = round(min(100.0, mine_total / team_total * 100), 1) if team_total and ch else None
+    return round(min(100.0, mine_total / team_total * 100), 1) if team_total and ch else None
 
-    result = {
+
+def _summary_result(g: _Game, match: dict, me_raw: dict, metrics: dict, deaths: list[dict], moments: list[dict]) -> dict:
+    """El análisis con lo que da el resumen de la partida: datos de la partida, los 10 jugadores, métricas y muertes."""
+    info = g.info
+    return {
         "version": ANALYSIS_VERSION,
         "match_id": (match.get("metadata") or {}).get("matchId"),
         "queue": _num(info.get("queueId")),
@@ -1158,7 +1354,7 @@ def analyze_game(
         "items_known": g.inv is not None,
         "items_reliable": g.items_reliable,  # False: oro y build sin veredictos (catálogo de otra temporada u objetos desconocidos)
         "unknown_items": sorted(g.inv.unknown) if g.inv is not None else [],
-        "me": me,
+        "me": g.me["pid"],
         "team": g.team,
         "role": g.role,
         "champ": g.me["champ"],
@@ -1185,88 +1381,67 @@ def analyze_game(
         "moments": moments,
     }
 
-    if not g.has_timeline:
-        for key in ("deaths_pre14", "deaths_solo", "deaths_ganked", "deaths_to_jungler_pre14", "deaths_no_vision_pre14"):
-            metrics[key] = None
-        return result
 
-    metrics.update(
-        {
-            # Las muertes en peleas ganadas, con algo a cambio, en el empujón final o antes de una desconexión
-            # no cuentan como error en las métricas (deaths_pre14 sí es el recuento bruto).
-            "deaths_pre14": sum(1 for d in deaths if d["early"]),
-            "deaths_solo": count("solo", unless=CONTEXT_OK),
-            "deaths_ganked": count("gank", True, unless=CONTEXT_OK),
-            "deaths_to_jungler_pre14": count("jungler", True, unless=CONTEXT_OK),
-            "deaths_no_vision_pre14": count("no_ward", True, unless=CONTEXT_OK),
-            "deaths_overextended": count("overextended", True, unless=CONTEXT_OK),
-            "deaths_enemy_jungle": count("enemy_jungle", unless=CONTEXT_OK),
-            "deaths_unspent_gold": count("unspent_gold", unless=("game_end", "afk")) if g.items_reliable else None,
-            "deaths_before_objective": count("before_objective", unless=("fight_won", "game_end", "afk")),
-            "deaths_isolated_late": count("isolated", unless=CONTEXT_OK),
-            "deaths_collapsed": count("collapsed", unless=CONTEXT_OK),
-            "deaths_outnumbered_obj": count("fight_outnumbered", unless=CONTEXT_OK) if g.clocks_ok else None,
-            "deaths_fight_won": count("fight_won"),
-            "deaths_duel_behind": count("duel_behind"),
-            "deaths_seen_ward": count("seen_ward", unless=CONTEXT_OK) if g.has_timeline else None,
-            "deaths_lens_unused": count("lens_unused", unless=CONTEXT_OK) if g.has_timeline else None,
-            **enemy_pinks,
-            "wards_pre14": sum(1 for t in g.wards[me] if t < EARLY_MS),
-            "control_wards_placed": g.control_wards_placed[me],
-            "afk_min": round(g.afk_ms(me) / 60_000, 1),
-            "ally_afk_min": round(max((g.afk_ms(a) for a in g.allies), default=0) / 60_000, 1),
-            "enemy_afk_min": round(max((g.afk_ms(e) for e in g.enemies), default=0) / 60_000, 1),
-        }
-    )
+def _count_deaths(deaths: list[dict], tag: str, early_only: bool = False, unless: tuple[str, ...] = ()) -> int:
+    """Muertes con la etiqueta ``tag`` (solo antes del 14 si ``early_only``) que no tienen ninguna de ``unless``."""
+    return sum(1 for d in deaths if tag in d["tags"] and (not early_only or d["early"]) and not any(u in d["tags"] for u in unless))
 
-    _afk_moments(g, moments)
-    _lane_phase(g, metrics, moments)
-    _objectives(g, metrics, moments)
-    _priority_stats(g, metrics)
-    _macro(g, metrics, moments)
-    _gold_use(g, metrics, moments)
-    _time_use(g, metrics, moments)
-    if g.role == "JUNGLE":
-        result["jungle"] = _jungle(g, metrics, moments)
-    else:
-        _roaming(g, metrics)
-    build = _build(g, metrics, moments)
-    if build:
-        result["build"] = build
 
-    moments.sort(key=lambda m: m["t"])
-    # Con qué certeza se decidió cada detección (segundos a una posición real tuya y, en las muertes, de los rivales
-    # implicados): la auditoría (``calibration_audit``) separa así lo que no cambia entre elos de lo que el ruido iguala.
-    for m in moments:
-        m.setdefault("ev", {})["gap_tu_s"] = g.anchor_gap(me, int((m.get("t") or 0) * 1000))
-    result["afk"] = [{"start": round(s / 1000, 1), "end": round(e / 1000, 1)} for s, e in g.afk[me]]
-    result["series"] = _series(g)
-    # Mayor ventaja y desventaja de oro de equipo (para «ventajas que se escapan» y remontadas).
-    diffs = [d for d in result["series"]["team_gold_diff"] if d is not None]
-    if diffs and len(diffs) == len(result["series"]["minute"]):
+def _death_metrics(g: _Game, deaths: list[dict], enemy_pinks: dict) -> dict:
+    """Métricas con el timeline: muertes por tipo, pinks rivales, wards y minutos AFK (tuyos, de aliados y de rivales)."""
+    me = g.me["pid"]
+    return {
+        # Las muertes en peleas ganadas, con algo a cambio, en el empujón final o antes de una desconexión
+        # no cuentan como error en las métricas (deaths_pre14 sí es el recuento bruto).
+        "deaths_pre14": sum(1 for d in deaths if d["early"]),
+        "deaths_solo": _count_deaths(deaths, "solo", unless=CONTEXT_OK),
+        "deaths_ganked": _count_deaths(deaths, "gank", True, unless=CONTEXT_OK),
+        "deaths_to_jungler_pre14": _count_deaths(deaths, "jungler", True, unless=CONTEXT_OK),
+        "deaths_no_vision_pre14": _count_deaths(deaths, "no_ward", True, unless=CONTEXT_OK),
+        "deaths_overextended": _count_deaths(deaths, "overextended", True, unless=CONTEXT_OK),
+        "deaths_enemy_jungle": _count_deaths(deaths, "enemy_jungle", unless=CONTEXT_OK),
+        "deaths_unspent_gold": _count_deaths(deaths, "unspent_gold", unless=("game_end", "afk")) if g.items_reliable else None,
+        "deaths_before_objective": _count_deaths(deaths, "before_objective", unless=("fight_won", "game_end", "afk")),
+        "deaths_isolated_late": _count_deaths(deaths, "isolated", unless=CONTEXT_OK),
+        "deaths_collapsed": _count_deaths(deaths, "collapsed", unless=CONTEXT_OK),
+        "deaths_outnumbered_obj": _count_deaths(deaths, "fight_outnumbered", unless=CONTEXT_OK) if g.clocks_ok else None,
+        "deaths_fight_won": _count_deaths(deaths, "fight_won"),
+        "deaths_duel_behind": _count_deaths(deaths, "duel_behind"),
+        "deaths_seen_ward": _count_deaths(deaths, "seen_ward", unless=CONTEXT_OK) if g.has_timeline else None,
+        "deaths_lens_unused": _count_deaths(deaths, "lens_unused", unless=CONTEXT_OK) if g.has_timeline else None,
+        **enemy_pinks,
+        "wards_pre14": sum(1 for t in g.wards[me] if t < EARLY_MS),
+        "control_wards_placed": g.control_wards_placed[me],
+        "afk_min": round(g.afk_ms(me) / 60_000, 1),
+        "ally_afk_min": round(max((g.afk_ms(a) for a in g.allies), default=0) / 60_000, 1),
+        "enemy_afk_min": round(max((g.afk_ms(e) for e in g.enemies), default=0) / 60_000, 1),
+    }
+
+
+def _gold_lead(series: dict, metrics: dict) -> None:
+    """Mayor ventaja y desventaja de oro de equipo (para «ventajas que se escapan» y remontadas)."""
+    diffs = [d for d in series["team_gold_diff"] if d is not None]
+    if diffs and len(diffs) == len(series["minute"]):
         best = max(range(len(diffs)), key=lambda j: diffs[j])
         metrics["max_lead"] = diffs[best]
-        metrics["max_lead_min"] = result["series"]["minute"][best]
+        metrics["max_lead_min"] = series["minute"][best]
         metrics["max_deficit"] = min(diffs)
-    result["replay"] = _replay(g)
-    # Coherencia de la reconstrucción: tramos de jungla sin otros datos y cuántos no cuadraban con el CS (sin inventar).
-    # Estadísticas de Riot para las reglas medibles de las guías (``rule_metrics``): pinks, visión, roams, TP.
-    result["riot_rules"] = rule_metrics.raw_fields(me_raw)
-    # Tus wards (segundo y tipo) para la visión útil de ``route_macro`` (objetivos, jungla rival, pinks).
-    result["my_wards"] = [[round(t / 1000, 1), kind] for t, kind in g.ward_events.get(me) or []]
-    result["reconstruction"] = {"camp_spans": getattr(g, "camp_minutes", 0), "camp_misses": getattr(g, "camp_misses", 0)}
+
+
+def _movement_metrics(g: _Game, result: dict, metrics: dict) -> None:
+    """Movimiento de los 10 jugadores (``result["movement"]``) y, en las métricas, cómo repartiste tú el tiempo."""
     movement = _movement(g)
-    if movement:
-        result["movement"] = movement
-        mine = movement.get(str(me)) or {}
-        early, late = mine.get("early") or {}, mine.get("late") or {}
-        metrics["mv_lane_pre14"] = early.get("lane", 0.0) if g.role != "JUNGLE" else None
-        metrics["mv_river_pre14"] = early.get("river", 0.0)
-        metrics["mv_enemy_jungle_pre14"] = early.get("enemy_jungle", 0.0)
-        metrics["mv_base_pct"] = round((early.get("base", 0.0) + late.get("base", 0.0)) / 2, 1) if early and late else early.get("base")
-        metrics["mv_grouped_late"] = mine.get("grouped_late")
-        metrics["mv_side_alone_late"] = mine.get("side_alone_late")
-    return result
+    if not movement:
+        return
+    result["movement"] = movement
+    mine = movement.get(str(g.me["pid"])) or {}
+    early, late = mine.get("early") or {}, mine.get("late") or {}
+    metrics["mv_lane_pre14"] = early.get("lane", 0.0) if g.role != "JUNGLE" else None
+    metrics["mv_river_pre14"] = early.get("river", 0.0)
+    metrics["mv_enemy_jungle_pre14"] = early.get("enemy_jungle", 0.0)
+    metrics["mv_base_pct"] = round((early.get("base", 0.0) + late.get("base", 0.0)) / 2, 1) if early and late else early.get("base")
+    metrics["mv_grouped_late"] = mine.get("grouped_late")
+    metrics["mv_side_alone_late"] = mine.get("side_alone_late")
 
 
 def _moment(t: float, kind: str, severity: str, title: str, detail: str = "", pos=None, tags=None) -> dict:
@@ -1345,217 +1520,355 @@ def _team_gain(
     n_towers = sum(1 for b in buildings if b["kind"] == "tower")
     n_inhib = sum(1 for b in buildings if b["kind"] == "inhibitor")
     n_plates = sum(1 for b in buildings if b["kind"] == "plate")
-    if n_towers:
-        parts.append("una torre" if n_towers == 1 else f"{n_towers} torres")
-    if n_inhib:
-        parts.append("un inhibidor" if n_inhib == 1 else f"{n_inhib} inhibidores")
-    if n_plates:
-        parts.append("una placa" if n_plates == 1 else f"{n_plates} placas")
+    parts += _structures_parts(n_towers, n_inhib, n_plates)
     value = sum(_obj_value(g, o) for o in objectives) + _structures_value(buildings) + sum(k["value"] for k in kills)
     # Desde 2026 se rompen placas toda la partida: unas placas en otra línea no pagan una muerte.
     solid = bool(objectives or kills or n_towers or n_inhib)
     return {"label": _join(parts), "value": value, "solid": solid}
 
 
+def _structures_parts(n_towers: int, n_inhib: int, n_plates: int) -> list[str]:
+    """«una torre», «2 inhibidores», «3 placas»… (solo las que hay, en ese orden)."""
+    parts = []
+    if n_towers:
+        parts.append("una torre" if n_towers == 1 else f"{n_towers} torres")
+    if n_inhib:
+        parts.append("un inhibidor" if n_inhib == 1 else f"{n_inhib} inhibidores")
+    if n_plates:
+        parts.append("una placa" if n_plates == 1 else f"{n_plates} placas")
+    return parts
+
+
 # ------------------------------------------------------------------ muertes
-def _classify_death(g: _Game, k: dict) -> dict:
-    t, pos = k["t"], k["pos"]
-    early = t < EARLY_MS
-    enemies = {pid for pid in (k["killer"], *k["assists"]) if pid in g.players and g.players[pid]["team"] != g.team}
-    tags: list[str] = []
-    zone = geo.zone(pos) if pos else None
-    lane = geo.ROLE_LANE.get(g.role or "")
+class _Death:
+    """Una muerte tuya mientras se clasifica: la pelea, los rivales que la causaron y sus etiquetas (en orden)."""
 
-    cluster = _fight_cluster(g, k) if g.has_timeline else [k]
-    fight = _fight(g, k, cluster) if g.has_timeline else {"allies": 1, "enemies": 0, "size": 1}
-    outsiders = _outsiders(g, enemies)
-    if not enemies:
-        tags.append("executed")
-    # 1 contra 1 perdido: un único rival, sin más caídos en tu lado (si no, es una escaramuza), sin que cayera él
-    # también (muerte mutua) y, en la fase de líneas, que sea de tu línea (si es el jungla u otro, es un gank).
-    if len(enemies) == 1 and fight["allies"] == 1 and not fight["enemies"] and not (early and outsiders):
-        tags.append("solo")
-    if g.enemy_jungler and g.enemy_jungler in enemies and g.role != "JUNGLE":
-        tags.append("jungler")
-    # Gank: rivales de fuera de tu línea cuando estabas en ella (o en el río junto a ella). Morir en otra línea o en una
-    # jungla tras rotar no es que te ganqueen.
-    if early and g.role and g.role != "JUNGLE" and outsiders and _near_own_lane(lane, pos):
-        tags.append("gank")
-    if zone and geo.is_jungle_of(zone, 300 - g.team):
-        tags.append("enemy_jungle")
-    if early and lane and pos and zone == lane and _overextended(g, lane, pos, t):
-        tags.append("overextended")
-    # Sin visión solo cuenta si la visión podía cambiar algo (un gank o una rotación, el río o la jungla) y no
-    # había ward tuyo ni de un aliado cerca: perder un 1 contra 1 a la vista o morir bajo torre no es cosa de wards.
-    vision_matters = bool(outsiders) or bool(zone and not geo.is_lane(zone) and not zone.startswith("base_"))
-    if early and g.has_timeline and enemies and vision_matters and not _had_vision(g, t, pos):
-        tags.append("no_ward")
-    # Te vio un ward rival antes de la jugada (en el río, en una jungla o en un gank) y llevabas la lente.
-    # Solo en jugadas de pocos (antes del 14, o cogido con 1-2 aliados como mucho) y fuera de las bases: en una pelea de
-    # equipos a mitad de partida que te vieran llegar no es lo que decide.
-    small_play = early or fight["allies"] <= 2
-    out_of_base = not (zone or "").startswith("base")
-    seen = _seen_by_ward(g, t) if g.has_timeline and enemies and vision_matters and small_play and out_of_base else None
-    if seen:
-        tags.append("seen_ward")
+    def __init__(self, g: _Game, k: dict) -> None:
+        self.g, self.k = g, k
+        self.t, self.pos = k["t"], k["pos"]
+        self.early = self.t < EARLY_MS
+        self.enemies = {pid for pid in (k["killer"], *k["assists"]) if pid in g.players and g.players[pid]["team"] != g.team}
+        self.tags: list[str] = []
+        self.zone = geo.zone(self.pos) if self.pos else None
+        self.lane = geo.ROLE_LANE.get(g.role or "")
+        self.cluster = _fight_cluster(g, k) if g.has_timeline else [k]
+        self.fight = _fight(g, k, self.cluster) if g.has_timeline else {"allies": 1, "enemies": 0, "size": 1}
+        self.outsiders = _outsiders(g, self.enemies)
+        self.seen: dict | None = None
+        self.gold: dict | None = None
+        self.gained: dict | None = None
+        self.lost: dict | None = None
+        self.numbers: dict | None = None
+        self.duel: dict | None = None
+        self.shutdown = _num(k.get("shutdown"))
+
+    def tag_who(self) -> None:
+        """executed, solo, jungler, gank y enemy_jungle: contra quién y dónde."""
+        g, tags, enemies = self.g, self.tags, self.enemies
+        if not enemies:
+            tags.append("executed")
+        # 1 contra 1 perdido: un único rival, sin más caídos en tu lado (si no, es una escaramuza), sin que cayera él
+        # también (muerte mutua) y, en la fase de líneas, que sea de tu línea (si es el jungla u otro, es un gank).
+        if len(enemies) == 1 and self.fight["allies"] == 1 and not self.fight["enemies"] and not (self.early and self.outsiders):
+            tags.append("solo")
+        if g.enemy_jungler and g.enemy_jungler in enemies and g.role != "JUNGLE":
+            tags.append("jungler")
+        # Gank: rivales de fuera de tu línea cuando estabas en ella (o en el río junto a ella). Morir en otra línea o en una
+        # jungla tras rotar no es que te ganqueen.
+        if self.early and g.role and g.role != "JUNGLE" and self.outsiders and _near_own_lane(self.lane, self.pos):
+            tags.append("gank")
+        if self.zone and geo.is_jungle_of(self.zone, 300 - g.team):
+            tags.append("enemy_jungle")
+
+    def tag_vision(self) -> None:
+        """overextended, no_ward y seen_ward: adelantado, sin visión o visto por un ward rival."""
+        g, tags, zone = self.g, self.tags, self.zone
+        if self.early and self.lane and self.pos and zone == self.lane and _overextended(g, self.lane, self.pos, self.t):
+            tags.append("overextended")
+        # Sin visión solo cuenta si la visión podía cambiar algo (un gank o una rotación, el río o la jungla) y no
+        # había ward tuyo ni de un aliado cerca: perder un 1 contra 1 a la vista o morir bajo torre no es cosa de wards.
+        vision_matters = bool(self.outsiders) or bool(zone and not geo.is_lane(zone) and not zone.startswith("base_"))
+        if self.early and g.has_timeline and self.enemies and vision_matters and not _had_vision(g, self.t, self.pos):
+            tags.append("no_ward")
+        self._tag_seen(vision_matters)
+
+    def _tag_seen(self, vision_matters: bool) -> None:
+        """seen_ward (y lens_unused o lens_cd si llevabas la lente): te vio un ward rival antes de la jugada."""
+        # Te vio un ward rival antes de la jugada (en el río, en una jungla o en un gank) y llevabas la lente.
+        # Solo en jugadas de pocos (antes del 14, o cogido con 1-2 aliados como mucho) y fuera de las bases: en una pelea de
+        # equipos a mitad de partida que te vieran llegar no es lo que decide.
+        g, t = self.g, self.t
+        small_play = self.early or self.fight["allies"] <= 2
+        out_of_base = not (self.zone or "").startswith("base")
+        self.seen = _seen_by_ward(g, t) if g.has_timeline and self.enemies and vision_matters and small_play and out_of_base else None
+        if not self.seen:
+            return
+        self.tags.append("seen_ward")
         if _trinket(g, g.me["pid"], t) == "lens":
-            used = any(0 <= t - k <= LENS_COOLDOWN_MS for k in g.ward_kills.get(g.me["pid"]) or [])
-            tags.append("lens_cd" if used else "lens_unused")
-    gold = _death_gold(g, t)
-    if gold:
-        tags.append("unspent_gold")
-    if fight["enemies"] > fight["allies"]:
-        tags.append("fight_won")
-    elif fight["enemies"] and fight["enemies"] == fight["allies"]:
-        tags.append("fight_even")
-    # Solo «compra» algo la muerte que atrajo a varios rivales: un 1 contra 1 perdido o una ejecución no se
-    # cambian por lo que haga tu equipo en otra parte del mapa, y un error claro (adelantado o gank sin ward) tampoco.
-    avoidable = "overextended" in tags or ("gank" in tags and "no_ward" in tags)
-    can_trade = len(enemies) >= 2 and "solo" not in tags and not avoidable
-    gained = _team_gain(g, t, exclude=cluster, with_kills=True) if g.has_timeline and can_trade else None
-    if gained and gained["value"] >= 600 and gained["solid"]:
-        tags.append("traded")
-    else:
-        gained = None
-    lost = next(
-        (
-            o for o in g.objectives
-            if o["team"] != g.team and t < o["t"] <= t + OBJECTIVE_WINDOW_MS
-            and (not gained or gained["value"] < 0.6 * _obj_value(g, o)) and _death_affects(g, pos, o)
-        ),
-        None,
-    )
-    if lost:
-        tags.append("before_objective")
-    if not early and pos and g.has_timeline and fight["allies"] == 1 and not fight["enemies"]:
-        near = [a for a in g.allies if (ap := g.pos_at(a, t)) is not None and geo.dist(ap, pos) <= ISOLATED_RADIUS]
-        if not near:
-            tags.append("isolated")
-    if g.won and t >= g.duration_ms - FINAL_PUSH_MS:
-        tags.append("game_end")
-    if g.has_timeline and _afk_after_death(g, k):
-        tags.append("afk")
-    excused = any(x in tags for x in CONTEXT_OK)
-    # Macro con los relojes: pelear junto a un objetivo con uno menos, que te cacen solo en su mitad, morir solo con
-    # la mejora del barón y regalar una recompensa grande.
-    numbers = _numbers_down(g, k, cluster, pos) if g.has_timeline and not excused else None
-    if numbers:
-        tags.append("fight_outnumbered")
-    if (
-        "isolated" in tags and pos and zone in ("top", "bot") and geo.side_of(pos) == 300 - g.team and len(enemies) >= 3
-        and not any((ap := g.pos_at(a, t)) is not None and geo.dist(ap, pos) <= COLLAPSED_RADIUS for a in g.allies)
-    ):
-        tags.append("collapsed")
-    if "isolated" in tags and _baron_buff(g, t):
-        tags.append("baron_buff")
-    # Duelo en desventaja: si te ganqueaban, lo que cuenta es el gank, no el nivel.
-    duel = _duel_gap(g, k, enemies, fight) if g.has_timeline and not excused and "gank" not in tags else None
-    if duel:
-        tags.append("duel_behind")
-    shutdown = _num(k.get("shutdown"))
-    if not excused and shutdown >= BOUNTY_GIFT and any(x in tags for x in ("isolated", "collapsed", "enemy_jungle")):
-        tags.append("bounty")
+            used = any(0 <= t - x <= LENS_COOLDOWN_MS for x in g.ward_kills.get(g.me["pid"]) or [])
+            self.tags.append("lens_cd" if used else "lens_unused")
 
-    names = [_champ_ref(g, pid) for pid in sorted(enemies)]
-    killer_name = _champ_ref(g, k["killer"]) if k["killer"] in g.players else "torre/súbditos"
+    def tag_outcome(self) -> None:
+        """unspent_gold, fight_won o fight_even, traded y before_objective: cómo acabó y qué vino después."""
+        fight = self.fight
+        self.gold = _death_gold(self.g, self.t)
+        if self.gold:
+            self.tags.append("unspent_gold")
+        if fight["enemies"] > fight["allies"]:
+            self.tags.append("fight_won")
+        elif fight["enemies"] and fight["enemies"] == fight["allies"]:
+            self.tags.append("fight_even")
+        self._tag_trade()
+        self._tag_objective()
+
+    def _tag_trade(self) -> None:
+        """traded: tu equipo cogió a cambio algo que vale la muerte."""
+        # Solo «compra» algo la muerte que atrajo a varios rivales: un 1 contra 1 perdido o una ejecución no se
+        # cambian por lo que haga tu equipo en otra parte del mapa, y un error claro (adelantado o gank sin ward) tampoco.
+        g, tags = self.g, self.tags
+        avoidable = "overextended" in tags or ("gank" in tags and "no_ward" in tags)
+        can_trade = len(self.enemies) >= 2 and "solo" not in tags and not avoidable
+        gained = _team_gain(g, self.t, exclude=self.cluster, with_kills=True) if g.has_timeline and can_trade else None
+        if gained and gained["value"] >= 600 and gained["solid"]:
+            tags.append("traded")
+            self.gained = gained
+
+    def _tag_objective(self) -> None:
+        """before_objective: el rival cogió justo después un objetivo que tu muerte pudo costar (y que no compensasteis)."""
+        g, t, gained = self.g, self.t, self.gained
+        self.lost = next(
+            (
+                o for o in g.objectives
+                if o["team"] != g.team and t < o["t"] <= t + OBJECTIVE_WINDOW_MS
+                and (not gained or gained["value"] < 0.6 * _obj_value(g, o)) and _death_affects(g, self.pos, o)
+            ),
+            None,
+        )
+        if self.lost:
+            self.tags.append("before_objective")
+
+    def tag_context(self) -> None:
+        """isolated, game_end y afk: sin aliados cerca, en el empujón final o antes de una desconexión."""
+        g, t, pos, fight = self.g, self.t, self.pos, self.fight
+        if not self.early and pos and g.has_timeline and fight["allies"] == 1 and not fight["enemies"]:
+            near = [a for a in g.allies if (ap := g.pos_at(a, t)) is not None and geo.dist(ap, pos) <= ISOLATED_RADIUS]
+            if not near:
+                self.tags.append("isolated")
+        if g.won and t >= g.duration_ms - FINAL_PUSH_MS:
+            self.tags.append("game_end")
+        if g.has_timeline and _afk_after_death(g, self.k):
+            self.tags.append("afk")
+
+    def tag_macro(self) -> None:
+        """fight_outnumbered, collapsed, baron_buff, duel_behind y bounty: macro con los relojes y duelos."""
+        g, tags, t = self.g, self.tags, self.t
+        excused = any(x in tags for x in CONTEXT_OK)
+        # Macro con los relojes: pelear junto a un objetivo con uno menos, que te cacen solo en su mitad, morir solo con
+        # la mejora del barón y regalar una recompensa grande.
+        self.numbers = _numbers_down(g, self.k, self.cluster, self.pos) if g.has_timeline and not excused else None
+        if self.numbers:
+            tags.append("fight_outnumbered")
+        if self._collapsed():
+            tags.append("collapsed")
+        if "isolated" in tags and _baron_buff(g, t):
+            tags.append("baron_buff")
+        # Duelo en desventaja: si te ganqueaban, lo que cuenta es el gank, no el nivel.
+        self.duel = _duel_gap(g, self.k, self.enemies, self.fight) if g.has_timeline and not excused and "gank" not in tags else None
+        if self.duel:
+            tags.append("duel_behind")
+        if not excused and self.shutdown >= BOUNTY_GIFT and any(x in tags for x in ("isolated", "collapsed", "enemy_jungle")):
+            tags.append("bounty")
+
+    def _collapsed(self) -> bool:
+        """¿Te cazaron 3 o más rivales aislado en una banda de su mitad del mapa, sin ningún aliado cerca?"""
+        g, t, pos = self.g, self.t, self.pos
+        return bool(
+            "isolated" in self.tags and pos and self.zone in ("top", "bot") and geo.side_of(pos) == 300 - g.team and len(self.enemies) >= 3
+            and not any((ap := g.pos_at(a, t)) is not None and geo.dist(ap, pos) <= COLLAPSED_RADIUS for a in g.allies)
+        )
+
+
+def _classify_death(g: _Game, k: dict) -> dict:
+    d = _Death(g, k)
+    d.tag_who()
+    d.tag_vision()
+    d.tag_outcome()
+    d.tag_context()
+    d.tag_macro()
+    title = _death_title(d)
+    details = _death_details(d) + _death_details_macro(d)
+    return _death_entry(d, title, details, _death_severity(d))
+
+
+def _death_title(d: _Death) -> str:
+    """Título de la muerte: lo que más la explica (AFK, final, pelea ganada, gank o uno menos; si no, el resto)."""
+    g, tags = d.g, d.tags
     if "afk" in tags:
-        title = "Muerte antes de quedarte AFK o desconectado"
-    elif "game_end" in tags:
-        title = "Muerte en el empujón final"
-    elif "fight_won" in tags:
-        title = f"Caíste, pero ganasteis la pelea ({_score(fight)})"
-    elif "gank" in tags:
-        title = f"Gank de {_champ_ref(g, g.enemy_jungler)} (jungla rival)" if "jungler" in tags else f"Gank ({', '.join(names)})"
-    elif "fight_outnumbered" in tags:
-        title = f"Muerte junto {_al(numbers['label'])} con uno menos ({numbers['allies']} contra {numbers['enemies']})"
-    elif "enemy_jungle" in tags and not (g.role == "JUNGLE" and fight["allies"] >= 2):
-        title = "Muerte en la jungla rival"
-    elif "solo" in tags:
-        title = f"Duelo perdido en desventaja contra {killer_name}" if duel else f"Muerte 1 contra 1 contra {killer_name}"
-    elif "collapsed" in tags:
-        title = f"Te cazaron solo en su mitad del mapa ({_plural(len(enemies), 'rival', 'rivales')})"
-    elif "isolated" in tags:
-        title = "Muerte aislado de tu equipo"
-    elif "executed" in tags:
-        title = "Ejecutado por torre o súbditos"
-    else:
-        title = f"Muerte en pelea ({_plural(len(enemies), 'rival', 'rivales')})"
+        return "Muerte antes de quedarte AFK o desconectado"
+    if "game_end" in tags:
+        return "Muerte en el empujón final"
+    if "fight_won" in tags:
+        return f"Caíste, pero ganasteis la pelea ({_score(d.fight)})"
+    if "gank" in tags:
+        names = [_champ_ref(g, pid) for pid in sorted(d.enemies)]
+        return f"Gank de {_champ_ref(g, g.enemy_jungler)} (jungla rival)" if "jungler" in tags else f"Gank ({', '.join(names)})"
+    if "fight_outnumbered" in tags:
+        numbers = d.numbers
+        return f"Muerte junto {_al(numbers['label'])} con uno menos ({numbers['allies']} contra {numbers['enemies']})"
+    return _death_title_rest(d)
 
+
+def _death_title_rest(d: _Death) -> str:
+    """Título de una muerte sin gank ni pelea con uno menos: jungla rival, duelo, cazado, aislado, ejecutado o pelea."""
+    g, tags = d.g, d.tags
+    if "enemy_jungle" in tags and not (g.role == "JUNGLE" and d.fight["allies"] >= 2):
+        return "Muerte en la jungla rival"
+    if "solo" in tags:
+        killer_name = _champ_ref(g, d.k["killer"]) if d.k["killer"] in g.players else "torre/súbditos"
+        return f"Duelo perdido en desventaja contra {killer_name}" if d.duel else f"Muerte 1 contra 1 contra {killer_name}"
+    if "collapsed" in tags:
+        return f"Te cazaron solo en su mitad del mapa ({_plural(len(d.enemies), 'rival', 'rivales')})"
+    if "isolated" in tags:
+        return "Muerte aislado de tu equipo"
+    if "executed" in tags:
+        return "Ejecutado por torre o súbditos"
+    return f"Muerte en pelea ({_plural(len(d.enemies), 'rival', 'rivales')})"
+
+
+def _death_details(d: _Death) -> list[str]:
+    """Detalle de la muerte: dónde, la pelea, adelantado, visión, oro, el objetivo de después y lo que sacasteis."""
+    g, tags, fight = d.g, d.tags, d.fight
     details = []
-    if zone:
-        details.append(f"en {geo.zone_label(zone, g.team)}")
+    if d.zone:
+        details.append(f"en {geo.zone_label(d.zone, g.team)}")
     if fight["size"] > 1 and "fight_won" not in tags:
         details.append(f"pelea {'igualada' if 'fight_even' in tags else 'perdida'} ({_score(fight)})")
     if "overextended" in tags:
         details.append("estabas adelantado, más cerca de su torre que de la tuya")
     if "no_ward" in tags:
         details.append("sin ward tuyo ni de un aliado cerca en los 2 minutos previos")
-    if seen:
-        kind, put = ("una pink", "puesta") if seen["kind"] == "CONTROL_WARD" else ("un ward", "puesto")
-        lens = (", y llevabas la lente: barre antes de entrar en zonas donde suelen poner wards" if "lens_unused" in tags else "")
-        details.append(f"{kind} de {_champ_ref(g, seen['pid'])} ({put} en el {_mmss(seen['t'])}) te veía antes de la jugada{lens}")
-    if gold:
-        buy = f": {_buy_text(g, gold['item'], gold['cost'])}" if gold.get("cost") else ""
-        details.append(f"con {_int(gold['gold'])} de oro sin gastar{buy}")
+    if d.seen:
+        details.append(_seen_text(g, d.seen, tags))
+    if d.gold:
+        details.append(_unspent_text(g, d.gold))
     if "before_objective" in tags:
-        details.append(f"y el rival cogió {OBJ_LABEL[lost['kind']]} a continuación")
-        prio = _priority(g, lost["kind"], t) if pos and geo.dist(pos, lost["pos"]) <= OBJ_FIGHT_RADIUS else None
-        if prio and prio["state"] == "theirs":
-            details.append(f"sin prioridad ({_prio_text(prio)}): llegaban antes y pelear ahí era a su favor")
-    if gained:
-        details.append(f"tu equipo cogió {gained['label']} a cambio")
+        details += _lost_objective_texts(d)
+    if d.gained:
+        details.append(f"tu equipo cogió {d.gained['label']} a cambio")
+    return details
+
+
+def _death_details_macro(d: _Death) -> list[str]:
+    """Detalle de macro de la muerte: aislado, cazado en su mitad, barón, duelo, recompensa, uno menos y AFK."""
+    tags = d.tags
+    details = []
     if "isolated" in tags and "fight_won" not in tags:
         details.append("sin ningún aliado cerca")
     if "collapsed" in tags:
-        details.append(f"te cazaron {len(enemies)} rivales al otro lado del río: en su mitad del mapa, entra solo con visión y sabiendo dónde están")
+        details.append(f"te cazaron {len(d.enemies)} rivales al otro lado del río: en su mitad del mapa, entra solo con visión y sabiendo dónde están")
     if "baron_buff" in tags:
         details.append("con la mejora del barón, que se aprovecha asediando en grupo o por dos líneas, no farmeando solo")
-    if duel:
-        details.append(_duel_text(g, duel))
+    if d.duel:
+        details.append(_duel_text(d.g, d.duel))
     if "bounty" in tags:
-        details.append(f"y regalaste {_int(shutdown)} de oro de recompensa")
-    if numbers:
-        dead = _join([_champ_ref(g, a) for a in numbers["dead"]])
-        details.append(
-            f"peleasteis junto {_al(numbers['label'])} {numbers['allies']} contra {numbers['enemies']}, con {dead} "
-            f"{'muerto' if len(numbers['dead']) == 1 else 'muertos'} desde antes de la pelea: con uno menos, cede el objetivo o cámbialo al otro lado"
-        )
+        details.append(f"y regalaste {_int(d.shutdown)} de oro de recompensa")
+    if d.numbers:
+        details.append(_numbers_text(d.g, d.numbers))
     if "afk" in tags:
         details.append("al reaparecer ya no te moviste (desconexión o AFK): no se valora como error")
+    return details
 
+
+def _seen_text(g: _Game, seen: dict, tags: list[str]) -> str:
+    """«una pink de X (puesta en el 4:10) te veía antes de la jugada» (y el consejo de la lente si no la usaste)."""
+    kind, put = ("una pink", "puesta") if seen["kind"] == "CONTROL_WARD" else ("un ward", "puesto")
+    lens = (", y llevabas la lente: barre antes de entrar en zonas donde suelen poner wards" if "lens_unused" in tags else "")
+    return f"{kind} de {_champ_ref(g, seen['pid'])} ({put} en el {_mmss(seen['t'])}) te veía antes de la jugada{lens}"
+
+
+def _unspent_text(g: _Game, gold: dict) -> str:
+    """«con 1.450 de oro sin gastar: te llegaba para …»."""
+    buy = f": {_buy_text(g, gold['item'], gold['cost'])}" if gold.get("cost") else ""
+    return f"con {_int(gold['gold'])} de oro sin gastar{buy}"
+
+
+def _lost_objective_texts(d: _Death) -> list[str]:
+    """El objetivo que cogió el rival después y, si moriste junto al foso sin prioridad, por qué pelear ahí era a su favor."""
+    g, lost, pos = d.g, d.lost, d.pos
+    texts = [f"y el rival cogió {OBJ_LABEL[lost['kind']]} a continuación"]
+    prio = _priority(g, lost["kind"], d.t) if pos and geo.dist(pos, lost["pos"]) <= OBJ_FIGHT_RADIUS else None
+    if prio and prio["state"] == "theirs":
+        texts.append(f"sin prioridad ({_prio_text(prio)}): llegaban antes y pelear ahí era a su favor")
+    return texts
+
+
+def _numbers_text(g: _Game, numbers: dict) -> str:
+    """«peleasteis junto al dragón 4 contra 5, con X muerto desde antes de la pelea…»."""
+    dead = _join([_champ_ref(g, a) for a in numbers["dead"]])
+    return (
+        f"peleasteis junto {_al(numbers['label'])} {numbers['allies']} contra {numbers['enemies']}, con {dead} "
+        f"{'muerto' if len(numbers['dead']) == 1 else 'muertos'} desde antes de la pelea: con uno menos, cede el objetivo o cámbialo al otro lado"
+    )
+
+
+def _death_score(d: _Death) -> float:
+    """Puntuación de la muerte: 1 de base, más lo que la agrava y menos lo que la justifica (siempre en este orden)."""
+    g, tags = d.g, d.tags
+    steps = (
+        ("gank" in tags and "no_ward" in tags, 1.0),
+        ("overextended" in tags, 0.8),
+        # Antes de un objetivo pesa más morir suelto (dejas al equipo con uno menos) que caer en una pelea que perdisteis
+        # varios: ahí el error es la pelea, no tu muerte.
+        ("before_objective" in tags, 0.3 if d.fight["allies"] >= 2 else 1.0),
+        ("unspent_gold" in tags, 0.5),
+        ("enemy_jungle" in tags and "no_ward" in tags, 0.6),
+        # Que te cojan solo (o en su jungla a mitad de partida) regala ventaja numérica para el siguiente objetivo.
+        ("isolated" in tags and "fight_won" not in tags, 0.7),
+        # Para el jungla, la jungla rival es su trabajo (invadir, contrajunglear, visión): no suma por sí sola.
+        ("enemy_jungle" in tags and not d.early and "no_ward" not in tags and g.role != "JUNGLE", 0.5),
+        ("fight_outnumbered" in tags, 0.8),
+        ("collapsed" in tags, 0.5),
+        ("baron_buff" in tags, 0.5),
+        ("bounty" in tags, 0.3),
+        ("duel_behind" in tags, 0.5),
+    )
     score = 1.0
-    score += 1.0 if ("gank" in tags and "no_ward" in tags) else 0
-    score += 0.8 if "overextended" in tags else 0
-    # Antes de un objetivo pesa más morir suelto (dejas al equipo con uno menos) que caer en una pelea que perdisteis
-    # varios: ahí el error es la pelea, no tu muerte.
-    score += (0.3 if fight["allies"] >= 2 else 1.0) if "before_objective" in tags else 0
-    score += 0.5 if "unspent_gold" in tags else 0
-    score += 0.6 if "enemy_jungle" in tags and "no_ward" in tags else 0
-    # Que te cojan solo (o en su jungla a mitad de partida) regala ventaja numérica para el siguiente objetivo.
-    score += 0.7 if "isolated" in tags and "fight_won" not in tags else 0
-    # Para el jungla, la jungla rival es su trabajo (invadir, contrajunglear, visión): no suma por sí sola.
-    score += 0.5 if "enemy_jungle" in tags and not early and "no_ward" not in tags and g.role != "JUNGLE" else 0
-    score += 0.8 if "fight_outnumbered" in tags else 0
-    score += 0.5 if "collapsed" in tags else 0
-    score += 0.5 if "baron_buff" in tags else 0
-    score += 0.3 if "bounty" in tags else 0
-    score += 0.5 if "duel_behind" in tags else 0
-    score -= 1.0 if "fight_won" in tags else 0.5 if "fight_even" in tags else 0
-    score -= 0.7 if "traded" in tags else 0
-    severity = "high" if score >= 2.5 else "medium" if score >= 1.5 else "low"
-    if "game_end" in tags or "afk" in tags:
-        severity = "info"  # no es un error: se enseña para entender la partida
+    for applies, value in steps:
+        if applies:
+            score += value
+    if "fight_won" in tags:
+        score -= 1.0
+    elif "fight_even" in tags:
+        score -= 0.5
+    if "traded" in tags:
+        score -= 0.7
+    return score
+
+
+def _death_severity(d: _Death) -> str:
+    """Gravedad de la muerte según su puntuación (info si no es un error: empujón final o desconexión)."""
+    score = _death_score(d)
+    if "game_end" in d.tags or "afk" in d.tags:
+        return "info"  # no es un error: se enseña para entender la partida
+    if score >= 2.5:
+        return "high"
+    return "medium" if score >= 1.5 else "low"
+
+
+def _death_entry(d: _Death, title: str, details: list[str], severity: str) -> dict:
+    """La muerte para el análisis, con su momento y la certeza de las posiciones de los rivales implicados."""
+    g, t, pos = d.g, d.t, d.pos
     entry = {
         "t": round(t / 1000, 1),
         "x": pos[0] if pos else None,
         "y": pos[1] if pos else None,
-        "zone": zone,
-        "early": early,
-        "tags": tags,
-        "killer": k["killer"],
-        "enemies": sorted(enemies),
+        "zone": d.zone,
+        "early": d.early,
+        "tags": d.tags,
+        "killer": d.k["killer"],
+        "enemies": sorted(d.enemies),
         "severity": severity,
-        "fight": fight,
+        "fight": d.fight,
     }
     entry["moment"] = {
         "t": entry["t"],
@@ -1565,10 +1878,10 @@ def _classify_death(g: _Game, k: dict) -> dict:
         "detail": _sentence(", ".join(details)) if details else "",
         "x": entry["x"],
         "y": entry["y"],
-        "tags": tags,
+        "tags": d.tags,
     }
     # Certeza de las posiciones de los rivales implicados (gank, aislado, sin visión… dependen de dónde estaban).
-    gaps = [x for e in enemies if (x := g.anchor_gap(e, t)) is not None]
+    gaps = [x for e in d.enemies if (x := g.anchor_gap(e, t)) is not None]
     if gaps:
         entry["moment"]["ev"] = {"gap_rivales_s": max(gaps)}
     return entry
@@ -1606,20 +1919,30 @@ def _had_vision(g: _Game, t: int, pos) -> bool:
     destruyen: cuentan mientras el rival no haya destruido tantas como pusisteis.
     """
     me = g.me["pid"]
-    for pid in (me, *g.allies):
-        for wt, kind in g.ward_events.get(pid) or []:
-            if wt > t:
-                break
-            if t - wt > WARD_LIFE_MS.get(kind, WARD_WINDOW_MS):
-                continue
-            if kind == "CONTROL_WARD" and not _pinks_alive(g, pid, wt, t):
-                continue
-            if pid == me or pos is None:
-                return True
-            where = g.pos_at(pid, wt)
-            if where is None or geo.dist(where, pos) <= VISION_NEAR:
-                return True
+    return any(_ward_covers(g, pid, t, None if pid == me else pos) for pid in (me, *g.allies))
+
+
+def _ward_covers(g: _Game, pid: int, t: int, pos) -> bool:
+    """¿Seguía activo en ``t`` algún ward de ``pid`` puesto cerca de ``pos``? (con ``pos`` None vale cualquiera)."""
+    for wt, kind in g.ward_events.get(pid) or []:
+        if wt > t:
+            break
+        if not _ward_alive(g, pid, (wt, kind), t):
+            continue
+        if pos is None:
+            return True
+        where = g.pos_at(pid, wt)
+        if where is None or geo.dist(where, pos) <= VISION_NEAR:
+            return True
     return False
+
+
+def _ward_alive(g: _Game, pid: int, ward: tuple[int, str], t: int) -> bool:
+    """¿Seguía vivo en ``t`` el ward (momento, tipo) de ``pid``? Por su duración y, las pinks, si no las destruyeron."""
+    wt, kind = ward
+    if t - wt > WARD_LIFE_MS.get(kind, WARD_WINDOW_MS):
+        return False
+    return kind != "CONTROL_WARD" or _pinks_alive(g, pid, wt, t)
 
 
 def _ward_map(g: _Game) -> list[dict]:
@@ -1627,6 +1950,25 @@ def _ward_map(g: _Game) -> list[dict]:
     cached = getattr(g, "_wards_cache", None)
     if cached is not None:
         return cached
+    wards = _placed_wards(g)
+    wards.sort(key=lambda w: w["t"])
+    # Límite por jugador: la pink nueva quita la anterior; el cuarto ward sigiloso, el más antiguo.
+    caps = ((("CONTROL_WARD",), WARD_MAX_ALIVE["CONTROL_WARD"]), (STEALTH_WARDS, WARD_MAX_ALIVE["STEALTH"]))
+    for pid in g.players:
+        for group, cap in caps:
+            _cap_wards([w for w in wards if w["pid"] == pid and w["kind"] in group], cap)
+    for t, killer, kind in sorted(g.ward_kill_events):
+        if killer not in g.players:
+            continue
+        w = _killed_ward(g, wards, (t, killer, kind))
+        if w is not None:
+            w["end"], w["killer"] = t, killer
+    g._wards_cache = wards
+    return wards
+
+
+def _placed_wards(g: _Game) -> list[dict]:
+    """Wards y pinks puestos por los jugadores de la partida: quién, tipo, sitio estimado y hasta cuándo duran."""
     wards: list[dict] = []
     for pid, events in g.ward_events.items():
         if pid not in g.players:
@@ -1634,47 +1976,48 @@ def _ward_map(g: _Game) -> list[dict]:
         for t, kind in events:
             if kind not in STEALTH_WARDS and kind != "CONTROL_WARD":
                 continue
-            if kind == "YELLOW_TRINKET":
-                life = 90_000 + 30_000 * (min(g.level_at(pid, t), 18) - 1) // 17
-            else:
-                life = WARD_LIFE_MS.get(kind, WARD_WINDOW_MS) if kind != "CONTROL_WARD" else None
+            life = _ward_life(g, pid, t, kind)
             wards.append({
                 "pid": pid, "team": g.players[pid]["team"], "kind": kind, "t": t, "pos": g.pos_at(pid, t),
                 "end": min(t + life, g.duration_ms) if life else g.duration_ms, "killer": None,
             })
-    wards.sort(key=lambda w: w["t"])
-    # Límite por jugador: la pink nueva quita la anterior; el cuarto ward sigiloso, el más antiguo.
-    for pid in g.players:
-        for group in (("CONTROL_WARD",), STEALTH_WARDS):
-            mine = [w for w in wards if w["pid"] == pid and w["kind"] in group]
-            cap = WARD_MAX_ALIVE["CONTROL_WARD" if group == ("CONTROL_WARD",) else "STEALTH"]
-            for i, w in enumerate(mine):
-                alive = [x for x in mine[:i] if x["end"] > w["t"]]
-                if len(alive) >= cap:
-                    alive[0]["end"] = w["t"]
-    for t, killer, kind in sorted(g.ward_kill_events):
-        if killer not in g.players:
-            continue
-        kpos = g.pos_at(killer, t)
-        team = g.players[killer]["team"]
-        cands = [
-            w for w in wards
-            if w["team"] != team and w["t"] <= t < w["end"] and w["killer"] is None
-            and (w["kind"] == kind or kind not in STEALTH_WARDS + ("CONTROL_WARD",))
-        ]
-        if not cands:
-            continue
-        if kpos is not None:
-            near = [(geo.dist(kpos, w["pos"]), w) for w in cands if w["pos"] is not None]
-            near = [x for x in near if x[0] <= WARD_KILL_MATCH]
-            if not near:
-                continue
-            w = min(near, key=lambda x: x[0])[1]
-        else:
-            w = cands[0]
-        w["end"], w["killer"] = t, killer
-    g._wards_cache = wards
     return wards
+
+
+def _ward_life(g: _Game, pid: int, t: int, kind: str) -> int | None:
+    """Duración de un ward: el amarillo según el nivel, el de support la suya y la pink ``None`` (hasta que la quitan)."""
+    if kind == "YELLOW_TRINKET":
+        return 90_000 + 30_000 * (min(g.level_at(pid, t), 18) - 1) // 17
+    return WARD_LIFE_MS.get(kind, WARD_WINDOW_MS) if kind != "CONTROL_WARD" else None
+
+
+def _cap_wards(mine: list[dict], cap: int) -> None:
+    """Con ``cap`` wards vivos del mismo jugador (ordenados), el siguiente que pone quita el más antiguo."""
+    for i, w in enumerate(mine):
+        alive = [x for x in mine[:i] if x["end"] > w["t"]]
+        if len(alive) >= cap:
+            alive[0]["end"] = w["t"]
+
+
+def _killed_ward(g: _Game, wards: list[dict], kill: tuple[int, int, str]) -> dict | None:
+    """El ward rival que cayó en un WARD_KILL (momento, quién, tipo): el del tipo más cerca de quien lo quitó."""
+    t, killer, kind = kill
+    kpos = g.pos_at(killer, t)
+    team = g.players[killer]["team"]
+    cands = [
+        w for w in wards
+        if w["team"] != team and w["t"] <= t < w["end"] and w["killer"] is None
+        and (w["kind"] == kind or kind not in STEALTH_WARDS + ("CONTROL_WARD",))
+    ]
+    if not cands:
+        return None
+    if kpos is None:
+        return cands[0]
+    near = [(geo.dist(kpos, w["pos"]), w) for w in cands if w["pos"] is not None]
+    near = [x for x in near if x[0] <= WARD_KILL_MATCH]
+    if not near:
+        return None
+    return min(near, key=lambda x: x[0])[1]
 
 
 def _trinket(g: _Game, pid: int, t: int) -> str | None:
@@ -1705,7 +2048,6 @@ def _enemy_pinks(g: _Game, moments: list) -> dict:
     menos de ``ENEMY_PINK_PASS``, con la pink puesta desde hace 20 s o más) es error en cualquier rol (el mid que roamea
     y pasa por al lado); si no, solo en jungla y support (limpiar vuestra jungla es parte de vuestro trabajo): a quien no
     pasa por donde afecta no se le dice nada."""
-    me = g.me["pid"]
     out = {"enemy_pinks_own_jungle": 0, "enemy_pinks_long": 0, "enemy_pinks_ignored": 0}
     if not g.has_timeline:
         return out
@@ -1718,35 +2060,50 @@ def _enemy_pinks(g: _Game, moments: list) -> dict:
         if w["end"] - w["t"] < ENEMY_PINK_LONG_MS:
             continue
         out["enemy_pinks_long"] += 1
-        passed = next(
-            (ts for ts in range(w["t"] + ENEMY_PINK_SETTLE_MS, w["end"] - ENEMY_PINK_AFTER_MS, 5_000)
-             if (p := g.pos_at(me, ts)) is not None and geo.dist(p, w["pos"]) <= ENEMY_PINK_PASS),
-            None,
-        )
-        who = "tú" if w["killer"] == me else _champ_ref(g, w["killer"]) if w["killer"] else None
-        alive = (w["end"] - w["t"]) // 60_000
-        end = (f"hasta que la quitó {who} en el {_mmss(w['end'])}" if who
-               else "hasta el final de la partida" if w["end"] >= g.duration_ms else "sin que nadie la quitara")
-        where = geo.zone_label(geo.zone(w["pos"]), g.team)
-        why = "les daba la visión de tu jungla (tus campamentos, tus rutas, quién entra al río)"
-        if passed is not None:
-            out["enemy_pinks_ignored"] += 1
-            moments.append(_moment(
-                passed, "vision", "medium" if w["end"] - passed >= 2 * ENEMY_PINK_LONG_MS else "low",
-                "Pink rival en tu jungla y pasas a su lado sin quitarla",
-                f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])}. Pasaste a su lado en el "
-                f"{_mmss(passed)} y siguió viva {alive} min en total, {end}: {why}. Las pinks se ven sin lente: quítala al pasar (unos 3 golpes).",
-                w["pos"], ["vision", "enemy_pink", "passed"],
-            ))
-        elif g.role in ("JUNGLE", "SUPPORT"):
-            moments.append(_moment(
-                w["t"], "vision", "low",
-                f"Pink rival {alive} min en tu jungla",
-                f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])} y siguió viva {alive} min, {end}: {why}. "
-                "Al volver de base, jungla y support: revisad las entradas a vuestra jungla y los arbustos del río de vuestro lado.",
-                w["pos"], ["vision", "enemy_pink"],
-            ))
+        _long_enemy_pink(g, w, out, moments)
     return out
+
+
+def _long_enemy_pink(g: _Game, w: dict, out: dict, moments: list) -> None:
+    """Pink rival que vivió 3 min o más en tu jungla: error si pasaste a su lado; si no, aviso para jungla y support."""
+    me = g.me["pid"]
+    passed = next(
+        (ts for ts in range(w["t"] + ENEMY_PINK_SETTLE_MS, w["end"] - ENEMY_PINK_AFTER_MS, 5_000)
+         if (p := g.pos_at(me, ts)) is not None and geo.dist(p, w["pos"]) <= ENEMY_PINK_PASS),
+        None,
+    )
+    alive = (w["end"] - w["t"]) // 60_000
+    end = _pink_end_text(g, w)
+    where = geo.zone_label(geo.zone(w["pos"]), g.team)
+    why = "les daba la visión de tu jungla (tus campamentos, tus rutas, quién entra al río)"
+    if passed is not None:
+        out["enemy_pinks_ignored"] += 1
+        moments.append(_moment(
+            passed, "vision", "medium" if w["end"] - passed >= 2 * ENEMY_PINK_LONG_MS else "low",
+            "Pink rival en tu jungla y pasas a su lado sin quitarla",
+            f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])}. Pasaste a su lado en el "
+            f"{_mmss(passed)} y siguió viva {alive} min en total, {end}: {why}. Las pinks se ven sin lente: quítala al pasar (unos 3 golpes).",
+            w["pos"], ["vision", "enemy_pink", "passed"],
+        ))
+    elif g.role in ("JUNGLE", "SUPPORT"):
+        moments.append(_moment(
+            w["t"], "vision", "low",
+            f"Pink rival {alive} min en tu jungla",
+            f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])} y siguió viva {alive} min, {end}: {why}. "
+            "Al volver de base, jungla y support: revisad las entradas a vuestra jungla y los arbustos del río de vuestro lado.",
+            w["pos"], ["vision", "enemy_pink"],
+        ))
+
+
+def _pink_end_text(g: _Game, w: dict) -> str:
+    """Hasta cuándo siguió viva una pink rival: quién la quitó y cuándo, el final de la partida o que nadie la quitó."""
+    if w["killer"] == g.me["pid"]:
+        who = "tú"
+    else:
+        who = _champ_ref(g, w["killer"]) if w["killer"] else None
+    if who:
+        return f"hasta que la quitó {who} en el {_mmss(w['end'])}"
+    return "hasta el final de la partida" if w["end"] >= g.duration_ms else "sin que nadie la quitara"
 
 
 def _pinks_alive(g: _Game, pid: int, since: int, t: int) -> bool:
@@ -1797,10 +2154,10 @@ def _death_affects(g: _Game, pos, o: dict) -> bool:
 def _afk_after_death(g: _Game, k: dict) -> bool:
     """¿Te quedaste AFK nada más reaparecer de esta muerte? (una desconexión: la muerte no se juzga)."""
     me = g.me["pid"]
-    end = next((e for s, e, _p in g.dead.get(me) or [] if s == k["t"]), None)
+    end = next((e for s, e, _ in g.dead.get(me) or [] if s == k["t"]), None)
     if end is None:
         return False
-    return any(end - 5_000 <= s <= end + AFK_AFTER_RESPAWN_MS for s, _e in g.afk.get(me) or [])
+    return any(end - 5_000 <= s <= end + AFK_AFTER_RESPAWN_MS for s, _ in g.afk.get(me) or [])
 
 
 def _numbers_down(g: _Game, k: dict, cluster: list[dict], pos) -> dict | None:
@@ -1813,35 +2170,50 @@ def _numbers_down(g: _Game, k: dict, cluster: list[dict], pos) -> dict | None:
     """
     if not g.clocks_ok or pos is None or geo.zone(pos).startswith("base_"):
         return None
-    found = None
+    found = _pit_objective(g, k["t"], pos)
+    if not found:
+        return None
+    kind, taken = found
+    if _must_contest(g, kind, k["t"]):
+        return None
+    before = min(f["t"] for f in cluster) - 10_000
+    allies_up, enemies_up = _present_counts(g, before)
+    if enemies_up <= allies_up:
+        return None
+    dead = [a for a in g.allies if any(s <= before - OUTNUMBERED_DEAD_MS and before < e for s, e, _ in g.dead.get(a) or [])]
+    if not dead:
+        return None
+    label = _obj_label(g, taken) if taken else OBJ_LABEL[kind]
+    return {"kind": kind, "label": label, "allies": allies_up, "enemies": enemies_up, "dead": dead}
+
+
+def _pit_objective(g: _Game, t: int, pos) -> tuple[str, dict | None] | None:
+    """Objetivo del foso junto al que moriste: vivo según los relojes o cogido por el rival en el minuto siguiente."""
     for pit_kind in ("dragon", "baron"):
         pit = geo.PITS[pit_kind]
         if geo.dist(pos, pit) > OBJ_FIGHT_RADIUS:
             continue
         taken = next(
-            (o for o in g.objectives if o["team"] != g.team and k["t"] - 5_000 <= o["t"] <= k["t"] + 60_000 and clk.pit_of(o["kind"]) == pit),
+            (o for o in g.objectives if o["team"] != g.team and t - 5_000 <= o["t"] <= t + 60_000 and clk.pit_of(o["kind"]) == pit),
             None,
         )
-        alive = [x for x in clk.alive_at(g.objectives, g.clocks, k["t"]) if clk.pit_of(x) == pit]
+        alive = [x for x in clk.alive_at(g.objectives, g.clocks, t) if clk.pit_of(x) == pit]
         if taken or alive:
-            found = (taken["kind"] if taken else alive[0], taken)
-            break
-    if not found:
-        return None
-    kind, taken = found
-    enemy_dragons = sum(1 for x in g.objectives if x["kind"] == "dragon" and x["team"] != g.team and x["t"] < k["t"])
-    if kind == "elder" or (kind == "dragon" and enemy_dragons >= 3):
-        return None
-    before = min(f["t"] for f in cluster) - 10_000
-    allies_up = sum(1 for a in (g.me["pid"], *g.allies) if g.present(a, before))
-    enemies_up = sum(1 for e in g.enemies if g.present(e, before))
-    if enemies_up <= allies_up:
-        return None
-    dead = [a for a in g.allies if any(s <= before - OUTNUMBERED_DEAD_MS and before < e for s, e, _p in g.dead.get(a) or [])]
-    if not dead:
-        return None
-    label = _obj_label(g, taken) if taken else OBJ_LABEL[kind]
-    return {"kind": kind, "label": label, "allies": allies_up, "enemies": enemies_up, "dead": dead}
+            return (taken["kind"] if taken else alive[0], taken)
+    return None
+
+
+def _must_contest(g: _Game, kind: str, t: int) -> bool:
+    """¿Ancestral o alma del rival en juego? Hay que disputarlos aunque sea con uno menos."""
+    enemy_dragons = sum(1 for x in g.objectives if x["kind"] == "dragon" and x["team"] != g.team and x["t"] < t)
+    return kind == "elder" or (kind == "dragon" and enemy_dragons >= 3)
+
+
+def _present_counts(g: _Game, t: int) -> tuple[int, int]:
+    """Cuántos de tu equipo (contigo) y cuántos rivales estaban vivos y conectados en ``t``."""
+    allies_up = sum(1 for a in (g.me["pid"], *g.allies) if g.present(a, t))
+    enemies_up = sum(1 for e in g.enemies if g.present(e, t))
+    return allies_up, enemies_up
 
 
 def _duel_gap(g: _Game, k: dict, enemies: set[int], fight: dict) -> dict | None:
@@ -2008,8 +2380,13 @@ def _busy_windows(g: _Game) -> list[tuple[int, int]]:
             out.append((b["t"] - 30_000, b["t"] + 10_000))
     out.append((g.duration_ms - (FINAL_PUSH_MS if g.won else 60_000), g.duration_ms + 1))
     out.sort()
+    return _merge_windows(out)
+
+
+def _merge_windows(windows: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Une las ventanas (ordenadas) que se solapan o se tocan."""
     merged: list[list[int]] = []
-    for s, e in out:
+    for s, e in windows:
         if merged and s <= merged[-1][1]:
             merged[-1][1] = max(merged[-1][1], e)
         else:
@@ -2040,64 +2417,13 @@ def _gold_since(g: _Game, i: int, row: dict) -> int:
 
 def _gold_use(g: _Game, metrics: dict, moments: list) -> None:
     """Oro que te daba para algo de tu build, con hueco, y que tardaste en gastar."""
-    me = g.me["pid"]
     if not g.items_reliable:  # sin inventario fiable no se juzga el oro (ni para bien ni para mal)
         metrics["gold_hoard_min"] = None
         metrics["gold_saving_min"] = None
         return
-    rows: dict[int, dict] = {}
-    flagged: list[int] = []
-    for i, t in enumerate(g.ts):
-        if t < 3 * 60_000 or not g.present(me, t):
-            continue
-        gold = g.fval(me, i, "currentGold")
-        p = g.frame_pos(me, i)
-        if gold is None or (p and geo.in_fountain(g.team, p)):
-            continue
-        s = _spend(g, t, gold)
-        s["gold"] = gold
-        rows[i] = s
-        if s["useful"] >= USEFUL_SPEND:
-            flagged.append(i)
+    rows, flagged = _gold_rows(g)
     g.gold_rows = rows
-
-    busy = _busy_windows(g)
-    buys = sorted(pt for pt, _ in g.purchases[me])
-    respawns = sorted(end for _s, end, _p in g.dead.get(me) or [])
-    deaths = sorted(start for start, _e, _p in g.dead.get(me) or [])
-    total = 0
-    for run in _runs(flagged):
-        t_first, t_last = g.ts[run[0]], g.ts[run[-1]]
-        since = _gold_since(g, run[0], rows[run[0]])
-        start = max([since, *[b for b in buys if b <= t_first][-1:], *[r for r in respawns if r <= t_first][-1:]])
-        ends = [g.duration_ms, t_last + 60_000]
-        ends += [b for b in buys if b > t_last][:1] + [d for d in deaths if d > t_last][:1]
-        end = min(ends)
-        excess = (end - start) - _overlap(busy, start, end) - HOARD_GRACE_MS
-        if excess <= 0:
-            continue
-        total += excess
-        g.hoard_frames.update(run)
-        best = max((rows[i] for i in run), key=lambda r: r["useful"])
-        peak = max(rows[i]["gold"] for i in run)
-        if excess < 40_000:
-            continue
-        if best["known"]:
-            what = _buy_text(g, best["item"], best["cost"])
-            what += " y tenías hueco" if best["free"] else " con lo que llevabas"
-        else:
-            what = "te llegaba para un componente"
-        moments.append(
-            _moment(
-                start,
-                "gold",
-                "medium" if excess >= 120_000 or best["useful"] >= 2500 else "low",
-                f"{_secs(end - start)} con oro sin gastar (hasta {_int(peak)})",
-                f"Del {_mmss(start)} al {_mmss(end)} {what}. Descontando peleas y objetivos, tardaste {_secs(excess)} de más en volver: "
-                "vuelve a base al acabar la oleada o el campamento, ese oro no pelea.",
-                tags=["gold"],
-            )
-        )
+    total = _gold_hoards(g, rows, flagged, moments)
     metrics["gold_hoard_min"] = round(total / 60_000, 1)
     # Ahorro legítimo: inventario lleno o build terminada (no cuenta como error).
     saving = [i for i, r in rows.items() if r["known"] and r["gold"] >= HOARD_GOLD and r["useful"] < USEFUL_SPEND]
@@ -2116,6 +2442,72 @@ def _gold_use(g: _Game, metrics: dict, moments: list) -> None:
                 tags=["gold", "full_build"],
             )
         )
+
+
+def _gold_rows(g: _Game) -> tuple[dict[int, dict], list[int]]:
+    """Qué podías comprar en cada frame (vivo, desde el 3 y fuera de la fuente) y los frames con oro útil sin gastar."""
+    me = g.me["pid"]
+    rows: dict[int, dict] = {}
+    flagged: list[int] = []
+    for i, t in enumerate(g.ts):
+        if t < 3 * 60_000 or not g.present(me, t):
+            continue
+        gold = g.fval(me, i, "currentGold")
+        p = g.frame_pos(me, i)
+        if gold is None or (p and geo.in_fountain(g.team, p)):
+            continue
+        s = _spend(g, t, gold)
+        s["gold"] = gold
+        rows[i] = s
+        if s["useful"] >= USEFUL_SPEND:
+            flagged.append(i)
+    return rows, flagged
+
+
+def _gold_hoards(g: _Game, rows: dict[int, dict], flagged: list[int], moments: list) -> int:
+    """Ms de más con oro útil sin gastar (descontando peleas y objetivos); avisa de cada tramo de 40 s o más."""
+    me = g.me["pid"]
+    busy = _busy_windows(g)
+    buys = sorted(pt for pt, _ in g.purchases[me])
+    respawns = sorted(end for _, end, _ in g.dead.get(me) or [])
+    deaths = sorted(start for start, _, _ in g.dead.get(me) or [])
+    total = 0
+    for run in _runs(flagged):
+        t_first, t_last = g.ts[run[0]], g.ts[run[-1]]
+        since = _gold_since(g, run[0], rows[run[0]])
+        start = max([since, *[b for b in buys if b <= t_first][-1:], *[r for r in respawns if r <= t_first][-1:]])
+        ends = [g.duration_ms, t_last + 60_000]
+        ends += [b for b in buys if b > t_last][:1] + [d for d in deaths if d > t_last][:1]
+        end = min(ends)
+        excess = (end - start) - _overlap(busy, start, end) - HOARD_GRACE_MS
+        if excess <= 0:
+            continue
+        total += excess
+        g.hoard_frames.update(run)
+        if excess >= 40_000:
+            moments.append(_hoard_moment(g, [rows[i] for i in run], (start, end), excess))
+    return total
+
+
+def _hoard_moment(g: _Game, run_rows: list[dict], span: tuple[int, int], excess: int) -> dict:
+    """Aviso de un tramo con oro sin gastar: qué te daba para comprar y cuánto tardaste de más en volver."""
+    start, end = span
+    best = max(run_rows, key=lambda r: r["useful"])
+    peak = max(r["gold"] for r in run_rows)
+    if best["known"]:
+        what = _buy_text(g, best["item"], best["cost"])
+        what += " y tenías hueco" if best["free"] else " con lo que llevabas"
+    else:
+        what = "te llegaba para un componente"
+    return _moment(
+        start,
+        "gold",
+        "medium" if excess >= 120_000 or best["useful"] >= 2500 else "low",
+        f"{_secs(end - start)} con oro sin gastar (hasta {_int(peak)})",
+        f"Del {_mmss(start)} al {_mmss(end)} {what}. Descontando peleas y objetivos, tardaste {_secs(excess)} de más en volver: "
+        "vuelve a base al acabar la oleada o el campamento, ese oro no pelea.",
+        tags=["gold"],
+    )
 
 
 # --------------------------------------------------------------- AFK
@@ -2151,23 +2543,9 @@ def _afk_moments(g: _Game, moments: list) -> None:
 
 # --------------------------------------------------------- fase de líneas
 def _lane_phase(g: _Game, metrics: dict, moments: list) -> None:
-    me, opp = g.me["pid"], g.opponent
+    opp = g.opponent
     for minute in (10, 15):
-        # Con una desconexión (tuya o de tu rival de línea) antes de ese minuto la comparación no dice nada.
-        limit = minute * 60_000
-        mine_afk = any(s < limit for s, _e in g.afk.get(me) or [])
-        opp_afk = bool(opp) and any(s < limit for s, _e in g.afk.get(opp) or [])
-        i = g.frame_at_minute(minute)
-        cs = None if mine_afk else g.fval(me, i, "cs")
-        metrics[f"cs{minute}"] = cs
-        if opp and not mine_afk and not opp_afk:
-            ocs, gold, ogold = g.fval(opp, i, "cs"), g.fval(me, i, "totalGold"), g.fval(opp, i, "totalGold")
-            xp, oxp = g.fval(me, i, "xp"), g.fval(opp, i, "xp")
-            metrics[f"cs_diff{minute}"] = cs - ocs if cs is not None and ocs is not None else None
-            metrics[f"gold_diff{minute}"] = gold - ogold if gold is not None and ogold is not None else None
-            metrics[f"xp_diff{minute}"] = xp - oxp if xp is not None and oxp is not None else None
-        else:
-            metrics[f"cs_diff{minute}"] = metrics[f"gold_diff{minute}"] = metrics[f"xp_diff{minute}"] = None
+        _lane_minute(g, metrics, minute)
     gd = metrics.get("gold_diff15")
     if g.role and g.role not in ("JUNGLE", "SUPPORT") and gd is not None and gd <= -1000:
         moments.append(
@@ -2184,6 +2562,31 @@ def _lane_phase(g: _Game, metrics: dict, moments: list) -> None:
         )
 
 
+def _lane_minute(g: _Game, metrics: dict, minute: int) -> None:
+    """Tu CS a ese minuto y las diferencias de CS, oro y experiencia con tu rival de línea."""
+    me, opp = g.me["pid"], g.opponent
+    # Con una desconexión (tuya o de tu rival de línea) antes de ese minuto la comparación no dice nada.
+    limit = minute * 60_000
+    mine_afk = any(s < limit for s, _ in g.afk.get(me) or [])
+    opp_afk = bool(opp) and any(s < limit for s, _ in g.afk.get(opp) or [])
+    i = g.frame_at_minute(minute)
+    cs = None if mine_afk else g.fval(me, i, "cs")
+    metrics[f"cs{minute}"] = cs
+    if opp and not mine_afk and not opp_afk:
+        ocs, gold, ogold = g.fval(opp, i, "cs"), g.fval(me, i, "totalGold"), g.fval(opp, i, "totalGold")
+        xp, oxp = g.fval(me, i, "xp"), g.fval(opp, i, "xp")
+        metrics[f"cs_diff{minute}"] = _difference(cs, ocs)
+        metrics[f"gold_diff{minute}"] = _difference(gold, ogold)
+        metrics[f"xp_diff{minute}"] = _difference(xp, oxp)
+    else:
+        metrics[f"cs_diff{minute}"] = metrics[f"gold_diff{minute}"] = metrics[f"xp_diff{minute}"] = None
+
+
+def _difference(a: int | None, b: int | None) -> int | None:
+    """``a - b`` o ``None`` si falta alguno de los dos."""
+    return a - b if a is not None and b is not None else None
+
+
 # --------------------------------------------------------------- objetivos
 def _obj_value(g: _Game, o: dict) -> int:
     kind = o["kind"]
@@ -2191,7 +2594,9 @@ def _obj_value(g: _Game, o: dict) -> int:
         return OBJ_VALUE["grubs"] * o.get("count", 1)
     if kind == "dragon":
         prior = sum(1 for x in g.objectives if x["kind"] == "dragon" and x["team"] == o["team"] and x["t"] < o["t"])
-        return 2500 if prior >= 3 else 1400 if prior == 2 else OBJ_VALUE["dragon"]
+        if prior >= 3:
+            return 2500
+        return 1400 if prior == 2 else OBJ_VALUE["dragon"]
     return OBJ_VALUE.get(kind, 800)
 
 
@@ -2211,29 +2616,51 @@ def _exchange(g: _Game, o: dict, used: set[int] | None = None) -> dict:
     ``used``: lo que ya compensó otro objetivo (una misma torre no paga dos objetivos). ``ids`` devuelve lo que
     entra en este cambio, para marcarlo si se da por bueno.
     """
-    me, team = g.me["pid"], g.team
     used = used if used is not None else set()
-    ids: list[int] = []
-    t0, t1 = o["t"] - TRADE_BEFORE_MS, o["t"] + TRADE_AFTER_MS
-    gain = {"kills": 0, "towers": 0, "inhibitors": 0, "plates": 0, "objectives": [], "jungle_cs": 0}
-    mine = {"takedowns": 0, "towers": 0, "plates": 0, "jungle_cs": 0, "objectives": []}
-    # Lo que además sacó el rival en esa ventana (también cuenta en la balanza y se explica en el texto).
-    loss = {"kills": 0, "towers": 0, "inhibitors": 0, "plates": 0}
-    value_gain = 0
-    value_loss = _obj_value(g, o)
+    window = (o["t"] - TRADE_BEFORE_MS, o["t"] + TRADE_AFTER_MS)
+    ex = {
+        "gain": {"kills": 0, "towers": 0, "inhibitors": 0, "plates": 0, "objectives": [], "jungle_cs": 0},
+        "mine": {"takedowns": 0, "towers": 0, "plates": 0, "jungle_cs": 0, "objectives": []},
+        # Lo que además sacó el rival en esa ventana (también cuenta en la balanza y se explica en el texto).
+        "loss": {"kills": 0, "towers": 0, "inhibitors": 0, "plates": 0},
+        "value_gain": 0,
+        "value_loss": _obj_value(g, o),
+        "ids": [],
+    }
+    _exchange_kills(g, window, used, ex)
+    _exchange_buildings(g, window, used, ex)
+    _exchange_objectives(g, o, window, used, ex)
+    _exchange_jungle(g, window, ex)
+    value_gain, value_loss = ex["value_gain"], ex["value_loss"]
+    return {
+        "gain": ex["gain"], "mine": ex["mine"], "loss": ex["loss"], "value_gain": value_gain, "value_loss": value_loss,
+        "ratio": value_gain / max(1, value_loss), "ids": ex["ids"],
+    }
+
+
+def _exchange_kills(g: _Game, window: tuple[int, int], used: set[int], ex: dict) -> None:
+    """Kills de la ventana: las de rivales suman a tu equipo (si no pagaron ya otro objetivo); las vuestras, al rival."""
+    me, team = g.me["pid"], g.team
+    t0, t1 = window
     for k in g.kills:
         if not t0 <= k["t"] <= t1:
             continue
-        if g.players[k["victim"]]["team"] != team:
-            if id(k) in used:
-                continue
-            ids.append(id(k))
-            gain["kills"] += 1
-            value_gain += k["value"]
-            mine["takedowns"] += int(me == k["killer"] or me in k["assists"])
-        else:
-            value_loss += k["value"]
-            loss["kills"] += 1
+        if g.players[k["victim"]]["team"] == team:
+            ex["value_loss"] += k["value"]
+            ex["loss"]["kills"] += 1
+            continue
+        if id(k) in used:
+            continue
+        ex["ids"].append(id(k))
+        ex["gain"]["kills"] += 1
+        ex["value_gain"] += k["value"]
+        ex["mine"]["takedowns"] += int(me == k["killer"] or me in k["assists"])
+
+
+def _exchange_buildings(g: _Game, window: tuple[int, int], used: set[int], ex: dict) -> None:
+    """Estructuras de la ventana: las vuestras suman al rival y las suyas a tu equipo (sin contar dos veces las placas)."""
+    me, team = g.me["pid"], g.team
+    t0, t1 = window
     ours, theirs = [], []
     for b in g.buildings:
         if not t0 <= b["t"] <= t1:
@@ -2241,32 +2668,43 @@ def _exchange(g: _Game, o: dict, used: set[int] | None = None) -> dict:
         key = {"tower": "towers", "inhibitor": "inhibitors", "plate": "plates"}[b["kind"]]
         if b["owner"] == team:
             ours.append(b)
-            loss[key] += 1
+            ex["loss"][key] += 1
             continue
         if id(b) in used:
             continue
-        ids.append(id(b))
+        ex["ids"].append(id(b))
         theirs.append(b)
-        gain[key] += 1
+        ex["gain"][key] += 1
         if me in b["takers"]:
-            mine["plates" if b["kind"] == "plate" else "towers"] += 1
-    value_loss += _structures_value(ours)
-    value_gain += _structures_value(theirs)
+            ex["mine"]["plates" if b["kind"] == "plate" else "towers"] += 1
+    ex["value_loss"] += _structures_value(ours)
+    ex["value_gain"] += _structures_value(theirs)
+
+
+def _exchange_objectives(g: _Game, o: dict, window: tuple[int, int], used: set[int], ex: dict) -> None:
+    """Otros objetivos de tu equipo en la ventana (los que no pagaron ya otro objetivo)."""
+    me = g.me["pid"]
+    t0, t1 = window
     for x in g.objectives:
-        if x is o or x["team"] != team or not t0 <= x["t"] <= t1 or id(x) in used:
+        if x is o or x["team"] != g.team or not t0 <= x["t"] <= t1 or id(x) in used:
             continue
-        ids.append(id(x))
-        gain["objectives"].append(x["kind"])
-        value_gain += _obj_value(g, x)
+        ex["ids"].append(id(x))
+        ex["gain"]["objectives"].append(x["kind"])
+        ex["value_gain"] += _obj_value(g, x)
         if me in x["takers"]:
-            mine["objectives"].append(x["kind"])
+            ex["mine"]["objectives"].append(x["kind"])
+
+
+def _exchange_jungle(g: _Game, window: tuple[int, int], ex: dict) -> None:
+    """CS que hizo tu equipo en la jungla rival durante la ventana (y 30 s más)."""
+    me = g.me["pid"]
+    t0, t1 = window
     for pid in (me, *g.allies):
         cs = g.enemy_jungle_cs(pid, t0, t1 + 30_000)
-        gain["jungle_cs"] += cs
+        ex["gain"]["jungle_cs"] += cs
         if pid == me:
-            mine["jungle_cs"] = cs
-    value_gain += gain["jungle_cs"] * ENEMY_JUNGLE_CS_VALUE
-    return {"gain": gain, "mine": mine, "loss": loss, "value_gain": value_gain, "value_loss": value_loss, "ratio": value_gain / max(1, value_loss), "ids": ids}
+            ex["mine"]["jungle_cs"] = cs
+    ex["value_gain"] += ex["gain"]["jungle_cs"] * ENEMY_JUNGLE_CS_VALUE
 
 
 def _de(label: str) -> str:
@@ -2296,7 +2734,7 @@ def _gain_text(gain: dict) -> str:
 
 
 def _is_big(g: _Game, o: dict) -> bool:
-    return o["kind"] in ("baron", "elder") or _obj_label(g, o).startswith("el alma")
+    return o["kind"] in ("baron", "elder") or _obj_label(g, o).startswith(SOUL_LABEL)
 
 
 def _contest_expected(g: _Game, o: dict) -> bool:
@@ -2326,7 +2764,7 @@ def _contest_expected(g: _Game, o: dict) -> bool:
 def _lane_cs_diff(g: _Game, lane: str, t: int) -> int | None:
     """CS de tu jugador de esa línea menos el de su rival en el último frame antes de ``t`` (bot: los ADC)."""
     ally, enemy = g._by_role(g.team, LANE_ROLE[lane]), g._by_role(300 - g.team, LANE_ROLE[lane])
-    if not ally or not enemy or any(s < t for p in (ally, enemy) for s, _e in g.afk.get(p) or []):
+    if not ally or not enemy or any(s < t for p in (ally, enemy) for s, _ in g.afk.get(p) or []):
         return None  # rol desconocido o alguien desconectado: no es una comparación justa
     i = g.frame_before(t)
     a, b = g.fval(ally, i, "cs"), g.fval(enemy, i, "cs")
@@ -2341,9 +2779,14 @@ def _priority(g: _Game, kind: str, t: int) -> dict | None:
     diffs = {lane: _lane_cs_diff(g, lane, t) for lane in lanes}
     if any(v is None for v in diffs.values()):
         return None
-    vals = list(diffs.values())
-    state = "ours" if all(v >= PRIO_CS for v in vals) else "theirs" if all(v <= -PRIO_CS for v in vals) else "mixed"
-    return {"lanes": diffs, "state": state}
+    return {"lanes": diffs, "state": _prio_state(list(diffs.values()))}
+
+
+def _prio_state(vals: list[int]) -> str:
+    """``ours`` si todas las líneas van ≥ +5 CS, ``theirs`` si todas van ≤ −5 y ``mixed`` si no."""
+    if all(v >= PRIO_CS for v in vals):
+        return "ours"
+    return "theirs" if all(v <= -PRIO_CS for v in vals) else "mixed"
 
 
 def _prio_text(prio: dict) -> str:
@@ -2382,143 +2825,196 @@ def _contributed(mine: dict) -> bool:
 
 def _objectives(g: _Game, metrics: dict, moments: list) -> None:
     me = g.me["pid"]
-    taken = participated = lost_dead = conceded = trades = fair = no_prio = 0
+    counts: Counter = Counter()  # taken, participated, lost_dead, conceded, trades, fair y no_prio
     my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
     for o in g.objectives:
-        here = me in o["takers"] if o["assists_known"] else False
-        p = g.pos_at(me, o["t"])
-        if not here and p is not None and geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE:
-            here = True
-        if g.is_afk(me, o["t"]):
-            continue
-        if o["team"] == g.team:
-            taken += 1
-            participated += int(here)
-            continue
-        if here:
-            continue
-        if not _contest_expected(g, o):
-            continue  # no te tocaba disputarlo: ni error ni mérito tuyo
-        label = _obj_label(g, o)
-        big = _is_big(g, o)
-        ex = _exchange(g, o, g.used_gains)
-        if ex["ratio"] >= FAIR_TRADE and ex["value_gain"]:
-            g.used_gains.update(ex["ids"])  # esto ya compensa este objetivo: no puede pagar otro
-        got = _gain_text(ex["gain"])
-        mine = _gain_text(ex["mine"])
-        if g.is_dead(me, o["t"]):
-            if ex["ratio"] >= GOOD_TRADE:  # lo compensó tu equipo (no cuenta como cambio tuyo)
-                g.flagged.add(id(o))
-                moments.append(
-                    _moment(o["t"], "trade", "info", f"El rival cogió {label} mientras estabas muerto, pero tu equipo lo compensó",
-                            f"Mientras tanto sacasteis {got}.", o["pos"], ["objective", "dead", "trade"])
-                )
-                continue
-            lost_dead += 1
-            if any(o["t"] - OBJECTIVE_WINDOW_MS <= d <= o["t"] for d in my_deaths):
-                continue  # la muerte de antes ya lo cuenta
-            g.flagged.add(id(o))
-            moments.append(
-                _moment(o["t"], "objective", "high" if o["kind"] in ("baron", "elder", "dragon") else "medium",
-                        f"El rival cogió {label} mientras estabas muerto", "Una muerte antes de un objetivo se paga doble: no puedes disputarlo.",
-                        o["pos"], ["objective", "dead"])
-            )
-            continue
-        # Con tu posición lejos de un punto real (más de 20 s), que estuvieras «lejos» se exige con margen: la auditoría
-        # de la calibración vio que casi la mitad de estos avisos se decidían así (24-11-2026).
-        # Si en los puntos reales de antes y de después también estabas lejos, vale sin margen.
-        gap = g.anchor_gap(g.me["pid"], o["t"])
-        around = g.real_around(g.me["pid"], o["t"])
-        sure = (gap is not None and gap <= OBJ_FAR_SURE_GAP_S) or (
-            len(around) == 2 and all(geo.dist(q, o["pos"]) >= FAR_FROM_OBJECTIVE for q in around)
-        )
-        far = FAR_FROM_OBJECTIVE + (0 if sure else OBJ_FAR_UNSURE_MARGIN)
-        if p is None or geo.dist(p, o["pos"]) < far:
-            continue
-        if any(o["t"] - OBJECTIVE_WINDOW_MS <= d <= o["t"] for d in my_deaths):
-            continue  # acababas de morir y volvías de la base: la muerte de antes ya lo cuenta
-        where = geo.zone_label(geo.zone(p), g.team)
-        you = f"; tú: {mine}" if mine else ""
-        contributed = _contributed(ex["mine"])
-        if ex["ratio"] >= GOOD_TRADE:
-            if contributed:  # solo es mérito tuyo si participaste en lo que sacasteis
-                trades += 1
-                g.flagged.add(id(o))
-                moments.append(
-                    _moment(o["t"], "trade", "good", f"Buen cambio: {label} por {got}",
-                            f"Estabas en {where}{you}. Si no se puede disputar un objetivo, cambiarlo por algo al otro lado es la decisión correcta.",
-                            p, ["objective", "trade"])
-                )
-            continue  # lo compensó tu equipo sin ti: ni error ni mérito tuyo
-        if ex["ratio"] >= FAIR_TRADE and got:
-            if contributed:
-                fair += 1
-                g.flagged.add(id(o))
-                moments.append(
-                    _moment(o["t"], "trade", "low", f"Cambio justo: {label} por {got}",
-                            f"Estabas en {where}{you}. Valía algo menos que el objetivo: si llegabais, era mejor disputarlo.", p,
-                            ["objective", "trade", "fair_trade"])
-                )
-            continue
-        allies_up = sum(1 for a in (me, *g.allies) if g.present(a, o["t"]))
-        enemies_up = sum(1 for e in g.enemies if g.present(e, o["t"]))
-        if enemies_up - allies_up >= 2:
-            g.flagged.add(id(o))
-            moments.append(
-                _moment(o["t"], "objective", "info", f"El rival cogió {label} con ventaja numérica ({allies_up} contra {enemies_up})",
-                        "No se podía disputar: lo que costó el objetivo fueron las muertes de antes.", p, ["objective", "outnumbered"])
-            )
-            continue
-        prio = _priority(g, o["kind"], o["t"])
-        if o["kind"] == "dragon" and not label.startswith("el alma") and "punto de alma" not in label and prio and prio["state"] == "theirs":
-            # Sin prioridad en las dos líneas del dragón, cederlo es lo normal (en Challenger lo pierde el 53 % de los
-            # equipos así; en Esmeralda, el 59 %): no es error. Lo que se puede hacer es cambiarlo al otro lado.
-            no_prio += 1
-            g.flagged.add(id(o))
-            if g.role in ("JUNGLE", "SUPPORT", "MID"):  # como los cedidos: al top y al ADC no se les enseña
-                moments.append(
-                    _moment(o["t"], "objective", "info", f"El rival cogió {label}: tenía la prioridad en mid y bot",
-                            f"Cuando cayó, {_prio_text(prio)}: llegaban antes al río y cederlo era razonable. Aprovecha ese tiempo al otro lado "
-                            "(larvas, heraldo, su jungla de arriba o una torre).", p, ["objective", "no_prio"])
-                )
-            continue
-        conceded += 1
-        if g.role in ("JUNGLE", "SUPPORT", "MID") or big:
-            recalled = any(
-                o["t"] - 60_000 <= pt <= o["t"] and not g.is_dead(me, pt) and not g.respawn_buy(me, pt) for pt, _ in g.purchases[me]
-            )
-            if recalled:
-                detail = "Volviste a base justo antes del objetivo"
-            else:
-                detail = f"Estabas en {where}, a {_int(geo.dist(p, o['pos']))} unidades"
-            extra = _gain_text(ex["loss"])
-            if got and extra:
-                # Sin esto parecía un falso positivo («sacasteis 1 torre y 3 placas» por un heraldo): la balanza
-                # también suma lo que sacó el rival a la vez.
-                detail += f"; sacasteis {got}, pero el rival, además {_de(label)}, sacó {extra}"
-            elif got:
-                detail += f"; solo sacasteis {got}"
-            elif extra:
-                detail += f"; tu equipo no sacó nada a cambio y el rival además sacó {extra}"
-            else:
-                detail += "; tu equipo no sacó nada a cambio"
-            if prio:
-                detail += f"; prioridad: {_prio_text(prio)}"
-            detail += ". Si no vas a disputarlo, cámbialo: invade su jungla al otro lado, presiona una torre o haz un dive."
-            free = ex["value_gain"] < 0.25 * _obj_value(g, o)
-            title = f"El rival cogió {label} gratis y estabas lejos" if free else f"El rival cogió {label} y no lo compensasteis"
-            g.flagged.add(id(o))
-            # Un dragón normal cedido es flujo de partida (pasa igual en Esmeralda que en Aspirante): leve.
-            severity = "high" if big else "low" if o["kind"] == "dragon" else "medium"
-            moments.append(_moment(o["t"], "objective", severity, title, detail, p, ["objective", "far"]))
+        _objective(g, o, my_deaths, counts, moments)
+    taken = counts["taken"]
     metrics["objectives_team"] = taken
     if taken:
-        metrics["obj_participation"] = round(participated / taken * 100, 1)
-    metrics["obj_lost_dead"] = lost_dead
-    metrics["obj_lost_far"] = conceded
-    metrics["obj_lost_noprio"] = no_prio  # dragones cedidos sin prioridad en mid y bot: no cuentan como regalados
-    metrics["obj_trades"] = trades  # solo buenos cambios en los que participaste
-    metrics["obj_fair_trades"] = fair
+        metrics["obj_participation"] = round(counts["participated"] / taken * 100, 1)
+    metrics["obj_lost_dead"] = counts["lost_dead"]
+    metrics["obj_lost_far"] = counts["conceded"]
+    metrics["obj_lost_noprio"] = counts["no_prio"]  # dragones cedidos sin prioridad en mid y bot: no cuentan como regalados
+    metrics["obj_trades"] = counts["trades"]  # solo buenos cambios en los que participaste
+    metrics["obj_fair_trades"] = counts["fair"]
+
+
+def _objective(g: _Game, o: dict, my_deaths: list[int], counts: Counter, moments: list) -> None:
+    """Un objetivo: cuenta si fue de tu equipo; si lo cogió el rival y te tocaba disputarlo, lo juzga."""
+    me = g.me["pid"]
+    p = g.pos_at(me, o["t"])
+    here = _was_at(g, o, p)
+    if g.is_afk(me, o["t"]):
+        return
+    if o["team"] == g.team:
+        counts["taken"] += 1
+        counts["participated"] += int(here)
+        return
+    if here or not _contest_expected(g, o):
+        return  # estabas allí, o no te tocaba disputarlo: ni error ni mérito tuyo
+    ex = _exchange(g, o, g.used_gains)
+    if ex["ratio"] >= FAIR_TRADE and ex["value_gain"]:
+        g.used_gains.update(ex["ids"])  # esto ya compensa este objetivo: no puede pagar otro
+    if g.is_dead(me, o["t"]):
+        _objective_while_dead(g, o, ex, my_deaths, counts, moments)
+    else:
+        _objective_far(g, o, ex, p, my_deaths, counts, moments)
+
+
+def _was_at(g: _Game, o: dict, p) -> bool:
+    """¿Estabas en el objetivo? (entre quienes lo cogieron o a menos de ``NEAR_OBJECTIVE`` cuando cayó)."""
+    here = g.me["pid"] in o["takers"] if o["assists_known"] else False
+    if not here and p is not None and geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE:
+        here = True
+    return here
+
+
+def _died_before(o: dict, my_deaths: list[int]) -> bool:
+    """¿Moriste en los 90 s antes del objetivo? (entonces ya lo cuenta esa muerte)."""
+    return any(o["t"] - OBJECTIVE_WINDOW_MS <= d <= o["t"] for d in my_deaths)
+
+
+def _objective_while_dead(g: _Game, o: dict, ex: dict, my_deaths: list[int], counts: Counter, moments: list) -> None:
+    """El rival cogió el objetivo mientras estabas muerto: compensado por tu equipo (info) o perdido por tu muerte."""
+    label = _obj_label(g, o)
+    if ex["ratio"] >= GOOD_TRADE:  # lo compensó tu equipo (no cuenta como cambio tuyo)
+        g.flagged.add(id(o))
+        moments.append(
+            _moment(o["t"], "trade", "info", f"El rival cogió {label} mientras estabas muerto, pero tu equipo lo compensó",
+                    f"Mientras tanto sacasteis {_gain_text(ex['gain'])}.", o["pos"], ["objective", "dead", "trade"])
+        )
+        return
+    counts["lost_dead"] += 1
+    if _died_before(o, my_deaths):
+        return  # la muerte de antes ya lo cuenta
+    g.flagged.add(id(o))
+    moments.append(
+        _moment(o["t"], "objective", "high" if o["kind"] in ("baron", "elder", "dragon") else "medium",
+                f"El rival cogió {label} mientras estabas muerto", "Una muerte antes de un objetivo se paga doble: no puedes disputarlo.",
+                o["pos"], ["objective", "dead"])
+    )
+
+
+def _objective_far(g: _Game, o: dict, ex: dict, p, my_deaths: list[int], counts: Counter, moments: list) -> None:
+    """El rival cogió un objetivo que te tocaba estando tú vivo y lejos: cambio, inferioridad, sin prioridad o cedido."""
+    if not _far_from(g, o, p):
+        return
+    if _died_before(o, my_deaths):
+        return  # acababas de morir y volvías de la base: la muerte de antes ya lo cuenta
+    if _objective_trade(g, o, ex, p, counts, moments):
+        return
+    label = _obj_label(g, o)
+    allies_up, enemies_up = _present_counts(g, o["t"])
+    if enemies_up - allies_up >= 2:
+        g.flagged.add(id(o))
+        moments.append(
+            _moment(o["t"], "objective", "info", f"El rival cogió {label} con ventaja numérica ({allies_up} contra {enemies_up})",
+                    "No se podía disputar: lo que costó el objetivo fueron las muertes de antes.", p, ["objective", "outnumbered"])
+        )
+        return
+    prio = _priority(g, o["kind"], o["t"])
+    if o["kind"] == "dragon" and not label.startswith(SOUL_LABEL) and "punto de alma" not in label and prio and prio["state"] == "theirs":
+        # Sin prioridad en las dos líneas del dragón, cederlo es lo normal (en Challenger lo pierde el 53 % de los
+        # equipos así; en Esmeralda, el 59 %): no es error. Lo que se puede hacer es cambiarlo al otro lado.
+        counts["no_prio"] += 1
+        g.flagged.add(id(o))
+        if g.role in ("JUNGLE", "SUPPORT", "MID"):  # como los cedidos: al top y al ADC no se les enseña
+            moments.append(
+                _moment(o["t"], "objective", "info", f"El rival cogió {label}: tenía la prioridad en mid y bot",
+                        f"Cuando cayó, {_prio_text(prio)}: llegaban antes al río y cederlo era razonable. Aprovecha ese tiempo al otro lado "
+                        "(larvas, heraldo, su jungla de arriba o una torre).", p, ["objective", "no_prio"])
+            )
+        return
+    counts["conceded"] += 1
+    if g.role in ("JUNGLE", "SUPPORT", "MID") or _is_big(g, o):
+        g.flagged.add(id(o))
+        moments.append(_conceded_moment(g, o, ex, p, prio))
+
+
+def _far_from(g: _Game, o: dict, p) -> bool:
+    """¿Estabas lejos del objetivo cuando cayó? Con tu posición poco segura, lejos con margen."""
+    # Con tu posición lejos de un punto real (más de 20 s), que estuvieras «lejos» se exige con margen: la auditoría
+    # de la calibración vio que casi la mitad de estos avisos se decidían así (24-11-2026).
+    # Si en los puntos reales de antes y de después también estabas lejos, vale sin margen.
+    gap = g.anchor_gap(g.me["pid"], o["t"])
+    around = g.real_around(g.me["pid"], o["t"])
+    sure = (gap is not None and gap <= OBJ_FAR_SURE_GAP_S) or (
+        len(around) == 2 and all(geo.dist(q, o["pos"]) >= FAR_FROM_OBJECTIVE for q in around)
+    )
+    far = FAR_FROM_OBJECTIVE + (0 if sure else OBJ_FAR_UNSURE_MARGIN)
+    return not (p is None or geo.dist(p, o["pos"]) < far)
+
+
+def _objective_trade(g: _Game, o: dict, ex: dict, p, counts: Counter, moments: list) -> bool:
+    """¿Lo compensó tu equipo al otro lado (buen cambio, o justo si sacasteis algo)? Mérito tuyo solo si participaste."""
+    got = _gain_text(ex["gain"])
+    good = ex["ratio"] >= GOOD_TRADE
+    if not good and not (ex["ratio"] >= FAIR_TRADE and got):
+        return False
+    if not _contributed(ex["mine"]):  # solo es mérito tuyo si participaste en lo que sacasteis
+        return True  # lo compensó tu equipo sin ti: ni error ni mérito tuyo
+    label = _obj_label(g, o)
+    mine = _gain_text(ex["mine"])
+    where = geo.zone_label(geo.zone(p), g.team)
+    you = f"; tú: {mine}" if mine else ""
+    g.flagged.add(id(o))
+    if good:
+        counts["trades"] += 1
+        moments.append(
+            _moment(o["t"], "trade", "good", f"Buen cambio: {label} por {got}",
+                    f"Estabas en {where}{you}. Si no se puede disputar un objetivo, cambiarlo por algo al otro lado es la decisión correcta.",
+                    p, ["objective", "trade"])
+        )
+    else:
+        counts["fair"] += 1
+        moments.append(
+            _moment(o["t"], "trade", "low", f"Cambio justo: {label} por {got}",
+                    f"Estabas en {where}{you}. Valía algo menos que el objetivo: si llegabais, era mejor disputarlo.", p,
+                    ["objective", "trade", "fair_trade"])
+        )
+    return True
+
+
+def _conceded_moment(g: _Game, o: dict, ex: dict, p, prio: dict | None) -> dict:
+    """Aviso de un objetivo cedido estando lejos: qué hacías, qué sacasteis y qué sacó el rival, y la prioridad."""
+    me = g.me["pid"]
+    label = _obj_label(g, o)
+    recalled = any(
+        o["t"] - 60_000 <= pt <= o["t"] and not g.is_dead(me, pt) and not g.respawn_buy(me, pt) for pt, _ in g.purchases[me]
+    )
+    if recalled:
+        detail = "Volviste a base justo antes del objetivo"
+    else:
+        detail = f"Estabas en {geo.zone_label(geo.zone(p), g.team)}, a {_int(geo.dist(p, o['pos']))} unidades"
+    detail += _conceded_gain_text(label, _gain_text(ex["gain"]), _gain_text(ex["loss"]))
+    if prio:
+        detail += f"; prioridad: {_prio_text(prio)}"
+    detail += ". Si no vas a disputarlo, cámbialo: invade su jungla al otro lado, presiona una torre o haz un dive."
+    free = ex["value_gain"] < 0.25 * _obj_value(g, o)
+    title = f"El rival cogió {label} gratis y estabas lejos" if free else f"El rival cogió {label} y no lo compensasteis"
+    return _moment(o["t"], "objective", _conceded_severity(g, o), title, detail, p, ["objective", "far"])
+
+
+def _conceded_gain_text(label: str, got: str, extra: str) -> str:
+    """Lo que sacasteis a cambio frente a lo que además sacó el rival."""
+    if got and extra:
+        # Sin esto parecía un falso positivo («sacasteis 1 torre y 3 placas» por un heraldo): la balanza
+        # también suma lo que sacó el rival a la vez.
+        return f"; sacasteis {got}, pero el rival, además {_de(label)}, sacó {extra}"
+    if got:
+        return f"; solo sacasteis {got}"
+    if extra:
+        return f"; tu equipo no sacó nada a cambio y el rival además sacó {extra}"
+    return "; tu equipo no sacó nada a cambio"
+
+
+def _conceded_severity(g: _Game, o: dict) -> str:
+    """Gravedad de un objetivo cedido: alta si es grande y leve si es un dragón normal (flujo de partida); si no, media."""
+    if _is_big(g, o):
+        return "high"
+    # Un dragón normal cedido es flujo de partida (pasa igual en Esmeralda que en Aspirante): leve.
+    return "low" if o["kind"] == "dragon" else "medium"
 
 
 # ------------------------------------------------------------------- macro
@@ -2588,29 +3084,14 @@ def _late_recalls(g: _Game, moments: list) -> int:
     my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
     n = 0
     for o in g.objectives:
-        spawn, t = o.get("spawn"), o["t"]
-        if spawn is None or id(o) in g.flagged or me in o["takers"]:
+        pt = _late_recall(g, o, my_deaths)
+        if pt is None:
             continue
-        if not _contested(g, o) or not _contest_expected(g, o):
-            continue
-        if not g.present(me, t) or any(spawn - 90_000 <= d <= t for d in my_deaths):
-            continue
-        p = g.pos_at(me, t)
-        if p is None or geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE:
-            continue
-        ours = o["team"] == g.team
-        losses = _ally_losses(g, o)
-        if ours and not losses:
-            continue  # lo cogió tu equipo sin bajas: tu vuelta a base no costó nada
-        if not ours and _exchange(g, o, g.used_gains)["ratio"] >= GOOD_TRADE:
-            continue  # tu equipo lo compensó al otro lado
-        recalls = g.recalls(me, max(spawn - RECALL_LATE_FROM_MS, t - RECALL_LATE_LAST_MS), t)
-        if not recalls or _forced_recall(g, recalls[0]):
-            continue
-        pt = recalls[0]
+        spawn = o.get("spawn")
         label = _obj_label(g, o)
         when = f"{_secs(spawn - pt)} antes de que apareciera {label}" if pt < spawn else f"con {label} ya en el mapa"
-        result = f"lo cogisteis, pero con {_plural(losses, 'caído', 'caídos')}" if ours else "el rival se lo llevó"
+        losses = _ally_losses(g, o)
+        result = f"lo cogisteis, pero con {_plural(losses, 'caído', 'caídos')}" if o["team"] == g.team else "el rival se lo llevó"
         g.flagged.add(id(o))
         n += 1
         moments.append(
@@ -2624,48 +3105,95 @@ def _late_recalls(g: _Game, moments: list) -> int:
     return n
 
 
+def _missed_contest(g: _Game, o: dict, my_deaths: list[int]) -> bool:
+    """¿Se disputó sin ti un objetivo que te tocaba, sin señalar aún, estando tú vivo y sin morir desde S − 90 s?"""
+    me = g.me["pid"]
+    spawn, t = o.get("spawn"), o["t"]
+    if spawn is None or id(o) in g.flagged or me in o["takers"]:
+        return False
+    if not _contested(g, o) or not _contest_expected(g, o):
+        return False
+    return g.present(me, t) and not any(spawn - 90_000 <= d <= t for d in my_deaths)
+
+
+def _late_recall(g: _Game, o: dict, my_deaths: list[int]) -> int | None:
+    """Vuelta a base a destiempo (no obligada) antes de un objetivo que se disputó sin ti: su momento o ``None``."""
+    me = g.me["pid"]
+    if not _missed_contest(g, o, my_deaths):
+        return None
+    spawn, t = o["spawn"], o["t"]
+    p = g.pos_at(me, t)
+    if p is None or geo.dist(p, o["pos"]) <= NEAR_OBJECTIVE:
+        return None
+    ours = o["team"] == g.team
+    if ours and not _ally_losses(g, o):
+        return None  # lo cogió tu equipo sin bajas: tu vuelta a base no costó nada
+    if not ours and _exchange(g, o, g.used_gains)["ratio"] >= GOOD_TRADE:
+        return None  # tu equipo lo compensó al otro lado
+    recalls = g.recalls(me, max(spawn - RECALL_LATE_FROM_MS, t - RECALL_LATE_LAST_MS), t)
+    if not recalls or _forced_recall(g, recalls[0]):
+        return None
+    return recalls[0]
+
+
 def _late_arrivals(g: _Game, moments: list) -> int:
     """Tu equipo disputó un objetivo que te tocaba y el rival lo cogió mientras tú aún llegabas (a 2.600-5.500)."""
     me = g.me["pid"]
     my_deaths = [k["t"] for k in g.kills if k["victim"] == me]
     n = 0
     for o in g.objectives:
-        spawn, t = o.get("spawn"), o["t"]
-        if spawn is None or id(o) in g.flagged or o["team"] == g.team or me in o["takers"]:
+        q = _late_arrival_from(g, o, my_deaths)
+        if q is None:
             continue
-        if not _contested(g, o) or not _contest_expected(g, o):
-            continue
-        if not g.present(me, t) or any(spawn - 90_000 <= d <= t for d in my_deaths):
-            continue
+        t = o["t"]
         p = g.pos_at(me, t)
-        if p is None or not NEAR_OBJECTIVE < geo.dist(p, o["pos"]) <= FAR_FROM_OBJECTIVE:
-            continue
-        i = g.frame_before(spawn - 30_000)
-        q = g.frame_pos(me, i) if i is not None else None
-        if q is None or geo.dist(q, o["pos"]) <= LATE_FAR_BEFORE:
-            continue
-        if g.recalls(me, spawn - 120_000, t) or _cross_map_play(g, t, geo.half_of(o["pos"])):
-            continue  # volviste a base (se juzga aparte) o hiciste algo al otro lado
-        allies_up = sum(1 for a in (me, *g.allies) if g.present(a, t))
-        enemies_up = sum(1 for e in g.enemies if g.present(e, t))
-        if enemies_up - allies_up >= 2:
-            continue
-        ex = _exchange(g, o, g.used_gains)
-        if ex["ratio"] >= FAIR_TRADE and _contributed(ex["mine"]):
-            continue
         label = _obj_label(g, o)
         where = geo.zone_label(geo.zone(q), g.team)
         g.flagged.add(id(o))
         n += 1
         moments.append(
             _moment(
-                t, "objective", "high" if _is_big(g, o) else "low" if o["kind"] == "grubs" else "medium", f"Llegaste tarde {_al(label)}",
+                t, "objective", _late_severity(g, o), f"Llegaste tarde {_al(label)}",
                 f"Tu equipo peleó {label} sin ti: un minuto antes de que apareciera estabas en {where}, a {_int(geo.dist(q, o['pos']))} unidades, "
                 f"y cuando cayó seguías a {_int(geo.dist(p, o['pos']))}. Empuja tu oleada o acaba el campamento y ve hacia el foso 60-90 s antes.",
                 p, ["objective", "late"],
             )
         )
     return n
+
+
+def _late_arrival_from(g: _Game, o: dict, my_deaths: list[int]) -> tuple[int, int] | None:
+    """Dónde estabas un minuto antes de aparecer un objetivo rival al que llegaste tarde (``None`` si no fue así)."""
+    me = g.me["pid"]
+    if o["team"] == g.team or not _missed_contest(g, o, my_deaths):
+        return None
+    spawn, t = o["spawn"], o["t"]
+    p = g.pos_at(me, t)
+    if p is None or not NEAR_OBJECTIVE < geo.dist(p, o["pos"]) <= FAR_FROM_OBJECTIVE:
+        return None
+    i = g.frame_before(spawn - 30_000)
+    q = g.frame_pos(me, i) if i is not None else None
+    if q is None or geo.dist(q, o["pos"]) <= LATE_FAR_BEFORE:
+        return None
+    if g.recalls(me, spawn - 120_000, t) or _cross_map_play(g, t, geo.half_of(o["pos"])):
+        return None  # volviste a base (se juzga aparte) o hiciste algo al otro lado
+    return q if _late_arrival_cost(g, o) else None
+
+
+def _late_arrival_cost(g: _Game, o: dict) -> bool:
+    """¿Costó algo llegar tarde? No si el rival iba 2 o más por encima ni si tu equipo lo compensó contigo."""
+    allies_up, enemies_up = _present_counts(g, o["t"])
+    if enemies_up - allies_up >= 2:
+        return False
+    ex = _exchange(g, o, g.used_gains)
+    return not (ex["ratio"] >= FAIR_TRADE and _contributed(ex["mine"]))
+
+
+def _late_severity(g: _Game, o: dict) -> str:
+    """Gravedad de llegar tarde: alta en los grandes, leve en las larvas y media en el resto."""
+    if _is_big(g, o):
+        return "high"
+    return "low" if o["kind"] == "grubs" else "medium"
 
 
 def _pinks_unused(g: _Game, moments: list) -> int | None:
@@ -2679,18 +3207,9 @@ def _pinks_unused(g: _Game, moments: list) -> int | None:
         spawn = o.get("spawn")
         if spawn is None or o["t"] > spawn + 180_000:
             continue
-        t0, t1 = spawn - PINK_BEFORE_MS, spawn + PINK_AFTER_MS
-        if g.dead_overlap(me, t0, t1) > 0 or any(s < t1 and e > t0 for s, e in g.afk[me]):
+        if not _pink_forgotten(g, o, placed):
             continue
-        if any(t0 - PINK_ALIVE_MS <= x <= t1 for x in placed):
-            continue  # la pusiste (o tenías una puesta hace poco: solo puede haber una tuya)
-        if any(g.inv.at(x)[CONTROL_WARD] < 1 for x in (t0, spawn, t1)):
-            continue
-        near = any(
-            t0 <= ts <= t1 and (fp := g.frame_pos(me, i)) is not None and geo.dist(fp, o["pos"]) <= PINK_NEAR for i, ts in enumerate(g.ts)
-        )
-        if not near:
-            continue
+        t0 = spawn - PINK_BEFORE_MS
         label = OBJ_LABEL["dragon"] if o["kind"] == "dragon" else OBJ_LABEL[o["kind"]]
         n += 1
         moments.append(
@@ -2704,34 +3223,59 @@ def _pinks_unused(g: _Game, moments: list) -> int | None:
     return n
 
 
+def _pink_forgotten(g: _Game, o: dict, placed: list[int]) -> bool:
+    """¿Llevabas una pink de S − 90 s a S + 30 s, vivo y conectado, estuviste cerca del foso y no la pusiste?"""
+    me = g.me["pid"]
+    spawn = o["spawn"]
+    t0, t1 = spawn - PINK_BEFORE_MS, spawn + PINK_AFTER_MS
+    if g.dead_overlap(me, t0, t1) > 0 or any(s < t1 and e > t0 for s, e in g.afk[me]):
+        return False
+    if any(t0 - PINK_ALIVE_MS <= x <= t1 for x in placed):
+        return False  # la pusiste (o tenías una puesta hace poco: solo puede haber una tuya)
+    if any(g.inv.at(x)[CONTROL_WARD] < 1 for x in (t0, spawn, t1)):
+        return False
+    return any(
+        t0 <= ts <= t1 and (fp := g.frame_pos(me, i)) is not None and geo.dist(fp, o["pos"]) <= PINK_NEAR for i, ts in enumerate(g.ts)
+    )
+
+
 def _baron_wasted(g: _Game, moments: list) -> int:
     """Barón de tu equipo sin convertir: en 3 minutos no cae torre, inhibidor, 3 placas, ancestral ni alma."""
-    me = g.me["pid"]
-    enemy = 300 - g.team
     n = 0
     for o in g.objectives:
         if o["kind"] != "baron" or o["team"] != g.team:
             continue
-        t, until = o["t"], o["t"] + BARON_WINDOW_MS
-        if until > g.duration_ms or (g.won and g.duration_ms <= t + 240_000) or g.is_dead(me, t):
+        if not _baron_unconverted(g, o):
             continue
-        gained = [b for b in g.buildings if b["owner"] == enemy and t <= b["t"] <= until]
-        if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 3:
-            continue
-        if any(x["team"] == g.team and t < x["t"] <= until and (x["kind"] == "elder" or _obj_label(g, x).startswith("el alma")) for x in g.objectives):
-            continue
-        if sum(1 for k in g.kills if k["victim"] in (me, *g.allies) and t <= k["t"] <= t + 30_000) >= 2:
-            continue  # perdisteis la pelea de después del barón: lo que falló fue esa pelea
         n += 1
         moments.append(
             _moment(
-                t, "objective", "low", "Barón sin aprovechar",
+                o["t"], "objective", "low", "Barón sin aprovechar",
                 "En los 3 minutos con la mejora del barón no cayó ninguna torre ni inhibidor. La mejora potencia a vuestros súbditos: "
                 "asediad en grupo o por dos líneas a la vez (1-3-1) en vez de separaros a farmear o pelear lejos de sus torres.",
                 o["pos"], ["objective", "baron_wasted", "team"],
             )
         )
     return n
+
+
+def _baron_unconverted(g: _Game, o: dict) -> bool:
+    """¿Pasaron los 3 minutos con la mejora del barón (estando tú vivo) sin torre, inhibidor, 3 placas, ancestral ni alma?"""
+    me = g.me["pid"]
+    enemy = 300 - g.team
+    t, until = o["t"], o["t"] + BARON_WINDOW_MS
+    if until > g.duration_ms or (g.won and g.duration_ms <= t + 240_000) or g.is_dead(me, t):
+        return False
+    gained = [b for b in g.buildings if b["owner"] == enemy and t <= b["t"] <= until]
+    if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 3:
+        return False
+    if any(
+        x["team"] == g.team and t < x["t"] <= until and (x["kind"] == "elder" or _obj_label(g, x).startswith(SOUL_LABEL))
+        for x in g.objectives
+    ):
+        return False
+    # Con 2 o más caídos justo después, perdisteis la pelea de después del barón: lo que falló fue esa pelea.
+    return sum(1 for k in g.kills if k["victim"] in (me, *g.allies) and t <= k["t"] <= t + 30_000) < 2
 
 
 def _fights(g: _Game) -> list[list[dict]]:
@@ -2749,74 +3293,96 @@ def _fights(g: _Game) -> list[list[dict]]:
 
 def _unconverted_fights(g: _Game, moments: list) -> int:
     """Peleas ganadas con claridad (≥ 2 kills de ventaja) tras las que no cae nada hasta que reaparece el 2.º rival."""
-    me = g.me["pid"]
     n = 0
     for cluster in _fights(g):
+        until = _won_fight_until(g, cluster)
+        if until is None:
+            continue
         t0, t1 = cluster[0]["t"], cluster[-1]["t"]
-        if t0 < 3 * 60_000:
-            continue
-        enemy_dead = [f for f in cluster if g.players[f["victim"]]["team"] != g.team]
-        ally_dead = [f for f in cluster if g.players[f["victim"]]["team"] == g.team]
-        if len(enemy_dead) < 2 or len(enemy_dead) - len(ally_dead) < 2 or len(ally_dead) > 1:
-            continue
-        if g.won and g.duration_ms <= t1 + 120_000:
-            continue
-        center = cluster[-1]["pos"]
-        p = g.pos_at(me, t1)
-        if not g.present(me, t1) or p is None or geo.dist(p, center) > CONTEST_DEATH_RADIUS:
-            continue
-        ends = sorted(e for f in enemy_dead for s, e, _p in g.dead.get(f["victim"]) or [] if s == f["t"])
-        if len(ends) < 2:
-            continue
-        if ends[1] - t1 < WON_FIGHT_MIN_WINDOW:
-            continue  # reaparecen enseguida (fase de líneas, peleas largas): no da tiempo a convertir nada
-        until = min(ends[1] + WON_FIGHT_RESPAWN_MARGIN, g.duration_ms)
-        allies_up = sum(1 for a in (me, *g.allies) if g.present(a, t1))
-        options = [
-            (geo.dist(center, clk.pit_of(kind)), OBJ_LABEL[kind])
-            for kind in clk.alive_at(g.objectives, g.clocks, t1)
-            if geo.dist(center, clk.pit_of(kind)) <= WON_FIGHT_OBJECTIVE and allies_up >= (3 if kind in ("baron", "elder") else 2)
-        ]
-        if allies_up >= 2:
-            options += [
-                (geo.dist(center, pos), f"la torre {clk.TURRET_LABEL[kind]} de {lane}")
-                for lane, kind, pos in clk.standing_turrets(g.buildings, 300 - g.team, t1)
-                if geo.dist(center, pos) <= WON_FIGHT_TOWER
-            ]
-        if not options:
-            continue
-        lo = t0 - TRADE_GAIN_BEFORE_MS
-        if any(o["team"] == g.team and lo <= o["t"] <= until for o in g.objectives):
-            continue
-        gained = [b for b in g.buildings if b["owner"] != g.team and lo <= b["t"] <= until]
-        if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 2:
-            continue
-        if sum(g.enemy_jungle_cs(a, t1, until) for a in (me, *g.allies)) >= 8:
+        options = _fight_targets(g, cluster[-1]["pos"], t1)
+        if not options or _fight_converted(g, (t0, t1), until):
             continue
         n += 1
-        target = min(options)[1]
-        score = f"{len(enemy_dead)} kills y {_plural(len(ally_dead), 'caído', 'caídos')}"
-        recall = next(iter(g.recalls(me, t1 + 1, until)), None)
-        hp = g.health_ratio(me, g.frame_before(recall)) if recall is not None else None
-        if recall is not None and hp is not None and hp >= 0.6 and not _forced_recall(g, recall):
-            moments.append(
-                _moment(
-                    recall, "objective", "medium", f"Volviste a base tras ganar la pelea en vez de ir a por {target}",
-                    f"Ganasteis la pelea del {_mmss(t1)} ({score}) y volviste a base antes de que reaparecieran. Con ventaja numérica, "
-                    f"primero el objetivo más cercano ({target}) y después la base.",
-                    center, ["objective", "unconverted"],
-                )
-            )
-        else:
-            moments.append(
-                _moment(
-                    t1, "objective", "low", f"Pelea ganada sin aprovechar ({score})",
-                    f"Ganasteis la pelea del {_mmss(t1)} y, hasta que reaparecieron, no cayó nada: tocaba {target}. "
-                    "La ventaja de una pelea ganada dura poco: conviértela en un objetivo o una torre antes de volver a base.",
-                    center, ["objective", "unconverted", "team"],
-                )
-            )
+        moments.append(_unconverted_moment(g, cluster, until, min(options)[1]))
     return n
+
+
+def _won_fight_until(g: _Game, cluster: list[dict]) -> int | None:
+    """Pelea ganada con claridad (≥ 2 kills de ventaja, como mucho 1 caído) y en la que estabas: hasta cuándo dura la ventaja."""
+    me = g.me["pid"]
+    t0, t1 = cluster[0]["t"], cluster[-1]["t"]
+    if t0 < 3 * 60_000:
+        return None
+    enemy_dead = [f for f in cluster if g.players[f["victim"]]["team"] != g.team]
+    ally_dead = [f for f in cluster if g.players[f["victim"]]["team"] == g.team]
+    if len(enemy_dead) < 2 or len(enemy_dead) - len(ally_dead) < 2 or len(ally_dead) > 1:
+        return None
+    if g.won and g.duration_ms <= t1 + 120_000:
+        return None
+    center = cluster[-1]["pos"]
+    p = g.pos_at(me, t1)
+    if not g.present(me, t1) or p is None or geo.dist(p, center) > CONTEST_DEATH_RADIUS:
+        return None
+    ends = sorted(e for f in enemy_dead for s, e, _ in g.dead.get(f["victim"]) or [] if s == f["t"])
+    if len(ends) < 2:
+        return None
+    if ends[1] - t1 < WON_FIGHT_MIN_WINDOW:
+        return None  # reaparecen enseguida (fase de líneas, peleas largas): no da tiempo a convertir nada
+    return min(ends[1] + WON_FIGHT_RESPAWN_MARGIN, g.duration_ms)
+
+
+def _fight_targets(g: _Game, center, t1: int) -> list[tuple[float, str]]:
+    """Objetivos vivos y torres rivales al alcance tras la pelea (con su distancia), según cuántos quedabais."""
+    allies_up = sum(1 for a in (g.me["pid"], *g.allies) if g.present(a, t1))
+    options = [
+        (geo.dist(center, clk.pit_of(kind)), OBJ_LABEL[kind])
+        for kind in clk.alive_at(g.objectives, g.clocks, t1)
+        if geo.dist(center, clk.pit_of(kind)) <= WON_FIGHT_OBJECTIVE and allies_up >= (3 if kind in ("baron", "elder") else 2)
+    ]
+    if allies_up >= 2:
+        options += [
+            (geo.dist(center, pos), f"la torre {clk.TURRET_LABEL[kind]} de {lane}")
+            for lane, kind, pos in clk.standing_turrets(g.buildings, 300 - g.team, t1)
+            if geo.dist(center, pos) <= WON_FIGHT_TOWER
+        ]
+    return options
+
+
+def _fight_converted(g: _Game, fight: tuple[int, int], until: int) -> bool:
+    """¿Sacasteis algo de la pelea (de su inicio a ``until``)? Un objetivo, una estructura, 2 placas o 8 CS de su jungla."""
+    me = g.me["pid"]
+    t0, t1 = fight
+    lo = t0 - TRADE_GAIN_BEFORE_MS
+    if any(o["team"] == g.team and lo <= o["t"] <= until for o in g.objectives):
+        return True
+    gained = [b for b in g.buildings if b["owner"] != g.team and lo <= b["t"] <= until]
+    if any(b["kind"] != "plate" for b in gained) or sum(1 for b in gained if b["kind"] == "plate") >= 2:
+        return True
+    return sum(g.enemy_jungle_cs(a, t1, until) for a in (me, *g.allies)) >= 8
+
+
+def _unconverted_moment(g: _Game, cluster: list[dict], until: int, target: str) -> dict:
+    """Aviso de una pelea ganada sin convertir: volviste a base con vida o no cayó nada hasta que reaparecieron."""
+    me = g.me["pid"]
+    t1, center = cluster[-1]["t"], cluster[-1]["pos"]
+    enemy_dead = sum(1 for f in cluster if g.players[f["victim"]]["team"] != g.team)
+    ally_dead = sum(1 for f in cluster if g.players[f["victim"]]["team"] == g.team)
+    score = f"{enemy_dead} kills y {_plural(ally_dead, 'caído', 'caídos')}"
+    recall = next(iter(g.recalls(me, t1 + 1, until)), None)
+    hp = g.health_ratio(me, g.frame_before(recall)) if recall is not None else None
+    if recall is not None and hp is not None and hp >= 0.6 and not _forced_recall(g, recall):
+        return _moment(
+            recall, "objective", "medium", f"Volviste a base tras ganar la pelea en vez de ir a por {target}",
+            f"Ganasteis la pelea del {_mmss(t1)} ({score}) y volviste a base antes de que reaparecieran. Con ventaja numérica, "
+            f"primero el objetivo más cercano ({target}) y después la base.",
+            center, ["objective", "unconverted"],
+        )
+    return _moment(
+        t1, "objective", "low", f"Pelea ganada sin aprovechar ({score})",
+        f"Ganasteis la pelea del {_mmss(t1)} y, hasta que reaparecieron, no cayó nada: tocaba {target}. "
+        "La ventaja de una pelea ganada dura poco: conviértela en un objetivo o una torre antes de volver a base.",
+        center, ["objective", "unconverted", "team"],
+    )
 
 
 # ---------------------------------------------------------- uso del tiempo
@@ -2874,45 +3440,64 @@ def _time_use(g: _Game, metrics: dict, moments: list) -> None:
     eligible = 0
     idle: list[int] = []
     for i in range(1, len(g.ts)):
-        t0, t1 = g.ts[i - 1], g.ts[i]
-        if t0 < IDLE_FROM_MS or t1 - t0 < 40_000:
-            continue
-        if g.dead_overlap(me, t0, t1) > 15_000 or any(min(e, t1) - max(s, t0) > 15_000 for s, e in g.afk[me]):
+        if not _idle_eligible(g, i):
             continue
         eligible += 1
-        cs0, cs1 = g.fval(me, i - 1, "cs"), g.fval(me, i, "cs")
-        d0, d1 = g.fval(me, i - 1, "dmg"), g.fval(me, i, "dmg")
-        busy = (cs0 is not None and cs1 is not None and cs1 - cs0 >= 3) or (d0 is not None and d1 is not None and d1 - d0 >= 400)
-        if not busy:
-            busy = _frame_activity(g, i)
-        if not busy:
-            j = bisect.bisect_left(my_events, t0)
-            busy = j < len(my_events) and my_events[j] <= t1
-        if not busy:
-            busy = _overlap(setup, t0, t1) >= 20_000
-        if not busy and g.role == "SUPPORT":
-            busy = _near_ally(g, i)
-        if not busy:
+        if not _minute_busy(g, i, my_events, setup):
             idle.append(i)
     metrics["idle_min"] = len(idle)
     metrics["idle_pct"] = round(len(idle) / eligible * 100, 1) if eligible else None
     for run in _runs(idle):
         if len(run) >= 2:
-            p = g.frame_pos(me, run[0])
-            moments.append(
-                {
-                    "t": round(g.ts[run[0] - 1] / 1000, 1),
-                    "kind": "idle",
-                    "severity": "medium" if len(run) >= 3 else "low",
-                    "title": f"{len(run)} minutos sin farmear ni pelear",
-                    "detail": f"Del minuto {round(g.ts[run[0] - 1] / 60_000)} al {round(g.ts[run[-1]] / 60_000)} no hiciste CS, daño, wards ni objetivos. Si no hay jugada, farmea una línea o la jungla.",
-                    "x": p[0] if p else None,
-                    "y": p[1] if p else None,
-                    "tags": ["idle"],
-                }
-            )
+            moments.append(_idle_moment(g, run))
+    _recall_metrics(g, metrics)
 
-    # Viajes a base (compras estando vivo, sin contar la compra inicial ni la de al reaparecer).
+
+def _idle_eligible(g: _Game, i: int) -> bool:
+    """¿Se juzga el minuto que acaba en el frame ``i``? Desde el 15, completo y sin más de 15 s muerto ni AFK."""
+    me = g.me["pid"]
+    t0, t1 = g.ts[i - 1], g.ts[i]
+    if t0 < IDLE_FROM_MS or t1 - t0 < 40_000:
+        return False
+    return not (g.dead_overlap(me, t0, t1) > 15_000 or any(min(e, t1) - max(s, t0) > 15_000 for s, e in g.afk[me]))
+
+
+def _minute_busy(g: _Game, i: int, my_events: list[int], setup: list[tuple[int, int]]) -> bool:
+    """¿Hiciste algo en ese minuto? CS, daño, otra actividad, un evento tuyo, preparar un objetivo o (support) acompañar."""
+    me = g.me["pid"]
+    t0, t1 = g.ts[i - 1], g.ts[i]
+    cs0, cs1 = g.fval(me, i - 1, "cs"), g.fval(me, i, "cs")
+    d0, d1 = g.fval(me, i - 1, "dmg"), g.fval(me, i, "dmg")
+    if (cs0 is not None and cs1 is not None and cs1 - cs0 >= 3) or (d0 is not None and d1 is not None and d1 - d0 >= 400):
+        return True
+    if _frame_activity(g, i):
+        return True
+    j = bisect.bisect_left(my_events, t0)
+    if j < len(my_events) and my_events[j] <= t1:
+        return True
+    if _overlap(setup, t0, t1) >= 20_000:
+        return True
+    return g.role == "SUPPORT" and _near_ally(g, i)
+
+
+def _idle_moment(g: _Game, run: list[int]) -> dict:
+    """Aviso de 2 o más minutos seguidos sin farmear, pelear, wardear ni hacer objetivos."""
+    p = g.frame_pos(g.me["pid"], run[0])
+    return {
+        "t": round(g.ts[run[0] - 1] / 1000, 1),
+        "kind": "idle",
+        "severity": "medium" if len(run) >= 3 else "low",
+        "title": f"{len(run)} minutos sin farmear ni pelear",
+        "detail": f"Del minuto {round(g.ts[run[0] - 1] / 60_000)} al {round(g.ts[run[-1]] / 60_000)} no hiciste CS, daño, wards ni objetivos. Si no hay jugada, farmea una línea o la jungla.",
+        "x": p[0] if p else None,
+        "y": p[1] if p else None,
+        "tags": ["idle"],
+    }
+
+
+def _recall_metrics(g: _Game, metrics: dict) -> None:
+    """Viajes a base (compras estando vivo, sin contar la compra inicial ni la de al reaparecer) y pinks compradas."""
+    me = g.me["pid"]
     trips: list[int] = []
     for t in g.recalls(me, 90_000, g.duration_ms + 1):
         if not trips or t - trips[-1] > 40_000:
@@ -2920,7 +3505,7 @@ def _time_use(g: _Game, metrics: dict, moments: list) -> None:
     known = g.buys_in_base(me)  # Ornn compra en cualquier sitio: sus compras no dicen cuándo volvió a base
     metrics["recalls"] = len(trips) if known else None
     metrics["first_recall_min"] = round(trips[0] / 60_000, 1) if trips else None
-    metrics["control_wards_bought"] = sum(1 for _t, item in g.purchases[me] if item == CONTROL_WARD)
+    metrics["control_wards_bought"] = sum(1 for _, item in g.purchases[me] if item == CONTROL_WARD)
 
 
 def _runs(indices: list[int]) -> list[list[int]]:
@@ -2936,7 +3521,48 @@ def _runs(indices: list[int]) -> list[list[int]]:
 # ------------------------------------------------------------------ jungla
 def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
     me = g.me["pid"]
-    team = g.team
+    path = _jungle_path(g)
+    start = next((s for s in path if s["camp"] and s["camp_team"] == g.team), None)
+    frames = _early_frames(g)
+    presence, invade = _jungle_presence(g, frames)
+    gank_events, first_gank = _jungle_ganks(g)
+    impact, invade_cs, crabs = _early_impact(g)
+    enemy_ganks, far = _enemy_jungle_ganks(g)
+    ej = g.enemy_jungler
+    i10 = g.frame_at_minute(10)
+    jcs10 = g.fval(me, i10, "jungleMinionsKilled")
+    ejcs10 = g.fval(ej, i10, "jungleMinionsKilled") if ej else None
+    ch = g.raw[me].get("challenges") or {}
+    metrics.update(
+        {
+            "ganks_pre10": len(gank_events),
+            "impact_pre10": impact,
+            "invade_cs_pre10": invade_cs,
+            "first_gank_min": round(first_gank["t"] / 60_000, 1) if first_gank else None,
+            "invade_min": invade,
+            "jungle_cs10": jcs10,
+            "jungle_cs_diff10": _difference(jcs10, ejcs10),
+            "enemy_ganks_far": far,
+            "mirror_pct": _mirror_pct(g, frames),
+            "scuttles": _num(ch.get("scuttleCrabKills")) if "scuttleCrabKills" in ch else None,
+            "crabs_pre10": crabs,
+            "enemy_jungle_cs": _num(g.raw[me].get("totalEnemyJungleMinionsKilled")),
+        }
+    )
+    _jungle_moments(g, impact, far, moments)
+    return {
+        "start_camp": start["camp"] if start else None,
+        "start_side": geo.half_of((start["x"], start["y"])) if start else None,
+        "path": path,
+        "presence": dict(presence),
+        "ganks": [{"t": round(k["t"] / 1000, 1), "x": k["pos"][0], "y": k["pos"][1], "zone": geo.zone(k["pos"])} for k in gank_events],
+        "enemy_ganks": enemy_ganks,
+    }
+
+
+def _jungle_path(g: _Game) -> list[dict]:
+    """Tus primeros minutos (frames 1 a 8): posición, zona y el campamento más cercano."""
+    me = g.me["pid"]
     path = []
     for i in range(1, min(len(g.ts), 9)):
         p = g.frame_pos(me, i)
@@ -2954,29 +3580,52 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
                 "camp_team": camp[0] if camp else None,
             }
         )
-    start = next((s for s in path if s["camp"] and s["camp_team"] == team), None)
-    presence: Counter = Counter()
-    invade = 0
-    mirror_same = mirror_n = 0
+    return path
+
+
+def _early_frames(g: _Game) -> list[tuple[int, int, tuple[int, int]]]:
+    """Tus frames del 2 al 14 vivo y con posición: (índice, momento, posición)."""
+    me = g.me["pid"]
+    out = []
     for i, t in enumerate(g.ts):
         if t < 2 * 60_000 or t > EARLY_MS:
             continue
         p = g.frame_pos(me, i)
-        if not p or g.is_dead(me, t):
-            continue
+        if p and not g.is_dead(me, t):
+            out.append((i, t, p))
+    return out
+
+
+def _jungle_presence(g: _Game, frames: list[tuple[int, int, tuple[int, int]]]) -> tuple[Counter, int]:
+    """En esos frames: minutos en cada línea y en el río, y minutos en la jungla rival (invasión)."""
+    presence: Counter = Counter()
+    invade = 0
+    for _, _, p in frames:
         z = geo.zone(p)
         if geo.is_lane(z):
             presence[z] += 1
-        elif geo.is_jungle_of(z, 300 - team):
+        elif geo.is_jungle_of(z, 300 - g.team):
             invade += 1
         elif z == "river":
             presence["river"] += 1
-        ej = g.enemy_jungler
+    return presence, invade
+
+
+def _mirror_pct(g: _Game, frames: list[tuple[int, int, tuple[int, int]]]) -> int | None:
+    """% de esos frames en la misma mitad del mapa que el jungla rival (cuando se le ve vivo)."""
+    ej = g.enemy_jungler
+    mirror_same = mirror_n = 0
+    for i, t, p in frames:
         q = g.frame_pos(ej, i) if ej else None
         if q and not g.is_dead(ej, t):
             mirror_n += 1
             mirror_same += int(geo.half_of(p) == geo.half_of(q))
+    return round(mirror_same / mirror_n * 100) if mirror_n else None
 
+
+def _jungle_ganks(g: _Game) -> tuple[list[dict], dict | None]:
+    """Tus ganks antes del 10 (kills en una línea, uno por cada 30 s) y el primero antes del 14."""
+    me = g.me["pid"]
     takedowns = [k for k in g.kills if (me == k["killer"] or me in k["assists"]) and k["pos"]]
     ganks = [k for k in takedowns if k["t"] < 10 * 60_000 and geo.is_lane(geo.zone(k["pos"]))]
     gank_events = []
@@ -2984,8 +3633,12 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
         if not gank_events or k["t"] - gank_events[-1]["t"] > 30_000:
             gank_events.append(k)
     first_gank = next((k for k in takedowns if k["t"] < EARLY_MS and geo.is_lane(geo.zone(k["pos"]))), None)
+    return gank_events, first_gank
 
-    # Impacto antes del 10: kills en cualquier zona, objetivos, placas o torres, cangrejos e invasiones.
+
+def _early_impact(g: _Game) -> tuple[int, int, int]:
+    """Impacto antes del 10 (kills en cualquier zona, objetivos, placas o torres, cangrejos e invasiones), CS invadido y cangrejos."""
+    me, team = g.me["pid"], g.team
     early_takedowns = [k for k in g.kills if k["t"] < 10 * 60_000 and (me == k["killer"] or me in k["assists"])]
     early_objectives = [o for o in g.objectives if o["team"] == team and o["t"] < 10 * 60_000 and me in o["takers"]]
     early_buildings = [b["t"] for b in g.buildings if b["t"] < 10 * 60_000 and b["owner"] != team and me in b["takers"]]
@@ -2994,9 +3647,12 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
     impact = (
         len(early_takedowns) + len(early_objectives) + len(_runs_in_time(early_buildings, 30_000)) + crabs + (1 if invade_cs >= 8 else 0)
     )
+    return impact, invade_cs, crabs
 
-    # Ganks del jungla rival mientras estabas en la otra mitad del mapa.
-    ej = g.enemy_jungler
+
+def _enemy_jungle_ganks(g: _Game) -> tuple[int, int]:
+    """Ganks del jungla rival antes del 14 y cuántos fueron en la otra mitad del mapa mientras no hacías nada allí."""
+    team, ej = g.team, g.enemy_jungler
     enemy_ganks = far = 0
     for k in g.kills:
         if not ej or k["t"] >= EARLY_MS or not k["pos"] or g.players[k["victim"]]["team"] != team:
@@ -3009,32 +3665,21 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
         enemy_ganks += 1
         if gank_zone == "mid":
             continue  # mid se alcanza desde las dos mitades: no es «la otra mitad del mapa»
-        p = g.pos_at(me, k["t"])
-        if p is None or geo.zone(p).startswith("base_") or geo.dist(p, k["pos"]) <= FAR_GANK:
-            continue  # en base (volviendo o reapareciendo) o lo bastante cerca para responder
-        # En la otra mitad haciendo algo (objetivo, torre, kill, su jungla) es justo el cambio que se recomienda.
-        if geo.half_of(p) != geo.half_of(k["pos"]) and not _cross_map_play(g, k["t"], geo.half_of(k["pos"])):
-            far += 1
+        far += int(_far_gank(g, k))
+    return enemy_ganks, far
 
-    i10 = g.frame_at_minute(10)
-    jcs10 = g.fval(me, i10, "jungleMinionsKilled")
-    ejcs10 = g.fval(ej, i10, "jungleMinionsKilled") if ej else None
-    metrics.update(
-        {
-            "ganks_pre10": len(gank_events),
-            "impact_pre10": impact,
-            "invade_cs_pre10": invade_cs,
-            "first_gank_min": round(first_gank["t"] / 60_000, 1) if first_gank else None,
-            "invade_min": invade,
-            "jungle_cs10": jcs10,
-            "jungle_cs_diff10": jcs10 - ejcs10 if jcs10 is not None and ejcs10 is not None else None,
-            "enemy_ganks_far": far,
-            "mirror_pct": round(mirror_same / mirror_n * 100) if mirror_n else None,
-            "scuttles": _num((g.raw[me].get("challenges") or {}).get("scuttleCrabKills")) if "scuttleCrabKills" in (g.raw[me].get("challenges") or {}) else None,
-            "crabs_pre10": crabs,
-            "enemy_jungle_cs": _num(g.raw[me].get("totalEnemyJungleMinionsKilled")),
-        }
-    )
+
+def _far_gank(g: _Game, k: dict) -> bool:
+    """¿Estabas lejos, en la otra mitad, sin hacer nada allí mientras el jungla rival ganqueaba?"""
+    p = g.pos_at(g.me["pid"], k["t"])
+    if p is None or geo.zone(p).startswith("base_") or geo.dist(p, k["pos"]) <= FAR_GANK:
+        return False  # en base (volviendo o reapareciendo) o lo bastante cerca para responder
+    # En la otra mitad haciendo algo (objetivo, torre, kill, su jungla) es justo el cambio que se recomienda.
+    return geo.half_of(p) != geo.half_of(k["pos"]) and not _cross_map_play(g, k["t"], geo.half_of(k["pos"]))
+
+
+def _jungle_moments(g: _Game, impact: int, far: int, moments: list) -> None:
+    """Avisos de jungla: early sin impacto y ganks del jungla rival en la otra mitad del mapa."""
     if not impact and g.duration_ms >= 12 * 60_000:
         moments.append(
             _moment(
@@ -3059,14 +3704,6 @@ def _jungle(g: _Game, metrics: dict, moments: list) -> dict:
                 "tags": ["jungle", "tracking"],
             }
         )
-    return {
-        "start_camp": start["camp"] if start else None,
-        "start_side": geo.half_of((start["x"], start["y"])) if start else None,
-        "path": path,
-        "presence": dict(presence),
-        "ganks": [{"t": round(k["t"] / 1000, 1), "x": k["pos"][0], "y": k["pos"][1], "zone": geo.zone(k["pos"])} for k in gank_events],
-        "enemy_ganks": enemy_ganks,
-    }
 
 
 def _runs_in_time(times: list[int], gap: int) -> list[list[int]]:
@@ -3096,30 +3733,41 @@ def _early_crabs(g: _Game) -> int:
         if a is None or b is None or b <= a:
             continue
         for j in (i - 1, i):
-            p = g.frame_pos(me, j)
-            for side, spot in geo.SCUTTLE.items():
-                if p and geo.dist(p, spot) <= 1600:
-                    sides.add(side)
+            sides.update(_scuttles_near(g.frame_pos(me, j)))
     return max(len(sides), min(2, _num(ch.get("initialCrabCount"))))
+
+
+def _scuttles_near(p) -> list[str]:
+    """Lados del río con un cangrejo a menos de 1.600 de ``p`` (ninguno sin posición)."""
+    return [side for side, spot in geo.SCUTTLE.items() if p and geo.dist(p, spot) <= 1600]
 
 
 def _cross_map_play(g: _Game, t: int, gank_half: str) -> bool:
     """¿Hiciste algo en la otra mitad del mapa mientras el jungla rival ganqueaba? (objetivo, estructura, kill o su jungla)."""
     me = g.me["pid"]
     lo, hi = t - CROSS_MAP_MS, t + CROSS_MAP_MS
-
-    def other(pos) -> bool:
-        return pos is not None and geo.half_of(pos) != gank_half
-
-    if any(lo <= o["t"] <= hi and o["team"] == g.team and me in o["takers"] and other(o["pos"]) for o in g.objectives):
+    if any(lo <= o["t"] <= hi and o["team"] == g.team and me in o["takers"] and _other_half(o["pos"], gank_half) for o in g.objectives):
         return True
-    if any(lo <= b["t"] <= hi and b["owner"] != g.team and me in b["takers"] and other(b["pos"]) for b in g.buildings):
+    if any(lo <= b["t"] <= hi and b["owner"] != g.team and me in b["takers"] and _other_half(b["pos"], gank_half) for b in g.buildings):
         return True
     if any(
-        lo <= k["t"] <= hi and (me == k["killer"] or me in k["assists"]) and g.players[k["victim"]]["team"] != g.team and other(k["pos"])
+        lo <= k["t"] <= hi and (me == k["killer"] or me in k["assists"]) and g.players[k["victim"]]["team"] != g.team
+        and _other_half(k["pos"], gank_half)
         for k in g.kills
     ):
         return True
+    return _farmed_other_half(g, (lo, hi), gank_half)
+
+
+def _other_half(pos, gank_half: str) -> bool:
+    """¿Está ``pos`` en la otra mitad del mapa que ``gank_half``? (sin posición, no)."""
+    return pos is not None and geo.half_of(pos) != gank_half
+
+
+def _farmed_other_half(g: _Game, window: tuple[int, int], gank_half: str) -> bool:
+    """¿Hiciste 4 CS o más en un minuto de esa ventana en su jungla, en la otra mitad del mapa?"""
+    me = g.me["pid"]
+    lo, hi = window
     enemy = 300 - g.team
     for i in range(1, len(g.ts)):
         if g.ts[i] <= lo or g.ts[i - 1] >= hi:
@@ -3127,7 +3775,8 @@ def _cross_map_play(g: _Game, t: int, gank_half: str) -> bool:
         a, b = g.fval(me, i - 1, "jungleMinionsKilled"), g.fval(me, i, "jungleMinionsKilled")
         if a is None or b is None or b - a < 4:
             continue
-        if any(p and geo.is_jungle_of(geo.zone(p), enemy) and other(p) for p in (g.frame_pos(me, i - 1), g.frame_pos(me, i))):
+        spots = (g.frame_pos(me, i - 1), g.frame_pos(me, i))
+        if any(p and geo.is_jungle_of(geo.zone(p), enemy) and _other_half(p, gank_half) for p in spots):
             return True
     return False
 
@@ -3168,7 +3817,53 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
     legendaries = [p for p in completed if cat.is_legendary(p["item"])]
     boots = next((p for p in completed if cat.is_boots(p["item"])), None)
     order = [{"t": round(p["t"] / 1000, 1), "item": p["item"], "kind": "boots" if cat.is_boots(p["item"]) else "legendary"} for p in completed]
+    backs = _backs(g, bought)
 
+    # Con objetos que el catálogo no conoce (u otra temporada) los tiempos de objeto no son fiables y
+    # las conclusiones sobre la build (botas, Heridas graves, resistencias, ventas) tampoco.
+    reliable = g.items_reliable
+    metrics["first_item_min"] = _item_minute(legendaries, 0) if reliable else None
+    metrics["second_item_min"] = _item_minute(legendaries, 1) if reliable else None
+    metrics["boots_min"] = round(boots["t"] / 60_000, 1) if boots and reliable else None
+    metrics["legendaries"] = len(legendaries)
+
+    final_inv = inv.at(g.duration_ms + 1)
+    final_resists = set().union(*[cat.resist(i) for i in final_inv]) if final_inv else set()
+    notes: list[dict] = []
+
+    _clogged_check(g, metrics, moments)
+    sold = _sold_check(g, metrics, moments)
+    skills = [(t, slot) for t, slot, kind in g.skill_ups[me] if kind == "NORMAL" and slot in SKILL_KEYS]
+    r_delays = _r_check(g, skills, metrics, moments)
+    letters = "".join(SKILL_KEYS[slot] for _, slot in skills)
+    anti, style = _anti_heal_check(g, bought, len(legendaries), moments)
+    notes.append({"kind": "anti_heal", **anti})
+    shares = _resist_check(g, len(legendaries), final_resists, moments)
+    _boots_check(g, boots, moments)
+
+    return {
+        "order": order,
+        "backs": backs,
+        "final": [_num(raw.get(f"item{i}")) for i in range(6)],
+        "first_item_min": metrics["first_item_min"],
+        "second_item_min": metrics["second_item_min"],
+        "boots_min": metrics["boots_min"],
+        "skills": letters,
+        "skill_t": [round(t / 1000, 1) for t, _ in skills],  # segundo de cada subida (mismo orden que ``skills``)
+        "skill_max": _skill_max(letters)[:3],
+        "r_delays": r_delays,
+        "sold": sold,
+        "anti_heal": anti,
+        "damage_taken": shares,
+        "resists": sorted(final_resists),
+        "damage_style": style,
+    }
+
+
+def _backs(g: _Game, bought: list[dict]) -> list[dict]:
+    """Compras agrupadas por vuelta a base (≤ 40 s entre una y otra): segundo, objetos, oro gastado y si estabas muerto."""
+    cat = g.catalog
+    me = g.me["pid"]
     backs: list[dict] = []
     for p in bought:
         spent = p["cost"] - sum(cat.cost(c) for c in p["consumed"])
@@ -3180,42 +3875,23 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
             backs.append({"t": round(p["t"] / 1000, 1), "items": [p["item"]], "gold": spent, "_last": p["t"], "dead": g.is_dead(me, p["t"])})
     for b in backs:
         b.pop("_last")
+    return backs
 
-    def minute(i: int) -> float | None:
-        return round(legendaries[i]["t"] / 60_000, 1) if len(legendaries) > i else None
 
-    # Con objetos que el catálogo no conoce (u otra temporada) los tiempos de objeto no son fiables y
-    # las conclusiones sobre la build (botas, Heridas graves, resistencias, ventas) tampoco.
-    reliable = g.items_reliable
-    metrics["first_item_min"] = minute(0) if reliable else None
-    metrics["second_item_min"] = minute(1) if reliable else None
-    metrics["boots_min"] = round(boots["t"] / 60_000, 1) if boots and reliable else None
-    metrics["legendaries"] = len(legendaries)
+def _item_minute(legendaries: list[dict], i: int) -> float | None:
+    """Minuto en que completaste tu legendario número ``i`` (desde 0)."""
+    return round(legendaries[i]["t"] / 60_000, 1) if len(legendaries) > i else None
 
-    final_inv = inv.at(g.duration_ms + 1)
-    final_resists = set().union(*[cat.resist(i) for i in final_inv]) if final_inv else set()
-    notes: list[dict] = []
 
-    # 1. Inventario lleno con componentes de otros objetos: por el orden de compra no podías gastar.
-    #    (Llevar los componentes de tu siguiente objeto y ahorrar para combinarlos no es un error.)
+def _clogged_check(g: _Game, metrics: dict, moments: list) -> None:
+    """Inventario lleno con componentes de otros objetos: por el orden de compra no podías gastar."""
+    # (Llevar los componentes de tu siguiente objeto y ahorrar para combinarlos no es un error.)
+    cat = g.catalog
     clogged: list[tuple[int, list[int]]] = []
     for i, r in sorted(g.gold_rows.items()):
         if not r.get("known") or r["free"] or r["gold"] < USEFUL_SPEND or r["useful"] >= USEFUL_SPEND or g.ts[i] < 8 * 60_000:
             continue
-        snap = inv.at(g.ts[i])
-        planned = Counter()
-        for target in r.get("targets") or []:
-            planned.update(cat.tree(target))
-            planned[target] += 1
-        strays = []
-        for c in snap.elements():
-            # Las botas (también las básicas) ocupan su hueco toda la partida: nunca «sobran» para avanzar otro objeto.
-            if not cat.uses_slot(c) or cat.is_completed(c) or cat.is_starter(c) or cat.is_consumable(c) or cat.is_boots(c):
-                continue
-            if planned[c] > 0:
-                planned[c] -= 1
-            else:
-                strays.append(c)
+        strays = _stray_components(g, i, r)
         if strays and r.get("targets"):
             clogged.append((i, strays))
     metrics["inv_clogged_min"] = len(clogged)
@@ -3233,21 +3909,47 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
             )
         )
 
-    # 2. Objetos terminados vendidos (se pierde ~30 % de su valor).
+
+def _stray_components(g: _Game, i: int, r: dict) -> list[int]:
+    """Componentes que llevabas en el frame ``i`` sin ser parte de lo que ibas a comprar (las botas nunca sobran)."""
+    cat = g.catalog
+    snap = g.inv.at(g.ts[i])
+    planned = Counter()
+    for target in r.get("targets") or []:
+        planned.update(cat.tree(target))
+        planned[target] += 1
+    strays = []
+    for c in snap.elements():
+        # Las botas (también las básicas) ocupan su hueco toda la partida: nunca «sobran» para avanzar otro objeto.
+        if not cat.uses_slot(c) or cat.is_completed(c) or cat.is_starter(c) or cat.is_consumable(c) or cat.is_boots(c):
+            continue
+        if planned[c] > 0:
+            planned[c] -= 1
+        else:
+            strays.append(c)
+    return strays
+
+
+def _sold_check(g: _Game, metrics: dict, moments: list) -> list[dict]:
+    """Objetos terminados vendidos (se pierde ~30 % de su valor): la lista y un aviso por cada uno."""
+    cat = g.catalog
     sold = []
-    for s in inv.sold:
+    for s in g.inv.sold:
         if cat.is_legendary(s["item"]):
             loss = cat.cost(s["item"]) - cat.get(s["item"]).get("sell", 0)
             sold.append({"t": round(s["t"] / 1000, 1), "item": s["item"], "loss": loss})
     metrics["sold_legendaries"] = len(sold)
-    for s in sold if reliable else []:
+    for s in sold if g.items_reliable else []:
         moments.append(
             _moment(s["t"] * 1000, "build", "low", f"Vendiste {cat.name(s['item'])}",
                     f"Al venderlo pierdes {_int(s['loss'])} de oro. Si cambias de objeto, que sea por una amenaza concreta.", tags=["build", "sold"])
         )
+    return sold
 
-    # 3. La R a tiempo (niveles 6, 11 y 16).
-    skills = [(t, slot) for t, slot, kind in g.skill_ups[me] if kind == "NORMAL" and slot in SKILL_KEYS]
+
+def _r_check(g: _Game, skills: list[tuple[int, int]], metrics: dict, moments: list) -> list[dict]:
+    """La R a tiempo (solo al llegar a nivel 6): retrasos de más de 30 s, con un aviso por cada uno."""
+    me = g.me["pid"]
     r_delays = []
     if skills and g.me["champ"] not in NO_R_CHECK:
         reached = {lvl: t for t, lvl in g.levels[me]}
@@ -3255,22 +3957,35 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         # Solo nivel 6 (desbloquearla): a 11 y 16, los Aspirante la retrasan a propósito en el 11 % de partidas
         # (subir antes otra habilidad clave), así que no es un error claro.
         for lvl in (6,):
-            if lvl not in reached:
-                continue
-            tl = reached[lvl]
-            tr = next((t for t in r_ups if t >= tl - 1000), None)
-            delay = (tr if tr is not None else g.duration_ms) - tl
-            if any(s < (tr if tr is not None else g.duration_ms) and e > tl for s, e in g.afk.get(me) or []):
-                continue  # desconectado o AFK en ese momento: no se juzga
-            if delay > R_LATE_S * 1000 and (tr is not None or g.duration_ms - tl > 60_000):
-                r_delays.append({"level": lvl, "t": round(tl / 1000, 1), "delay": round(delay / 1000)})
+            delay = _r_delay(g, reached, r_ups, lvl)
+            if delay is not None:
+                r_delays.append(delay)
     metrics["r_late"] = len(r_delays)
     for d in r_delays:
         moments.append(
             _moment(d["t"] * 1000, "build", "medium" if d["level"] == 6 else "low", f"Subiste la R {d['delay']} s tarde (nivel {d['level']})",
                     "Sube la R en cuanto llegues a nivel 6: es tu mayor pico de poder y el rival lo sabe.", tags=["build", "skills"])
         )
-    letters = "".join(SKILL_KEYS[slot] for _t, slot in skills)
+    return r_delays
+
+
+def _r_delay(g: _Game, reached: dict[int, int], r_ups: list[int], lvl: int) -> dict | None:
+    """Retraso al subir la R al llegar a ``lvl`` (``None`` si no llegó, si estabas desconectado o si fue a tiempo)."""
+    if lvl not in reached:
+        return None
+    tl = reached[lvl]
+    tr = next((t for t in r_ups if t >= tl - 1000), None)
+    upto = tr if tr is not None else g.duration_ms
+    delay = upto - tl
+    if any(s < upto and e > tl for s, e in g.afk.get(g.me["pid"]) or []):
+        return None  # desconectado o AFK en ese momento: no se juzga
+    if delay > R_LATE_S * 1000 and (tr is not None or g.duration_ms - tl > 60_000):
+        return {"level": lvl, "t": round(tl / 1000, 1), "delay": round(delay / 1000)}
+    return None
+
+
+def _skill_max(letters: str) -> list[str]:
+    """Orden en que maximizaste Q, W y E (las que no llegaron a 5, detrás, de más a menos puntos)."""
     rank: Counter = Counter()
     maxed: list[str] = []
     for ch in letters:
@@ -3278,15 +3993,14 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
         if ch in "QWE" and rank[ch] == 5:
             maxed.append(ch)
     maxed += [k for k, _ in sorted(((k, -rank[k]) for k in "QWE" if k not in maxed), key=lambda x: x[1])]
+    return maxed
 
-    # 4. Heridas graves contra curanderos.
-    minutes = max(g.minutes, 1)
-    healers = []
-    for e in g.enemies:
-        heal = (_num(g.raw[e].get("totalHeal")) + _num(g.raw[e].get("totalHealsOnTeammates"))) / minutes
-        if heal >= HEAVY_HEAL_MIN:
-            healers.append({"pid": e, "champ": g.players[e]["champ"], "per_min": round(heal)})
-    healers.sort(key=lambda h: h["per_min"], reverse=True)
+
+def _anti_heal_check(g: _Game, bought: list[dict], n_legendaries: int, moments: list) -> tuple[dict, str]:
+    """Heridas graves contra curanderos: los rivales que más se curaban, si las llevabas y cuál te tocaba; y tu tipo de daño."""
+    cat = g.catalog
+    raw = g.raw[g.me["pid"]]
+    healers = _healers(g)
     has_gw = any(cat.anti_heal(p["item"]) for p in bought)
     phys = _num(raw.get("physicalDamageDealtToChampions"))
     magic = _num(raw.get("magicDamageDealtToChampions"))
@@ -3294,7 +4008,7 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
     suggest = _anti_heal_item(cat, style)
     anti = {"healers": healers, "has": has_gw, "suggest": suggest}
     if (
-        reliable and healers and not has_gw and g.role in ("TOP", "JUNGLE", "MID", "ADC") and len(legendaries) >= 2
+        g.items_reliable and healers and not has_gw and g.role in ("TOP", "JUNGLE", "MID", "ADC") and n_legendaries >= 2
         and (healers[0]["per_min"] >= 900 or len(healers) >= 2)
     ):
         who = _join([_champ_ref(g, h["pid"]) for h in healers[:2]])
@@ -3304,50 +4018,62 @@ def _build(g: _Game, metrics: dict, moments: list) -> dict | None:
                     f"Se curaba{'n' if len(healers) > 1 else ''} hasta {_int(healers[0]['per_min'])} por minuto. {tool} corta esa curación un 40 %.",
                     tags=["build", "anti_heal"])
         )
-    notes.append({"kind": "anti_heal", **anti})
+    return anti, style
 
-    # 5. Resistencias frente al daño que recibiste.
+
+def _healers(g: _Game) -> list[dict]:
+    """Rivales que curaban (a sí mismos y a sus aliados) al menos ``HEAVY_HEAL_MIN`` por minuto, de más a menos."""
+    minutes = max(g.minutes, 1)
+    healers = []
+    for e in g.enemies:
+        heal = (_num(g.raw[e].get("totalHeal")) + _num(g.raw[e].get("totalHealsOnTeammates"))) / minutes
+        if heal >= HEAVY_HEAL_MIN:
+            healers.append({"pid": e, "champ": g.players[e]["champ"], "per_min": round(heal)})
+    healers.sort(key=lambda h: h["per_min"], reverse=True)
+    return healers
+
+
+def _resist_check(g: _Game, n_legendaries: int, final_resists: set, moments: list) -> dict[str, int]:
+    """Resistencias frente al daño que recibiste: el reparto (%) y un aviso si moriste mucho sin ninguna contra el daño que dominaba."""
+    cat = g.catalog
+    raw = g.raw[g.me["pid"]]
     taken = {k: _num(raw.get(f"{k}DamageTaken")) for k in ("physical", "magic", "true")}
     total_taken = sum(taken.values()) or 1
     shares = {k: round(v / total_taken * 100) for k, v in taken.items()}
-    need = "armor" if shares["physical"] >= 65 else "mr" if shares["magic"] >= 65 else None
+    need = _resist_needed(shares)
     # En top no: los Aspirante de top lo hacen más que los Diamante (data/otps, 23-11-2026).
-    if reliable and need and need not in final_resists and _num(raw.get("deaths")) >= 6 and len(legendaries) >= 2 and g.role != "TOP":
-        boots_id = 3047 if need == "armor" else 3111
-        kind = "físico" if need == "armor" else "mágico"
-        res = "armadura" if need == "armor" else "resistencia mágica"
+    if g.items_reliable and need and need not in final_resists and _num(raw.get("deaths")) >= 6 and n_legendaries >= 2 and g.role != "TOP":
+        armor = need == "armor"
+        boots_id = 3047 if armor else 3111
+        kind = "físico" if armor else "mágico"
+        res = "armadura" if armor else "resistencia mágica"
         moments.append(
-            _moment(min(g.duration_ms, 20 * 60_000), "build", "low", f"El {shares['physical' if need == 'armor' else 'magic']} % del daño que recibiste fue {kind}",
+            _moment(min(g.duration_ms, 20 * 60_000), "build", "low", f"El {shares['physical' if armor else 'magic']} % del daño que recibiste fue {kind}",
                     f"Moriste {_num(raw.get('deaths'))} veces sin ningún objeto con {res}. Unas {cat.name(boots_id)} o un objeto defensivo de tu build te habrían dado más margen.",
                     tags=["build", "resist"])
         )
+    return shares
 
-    # 6. Botas.
+
+def _resist_needed(shares: dict[str, int]) -> str | None:
+    """``armor`` o ``mr`` si el 65 % o más del daño que recibiste fue físico o mágico (si no, ``None``)."""
+    if shares["physical"] >= 65:
+        return "armor"
+    return "mr" if shares["magic"] >= 65 else None
+
+
+def _boots_check(g: _Game, boots: dict | None, moments: list) -> None:
+    """Sin botas mejoradas al minuto 20 (salvo jungla, top y quien no puede comprarlas)."""
     # Al jungla no: 1 de cada 3 junglas Aspirante no tiene botas mejoradas al 20 (van antes a por objetos). Al top
     # tampoco: los Aspirante de top lo hacen el doble que los Diamante (0,079 frente a 0,035 por partida).
-    if reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS and g.role not in ("JUNGLE", "TOP"):
+    if (
+        g.items_reliable and not boots and g.duration_ms >= 22 * 60_000 and g.me["champ"] not in NO_BOOTS
+        and g.role not in ("JUNGLE", "TOP")
+    ):
         moments.append(
             _moment(20 * 60_000, "build", "low", "Sin botas mejoradas al minuto 20",
                     "Las botas de nivel 2 cuestan poco (900-1.250) y dan mucha movilidad y estadísticas: suelen ir entre el primer y el segundo objeto.", tags=["build", "boots"])
         )
-
-    return {
-        "order": order,
-        "backs": backs,
-        "final": [_num(raw.get(f"item{i}")) for i in range(6)],
-        "first_item_min": metrics["first_item_min"],
-        "second_item_min": metrics["second_item_min"],
-        "boots_min": metrics["boots_min"],
-        "skills": letters,
-        "skill_t": [round(t / 1000, 1) for t, _slot in skills],  # segundo de cada subida (mismo orden que ``skills``)
-        "skill_max": maxed[:3],
-        "r_delays": r_delays,
-        "sold": sold,
-        "anti_heal": anti,
-        "damage_taken": shares,
-        "resists": sorted(final_resists),
-        "damage_style": style,
-    }
 
 
 def _anti_heal_item(cat: ItemCatalog, style: str) -> int | None:
@@ -3379,12 +4105,17 @@ def _series(g: _Game) -> dict:
         row = g.gold_rows.get(i)
         out["useful_gold"].append(row["useful"] if row else None)
         out["hoard"].append(1 if i in g.hoard_frames else 0)
-        diff = 0
-        for pid, p in g.players.items():
-            value = g.fval(pid, i, "totalGold") or 0
-            diff += value if p["team"] == g.team else -value
-        out["team_gold_diff"].append(diff)
+        out["team_gold_diff"].append(_team_gold_diff(g, i))
     return out
+
+
+def _team_gold_diff(g: _Game, i: int) -> int:
+    """Oro total de tu equipo menos el del rival en el frame ``i``."""
+    diff = 0
+    for pid, p in g.players.items():
+        value = g.fval(pid, i, "totalGold") or 0
+        diff += value if p["team"] == g.team else -value
+    return diff
 
 
 def _replay(g: _Game) -> dict:

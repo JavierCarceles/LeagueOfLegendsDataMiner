@@ -3,8 +3,8 @@ import { dd, ROLE_LABEL, TIER_LABEL } from "./state.js";
 
 /** h("div.card#id", {attrs}, ...children) */
 export function h(tag, attrs, ...children) {
-  const [, name = "div", rest = ""] = tag.match(/^([a-z0-9-]*)(.*)$/i) || [];
-  const el = document.createElement(name || "div");
+  const [name, rest] = parseTag(tag);
+  const el = document.createElement(name);
   for (const part of rest.match(/[.#][^.#]+/g) || []) {
     if (part[0] === ".") el.classList.add(part.slice(1));
     else el.id = part.slice(1);
@@ -15,15 +15,28 @@ export function h(tag, attrs, ...children) {
   }
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === undefined || v === null || v === false) continue;
-    if (k === "class") el.className += (el.className ? " " : "") + v;
-    else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
-    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k === "html") el.innerHTML = v;
-    else if (k === "dataset") Object.assign(el.dataset, v);
-    else el.setAttribute(k, v === true ? "" : v);
+    setAttr(el, k, v);
   }
   append(el, children);
   return el;
+}
+
+/** Separa la etiqueta de h() en el elemento y el resto (clases e id); con un salto de línea en el resto, un div sin nada. */
+function parseTag(tag) {
+  const name = tag.match(/^[a-z0-9-]*/i)[0];
+  const rest = tag.slice(name.length);
+  if (/[\n\r\u2028\u2029]/.test(rest)) return ["div", ""];
+  return [name || "div", rest];
+}
+
+/** Aplica un atributo de h(): clase, estilo, evento, html, dataset o atributo normal (true = atributo vacío). */
+function setAttr(el, k, v) {
+  if (k === "class") el.className += (el.className ? " " : "") + v;
+  else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
+  else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v);
+  else if (k === "html") el.innerHTML = v;
+  else if (k === "dataset") Object.assign(el.dataset, v);
+  else el.setAttribute(k, v === true ? "" : v);
 }
 
 function append(el, children) {
@@ -96,8 +109,9 @@ export function champText(text) {
 }
 
 export function icon(name, cls = "") {
+  const extra = cls ? ` ${cls}` : "";
   return svg(
-    `<svg class="ico${cls ? ` ${cls}` : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`,
+    `<svg class="ico${extra}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`,
   );
 }
 
@@ -114,6 +128,9 @@ export function roleIcon(role, cls = "role-ico") {
 }
 
 // ---------------------------------------------------------------- formato
+/** Marca de tiempo en milisegundos (las de la API pueden venir en segundos). */
+const toMs = (ts) => (ts > 1e12 ? ts : ts * 1000);
+
 export const fmt = {
   int: (n) => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("es-ES")),
   num: (n, d = 1) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d })),
@@ -133,14 +150,13 @@ export const fmt = {
   duration: (s) => (s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : "—"),
   ago: (ts) => {
     if (!ts) return "—";
-    const ms = ts > 1e12 ? ts : ts * 1000;
-    const diff = (Date.now() - ms) / 1000;
+    const diff = (Date.now() - toMs(ts)) / 1000;
     if (diff < 60) return "ahora";
     if (diff < 3600) return `hace ${Math.round(diff / 60)} min`;
     if (diff < 86400) return `hace ${Math.round(diff / 3600)} h`;
     return `hace ${Math.round(diff / 86400)} d`;
   },
-  date: (ts) => (ts ? new Date(ts > 1e12 ? ts : ts * 1000).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }) : "—"),
+  date: (ts) => (ts ? new Date(toMs(ts)).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }) : "—"),
 };
 
 export function wrClass(wr, neutral = 1.5) {
@@ -197,7 +213,9 @@ export function rankImg(tier, cls = "rank-img") {
 }
 
 export function tierBadge(tier) {
-  const cls = tier === "S+" ? "Splus" : tier === "?" || !tier ? "q" : tier;
+  let cls = tier;
+  if (tier === "S+") cls = "Splus";
+  else if (tier === "?" || !tier) cls = "q";
   return h(`span.tier.tier-${cls}`, { title: "Tier calculado con el WR ajustado" }, tier || "?");
 }
 
@@ -227,8 +245,15 @@ export function sourceBadges(sources) {
 
 export function confidenceEl(conf) {
   if (!conf) return null;
-  const cls = conf.level >= 4 ? "pill-good" : conf.level >= 3 ? "pill-gold" : conf.level >= 2 ? "pill-warn" : "pill-bad";
-  return h(`span.pill.${cls}`, { title: "Fiabilidad según el tamaño de muestra" }, conf.label);
+  return h(`span.pill.${confidenceClass(conf.level)}`, { title: "Fiabilidad según el tamaño de muestra" }, conf.label);
+}
+
+/** Color de la píldora de fiabilidad según su nivel (4 o más = la más fiable). */
+function confidenceClass(level) {
+  if (level >= 4) return "pill-good";
+  if (level >= 3) return "pill-gold";
+  if (level >= 2) return "pill-warn";
+  return "pill-bad";
 }
 
 export function kpi(label, value, sub = null, cls = "") {
@@ -261,7 +286,7 @@ export function roleTabs(active, onChange) {
 }
 
 export function select(options, value, onChange, cls = "select") {
-  const el = h(`select.${cls.split(" ").join(".")}`, { onchange: (e) => onChange(e.target.value) });
+  const el = h(`select.${cls.replaceAll(" ", ".")}`, { onchange: (e) => onChange(e.target.value) });
   for (const opt of options) {
     if (opt.group) {
       const g = h("optgroup", { label: opt.group });
@@ -293,6 +318,7 @@ export function table(cols, rows, { sortKey = null, sortDir = -1, onRow = null, 
         return (va > vb ? 1 : -1) * dir;
       });
     }
+    const arrow = dir > 0 ? " ▲" : " ▼";
     const head = h(
       "tr",
       cols.map((c) =>
@@ -307,7 +333,7 @@ export function table(cols, rows, { sortKey = null, sortDir = -1, onRow = null, 
             },
           },
           c.label,
-          c.key === key ? (dir > 0 ? " ▲" : " ▼") : "",
+          c.key === key ? arrow : "",
         ),
       ),
     );
@@ -433,6 +459,12 @@ export function collapsible(id, title, body, { open = false, summary = null, cls
 }
 
 // ---------------------------------------------------------------- selección múltiple
+/** Marca de la casilla de un grupo: todo marcado, una parte o nada. */
+function groupMark(on, total) {
+  if (on === total) return ".on";
+  return on ? ".some" : "";
+}
+
 /**
  * Chips de selección múltiple con «Todas», «Ninguna» y grupos opcionales.
  * items: [{value, label, title?, group?}], groups: [{id, label}]
@@ -479,7 +511,7 @@ export function multiSelect({ items, selected = [], groups = null, onChange = nu
         };
         return h(
           "div.multi-group",
-          h("button.multi-group-label", { type: "button", onclick: groupToggle, title: on === members.length ? "Quitar todo el grupo" : "Marcar todo el grupo" }, h(`span.check-box${on === members.length ? ".on" : on ? ".some" : ""}`), g.label, h("span.tiny.muted", ` ${on}/${members.length}`)),
+          h("button.multi-group-label", { type: "button", onclick: groupToggle, title: on === members.length ? "Quitar todo el grupo" : "Marcar todo el grupo" }, h(`span.check-box${groupMark(on, members.length)}`), g.label, h("span.tiny.muted", ` ${on}/${members.length}`)),
           h("div.chips", members.map(chip)),
         );
       });

@@ -38,7 +38,7 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import Counter, deque
 import threading
 import time
-from dataclasses import asdict, dataclass, field, fields, replace
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from app.data.db import now_s
@@ -119,7 +119,7 @@ FUNNEL_EVERY_S = 300  # cada cuánto se escribe data/otps/_busqueda.json
 LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
 LEADERBOARD_TIERS = {"DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"}  # elos que salen en esa tabla
 LEADERBOARD_MAX = 20  # jugadores por tabla: cada uno nuevo cuesta una llamada de account-v1 (cupo regional)
-OPGG_REGION = {p: label for p, (_region, label, _name) in PLATFORMS.items()} | {"sg2": "SG"}
+OPGG_REGION = {p: label for p, (_, label, _) in PLATFORMS.items()} | {"sg2": "SG"}
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
 OTP_DETAIL_BACKFILL = 25  # partidas ya guardadas a las que se les baja el micro/macro por visita (2 llamadas cada una)
 
@@ -404,6 +404,11 @@ def _ids(values) -> list[int]:
     return list(dict.fromkeys(int(c) for c in (values or []) if str(c).isdigit() and int(c) > 0))
 
 
+def _config_with(config: CrawlerConfig, **changes) -> CrawlerConfig:
+    """Copia de la configuración con esos campos cambiados (lo mismo que ``dataclasses.replace``, con su tipo)."""
+    return CrawlerConfig(**({f.name: getattr(config, f.name) for f in fields(config)} | changes))
+
+
 def role_pool(svc, roles: list[str]) -> list[int]:
     """Campeones que se juegan en alguna de esas líneas, de más a menos jugados (todas las listas de ``role_pools``)."""
     return role_pool_from(role_pools(svc, roles))
@@ -424,43 +429,58 @@ def role_pools(svc, roles: list[str]) -> dict[str, list[int]]:
     Sale de la tier list de OP.GG o, si no, de la de Lolalytics (las que usa el resto de la app); sin ninguna, de las
     partidas de tu base de datos.
     """
-    from app.analytics.evidence import ext_scope  # aquí: evita un import circular al arrancar
-    from app.analytics.filters import Filters
-
     pools: dict[str, list[int]] = {}
-    scope = None
-    try:
-        scope = ext_scope(svc, Filters())
-    # sin parches conocidos o webs desactivadas
-    except Exception:  # noqa: BLE001
-        scope = None
+    scope = _tier_list_scope(svc)
     for role in roles:
-        data: dict = {}
-        for name in ("opgg", "lolalytics"):
-            src = getattr(svc, name, None)
-            if scope is None or src is None or not getattr(src, "enabled", False):
-                continue
-            try:
-                data = src.tier_list(role, scope.tier, scope.region, scope.patches[0]) or {}
-            # web caída: se prueba con la siguiente
-            except Exception as exc:  # noqa: BLE001
-                log.warning("Tier list de %s (%s): %s", role, name, exc)
-                data = {}
-            if data:
-                break
+        data = _web_tier_list(svc, scope, role)
         rows = [(int(c), float(r.get("pick") or 0)) for c, r in data.items() if (r.get("role_rate") or 0) >= ROLE_MIN_RATE]
         if not rows:  # sin webs: lo que dicen tus partidas guardadas
-            rows = [
-                (int(r["champ"]), float(r["n"]))
-                for r in svc.db.query(
-                    "SELECT champ, SUM(role = ?) AS n, COUNT(*) AS total FROM participants GROUP BY champ "
-                    "HAVING n >= 20 AND n >= ? * total",
-                    (role, ROLE_MIN_RATE),
-                )
-            ]
+            rows = _stored_role_rows(svc, role)
         if rows:
             pools[role] = [c for c, _ in sorted(rows, key=lambda kv: -kv[1])]
     return pools
+
+
+def _tier_list_scope(svc):
+    """Elo, región y parches de las tier lists de las webs (``None`` sin parches conocidos o con las webs desactivadas)."""
+    from app.analytics.evidence import ext_scope  # aquí: evita un import circular al arrancar
+    from app.analytics.filters import Filters
+
+    try:
+        return ext_scope(svc, Filters())
+    # sin parches conocidos o webs desactivadas
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _web_tier_list(svc, scope, role: str) -> dict:
+    """Tier list de esa línea en OP.GG o, si no, en Lolalytics (``{}`` si ninguna la da)."""
+    data: dict = {}
+    for name in ("opgg", "lolalytics"):
+        src = getattr(svc, name, None)
+        if scope is None or src is None or not getattr(src, "enabled", False):
+            continue
+        try:
+            data = src.tier_list(role, scope.tier, scope.region, scope.patches[0]) or {}
+        # web caída: se prueba con la siguiente
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Tier list de %s (%s): %s", role, name, exc)
+            data = {}
+        if data:
+            break
+    return data
+
+
+def _stored_role_rows(svc, role: str) -> list[tuple[int, float]]:
+    """Campeones que se juegan en esa línea según tus partidas guardadas: [(campeón, partidas en ella)]."""
+    return [
+        (int(r["champ"]), float(r["n"]))
+        for r in svc.db.query(
+            "SELECT champ, SUM(role = ?) AS n, COUNT(*) AS total FROM participants GROUP BY champ "
+            "HAVING n >= 20 AND n >= ? * total",
+            (role, ROLE_MIN_RATE),
+        )
+    ]
 
 
 def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
@@ -482,45 +502,51 @@ def search_funnel(db, cfg: CrawlerConfig, now: int | None = None) -> dict:
         "games": ["checked", "champ", "points", "active"],
     }[cfg.focus]
     per: dict[str, dict] = {}
-
-    def bucket(platform: str) -> dict:
-        return per.setdefault(platform, {k: 0 for k in ("checked", "champ", "points", "active", "share", "seeds", "last_hour")})
-
     for r in db.query(
         f"SELECT platform, COUNT(*) AS n FROM players WHERE is_seed = 1 AND platform IN ({pm}) AND tier IN ({tm}) GROUP BY platform",
         (*platforms, *tiers),
     ):
-        bucket(r["platform"])["seeds"] = int(r["n"])
+        _funnel_bucket(per, r["platform"])["seeds"] = int(r["n"])
     for r in db.query(
         f"SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_checks m JOIN players p ON p.puuid = m.puuid "
         f"LEFT JOIN otp_progress o ON o.puuid = p.puuid "
         f"WHERE p.is_seed = 1 AND p.platform IN ({pm}) AND p.tier IN ({tm})",
         (*platforms, *tiers),
     ):
-        b = bucket(r["platform"])
+        b = _funnel_bucket(per, r["platform"])
         b["checked"] += 1
         b["last_hour"] += int((r["checked_at"] or 0) >= now - 3600)
-        try:
-            top = [e for e in json.loads(r["top"]) if len(e) >= 2]
-        except (TypeError, ValueError):
-            continue
-        entry = next((e for e in top[:3] if int(e[0]) in targets), None)
-        if entry is None:
-            continue
-        b["champ"] += 1
-        if int(entry[1]) < cfg.min_mastery:
-            continue
-        b["points"] += 1
-        last = int(entry[2]) if len(entry) > 2 and entry[2] else None
-        if last is not None and last < cutoff:
-            continue
-        b["active"] += 1
-        # Especialista comprobado: con sus partidas revisadas, juega el campeón lo bastante (sin muestra aún, no cuenta).
-        if cfg.focus == "otp" and int(r["seen"] or 0) >= SHARE_MIN_SEEN and cfg.share_ok(r["seen"], r["hits"]):
-            b["share"] += 1
+        _funnel_stages(b, r, cfg, targets, cutoff)
     total = {k: sum(b[k] for b in per.values()) for k in (*stages, "seeds", "last_hour")}
     shown = {p: {k: b[k] for k in (*stages, "seeds", "last_hour")} for p, b in per.items()}  # solo las fases de este modo
     return {"stages": stages, "total": total, "platforms": dict(sorted(shown.items(), key=lambda kv: -kv[1]["checked"])), "at": now}
+
+
+def _funnel_bucket(per: dict[str, dict], platform: str) -> dict:
+    """Contadores del embudo de esa plataforma (a 0 la primera vez)."""
+    return per.setdefault(platform, dict.fromkeys(("checked", "champ", "points", "active", "share", "seeds", "last_hour"), 0))
+
+
+def _funnel_stages(b: dict, r, cfg: CrawlerConfig, targets: set[int], cutoff: int) -> None:
+    """Suma a su plataforma las fases del embudo que pasa un jugador revisado (las de ``search_funnel``)."""
+    try:
+        top = [e for e in json.loads(r["top"]) if len(e) >= 2]
+    except (TypeError, ValueError):
+        return
+    entry = next((e for e in top[:3] if int(e[0]) in targets), None)
+    if entry is None:
+        return
+    b["champ"] += 1
+    if int(entry[1]) < cfg.min_mastery:
+        return
+    b["points"] += 1
+    last = int(entry[2]) if len(entry) > 2 and entry[2] else None
+    if last is not None and last < cutoff:
+        return
+    b["active"] += 1
+    # Especialista comprobado: con sus partidas revisadas, juega el campeón lo bastante (sin muestra aún, no cuenta).
+    if cfg.focus == "otp" and int(r["seen"] or 0) >= SHARE_MIN_SEEN and cfg.share_ok(r["seen"], r["hits"]):
+        b["share"] += 1
 
 
 def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: list[str] | None = None, now: int | None = None) -> list:
@@ -666,6 +692,66 @@ class Ingested:
     valid: bool = False  # ranked de la Grieta, sin remake y con el jugador dentro
     mine_target: bool = False  # el jugador jugó con uno de los campeones elegidos
     detailed: bool = False  # se bajó también su timeline (micro y macro)
+
+
+@dataclass
+class _PlanContext:
+    """Lo que usa ``RegionWorker._plan_otps`` para ordenar la cola: cobertura de lo ya recogido y reparto por elo."""
+
+    now: int
+    recrawl: int  # s sin visitarlo a partir de los que tocan sus partidas nuevas (``recrawl_hours``)
+    cap: int  # partidas por OTP mientras se buscan más (0 = sin tope)
+    lacking: set  # jugadores con partidas guardadas sin el análisis minuto a minuto
+    # Con líneas enteras o «cualquiera que lo juegue», lo primero es tener muchas partidas de cada elo en cada línea
+    # (para comparar elos), no un jugador de cada uno de 150 campeones.
+    by_elo: bool
+    info: list = field(default_factory=list)  # [(fila, campeón, estado del historial)]
+    top_of: dict = field(default_factory=dict)  # puuid -> su maestría (top 3)
+    # Cobertura: OTPs ya visitados por campeón y por (campeón, elo), y partidas por campeón.
+    champ_otps: dict = field(default_factory=dict)
+    champ_tier: dict = field(default_factory=dict)
+    champ_games: dict = field(default_factory=dict)
+    found_by_tier: dict = field(default_factory=dict)  # jugadores encontrados por (plataforma, elo)
+    waiting_by_tier: dict = field(default_factory=dict)  # encontrados aún sin visitar
+    lane_tier_games: dict = field(default_factory=dict)  # partidas ya recogidas por (línea, elo)
+    need: dict = field(default_factory=dict)  # partidas que le faltan a cada elo para su parte (``tier_need``)
+
+    def behind(self, tier: str) -> float:
+        """Menos = más por debajo de su parte (va antes): lo que le falta, en negativo."""
+        return -self.need.get(tier, float("-inf"))
+
+
+@dataclass
+class _OtpVisit:
+    """Una visita en curso a un OTP (``RegionWorker._visit_otp``): a quién, su progreso y lo que le queda de presupuesto."""
+
+    row: object  # su fila de la cola (``otp_rows``)
+    platform: str
+    puuid: str
+    player: dict  # {id, puuid, tier}: lo que necesita ``_ingest``
+    queue_id: int | None  # cola de las listas de partidas (``None`` con Flex: solo ranked)
+    kw: dict  # prioridad y parada de las llamadas a Riot
+    list_key: str
+    config_key: str
+    depth_start: int  # ``startTime`` del historial (0 = sin límite)
+    season_major: int | None  # número mayor del parche de la temporada (para parar en la anterior)
+    now: int  # s al empezar la visita
+    fresh: bool  # sin progreso guardado o con otra búsqueda: el historial empieza de cero
+    prog: dict  # progreso del historial (lo que se guarda en ``otp_progress``)
+    newest: int  # ms de su partida más reciente vista
+    budget: int  # descargas que le quedan a la visita (un timeline cuenta como otra)
+    ingested: int = 0  # partidas bajadas en la visita (cada 25 se guarda el progreso)
+
+
+@dataclass
+class _HistoryPage:
+    """Una página del historial de un OTP (``OTP_PAGE`` ids hacia atrás): desde dónde y qué dio."""
+
+    base: int  # ids del historial ya recorridos al pedirla (``offset``)
+    consumed: int = 0  # ids de la página recorridos
+    seen: int = 0  # partidas suyas revisadas (válidas)
+    hits: int = 0  # … con esos campeones
+    old_season: bool = False  # llegó a la primera partida de la temporada anterior
 
 
 ROWS_REFRESH_IN_BACKGROUND = True  # la lista caducada se rehace en otro hilo y mientras se sigue con la anterior
@@ -883,30 +969,11 @@ class RegionWorker(threading.Thread):
         log.info("Recolector %s iniciado (%s).", self.region, ", ".join(PLATFORMS[p][1] for p in self.platforms))
         while not self.stop_event.is_set():
             try:
-                if not self.svc.keys.get() or self.svc.keys.status == "invalid":
-                    self._wait_for_key()
+                combo = self._ladder_combo(combos, index)
+                if combo is None:
                     continue
-                if self.crawler.paused_reason():
-                    # Estás en partida: no te quito ancho de banda; sigue al terminar.
-                    self.state["status"] = "paused_game"
-                    self.stop_event.wait(5)
-                    continue
-                now = time.time()
-                available = [c for c in combos if self._cooldown.get(c, 0) <= now]
-                if not available:
-                    self.state["status"] = "idle"
-                    self.stop_event.wait(30)
-                    continue
-                platform, tier = available[index % len(available)]
                 index += 1
-                self.state.update(status="running", platform=platform, tier=tier)
-                player = self._next_player(platform, tier)
-                if player is None:
-                    added = self._refill_seeds(platform, tier)
-                    if added == 0:
-                        self._cooldown[(platform, tier)] = time.time() + EXHAUSTED_COOLDOWN_S
-                    continue
-                self._crawl_player(player, platform)
+                self._ladder_visit(*combo)
             except Cancelled:
                 break
             except RiotKeyError as exc:
@@ -923,6 +990,35 @@ class RegionWorker(threading.Thread):
                 self.state["last_error"] = str(exc)
                 log.exception("Error inesperado en el recolector %s", self.region)
                 self.stop_event.wait(5)
+
+    def _ladder_combo(self, combos: list[tuple[str, str]], index: int) -> tuple[str, str] | None:
+        """Modo normal: la (plataforma, elo) a la que le toca el turno o ``None`` tras esperar (key, partida, descanso)."""
+        if not self.svc.keys.get() or self.svc.keys.status == "invalid":
+            self._wait_for_key()
+            return None
+        if self.crawler.paused_reason():
+            # Estás en partida: no te quito ancho de banda; sigue al terminar.
+            self.state["status"] = "paused_game"
+            self.stop_event.wait(5)
+            return None
+        now = time.time()
+        available = [c for c in combos if self._cooldown.get(c, 0) <= now]
+        if not available:
+            self.state["status"] = "idle"
+            self.stop_event.wait(30)
+            return None
+        return available[index % len(available)]
+
+    def _ladder_visit(self, platform: str, tier: str) -> None:
+        """Modo normal: el siguiente jugador de esa plataforma y elo o, si no queda ninguno, más del ranking."""
+        self.state.update(status="running", platform=platform, tier=tier)
+        player = self._next_player(platform, tier)
+        if player is None:
+            added = self._refill_seeds(platform, tier)
+            if added == 0:
+                self._cooldown[(platform, tier)] = time.time() + EXHAUSTED_COOLDOWN_S
+            return
+        self._crawl_player(player, platform)
 
     def _run_otp(self) -> None:
         """Modo por campeones: este hilo baja partidas de los OTPs y ``OtpScout`` los busca a la vez."""
@@ -1094,96 +1190,115 @@ class RegionWorker(threading.Thread):
         Cada uno cuesta 1 llamada de account-v1 (su PUUID para tu key) y 1 de maestría, frente a revisar la maestría
         de cientos de jugadores del ranking hasta dar con ellos. Devuelve cuántos se añadieron.
         """
-        svc, db = self.svc, self.svc.db
-        opgg = getattr(svc, "opgg", None)
+        opgg = getattr(self.svc, "opgg", None)
         region = OPGG_REGION.get(platform)
         if opgg is None or not getattr(opgg, "enabled", False) or not region:
             return 0
         if not set(self.config.tiers) & LEADERBOARD_TIERS:
             return 0  # la tabla solo trae Diamante alto, Maestro o más: con elos más bajos no aporta nadie
-        kw = {"priority": Priority.LOW, "stop": self.stop_event}
         added = 0
         for champ in self.config.targets if champs is None else champs:
-            champ_added = 0
             if self.stop_event.is_set():
                 break
-            fresh = db.scalar(
-                "SELECT MAX(fetched_at) FROM otp_sources WHERE champ = ? AND platform = ? AND source = 'opgg'", (champ, platform)
-            )
-            if fresh and now_s() - int(fresh) < LEADERBOARD_TTL_S:
-                continue
-            try:
-                data = opgg.mcp_call(
-                    "lol_list_champion_leaderboard",
-                    {
-                        "region": region,
-                        "champion": opgg.mcp_name(champ),
-                        "desired_output_fields": [
-                            "leaderboard[].rank",
-                            "leaderboard[].summoner.{game_name,tagline}",
-                            "leaderboard[].summoner.league_stats[].{game_type}",
-                            "leaderboard[].summoner.league_stats[].tier_info.{tier,division,lp}",
-                            "leaderboard[].most_champion_stat.{play,win}",
-                        ],
-                    },
-                )
-            # OP.GG caído o sin ese campeón: se sigue con el ranking de Riot
-            except Exception as exc:  # noqa: BLE001
-                log.warning("Tabla de los mejores de %s en %s (OP.GG): %s", champ, platform, exc)
-                continue
-            entries = (data.get("leaderboard") or []) if isinstance(data, dict) else []
-            for entry in entries[:LEADERBOARD_MAX]:
-                if self.stop_event.is_set():
-                    break
-                summ = entry.get("summoner") or {}
-                name, tag = summ.get("game_name"), summ.get("tagline")
-                if not name or not tag:
-                    continue
-                solo = next((ls.get("tier_info") or {} for ls in summ.get("league_stats") or [] if ls.get("game_type") == "SOLORANKED"), {})
-                if str(solo.get("tier") or "").upper() not in self.config.tiers:
-                    continue  # no es de los elos que buscas: ni se gasta la llamada
-                puuid = db.scalar(
-                    "SELECT puuid FROM players WHERE platform = ? AND lower(game_name) = lower(?) AND lower(tag_line) = lower(?)",
-                    (platform, name, tag),
-                )
-                if not puuid:
-                    try:
-                        account = svc.riot.account_by_riot_id(name, tag, platform, **kw) or {}
-                    except RiotKeyError:
-                        raise
-                    except RiotAPIError:
-                        continue  # cambió de nombre: ya aparecerá por el ranking
-                    puuid = account.get("puuid")
-                    if not puuid:
-                        continue
-                tier = str(solo.get("tier") or "").upper()
-                if tier in TIER_INDEX:
-                    upsert_seed_players(
-                        db, platform, [{"puuid": puuid, "tier": tier, "rank": ROMAN.get(int(solo.get("division") or 1), "I"), "leaguePoints": solo.get("lp") or 0}], tier
-                    )
-                stat = entry.get("most_champion_stat") or {}
-                with db.write() as conn:
-                    conn.execute(
-                        "UPDATE players SET game_name = COALESCE(game_name, ?), tag_line = COALESCE(tag_line, ?) WHERE puuid = ?",
-                        (name, tag, puuid),
-                    )
-                    conn.execute(
-                        "INSERT OR REPLACE INTO otp_sources (puuid, champ, platform, source, rank, games, wins, fetched_at) "
-                        "VALUES (?, ?, ?, 'opgg', ?, ?, ?, ?)",
-                        (puuid, champ, platform, entry.get("rank"), stat.get("play"), stat.get("win"), now_s()),
-                    )
-                if not db.scalar("SELECT 1 FROM mastery_checks WHERE puuid = ? AND checked_at >= ?", (puuid, now_s() - MASTERY_TTL_S)):
-                    self._check_mastery(platform, puuid)  # necesaria para su ficha (y si es OTP estricto)
-                added += 1
-                champ_added += 1
-                self.state["targets_found"] += 1
-                self.wake()
-            dd = getattr(svc, "dd", None)
-            champ_name = (dd.name(champ) if dd is not None and hasattr(dd, "name") else None) or f"campeón {champ}"
-            log.info(
-                "Tabla de los mejores de %s en %s (OP.GG): %d jugadores de tus elos añadidos.", champ_name, PLATFORMS[platform][1], champ_added
-            )
+            added += self._seed_champion_board(opgg, (platform, region), champ)
         return added
+
+    def _seed_champion_board(self, opgg, where: tuple[str, str], champ: int) -> int:
+        """La tabla de los mejores de un campeón (si no se ha pedido en 24 h): cuántos jugadores de tus elos añade."""
+        platform, region = where
+        fresh = self.svc.db.scalar(
+            "SELECT MAX(fetched_at) FROM otp_sources WHERE champ = ? AND platform = ? AND source = 'opgg'", (champ, platform)
+        )
+        if fresh and now_s() - int(fresh) < LEADERBOARD_TTL_S:
+            return 0
+        try:
+            data = opgg.mcp_call(
+                "lol_list_champion_leaderboard",
+                {
+                    "region": region,
+                    "champion": opgg.mcp_name(champ),
+                    "desired_output_fields": [
+                        "leaderboard[].rank",
+                        "leaderboard[].summoner.{game_name,tagline}",
+                        "leaderboard[].summoner.league_stats[].{game_type}",
+                        "leaderboard[].summoner.league_stats[].tier_info.{tier,division,lp}",
+                        "leaderboard[].most_champion_stat.{play,win}",
+                    ],
+                },
+            )
+        # OP.GG caído o sin ese campeón: se sigue con el ranking de Riot
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Tabla de los mejores de %s en %s (OP.GG): %s", champ, platform, exc)
+            return 0
+        entries = (data.get("leaderboard") or []) if isinstance(data, dict) else []
+        champ_added = 0
+        for entry in entries[:LEADERBOARD_MAX]:
+            if self.stop_event.is_set():
+                break
+            champ_added += self._seed_board_entry(platform, champ, entry)
+        dd = getattr(self.svc, "dd", None)
+        champ_name = (dd.name(champ) if dd is not None and hasattr(dd, "name") else None) or f"campeón {champ}"
+        log.info(
+            "Tabla de los mejores de %s en %s (OP.GG): %d jugadores de tus elos añadidos.", champ_name, PLATFORMS[platform][1], champ_added
+        )
+        return champ_added
+
+    def _seed_board_entry(self, platform: str, champ: int, entry: dict) -> int:
+        """Un jugador de la tabla de los mejores: 1 si es de tus elos y se sabe su PUUID (queda guardado), si no 0."""
+        summ = entry.get("summoner") or {}
+        name, tag = summ.get("game_name"), summ.get("tagline")
+        if not name or not tag:
+            return 0
+        solo = next((ls.get("tier_info") or {} for ls in summ.get("league_stats") or [] if ls.get("game_type") == "SOLORANKED"), {})
+        if str(solo.get("tier") or "").upper() not in self.config.tiers:
+            return 0  # no es de los elos que buscas: ni se gasta la llamada
+        puuid = self._board_puuid(platform, name, tag)
+        if not puuid:
+            return 0
+        self._save_board_player(platform, champ, puuid, (name, tag), entry, solo)
+        self.state["targets_found"] += 1
+        self.wake()
+        return 1
+
+    def _board_puuid(self, platform: str, name: str, tag: str) -> str | None:
+        """PUUID de un jugador de la tabla: el que ya está en la base de datos o el de account-v1 (``None`` si no lo da)."""
+        puuid = self.svc.db.scalar(
+            "SELECT puuid FROM players WHERE platform = ? AND lower(game_name) = lower(?) AND lower(tag_line) = lower(?)",
+            (platform, name, tag),
+        )
+        if puuid:
+            return puuid
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        try:
+            account = self.svc.riot.account_by_riot_id(name, tag, platform, **kw) or {}
+        except RiotKeyError:
+            raise
+        except RiotAPIError:
+            return None  # cambió de nombre: ya aparecerá por el ranking
+        return account.get("puuid")
+
+    def _save_board_player(self, platform: str, champ: int, puuid: str, riot_id: tuple[str, str], entry: dict, solo: dict) -> None:
+        """Guarda a un jugador de la tabla: su elo, su Riot ID, de qué tabla sale y (si hace falta) su maestría."""
+        db = self.svc.db
+        name, tag = riot_id
+        tier = str(solo.get("tier") or "").upper()
+        if tier in TIER_INDEX:
+            upsert_seed_players(
+                db, platform, [{"puuid": puuid, "tier": tier, "rank": ROMAN.get(int(solo.get("division") or 1), "I"), "leaguePoints": solo.get("lp") or 0}], tier
+            )
+        stat = entry.get("most_champion_stat") or {}
+        with db.write() as conn:
+            conn.execute(
+                "UPDATE players SET game_name = COALESCE(game_name, ?), tag_line = COALESCE(tag_line, ?) WHERE puuid = ?",
+                (name, tag, puuid),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO otp_sources (puuid, champ, platform, source, rank, games, wins, fetched_at) "
+                "VALUES (?, ?, ?, 'opgg', ?, ?, ?, ?)",
+                (puuid, champ, platform, entry.get("rank"), stat.get("play"), stat.get("win"), now_s()),
+            )
+        if not db.scalar("SELECT 1 FROM mastery_checks WHERE puuid = ? AND checked_at >= ?", (puuid, now_s() - MASTERY_TTL_S)):
+            self._check_mastery(platform, puuid)  # necesaria para su ficha (y si es OTP estricto)
 
     def _check_mastery(self, platform: str, puuid: str) -> list:
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
@@ -1253,11 +1368,7 @@ class RegionWorker(threading.Thread):
         jugadores de la base de datos se leen una vez para todas las regiones) y quien ya se visitó desde que se leyó no
         se vuelve a elegir hasta la siguiente.
         """
-        now_t = time.time()
-        if now_t - self._plan_at >= OTP_PLAN_TTL_S or (not self._plan and now_t - self._plan_at >= OTP_PLAN_EMPTY_S):
-            with self.timed("cola"):
-                self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
-            self._plan_at = now_t
+        self._refresh_plan()
         # El reparto por elo, con las visitas de ahora (de las 4 regiones), no con las de cuando se calculó la cola: la
         # cola duraba 5 min (ahora 1) y en ese rato las regiones seguían su orden sin enterarse (salían Bronce, Maestro y Aspirante
         # una y otra vez, 24-11-2026). Reordenar sobre la cola ya calculada cuesta milisegundos.
@@ -1265,22 +1376,37 @@ class RegionWorker(threading.Thread):
         recent = self.crawler.recent_tiers() if shares and hasattr(self.crawler, "recent_tiers") else None
 
         need = tier_need(recent, shares) if recent is not None else {}
-
-        def live(entry):
-            # Primero el elo más por debajo de su parte y, dentro de él, el tipo de jugador (nuevos, partidas nuevas,
-            # historial a medias). Antes el tipo iba primero: sin jugadores nuevos de Oro o Platino esperando, cualquier
-            # jugador nuevo de Maestro iba antes que seguir con uno de Oro, y Oro y Platino se quedaban a 0.
-            key, row = entry
-            if recent is None or key[0] == 3:
-                return (float("inf"), *key) if recent is not None else key
-            tier = row["tier"] or ""
-            return (-need.get(tier, float("-inf")), *key)  # el elo al que más partidas le faltan
-
         self._pick = None
         if recent is not None:
             self._note_queue(shares, recent)
+        return self._pop_planned(recent, need)
+
+    def _refresh_plan(self) -> None:
+        """Rehace la cola si ha caducado (``OTP_PLAN_TTL_S``; vacía, cada ``OTP_PLAN_EMPTY_S``)."""
+        now_t = time.time()
+        if now_t - self._plan_at >= OTP_PLAN_TTL_S or (not self._plan and now_t - self._plan_at >= OTP_PLAN_EMPTY_S):
+            with self.timed("cola"):
+                self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
+            self._plan_at = now_t
+
+    @staticmethod
+    def _live_key(entry, recent, need: dict) -> tuple:
+        """Orden de una entrada de la cola con el reparto por elo de ahora (``recent`` ``None``: el de la cola)."""
+        # Primero el elo más por debajo de su parte y, dentro de él, el tipo de jugador (nuevos, partidas nuevas,
+        # historial a medias). Antes el tipo iba primero: sin jugadores nuevos de Oro o Platino esperando, cualquier
+        # jugador nuevo de Maestro iba antes que seguir con uno de Oro, y Oro y Platino se quedaban a 0.
+        key, row = entry
+        if recent is None:
+            return key
+        if key[0] == 3:
+            return (float("inf"), *key)
+        tier = row["tier"] or ""
+        return (-need.get(tier, float("-inf")), *key)  # el elo al que más partidas le faltan
+
+    def _pop_planned(self, recent, need: dict):
+        """Saca de la cola al siguiente jugador (o ``None``): ni visitado ya con esta cola ni descansando por fallos."""
         while self._plan:
-            best = min(range(len(self._plan)), key=lambda i: live(self._plan[i]))
+            best = min(range(len(self._plan)), key=lambda i: self._live_key(self._plan[i], recent, need))
             key, row = self._plan.pop(best)
             if self._visited.get(row["puuid"], 0.0) >= self._plan_rows_at:
                 continue  # ya visitado con esta cola: su progreso ha cambiado, vuelve en la siguiente
@@ -1325,98 +1451,111 @@ class RegionWorker(threading.Thread):
         rows = [(row, top) for row, top in rows if row["platform"] in self.platforms]
         # Buscando por partidas no: su análisis va con la partida entera, solo si encaja con una ventana.
         lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details and not cfg.patterns else set()
-        cap = self._games_cap()
-        # Cobertura: OTPs ya visitados por campeón y por (campeón, elo), y partidas por campeón.
-        info = []
-        top_of = {row["puuid"]: top for row, top in rows}
-        champ_otps: dict[int, int] = {}
-        champ_tier: dict[tuple[int, str], int] = {}
-        champ_games: dict[int, int] = {}
-        found_by_tier: dict[tuple[str, str], int] = {}
-        waiting_by_tier: dict[tuple[str, str], int] = {}  # encontrados aún sin visitar
-        # Partidas ya recogidas por (línea, elo): con líneas enteras o «cualquiera que lo juegue», lo primero es tener
-        # muchas partidas de cada elo en cada línea (para comparar elos), no un jugador de cada uno de 150 campeones.
-        lane_tier_games: dict[tuple[str, str], int] = {}
-        by_elo = bool(cfg.roles) or cfg.focus == "games"
+        ctx = _PlanContext(now=now, recrawl=recrawl, cap=self._games_cap(), lacking=lacking, by_elo=bool(cfg.roles) or cfg.focus == "games")
+        self._plan_coverage(ctx, rows, (list_key, depth_start, config_key))
+        self.found_by_tier = ctx.found_by_tier  # la búsqueda en el ranking reparte por elos con esto
+        self.waiting_by_tier = ctx.waiting_by_tier  # y no busca más en un elo con jugadores de sobra esperando visita
+        plan = []
+        complete = 0
+        ctx.need = self._plan_need(ctx.lane_tier_games, ctx.by_elo)
+        for row, champ, state in ctx.info:
+            if state in ("done", "share"):
+                complete += 1
+            key = self._plan_key(ctx, row, champ, state)
+            if key is not None:
+                plan.append((key, row))
+        self.state.update(otps_known=len(ctx.info), otps_complete=complete)
+        plan.sort(key=lambda kr: kr[0])
+        return plan
 
-        def lane_of(champ: int) -> str:
-            lanes = cfg.roles_for(champ) or []
-            return lanes[0] if len(lanes) == 1 else "ANY"
+    def _lane_of(self, champ: int) -> str:
+        """Línea de un campeón para el reparto por (línea, elo): la suya si solo cuenta en una; si no, «ANY»."""
+        lanes = self.config.roles_for(champ) or []
+        return lanes[0] if len(lanes) == 1 else "ANY"
 
+    def _plan_coverage(self, ctx: _PlanContext, rows: list, history: tuple[str, int, str]) -> None:
+        """Estado del historial de cada jugador de la cola y lo ya recogido: por campeón, (campeón, elo) y (línea, elo)."""
+        cfg = self.config
+        list_key, depth_start, config_key = history
+        ctx.top_of = {row["puuid"]: top for row, top in rows}
         for row, top in rows:
             champ = (otp_champs(cfg, top, sourced_champs(row)) or [0])[0]
             state = otp_history_state(row, list_key, depth_start, config_key)
             tier = row["tier"] or ""
-            info.append((row, champ, state))
-            found_by_tier[(row["platform"], tier)] = found_by_tier.get((row["platform"], tier), 0) + 1
+            ctx.info.append((row, champ, state))
+            ctx.found_by_tier[(row["platform"], tier)] = ctx.found_by_tier.get((row["platform"], tier), 0) + 1
             if state == "queued" and row["anchor"] is None:
-                waiting_by_tier[(row["platform"], tier)] = waiting_by_tier.get((row["platform"], tier), 0) + 1
+                ctx.waiting_by_tier[(row["platform"], tier)] = ctx.waiting_by_tier.get((row["platform"], tier), 0) + 1
             # Lo ya recogido cuenta siempre, también si cambió la búsqueda (otros campeones o líneas: el jugador vuelve a
             # «queued» para recorrer su historial otra vez). Antes solo contaban los no «queued»: al cambiar la búsqueda
             # todas las líneas y elos quedaban a 0 partidas, el desempate era «el elo más alto primero» y miles de
             # jugadores de Diamante+ ya visitados pasaban por delante de los de Hierro a Esmeralda recién encontrados.
             if state != "queued" or row["anchor"] is not None:
-                champ_otps[champ] = champ_otps.get(champ, 0) + 1
-                champ_tier[(champ, tier)] = champ_tier.get((champ, tier), 0) + 1
-                champ_games[champ] = champ_games.get(champ, 0) + int(row["hits"] or 0)
-                key_lt = (lane_of(champ), tier)
-                lane_tier_games[key_lt] = lane_tier_games.get(key_lt, 0) + int(row["hits"] or 0)
-        self.found_by_tier = found_by_tier  # la búsqueda en el ranking reparte por elos con esto
-        self.waiting_by_tier = waiting_by_tier  # y no busca más en un elo con jugadores de sobra esperando visita
-        plan = []
-        complete = 0
+                ctx.champ_otps[champ] = ctx.champ_otps.get(champ, 0) + 1
+                ctx.champ_tier[(champ, tier)] = ctx.champ_tier.get((champ, tier), 0) + 1
+                ctx.champ_games[champ] = ctx.champ_games.get(champ, 0) + int(row["hits"] or 0)
+                key_lt = (self._lane_of(champ), tier)
+                ctx.lane_tier_games[key_lt] = ctx.lane_tier_games.get(key_lt, 0) + int(row["hits"] or 0)
+
+    def _plan_need(self, lane_tier_games: dict, by_elo: bool) -> dict[str, float]:
+        """Reparto por elo de la cola: la parte de cada elo (se apunta para el embudo) y lo que le falta a cada uno."""
+        cfg = self.config
         # Turno por elo: antes iba siempre primero el elo con menos partidas en total y las 4 regiones se juntaban en los
         # 2-3 elos que iban por detrás. Ahora primero el elo menos visitado últimamente; a igualdad, el que va por detrás.
         recent = self.crawler.recent_tiers() if hasattr(self.crawler, "recent_tiers") else Counter()
         # Partidas analizadas por elo (las que ves en «Datos y API»); sin ellas, lo recogido de los jugadores de la cola.
         tier_totals = self.crawler.analyzed_by_tier() if hasattr(self.crawler, "analyzed_by_tier") else {}
         if not tier_totals:
-            for (_lane, t), n in lane_tier_games.items():
+            for (_, t), n in lane_tier_games.items():
                 tier_totals[t] = tier_totals.get(t, 0) + n
         shares = tier_shares(tier_totals, list(cfg.tiers or tier_totals))
         self._plan_shares = shares if by_elo else {}
         if hasattr(self.crawler, "note_tier_shares"):
             self.crawler.note_tier_shares(self.region, shares, tier_totals)
+        return tier_need(recent, shares)
 
-        need = tier_need(recent, shares)
+    def _plan_key(self, ctx: _PlanContext, row, champ: int, state: str) -> tuple | None:
+        """Prioridad de un jugador en la cola (menos = antes) o ``None`` si no tiene nada pendiente."""
+        tier = row["tier"] or ""
+        rank = (-TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
+        if state == "queued":
+            return self._queued_key(ctx, row, champ, tier, rank)
+        if row["fwd_more"] or (row["last_crawled_at"] or 0) < ctx.now - ctx.recrawl:
+            return (1, row["last_crawled_at"] or 0, 0, 0, *rank)
+        if state == "loading" and not (ctx.cap and cap_count(self.config, row["hits"], row["seen"]) >= ctx.cap):
+            return self._history_key(ctx, row, champ, tier, rank)
+        if row["id"] in ctx.lacking:
+            return (3, ctx.champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
+        return None
 
-        def behind(tier: str) -> float:
-            """Menos = más por debajo de su parte (va antes): lo que le falta, en negativo."""
-            return -need.get(tier, float("-inf"))
+    def _queued_key(self, ctx: _PlanContext, row, champ: int, tier: str, rank: tuple) -> tuple:
+        """Clave de un jugador por visitar: recién encontrado o de vuelta en la cola por un cambio de búsqueda."""
+        cfg = self.config
+        in_tier, in_champ = ctx.champ_tier.get((champ, tier), 0), ctx.champ_otps.get(champ, 0)
+        level = self._variety_level(in_tier, in_champ)
+        likely = 0 if cfg.focus != "otp" else likely_specialist(cfg, ctx.top_of[row["puuid"]], row)
+        if ctx.by_elo:
+            # Primero la línea y el elo con menos partidas; la variedad de campeones, después. Los nunca visitados
+            # antes que los que vuelven a la cola por un cambio de búsqueda (de esos ya hay partidas).
+            # A igualdad (muchas líneas y elos a 0 partidas), el elo más bajo: de los altos hay mucho más guardado
+            # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
+            again = int(row["anchor"] is not None)
+            low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
+            return (0, ctx.behind(tier), ctx.lane_tier_games.get((self._lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
+        # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
+        return (0, level, likely, in_tier, in_champ, *rank)
 
-        for row, champ, state in info:
-            if state in ("done", "share"):
-                complete += 1
-            tier = row["tier"] or ""
-            rank = (-TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
-            if state == "queued":
-                in_tier, in_champ = champ_tier.get((champ, tier), 0), champ_otps.get(champ, 0)
-                level = 0 if not in_champ else 1 if in_tier < ELO_MIN_OTPS else 2
-                likely = 0 if cfg.focus != "otp" else likely_specialist(cfg, top_of[row["puuid"]], row)
-                if by_elo:
-                    # Primero la línea y el elo con menos partidas; la variedad de campeones, después. Los nunca visitados
-                    # antes que los que vuelven a la cola por un cambio de búsqueda (de esos ya hay partidas).
-                    # A igualdad (muchas líneas y elos a 0 partidas), el elo más bajo: de los altos hay mucho más guardado
-                    # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
-                    again = int(row["anchor"] is not None)
-                    low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
-                    key = (0, behind(tier), lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
-                else:
-                    # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
-                    key = (0, level, likely, in_tier, in_champ, *rank)
-            elif row["fwd_more"] or (row["last_crawled_at"] or 0) < now - recrawl:
-                key = (1, row["last_crawled_at"] or 0, 0, 0, *rank)
-            elif state == "loading" and not (cap and cap_count(cfg, row["hits"], row["seen"]) >= cap):
-                first = lane_tier_games.get((lane_of(champ), tier), 0) if by_elo else champ_games.get(champ, 0)
-                key = (2, behind(tier) if by_elo else 0, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
-            elif row["id"] in lacking:
-                key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
-            else:
-                continue
-            plan.append((key, row))
-        self.state.update(otps_known=len(info), otps_complete=complete)
-        plan.sort(key=lambda kr: kr[0])
-        return plan
+    @staticmethod
+    def _variety_level(in_tier: int, in_champ: int) -> int:
+        """Variedad de OTPs: 0 si su campeón aún no tiene ninguno, 1 si tiene menos de ``ELO_MIN_OTPS`` en su elo y 2 si no."""
+        if not in_champ:
+            return 0
+        return 1 if in_tier < ELO_MIN_OTPS else 2
+
+    def _history_key(self, ctx: _PlanContext, row, champ: int, tier: str, rank: tuple) -> tuple:
+        """Clave de un historial a medias: primero el campeón (o la línea y el elo) con menos partidas y el OTP que menos lleva."""
+        first = ctx.lane_tier_games.get((self._lane_of(champ), tier), 0) if ctx.by_elo else ctx.champ_games.get(champ, 0)
+        return (2, ctx.behind(tier) if ctx.by_elo else 0, first, int(row["hits"] or 0), row["back_offset"] or 0, *rank)
 
     def tier_order(self, platform: str, tiers: list[str]) -> list[str]:
         """Elos por revisar en el ranking: primero el que tiene menos OTPs encontrados (a igualdad, el más alto), para
@@ -1525,13 +1664,26 @@ class RegionWorker(threading.Thread):
             return False  # ya descargada, esperando su análisis
         if svc.db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (match_id, player["puuid"])):
             return False
+        fetched = self._detail_downloads(match_id, payload)
+        if fetched is None:
+            return False
+        payload, timeline = fetched
+        info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
+        elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
+        if not SAVE_IN_BACKGROUND:
+            return self._save_detail(match_id, payload, timeline, player["puuid"], elo)
+        return self._queue_detail(match_id, payload, timeline, player["puuid"], elo)
+
+    def _detail_downloads(self, match_id: str, payload: dict | None) -> tuple[dict, dict | None] | None:
+        """(partida, timeline o ``None``), de la precarga o de Riot; ``None`` si Riot no tiene la partida."""
+        svc = self.svc
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         try:
             with self.timed("riot"):
                 if payload is None:
                     payload = svc.riot.match(match_id, **kw)
                     if payload is None:
-                        return False
+                        return None
                 timeline = self._prefetch.take_timeline(match_id) or svc.riot.timeline(match_id, **kw)
         except RiotKeyError:
             raise
@@ -1540,25 +1692,30 @@ class RegionWorker(threading.Thread):
                 raise  # red o Riot caído: se reintenta en otra visita
             timeline = None  # Riot no tiene el timeline: se guarda lo que da la partida
             if payload is None:
-                return False
-        info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
-        elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
-        if not SAVE_IN_BACKGROUND:
-            try:
-                # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
-                with self.timed("analizar_guardar"):
-                    saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
-            except Exception:
-                log.exception("No se pudo analizar la partida %s del jugador", match_id)
-                return False
-            if saved:
-                self.state["details"] += 1
-            return saved
+                return None
+        return payload, timeline
+
+    def _save_detail(self, match_id: str, payload: dict, timeline: dict | None, puuid: str, elo: dict) -> bool:
+        """Analiza y guarda el micro/macro de esa partida en el hilo de la región. ``True`` si se guardó."""
+        svc = self.svc
+        try:
+            # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
+            with self.timed("analizar_guardar"):
+                saved = otp_details.save(svc.db, svc, payload, timeline, puuid, elo)
+        except Exception:
+            log.exception("No se pudo analizar la partida %s del jugador", match_id)
+            return False
+        if saved:
+            self.state["details"] += 1
+        return saved
+
+    def _queue_detail(self, match_id: str, payload: dict, timeline: dict | None, puuid: str, elo: dict) -> bool:
+        """Deja la partida al hilo que analiza (``SAVE_IN_BACKGROUND``), esperando si va por detrás; ``False`` si se para."""
         if self._saver is None or not self._saver.is_alive():
             self._saver = threading.Thread(target=self._save_loop, name=f"crawler-save-{self.region}", daemon=True)
             self._saver.start()
-        item = (match_id, payload, timeline, player["puuid"], elo)
-        self._saving.add((match_id, player["puuid"]))
+        item = (match_id, payload, timeline, puuid, elo)
+        self._saving.add((match_id, puuid))
         with self.timed("esperando_analisis"):  # si el análisis va por detrás, se espera (no se acumulan en memoria)
             while True:
                 try:
@@ -1566,7 +1723,7 @@ class RegionWorker(threading.Thread):
                     break
                 except queue.Full:
                     if self.stop_event.is_set():
-                        self._saving.discard((match_id, player["puuid"]))
+                        self._saving.discard((match_id, puuid))
                         return False
         return True
 
@@ -1607,234 +1764,304 @@ class RegionWorker(threading.Thread):
 
     def _visit_otp(self, row) -> None:
         """Una visita a un OTP: sus partidas nuevas y, con lo que quede de presupuesto, su historial hacia atrás."""
-        svc, cfg, db = self.svc, self.config, self.svc.db
+        v = self._start_visit(row)
+        stored_before = self.state["stored"]
+        if v.fresh:
+            self.state["players"] += 1
+            self._save_progress(v)
+            # Su nombre llega con su primera partida (``store_match`` guarda el Riot ID de los 10): pedirlo aparte gastaba
+            # una llamada de account-v1 del mismo cupo regional que las partidas por cada jugador nuevo.
+        try:
+            self._visit_new_games(v)
+            self._visit_history(v)
+            self._check_specialist(v)
+            self._backfill_details(v)
+            self._otp_fails.pop(v.puuid, None)
+        except RiotAPIError as exc:
+            if not isinstance(exc, RiotKeyError):
+                fails = self._otp_fails.get(v.puuid, (0, 0.0))[0] + 1
+                self._otp_fails[v.puuid] = (fails, time.time() + OTP_FAIL_COOLDOWN_S if fails >= 3 else 0.0)
+            raise
+        finally:
+            self._prefetch.drop()
+            self._save_progress(v, final=True)
+        self._end_visit(v, self.state["stored"] - stored_before)
+
+    def _start_visit(self, row) -> _OtpVisit:
+        """Empieza una visita: la apunta como visitada y carga su progreso (de cero si es nuevo o cambió la búsqueda)."""
+        cfg = self.config
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         platform, puuid = row["platform"], row["puuid"]
         self._visited[puuid] = time.time()
         player = {"id": row["id"], "puuid": puuid, "tier": row["tier"]}
-        queue = None if cfg.include_flex else QUEUE_SOLO
+        queue_id = None if cfg.include_flex else QUEUE_SOLO
         list_key, config_key = self._list_key(), otp_config_key(cfg)
         depth_start, season_major = self._depth()
         now = now_s()
         fresh = row["anchor"] is None or row["list_key"] != list_key
-        prog = {
-            # El ancla va unas horas atrás: lo posterior (la partida en curso o aún sin publicar) entra por «nuevas».
-            "anchor": now - OTP_ANCHOR_LAG_S if fresh else int(row["anchor"]),
-            "offset": 0 if fresh else int(row["back_offset"] or 0),
-            "done_at": None if fresh else row["back_done_at"],
-            "done_start": None if fresh else row["back_done_start"],
-            "reason": None if fresh else row["back_done_reason"],
-            "fwd_more": 0 if fresh else int(row["fwd_more"] or 0),
-            "fwd_newest": 0 if fresh else int(row["fwd_newest"] or 0),
-            "low_pages": 0 if fresh else int(row["low_pages"] or 0),
-            "config_key": None if fresh else row["config_key"],
-            "seen": int(row["seen"] or 0),
-            "hits": int(row["hits"] or 0),
-        }
+        prog = self._visit_progress(row, fresh, now)
         newest = int(row["newest_match_at"] or 0)
         if prog["done_at"] and otp_history_state(row, list_key, depth_start, config_key) == "loading":
             # Se pide más historial que la última vez, o cambiaron los campeones o el filtro: se sigue bajando.
             prog.update(done_at=None, done_start=None, reason=None, low_pages=0)
-        budget = OTP_VISIT_MATCHES
-        stored_before = self.state["stored"]
-        ingested = 0
+        return _OtpVisit(
+            row=row, platform=platform, puuid=puuid, player=player, queue_id=queue_id, kw=kw, list_key=list_key,
+            config_key=config_key, depth_start=depth_start, season_major=season_major, now=now, fresh=fresh, prog=prog,
+            newest=newest, budget=OTP_VISIT_MATCHES,
+        )
 
-        def save(final: bool = False) -> None:
-            # Al empezar, cada 25 partidas y al terminar (aunque falle o se pare a mitad): la siguiente visita sigue
-            # justo donde se quedó y la web ve el avance.
-            with db.write() as conn:
-                conn.execute(
-                    "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, "
-                    "back_done_reason, fwd_more, fwd_newest, low_pages, config_key, seen, hits, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(puuid) DO UPDATE SET "
-                    "list_key = excluded.list_key, anchor = excluded.anchor, back_offset = excluded.back_offset, "
-                    "back_done_at = excluded.back_done_at, back_done_start = excluded.back_done_start, "
-                    "back_done_reason = excluded.back_done_reason, fwd_more = excluded.fwd_more, "
-                    "fwd_newest = excluded.fwd_newest, low_pages = excluded.low_pages, config_key = excluded.config_key, "
-                    "seen = excluded.seen, hits = excluded.hits, updated_at = excluded.updated_at",
-                    (
-                        puuid, list_key, prog["anchor"], prog["offset"], prog["done_at"], prog["done_start"],
-                        prog["reason"], prog["fwd_more"], prog["fwd_newest"] or None, prog["low_pages"],
-                        prog["config_key"], prog["seen"], prog["hits"], now_s(),
-                    ),
-                )
-                conn.execute(
-                    "UPDATE players SET newest_match_at = MAX(COALESCE(newest_match_at, 0), ?)"
-                    + (", last_crawled_at = ?" if final else "")
-                    + " WHERE id = ?",
-                    (newest, now_s(), row["id"]) if final else (newest, row["id"]),
-                )
-
-        def ingest(match_id: str) -> Ingested:
-            nonlocal budget, ingested, newest
-            with self.timed("partidas"):  # todo lo de cada partida (lo no desglosado: base de datos, progreso…)
-                got = self._ingest(match_id, player)
-            budget -= 1 + got.detailed
-            ingested += 1
-            newest = max(newest, got.game_start)
-            prog["seen"] += got.valid
-            prog["hits"] += got.valid and got.mine_target
-            if ingested % 25 == 0:
-                save()
-            return got
-
+    @staticmethod
+    def _visit_progress(row, fresh: bool, now: int) -> dict:
+        """Progreso del historial al empezar la visita: el guardado o, si es nuevo o cambió la búsqueda, uno de cero."""
         if fresh:
-            self.state["players"] += 1
-            save()
-            # Su nombre llega con su primera partida (``store_match`` guarda el Riot ID de los 10): pedirlo aparte gastaba
-            # una llamada de account-v1 del mismo cupo regional que las partidas por cada jugador nuevo.
-        try:
-            # 1) Partidas nuevas (posteriores al ancla), de la más antigua a la más reciente, con su propio cursor:
-            #    si se corta a mitad, la siguiente visita sigue desde la última recorrida.
-            after = max(prog["anchor"], prog["fwd_newest"] // 1000)
-            prog["fwd_more"] = 1  # hasta terminar esta pasada
-            ids: list[str] = []
-            for page in range(OTP_FORWARD_PAGES):
-                chunk = self._list_ids(
-                    platform, puuid, queue=queue, ranked_only=cfg.include_flex, start_time=after,
-                    start=page * OTP_PAGE, count=OTP_PAGE, **kw,
-                )
-                ids.extend(chunk)
-                if len(chunk) < OTP_PAGE:
+            return {
+                # El ancla va unas horas atrás: lo posterior (la partida en curso o aún sin publicar) entra por «nuevas».
+                "anchor": now - OTP_ANCHOR_LAG_S, "offset": 0, "done_at": None, "done_start": None, "reason": None,
+                "fwd_more": 0, "fwd_newest": 0, "low_pages": 0, "config_key": None,
+                "seen": int(row["seen"] or 0), "hits": int(row["hits"] or 0),
+            }
+        return {
+            "anchor": int(row["anchor"]), "offset": int(row["back_offset"] or 0), "done_at": row["back_done_at"],
+            "done_start": row["back_done_start"], "reason": row["back_done_reason"], "fwd_more": int(row["fwd_more"] or 0),
+            "fwd_newest": int(row["fwd_newest"] or 0), "low_pages": int(row["low_pages"] or 0), "config_key": row["config_key"],
+            "seen": int(row["seen"] or 0), "hits": int(row["hits"] or 0),
+        }
+
+    def _save_progress(self, v: _OtpVisit, final: bool = False) -> None:
+        """Guarda el progreso de la visita y su partida más reciente (al terminar, también cuándo se visitó)."""
+        # Al empezar, cada 25 partidas y al terminar (aunque falle o se pare a mitad): la siguiente visita sigue
+        # justo donde se quedó y la web ve el avance.
+        prog = v.prog
+        with self.svc.db.write() as conn:
+            conn.execute(
+                "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, "
+                "back_done_reason, fwd_more, fwd_newest, low_pages, config_key, seen, hits, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(puuid) DO UPDATE SET "
+                "list_key = excluded.list_key, anchor = excluded.anchor, back_offset = excluded.back_offset, "
+                "back_done_at = excluded.back_done_at, back_done_start = excluded.back_done_start, "
+                "back_done_reason = excluded.back_done_reason, fwd_more = excluded.fwd_more, "
+                "fwd_newest = excluded.fwd_newest, low_pages = excluded.low_pages, config_key = excluded.config_key, "
+                "seen = excluded.seen, hits = excluded.hits, updated_at = excluded.updated_at",
+                (
+                    v.puuid, v.list_key, prog["anchor"], prog["offset"], prog["done_at"], prog["done_start"],
+                    prog["reason"], prog["fwd_more"], prog["fwd_newest"] or None, prog["low_pages"],
+                    prog["config_key"], prog["seen"], prog["hits"], now_s(),
+                ),
+            )
+            conn.execute(
+                "UPDATE players SET newest_match_at = MAX(COALESCE(newest_match_at, 0), ?)"
+                + (", last_crawled_at = ?" if final else "")
+                + " WHERE id = ?",
+                (v.newest, now_s(), v.row["id"]) if final else (v.newest, v.row["id"]),
+            )
+
+    def _visit_ingest(self, v: _OtpVisit, match_id: str) -> Ingested:
+        """Baja y guarda una partida de la visita y apunta lo que gasta del presupuesto y lo que dice de lo que juega."""
+        with self.timed("partidas"):  # cada partida entera (lo no desglosado: base de datos, progreso…)
+            got = self._ingest(match_id, v.player)
+        v.budget -= 1 + got.detailed
+        v.ingested += 1
+        v.newest = max(v.newest, got.game_start)
+        v.prog["seen"] += got.valid
+        v.prog["hits"] += got.valid and got.mine_target
+        if v.ingested % 25 == 0:
+            self._save_progress(v)
+        return got
+
+    def _hint_ahead(self, v: _OtpVisit, match_id: str, ahead_of: dict) -> None:
+        """Precarga esa partida y las siguientes que caben en el presupuesto de la visita."""
+        self._prefetch.hint(match_id, v.puuid)
+        for nxt in ahead_of.get(match_id, [])[: max(0, v.budget - 1)]:
+            self._prefetch.hint(nxt, v.puuid)  # las siguientes, mientras se guarda y analiza esta
+
+    def _visit_new_games(self, v: _OtpVisit) -> None:
+        """1) Partidas nuevas (posteriores al ancla), de la más antigua a la más reciente, con su propio cursor."""
+        # Si se corta a mitad, la siguiente visita sigue desde la última recorrida.
+        prog = v.prog
+        after = max(prog["anchor"], prog["fwd_newest"] // 1000)
+        prog["fwd_more"] = 1  # hasta terminar esta pasada
+        ids = self._new_game_ids(v, after)
+        self.state["ids_seen"] += len(ids)
+        known = self._known_for(v.puuid, ids)
+        starts = self._stored_starts([m for m in ids if m in known])
+        finished = True
+        todo = [m for m in reversed(ids) if m not in known]
+        ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
+        for match_id in reversed(ids):
+            if self.stop_event.is_set():
+                finished = False
+                break
+            if match_id in known:
+                prog["fwd_newest"] = max(prog["fwd_newest"], starts.get(match_id, 0))
+                continue
+            if v.budget <= 0 or not self.config.share_ok(prog["seen"], prog["hits"]):
+                finished = False
+                break
+            self._hint_ahead(v, match_id, ahead_of)
+            got = self._visit_ingest(v, match_id)
+            prog["fwd_newest"] = max(prog["fwd_newest"], got.game_start)
+        if finished:
+            prog["fwd_more"] = 0
+
+    def _new_game_ids(self, v: _OtpVisit, after: int) -> list[str]:
+        """Ids de sus partidas nuevas (posteriores a ``after``), sin repetir; con más de 1.000, ninguno (se reancla)."""
+        ids: list[str] = []
+        for page in range(OTP_FORWARD_PAGES):
+            chunk = self._list_ids(
+                v.platform, v.puuid, queue=v.queue_id, ranked_only=self.config.include_flex, start_time=after,
+                start=page * OTP_PAGE, count=OTP_PAGE, **v.kw,
+            )
+            ids.extend(chunk)
+            if len(chunk) < OTP_PAGE:
+                break
+        else:
+            # Más de 1.000 partidas nuevas (mucho tiempo sin abrir la app): se reancla el historial para no
+            # dejar un hueco; lo ya guardado no se vuelve a descargar.
+            v.prog.update(anchor=v.now - OTP_ANCHOR_LAG_S, offset=0, done_at=None, done_start=None, reason=None, low_pages=0, fwd_newest=0)
+            ids = []
+        return list(dict.fromkeys(ids))
+
+    def _visit_history(self, v: _OtpVisit) -> None:
+        """2) Historial hacia atrás con ``endTime`` fijo (el ancla), página a página."""
+        # La lista no se mueve aunque juegue más partidas, así que ``start`` (cuántas se llevan recorridas) siempre
+        # apunta al mismo sitio.
+        cfg, prog = self.config, v.prog
+        pages = 0
+        cap = self._games_cap()
+        while (
+            prog["done_at"] is None and v.budget > 0 and pages < OTP_BACK_PAGES and not self.stop_event.is_set()
+            and not self._at_cap(cap, prog)  # variedad: el resto, al terminar la búsqueda
+            and cfg.share_ok(prog["seen"], prog["hits"])  # no es especialista: no se gastan más llamadas en él
+        ):
+            pages += 1
+            if self._history_page(v, cap):
+                break  # se acabó el presupuesto de la visita a mitad de página
+
+    def _at_cap(self, cap: int, prog: dict) -> bool:
+        """¿Llegó al tope de partidas por jugador mientras se buscan más OTPs (``cap``; 0 = sin tope)?"""
+        return bool(cap and cap_count(self.config, prog["hits"], prog["seen"]) >= cap)
+
+    def _history_page(self, v: _OtpVisit, cap: int) -> bool:
+        """Una página del historial: la pide, la recorre y la cierra. ``True`` si se cortó a mitad (no se piden más)."""
+        prog = v.prog
+        page = _HistoryPage(base=prog["offset"])
+        ids = self._list_ids(
+            v.platform, v.puuid, queue=v.queue_id, ranked_only=self.config.include_flex, start_time=v.depth_start or None,
+            end_time=prog["anchor"], start=page.base, count=OTP_PAGE, **v.kw,
+        )
+        self.state["otp_pages"] += 1
+        self.state["ids_seen"] += len(ids)
+        self._walk_history_page(v, ids, page, cap)
+        self._history_page_end(v, ids, page)
+        return page.consumed < len(ids)
+
+    def _walk_history_page(self, v: _OtpVisit, ids: list[str], page: _HistoryPage, cap: int) -> None:
+        """Recorre la página: baja las partidas que no se conocen y mueve el cursor (``offset``) hasta acabarla o cortarla."""
+        cfg, prog = self.config, v.prog
+        known = self._known_for(v.puuid, ids)
+        todo = [m for m in ids if m not in known]
+        ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
+        for match_id in ids:
+            if self.stop_event.is_set():
+                break
+            if match_id not in known:
+                if v.budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
                     break
-            else:
-                # Más de 1.000 partidas nuevas (mucho tiempo sin abrir la app): se reancla el historial para no
-                # dejar un hueco; lo ya guardado no se vuelve a descargar.
-                prog.update(anchor=now - OTP_ANCHOR_LAG_S, offset=0, done_at=None, done_start=None, reason=None, low_pages=0, fwd_newest=0)
-                ids = []
-            ids = list(dict.fromkeys(ids))
-            self.state["ids_seen"] += len(ids)
-            known = self._known_for(puuid, ids)
-            starts = self._stored_starts([m for m in ids if m in known])
-            finished = True
-            todo = [m for m in reversed(ids) if m not in known]
-            ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
-            for match_id in reversed(ids):
+                self._history_ingest(v, match_id, ahead_of, page)
+            page.consumed += 1
+            prog["offset"] = page.base + page.consumed
+            if page.old_season or self._at_cap(cap, prog):
+                break
+
+    def _history_ingest(self, v: _OtpVisit, match_id: str, ahead_of: dict, page: _HistoryPage) -> None:
+        """Baja una partida del historial y la suma a su página (revisadas, con esos campeones, temporada anterior)."""
+        self._hint_ahead(v, match_id, ahead_of)
+        got = self._visit_ingest(v, match_id)
+        page.seen += got.valid
+        page.hits += got.valid and got.mine_target
+        if v.season_major and got.patch_major and got.patch_major < v.season_major:
+            page.old_season = True  # primera partida de la temporada anterior: hasta aquí
+
+    def _history_page_end(self, v: _OtpVisit, ids: list[str], page: _HistoryPage) -> None:
+        """Tras una página: historial completo o, si más atrás casi no juega esos campeones, parado por «ya no lo jugaba»."""
+        cfg, prog = self.config, v.prog
+        if page.old_season or (page.consumed == len(ids) and len(ids) < OTP_PAGE):
+            prog.update(done_at=now_s(), done_start=v.depth_start, reason="end")
+        elif cfg.only_target_games and page.seen >= OTP_LOW_SHARE_MIN:
+            low = page.hits <= OTP_LOW_SHARE * page.seen
+            prog["low_pages"] = prog["low_pages"] + 1 if low else 0
+            # Sus partidas más recientes nunca paran el historial (puede estar de descanso del campeón);
+            # más atrás, dos páginas seguidas casi sin esos campeones sí: bajar más sería gastar llamadas en
+            # partidas que se descartan.
+            if prog["low_pages"] >= OTP_LOW_PAGES and page.base >= OTP_LOW_SKIP:
+                prog.update(done_at=now_s(), done_start=v.depth_start, reason="share", config_key=v.config_key)
+
+    def _check_specialist(self, v: _OtpVisit) -> None:
+        """Si con lo revisado no juega esos campeones lo bastante, su historial se para ahí (``share``)."""
+        cfg, prog = self.config, v.prog
+        if not cfg.share_ok(prog["seen"], prog["hits"]):
+            prog.update(done_at=now_s(), done_start=v.depth_start, reason="share", config_key=v.config_key)
+            log.info(
+                "%s no es especialista: %d de %d partidas revisadas con esos campeones (pides %d %%).",
+                v.row["game_name"] or v.puuid[:8], prog["hits"], prog["seen"], round(100 * cfg.min_share),
+            )
+
+    def _backfill_details(self, v: _OtpVisit) -> None:
+        """3) Micro/macro de sus partidas ya guardadas que aún no lo tienen (de antes de activarlo o que fallaron)."""
+        cfg = self.config
+        if cfg.save_details and not cfg.patterns and v.budget > 0 and not self.stop_event.is_set():
+            cond, params = target_sql(cfg, "p")
+            for match_id in otp_details.missing(self.svc.db, v.puuid, v.row["id"], cond, params, min(v.budget, OTP_DETAIL_BACKFILL)):
                 if self.stop_event.is_set():
-                    finished = False
                     break
-                if match_id in known:
-                    prog["fwd_newest"] = max(prog["fwd_newest"], starts.get(match_id, 0))
-                    continue
-                if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
-                    finished = False
-                    break
-                self._prefetch.hint(match_id, puuid)
-                for nxt in ahead_of.get(match_id, [])[: max(0, budget - 1)]:
-                    self._prefetch.hint(nxt, puuid)  # las siguientes, mientras se guarda y analiza esta
-                got = ingest(match_id)
-                prog["fwd_newest"] = max(prog["fwd_newest"], got.game_start)
-            if finished:
-                prog["fwd_more"] = 0
-            # 2) Historial hacia atrás con ``endTime`` fijo (el ancla): la lista no se mueve aunque juegue más
-            #    partidas, así que ``start`` (cuántas se llevan recorridas) siempre apunta al mismo sitio.
-            pages = 0
-            cap = self._games_cap()
-            while (
-                prog["done_at"] is None and budget > 0 and pages < OTP_BACK_PAGES and not self.stop_event.is_set()
-                and not (cap and cap_count(cfg, prog["hits"], prog["seen"]) >= cap)  # variedad: el resto, al terminar la búsqueda
-                and cfg.share_ok(prog["seen"], prog["hits"])  # no es especialista: no se gastan más llamadas en él
-            ):
-                base = prog["offset"]
-                ids = self._list_ids(
-                    platform, puuid, queue=queue, ranked_only=cfg.include_flex, start_time=depth_start or None,
-                    end_time=prog["anchor"], start=base, count=OTP_PAGE, **kw,
-                )
-                pages += 1
-                self.state["otp_pages"] += 1
-                self.state["ids_seen"] += len(ids)
-                known = self._known_for(puuid, ids)
-                consumed = page_seen = page_hits = 0
-                old_season = False
-                todo = [m for m in ids if m not in known]
-                ahead_of = {m: todo[i + 1 : i + 1 + PREFETCH_AHEAD] for i, m in enumerate(todo)}
-                for match_id in ids:
-                    if self.stop_event.is_set():
-                        break
-                    if match_id not in known:
-                        if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
-                            break
-                        self._prefetch.hint(match_id, puuid)
-                        for nxt in ahead_of.get(match_id, [])[: max(0, budget - 1)]:
-                            self._prefetch.hint(nxt, puuid)
-                        got = ingest(match_id)
-                        page_seen += got.valid
-                        page_hits += got.valid and got.mine_target
-                        if season_major and got.patch_major and got.patch_major < season_major:
-                            old_season = True  # primera partida de la temporada anterior: hasta aquí
-                    consumed += 1
-                    prog["offset"] = base + consumed
-                    if old_season or (cap and cap_count(cfg, prog["hits"], prog["seen"]) >= cap):
-                        break
-                if old_season or (consumed == len(ids) and len(ids) < OTP_PAGE):
-                    prog.update(done_at=now_s(), done_start=depth_start, reason="end")
-                elif cfg.only_target_games and page_seen >= OTP_LOW_SHARE_MIN:
-                    low = page_hits <= OTP_LOW_SHARE * page_seen
-                    prog["low_pages"] = prog["low_pages"] + 1 if low else 0
-                    # Sus partidas más recientes nunca paran el historial (puede estar de descanso del campeón);
-                    # más atrás, dos páginas seguidas casi sin esos campeones sí: bajar más sería gastar llamadas en
-                    # partidas que se descartan.
-                    if prog["low_pages"] >= OTP_LOW_PAGES and base >= OTP_LOW_SKIP:
-                        prog.update(done_at=now_s(), done_start=depth_start, reason="share", config_key=config_key)
-                if consumed < len(ids):
-                    break  # se acabó el presupuesto de la visita a mitad de página
-            if not cfg.share_ok(prog["seen"], prog["hits"]):
-                prog.update(done_at=now_s(), done_start=depth_start, reason="share", config_key=config_key)
-                log.info(
-                    "%s no es especialista: %d de %d partidas revisadas con esos campeones (pides %d %%).",
-                    row["game_name"] or puuid[:8], prog["hits"], prog["seen"], round(100 * cfg.min_share),
-                )
-            # 3) Micro/macro de sus partidas ya guardadas que aún no lo tienen (de antes de activarlo o que fallaron).
-            if cfg.save_details and not cfg.patterns and budget > 0 and not self.stop_event.is_set():
-                cond, params = target_sql(cfg, "p")
-                for match_id in otp_details.missing(db, puuid, row["id"], cond, params, min(budget, OTP_DETAIL_BACKFILL)):
-                    if self.stop_event.is_set():
-                        break
-                    self._detail(match_id, None, player)
-                    budget -= 1
-            self._otp_fails.pop(puuid, None)
-        except RiotAPIError as exc:
-            if not isinstance(exc, RiotKeyError):
-                fails = self._otp_fails.get(puuid, (0, 0.0))[0] + 1
-                self._otp_fails[puuid] = (fails, time.time() + OTP_FAIL_COOLDOWN_S if fails >= 3 else 0.0)
-            raise
-        finally:
-            self._prefetch.drop()
-            save(final=True)
-        stored_now = self.state["stored"] - stored_before
+                self._detail(match_id, None, v.player)
+                v.budget -= 1
+
+    def _end_visit(self, v: _OtpVisit, stored_now: int) -> None:
+        """Fin de la visita: las medias al día, por qué acabó (para el diagnóstico) y su línea en el registro."""
+        prog = v.prog
         if stored_now:
-            svc.agg.bump()
+            self.svc.agg.bump()
         # Por qué acabó la visita: con el tope de la visita (``OTP_VISIT_MATCHES``) da ~50 partidas analizadas; si acaba
         # antes (historial completo: pocas partidas en la temporada, típico de elos bajos) da menos.
-        if self.stop_event.is_set():
-            fin = "detenido"
-        elif budget <= 0:
-            fin = "tope de la visita"
-        elif prog["done_at"]:
-            fin = "historial completo" if prog["reason"] == "end" else "pocas con esos campeones"
-        elif self._games_cap() and cap_count(cfg, prog["hits"], prog["seen"]) >= self._games_cap():
-            fin = "tope por jugador"
-        else:
-            fin = "páginas de la visita"
+        fin = self._visit_end_reason(v)
         self._visit_result = {"nuevas": stored_now, "revisadas": prog["offset"], "fin": fin}
+        why = self._pick_reason(v.row)
+        log.info(
+            "%s · %s · jugador: %d partidas nuevas, %d analizadas en %.1f min (historial: %d revisadas%s) · fin: %s%s.",
+            PLATFORMS[v.platform][1],
+            v.row["tier"],
+            stored_now,
+            getattr(self, "_visit_analyzed", 0),
+            (time.time() - self._visited.get(v.puuid, time.time())) / 60,
+            prog["offset"],
+            ", completo" if prog["done_at"] else "",
+            fin,
+            why,
+        )
+
+    def _visit_end_reason(self, v: _OtpVisit) -> str:
+        """Por qué acabó la visita (para el diagnóstico del reparto por elo)."""
+        prog = v.prog
+        if self.stop_event.is_set():
+            return "detenido"
+        if v.budget <= 0:
+            return "tope de la visita"
+        if prog["done_at"]:
+            return "historial completo" if prog["reason"] == "end" else "pocas con esos campeones"
+        if self._games_cap() and cap_count(self.config, prog["hits"], prog["seen"]) >= self._games_cap():
+            return "tope por jugador"
+        return "páginas de la visita"
+
+    def _pick_reason(self, row) -> str:
+        """Por qué se eligió al jugador (el elo más atrasado y si había alguien de él en la cola), para el registro."""
         pick = getattr(self, "_pick", None) or {}
         why = ""
         if pick.get("mas_atrasado"):
             why = f" · elegido: {pick.get('tipo')}, elo más atrasado {pick['mas_atrasado']}"
             if pick["mas_atrasado"] != (row["tier"] or "") and not pick.get("hay_de_ese"):
                 why += f" (sin nadie de ese elo en la cola de {self.region})"
-        log.info(
-            "%s · %s · jugador: %d partidas nuevas, %d analizadas en %.1f min (historial: %d revisadas%s) · fin: %s%s.",
-            PLATFORMS[platform][1],
-            row["tier"],
-            stored_now,
-            getattr(self, "_visit_analyzed", 0),
-            (time.time() - self._visited.get(puuid, time.time())) / 60,
-            prog["offset"],
-            ", completo" if prog["done_at"] else "",
-            fin,
-            why,
-        )
+        return why
 
     def _known_for(self, puuid: str, ids: list[str]) -> set[str]:
         """Ids que este OTP no necesita pedir: guardados, descartados para todos o descartados solo para él."""
@@ -1997,46 +2224,10 @@ class RegionWorker(threading.Thread):
         return got
 
     def _refill_seeds(self, platform: str, tier: str) -> int:
-        riot, db = self.svc.riot, self.svc.db
-        kw = {"priority": Priority.LOW, "stop": self.stop_event}
         now = now_s()
-        if tier in APEX_TIERS:
-            row = db.one(
-                "SELECT refreshed_at FROM seed_pages WHERE platform = ? AND queue = ? AND tier = ? AND division = 'I'",
-                (platform, QUEUE_SOLO, tier),
-            )
-            if row and row["refreshed_at"] and now - row["refreshed_at"] < APEX_REFRESH_S:
-                return 0
-            league = riot.apex_league(platform, tier, **kw) or {}
-            entries = [dict(e, tier=tier) for e in league.get("entries") or []]
-            added = upsert_seed_players(db, platform, entries, tier)
-            self._save_page(platform, tier, "I", 1, None, now)
-        else:
-            pages = {
-                r["division"]: r
-                for r in db.query(
-                    "SELECT division, next_page, exhausted_at FROM seed_pages WHERE platform = ? AND queue = ? AND tier = ?",
-                    (platform, QUEUE_SOLO, tier),
-                )
-            }
-            candidates = []
-            for division in DIVISIONS:
-                info = pages.get(division)
-                if info and info["exhausted_at"]:
-                    if now - info["exhausted_at"] < LADDER_RESET_S:
-                        continue
-                    candidates.append((1, division))  # refrescar la escalera desde el principio
-                else:
-                    candidates.append((info["next_page"] if info else 1, division))
-            if not candidates:
-                return 0
-            page, division = min(candidates)
-            entries = riot.league_entries(platform, tier, division, page, **kw)
-            if not entries:
-                self._save_page(platform, tier, division, page, now, now)
-                return 0
-            added = upsert_seed_players(db, platform, entries, tier, division)
-            self._save_page(platform, tier, division, page + 1, None, now)
+        added = self._refill_apex(platform, tier, now) if tier in APEX_TIERS else self._refill_division(platform, tier, now)
+        if added is None:
+            return 0
         self.state["seeds_added"] += added
         if added:
             if self.config.targets:
@@ -2047,6 +2238,59 @@ class RegionWorker(threading.Thread):
             else:
                 log.info("Ranking %s %s: +%d jugadores para recoger sus partidas.", PLATFORMS[platform][1], tier, added)
         return added
+
+    def _refill_apex(self, platform: str, tier: str, now: int) -> int | None:
+        """Maestro, Gran Maestro o Aspirante: la liga entera, cada ``APEX_REFRESH_S`` (``None`` si aún no toca)."""
+        riot, db = self.svc.riot, self.svc.db
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        row = db.one(
+            "SELECT refreshed_at FROM seed_pages WHERE platform = ? AND queue = ? AND tier = ? AND division = 'I'",
+            (platform, QUEUE_SOLO, tier),
+        )
+        if row and row["refreshed_at"] and now - row["refreshed_at"] < APEX_REFRESH_S:
+            return None
+        league = riot.apex_league(platform, tier, **kw) or {}
+        entries = [dict(e, tier=tier) for e in league.get("entries") or []]
+        added = upsert_seed_players(db, platform, entries, tier)
+        self._save_page(platform, tier, "I", 1, None, now)
+        return added
+
+    def _refill_division(self, platform: str, tier: str, now: int) -> int | None:
+        """Elos con divisiones: la siguiente página de la división que va más atrás (``None`` si no hay o llega vacía)."""
+        riot, db = self.svc.riot, self.svc.db
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        pages = {
+            r["division"]: r
+            for r in db.query(
+                "SELECT division, next_page, exhausted_at FROM seed_pages WHERE platform = ? AND queue = ? AND tier = ?",
+                (platform, QUEUE_SOLO, tier),
+            )
+        }
+        candidates = self._division_candidates(pages, now)
+        if not candidates:
+            return None
+        page, division = min(candidates)
+        entries = riot.league_entries(platform, tier, division, page, **kw)
+        if not entries:
+            self._save_page(platform, tier, division, page, now, now)
+            return None
+        added = upsert_seed_players(db, platform, entries, tier, division)
+        self._save_page(platform, tier, division, page + 1, None, now)
+        return added
+
+    @staticmethod
+    def _division_candidates(pages: dict, now: int) -> list[tuple[int, str]]:
+        """(página siguiente, división) de las divisiones por pedir; una agotada vuelve a la 1 pasado ``LADDER_RESET_S``."""
+        candidates = []
+        for division in DIVISIONS:
+            info = pages.get(division)
+            if info and info["exhausted_at"]:
+                if now - info["exhausted_at"] < LADDER_RESET_S:
+                    continue
+                candidates.append((1, division))  # refrescar la escalera desde el principio
+            else:
+                candidates.append((info["next_page"] if info else 1, division))
+        return candidates
 
     def _save_page(self, platform, tier, division, next_page, exhausted_at, refreshed_at) -> None:
         with self.svc.db.write() as conn:
@@ -2125,6 +2369,10 @@ class OtpScout(threading.Thread):
         self.worker = worker
         self.platform = platform
         self.status = "starting"
+        self._cooldown: dict[str, float] = {}  # elo -> hasta cuándo descansa (ranking ya revisado)
+        # Tablas de los mejores de OP.GG (Diamante o más) que faltan (``None``: aún sin mirar) y si les toca el turno.
+        self._pending_boards: list[int] | None = None
+        self._board_turn = False
 
     def _set(self, status: str) -> None:
         if status != self.status:
@@ -2140,48 +2388,9 @@ class OtpScout(threading.Thread):
     def run(self) -> None:
         w = self.worker
         tiers = list(reversed(w.config.tiers))
-        cooldown: dict[str, float] = {}
-        # Tablas de los mejores de OP.GG (Diamante o más) que faltan: se intercalan con la búsqueda en el ranking, una
-        # cada dos vueltas en que toca un elo de los que salen en ellas. Antes se pedían las de todos los campeones al
-        # arrancar (173 tablas y una llamada de account-v1 por jugador nuevo, del mismo cupo regional que las partidas):
-        # durante ese rato ni se buscaba en Platino ni Esmeralda ni se bajaban partidas a buen ritmo.
-        pending_boards: list[int] | None = None
-        board_turn = False
         while not w.stop_event.is_set():
             try:
-                if not w.svc.keys.get() or w.svc.keys.status == "invalid":
-                    self._set("waiting_key")
-                    w.svc.keys.wait_for_change(w.svc.keys.version, w.stop_event)
-                    continue
-                if w.crawler.paused_reason():
-                    self._set("paused_game")
-                    w.stop_event.wait(5)
-                    continue
-                self._set("running")
-                if pending_boards is None:
-                    pending = getattr(w, "leaderboard_pending", None)
-                    pending_boards = list(pending(self.platform)) if pending else []
-                now = time.time()
-                # Elos con jugadores de sobra esperando visita: no se buscan más (las descargas van a ~1 jugador por
-                # minuto y región; revisar ~350 maestrías por minuto solo quitaba CPU y base de datos a las descargas).
-                waiting = getattr(w, "waiting_by_tier", None) or {}
-                full = {t for t in tiers if waiting.get((self.platform, t), 0) >= SCOUT_BACKLOG}
-                tier = next((t for t in w.tier_order(self.platform, tiers) if cooldown.get(t, 0) <= now and t not in full), None)
-                if tier is None and full:
-                    self._set("idle")
-                    w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)
-                    continue
-                if pending_boards and (tier is None or tier in LEADERBOARD_TIERS):
-                    board_turn = not board_turn
-                    if tier is None or board_turn:
-                        w._seed_from_leaderboards(self.platform, [pending_boards.pop(0)])
-                        continue
-                if tier is None:
-                    self._set("idle")  # todo el ranking revisado: se vuelve a mirar al refrescarse las ligas
-                    w.stop_event.wait(30)
-                    continue
-                if w._discover(self.platform, tier) == 0 and w._refill_seeds(self.platform, tier) == 0:
-                    cooldown[tier] = time.time() + EXHAUSTED_COOLDOWN_S
+                self._search_step(tiers)
             except Cancelled:
                 break
             except RiotKeyError as exc:
@@ -2199,6 +2408,66 @@ class OtpScout(threading.Thread):
                 log.exception("Error inesperado buscando jugadores en %s", self.platform)
                 w.stop_event.wait(5)
         self._set("stopped")
+
+    def _search_step(self, tiers: list[str]) -> None:
+        """Una vuelta de la búsqueda: esperar, una tabla de los mejores de OP.GG o una tanda del ranking del elo que toca."""
+        w = self.worker
+        if self._wait_if_paused():
+            return
+        self._set("running")
+        if self._pending_boards is None:
+            pending = getattr(w, "leaderboard_pending", None)
+            self._pending_boards = list(pending(self.platform)) if pending else []
+        tier, full = self._next_tier(tiers)
+        if tier is None and full:
+            self._set("idle")
+            w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)
+            return
+        if self._board_step(tier):
+            return
+        if tier is None:
+            self._set("idle")  # ranking ya revisado entero: se vuelve a mirar al refrescarse las ligas
+            w.stop_event.wait(30)
+            return
+        if w._discover(self.platform, tier) == 0 and w._refill_seeds(self.platform, tier) == 0:
+            self._cooldown[tier] = time.time() + EXHAUSTED_COOLDOWN_S
+
+    def _wait_if_paused(self) -> bool:
+        """Sin key válida o en partida: espera (``True``: la vuelta acaba aquí)."""
+        w = self.worker
+        if not w.svc.keys.get() or w.svc.keys.status == "invalid":
+            self._set("waiting_key")
+            w.svc.keys.wait_for_change(w.svc.keys.version, w.stop_event)
+            return True
+        if w.crawler.paused_reason():
+            self._set("paused_game")
+            w.stop_event.wait(5)
+            return True
+        return False
+
+    def _next_tier(self, tiers: list[str]) -> tuple[str | None, set[str]]:
+        """El elo que toca revisar en el ranking (o ``None``) y los que tienen jugadores de sobra esperando visita."""
+        w = self.worker
+        now = time.time()
+        # Elos con jugadores de sobra esperando visita: no se buscan más (las descargas van a ~1 jugador por
+        # minuto y región; revisar ~350 maestrías por minuto solo quitaba CPU y base de datos a las descargas).
+        waiting = getattr(w, "waiting_by_tier", None) or {}
+        full = {t for t in tiers if waiting.get((self.platform, t), 0) >= SCOUT_BACKLOG}
+        tier = next((t for t in w.tier_order(self.platform, tiers) if self._cooldown.get(t, 0) <= now and t not in full), None)
+        return tier, full
+
+    def _board_step(self, tier: str | None) -> bool:
+        """Turno de una tabla de los mejores de OP.GG: ``True`` si se pidió una (la vuelta acaba aquí)."""
+        # Tablas de los mejores de OP.GG (Diamante o más) que faltan: se intercalan con la búsqueda en el ranking, una
+        # cada dos vueltas en que toca un elo de los que salen en ellas. Antes se pedían las de todos los campeones al
+        # arrancar (173 tablas y una llamada de account-v1 por jugador nuevo, del mismo cupo regional que las partidas):
+        # durante ese rato ni se buscaba en Platino ni Esmeralda ni se bajaban partidas a buen ritmo.
+        if self._pending_boards and (tier is None or tier in LEADERBOARD_TIERS):
+            self._board_turn = not self._board_turn
+            if tier is None or self._board_turn:
+                self.worker._seed_from_leaderboards(self.platform, [self._pending_boards.pop(0)])
+                return True
+        return False
 
 
 class Crawler:
@@ -2354,12 +2623,12 @@ class Crawler:
         with self._rows_lock:
             st = self._pattern_stats
             st["revisadas"] += 1
-            for w, _res in found:
+            for w, _ in found:
                 st["ventanas"].setdefault(w["id"], {"encontradas": 0, "guardadas": 0, "de_bd": 0})["encontradas"] += 1
 
     def note_pattern_saved(self, found: list, from_store: bool = False) -> None:
         with self._rows_lock:
-            for w, _res in found:
+            for w, _ in found:
                 v = self._pattern_stats["ventanas"].setdefault(w["id"], {"encontradas": 0, "guardadas": 0, "de_bd": 0})
                 v["guardadas"] += 1
                 v["de_bd"] += int(from_store)
@@ -2542,58 +2811,17 @@ class Crawler:
             import json as _json
 
             self.last_funnel = (_json.dumps(asdict(cfg), sort_keys=True, default=str), time.time(), dict(funnel))
-            dd = getattr(self.svc, "dd", None)
-            funnel["config"] = {
-                "champions": [dd.name(c) if dd is not None and hasattr(dd, "name") else c for c in cfg.targets],
-                "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
-                "lines": cfg.roles,
-                "focus": cfg.focus, "min_mastery": cfg.min_mastery, "min_share": cfg.min_share, "period": cfg.otp_depth,
-                "platforms": cfg.platforms, "tiers": cfg.tiers,
-            }
-            funnel["workers"] = {
-                r: {
-                    **{k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error", "stored", "duplicates", "details", "fetched")},
-                    "rate_recent": self.recent_rate(getattr(w, "stored_at", ())),
-                    # Segundos en cada fase («visitas» incluye riot, riot_listas y analizar_guardar; el resto es la base
-                    # de datos y la cola de cada visita).
-                    "timing": {k: round(v, 1) for k, v in (getattr(w, "timing", None) or {}).items()},
-                    # Partidas descargadas esperando su análisis y si el hilo que las analiza sigue vivo.
-                    "analisis": {
-                        "en_cola": w._save_q.qsize() if hasattr(w, "_save_q") else None,
-                        "vivo": bool(getattr(w, "_saver", None) and w._saver.is_alive()),
-                        "en_proceso": len(getattr(w, "_saving", ()) or ()),
-                    },
-                }
-                for r, w in self.workers.items()
-            }
+            funnel["config"] = self._funnel_config(cfg)
+            funnel["workers"] = {r: self._funnel_worker(w) for r, w in self.workers.items()}
             # Base de datos: quién espera el candado de escritura y quién lo tiene cogido (s en total) y tamaño del WAL.
             db = self.svc.db
-            funnel["db"] = {
-                "wal_mb": db.wal_mb() if hasattr(db, "wal_mb") else None,
-                "wal_recorte": getattr(db, "wal_stats", None) or {},
-                "candado": {
-                    k: {"esperando_s": round(v[0], 1), "cogido_s": round(v[1], 1), "escrituras": v[2]}
-                    for k, v in sorted((getattr(db, "lock_stats", None) or {}).items(), key=lambda kv: -kv[1][0])
-                },
-            }
+            funnel["db"] = self._funnel_db(db)
             # Jugadores encontrados por elo (todas las plataformas): para ver si la búsqueda reparte entre elos.
-            by_tier: dict[str, int] = {}
-            for w in self.workers.values():
-                for (_platform, tier), n in (getattr(w, "found_by_tier", None) or {}).items():
-                    by_tier[tier] = by_tier.get(tier, 0) + n
-            funnel["found_by_tier"] = by_tier
+            funnel["found_by_tier"] = self._found_by_tier()
             # Uso del cupo de cada host de Riot en los últimos 2 minutos: si una región no llega al límite, el cuello
             # de botella no es la key (es la búsqueda de jugadores o el filtro); «foreign»: otra app con la misma key.
             if limits is not None:
-                keep = ("windows", "foreign", "rate_limited", "llamadas_min", "llamadas_min_recolector", "max_min_recolector",
-                        "reserva_pct", "espera_s")
-                funnel["ratelimit"] = {host: {k: h.get(k) for k in keep} for host, h in limits.items()}
-                regional = {h: v for h, v in limits.items() if h in REGIONS}
-                if regional:
-                    log.info("Key de Riot (llamadas/min del recolector, de un máximo de): %s", ", ".join(
-                        f"{h} {v.get('llamadas_min_recolector')} de {v.get('max_min_recolector')} (reserva {v.get('reserva_pct')} %)"
-                        for h, v in sorted(regional.items())
-                    ))
+                self._funnel_ratelimit(funnel, limits)
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
             funnel["reparto_elo"] = self.tier_report()
             if funnel["reparto_elo"] and not cfg.patterns:  # buscando por partidas el elo no reparte: no se usa
@@ -2601,46 +2829,13 @@ class Crawler:
                     f"{t} {e['parte_pct']}%/{e['recientes_pct']}%/{e['analizadas']}" for t, e in funnel["reparto_elo"].items()
                 ))
             # Cómo se reparte por elo y por qué: lo que da cada visita, la cola de cada región y el elo que se queda atrás.
-            report = self.visit_report()
-            funnel.update(report)
-            if report["visitas_por_elo"]:
-                log.info("Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): %s",
-                         ", ".join(f"{t} {v['visitas']}·{v['analizadas']}·{v['por_visita']}·{v['min_por_visita']}·{v['completo_pct']}%"
-                                   for t, v in report["visitas_por_elo"].items()))
-            if report["cola_por_elo"]:
-                log.info("Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): %s",
-                         ", ".join(f"{t} {'/'.join(str(n) for n in c.values())}" for t, c in report["cola_por_elo"].items()))
-            if report["sin_candidatos"]:
-                log.info("El elo más atrasado no tenía a nadie en la cola de la región (veces al elegir): %s",
-                         ", ".join(f"{t} {sum(r.values())} ({', '.join(f'{k} {n}' for k, n in r.items())})"
-                                   for t, r in report["sin_candidatos"].items()))
+            self._funnel_visits(funnel)
             self._save_recent()
-            pat = self.pattern_report()
-            if pat:
-                funnel["busqueda_partidas"] = pat
-                name = getattr(getattr(self.svc, "dd", None), "name", None)
-                log.info("Búsqueda por partidas: %d partidas revisadas, %d ya guardadas por completar. %s", pat["revisadas"], pat["pendientes_bd"], " | ".join(
-                    f"{pattern_search.label(w, name)}: {v['encontradas']} encontradas, {v['guardadas']} guardadas ({v['total']['partidas']} en total, "
-                    f"gana el equipo A {round(100 * v['total']['ganadas_a'] / v['total']['partidas']) if v['total']['partidas'] else 0} %)"
-                    for w in cfg.patterns if (v := pat["ventanas"].get(w["id"]))
-                ))
+            self._funnel_patterns(funnel, cfg)
             # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
-            from app import diag
-
-            funnel["diagnostico"] = diag.sampler.snapshot()
-            if hasattr(db, "slow_stats"):
-                funnel["db"]["lentas"] = db.slow_stats()
-            log.info("Dónde se va el tiempo (5 min): %s", diag.sampler.summary() or "sin muestras")
-            for item in (funnel["db"].get("lentas") or [])[:3]:
-                log.info("Base de datos lenta: %s — %d veces, %.1f s en total, la peor %.1f s", item["que"], item["veces"], item["s_total"], item["s_peor"])
+            self._funnel_diagnostics(funnel, db)
             # Una línea por región en el registro (data/registro/app.log) cada 5 min: la evolución entre subidas.
-            for region, w in funnel["workers"].items():
-                t = w.get("timing") or {}
-                log.info(
-                    "Estado %s: %s partidas nuevas (%s/min ahora) · %s analizadas · errores %s · tiempo: %s",
-                    region, w.get("stored"), w.get("rate_recent"), w.get("details"), w.get("errors"),
-                    ", ".join(f"{k} {v:.0f}" for k, v in t.items() if isinstance(v, float)) or "—",
-                )
+            self._log_worker_states(funnel["workers"])
             base = Path(self.svc.settings.data_dir) / "otps"
             base.mkdir(parents=True, exist_ok=True)
             tmp = base / "_busqueda.json.tmp"
@@ -2648,6 +2843,117 @@ class Crawler:
             tmp.replace(base / "_busqueda.json")
         except Exception:  # es un informe: nunca debe parar la búsqueda
             log.exception("No se pudo escribir el estado de la búsqueda de jugadores")
+
+    def _funnel_config(self, cfg: CrawlerConfig) -> dict:
+        """La búsqueda, para el embudo (los campeones por su nombre)."""
+        dd = getattr(self.svc, "dd", None)
+        return {
+            "champions": [dd.name(c) if dd is not None and hasattr(dd, "name") else c for c in cfg.targets],
+            "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
+            "lines": cfg.roles,
+            "focus": cfg.focus, "min_mastery": cfg.min_mastery, "min_share": cfg.min_share, "period": cfg.otp_depth,
+            "platforms": cfg.platforms, "tiers": cfg.tiers,
+        }
+
+    def _funnel_worker(self, w) -> dict:
+        """Una región en el embudo: sus contadores, su velocidad reciente, dónde se va su tiempo y su análisis."""
+        return {
+            **{k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error", "stored", "duplicates", "details", "fetched")},
+            "rate_recent": self.recent_rate(getattr(w, "stored_at", ())),
+            # Segundos en cada fase («visitas» incluye riot, riot_listas y analizar_guardar; el resto es la base
+            # de datos y la cola de cada visita).
+            "timing": {k: round(v, 1) for k, v in (getattr(w, "timing", None) or {}).items()},
+            # Partidas descargadas esperando su análisis y si el hilo que las analiza sigue vivo.
+            "analisis": {
+                "en_cola": w._save_q.qsize() if hasattr(w, "_save_q") else None,
+                "vivo": bool(getattr(w, "_saver", None) and w._saver.is_alive()),
+                "en_proceso": len(getattr(w, "_saving", ()) or ()),
+            },
+        }
+
+    @staticmethod
+    def _funnel_db(db) -> dict:
+        """La base de datos en el embudo: tamaño del WAL, sus recortes y el candado de escritura (espera y uso, en s)."""
+        return {
+            "wal_mb": db.wal_mb() if hasattr(db, "wal_mb") else None,
+            "wal_recorte": getattr(db, "wal_stats", None) or {},
+            "candado": {
+                k: {"esperando_s": round(v[0], 1), "cogido_s": round(v[1], 1), "escrituras": v[2]}
+                for k, v in sorted((getattr(db, "lock_stats", None) or {}).items(), key=lambda kv: -kv[1][0])
+            },
+        }
+
+    def _found_by_tier(self) -> dict[str, int]:
+        """Jugadores encontrados por elo, con las plataformas de todas las regiones juntas."""
+        by_tier: dict[str, int] = {}
+        for w in self.workers.values():
+            for (_, tier), n in (getattr(w, "found_by_tier", None) or {}).items():
+                by_tier[tier] = by_tier.get(tier, 0) + n
+        return by_tier
+
+    @staticmethod
+    def _funnel_ratelimit(funnel: dict, limits: dict) -> None:
+        """El uso del cupo de cada host de Riot, al embudo y (el de las regiones) al registro."""
+        keep = ("windows", "foreign", "rate_limited", "llamadas_min", "llamadas_min_recolector", "max_min_recolector",
+                "reserva_pct", "espera_s")
+        funnel["ratelimit"] = {host: {k: h.get(k) for k in keep} for host, h in limits.items()}
+        regional = {h: v for h, v in limits.items() if h in REGIONS}
+        if regional:
+            log.info("Key de Riot (llamadas/min del recolector, de un máximo de): %s", ", ".join(
+                f"{h} {v.get('llamadas_min_recolector')} de {v.get('max_min_recolector')} (reserva {v.get('reserva_pct')} %)"
+                for h, v in sorted(regional.items())
+            ))
+
+    def _funnel_visits(self, funnel: dict) -> None:
+        """Las visitas por elo, la cola por elo y el elo más atrasado sin candidatos, al embudo y al registro."""
+        report = self.visit_report()
+        funnel.update(report)
+        if report["visitas_por_elo"]:
+            log.info("Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): %s",
+                     ", ".join(f"{t} {v['visitas']}·{v['analizadas']}·{v['por_visita']}·{v['min_por_visita']}·{v['completo_pct']}%"
+                               for t, v in report["visitas_por_elo"].items()))
+        if report["cola_por_elo"]:
+            log.info("Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): %s",
+                     ", ".join(f"{t} {'/'.join(str(n) for n in c.values())}" for t, c in report["cola_por_elo"].items()))
+        if report["sin_candidatos"]:
+            log.info("El elo más atrasado no tenía a nadie en la cola de la región (veces al elegir): %s",
+                     ", ".join(f"{t} {sum(r.values())} ({', '.join(f'{k} {n}' for k, n in r.items())})"
+                               for t, r in report["sin_candidatos"].items()))
+
+    def _funnel_patterns(self, funnel: dict, cfg: CrawlerConfig) -> None:
+        """Buscando por partidas: lo revisado y, por ventana, lo encontrado y guardado, al embudo y al registro."""
+        pat = self.pattern_report()
+        if pat:
+            funnel["busqueda_partidas"] = pat
+            name = getattr(getattr(self.svc, "dd", None), "name", None)
+            log.info("Búsqueda por partidas: %d partidas revisadas, %d ya guardadas por completar. %s", pat["revisadas"], pat["pendientes_bd"], " | ".join(
+                f"{pattern_search.label(w, name)}: {v['encontradas']} encontradas, {v['guardadas']} guardadas ({v['total']['partidas']} en total, "
+                f"gana el equipo A {round(100 * v['total']['ganadas_a'] / v['total']['partidas']) if v['total']['partidas'] else 0} %)"
+                for w in cfg.patterns if (v := pat["ventanas"].get(w["id"]))
+            ))
+
+    @staticmethod
+    def _funnel_diagnostics(funnel: dict, db) -> None:
+        """Dónde se va el tiempo de cada grupo de hilos y las consultas lentas, al embudo y al registro."""
+        from app import diag
+
+        funnel["diagnostico"] = diag.sampler.snapshot()
+        if hasattr(db, "slow_stats"):
+            funnel["db"]["lentas"] = db.slow_stats()
+        log.info("Dónde se va el tiempo (5 min): %s", diag.sampler.summary() or "sin muestras")
+        for item in (funnel["db"].get("lentas") or [])[:3]:
+            log.info("Base de datos lenta: %s — %d veces, %.1f s en total, la peor %.1f s", item["que"], item["veces"], item["s_total"], item["s_peor"])
+
+    @staticmethod
+    def _log_worker_states(workers: dict) -> None:
+        """Una línea por región en el registro: partidas, velocidad, análisis, errores y dónde se va el tiempo."""
+        for region, w in workers.items():
+            t = w.get("timing") or {}
+            log.info(
+                "Estado %s: %s partidas nuevas (%s/min ahora) · %s analizadas · errores %s · tiempo: %s",
+                region, w.get("stored"), w.get("rate_recent"), w.get("details"), w.get("errors"),
+                ", ".join(f"{k} {v:.0f}" for k, v in t.items() if isinstance(v, float)) or "—",
+            )
 
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):
@@ -2713,14 +3019,14 @@ class Crawler:
     def _with_role_pool(self, config: CrawlerConfig) -> CrawlerConfig:
         """La versión del juego y, con líneas enteras, sus campeones (de la tier list; sin red, los de la última vez)."""
         dd = getattr(self.svc, "dd", None)
-        config = replace(config, season_version=getattr(dd, "version", None) or config.season_version)
+        config = _config_with(config, season_version=getattr(dd, "version", None) or config.season_version)
         if not config.roles:
-            return replace(config, role_champions=[], role_pools={}) if config.role_champions or config.role_pools else config
+            return _config_with(config, role_champions=[], role_pools={}) if config.role_champions or config.role_pools else config
         pools = role_pools(self.svc, config.roles) or dict(config.role_pools)
         pool = role_pool_from(pools) or list(config.role_champions)
         if not pool:
             raise ValueError("Aún no se sabe qué campeones se juegan en esa línea: activa OP.GG o Lolalytics y vuelve a probar")
-        return replace(config, role_champions=pool, role_pools=pools)
+        return _config_with(config, role_champions=pool, role_pools=pools)
 
     def stop(self) -> dict:
         """Parada pedida por el usuario: tampoco arrancará solo la próxima vez.
@@ -2729,7 +3035,7 @@ class Crawler:
         base de datos antes de responder, y esa escritura esperaba al candado que el recolector tiene cogido más de la
         mitad del tiempo: el botón no hacía nada durante un buen rato (ni «Deteniendo…»)."""
         self.stop_event.set()
-        for worker in list(self.workers.values()):
+        for worker in self.workers.values():
             worker.wake()
         self._autostart = False
         self.stop_thread = threading.Thread(target=self._after_stop, args=(self.stop_event,), name="crawler-stop", daemon=True)
@@ -2807,7 +3113,7 @@ class Crawler:
 
         frames = sys._current_frames()
         out = []
-        for w in list(self.workers.values()):
+        for w in self.workers.values():
             for t in [w, *w.scouts]:
                 if not t.is_alive():
                     continue
@@ -2821,14 +3127,14 @@ class Crawler:
 
     def shutdown(self) -> None:
         self.stop_event.set()
-        for worker in list(self.workers.values()):
+        for worker in self.workers.values():
             worker.wake()
-        for worker in list(self.workers.values()):
+        for worker in self.workers.values():
             worker.join(timeout=3)
 
     def _all_stored_at(self) -> list[float]:
         out: list[float] = []
-        for w in list(self.workers.values()):
+        for w in self.workers.values():
             out += list(getattr(w, "stored_at", ()))
         return out
 

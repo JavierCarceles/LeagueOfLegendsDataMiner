@@ -125,7 +125,7 @@ def _dossiers(data_dir: Path):
     for d in _folder_dossiers(data_dir):
         seen.add((d.get("match_id"), d.get("team"), d.get("champ")))
         yield d
-    for _player, d in patterns.iter_dossiers(data_dir):
+    for _, d in patterns.iter_dossiers(data_dir):
         if (d.get("match_id"), d.get("team"), d.get("champ")) not in seen:
             yield d
 
@@ -172,7 +172,7 @@ def records(data_dir: Path):
             "role": role, "group": group, "certainty": _certainty(d.get("track") or {}),
             "with_ev": with_ev, "sure_mistakes": sure_m, "unsure_mistakes": unsure_m,
             "values": _values(d, a),
-            "mistakes": {m for m, _sev in game_mistakes(moments, role, d.get("champ"))},
+            "mistakes": {m for m, _ in game_mistakes(moments, role, d.get("champ"))},
             "official": {k: float(v) for k, v in (d.get("challenges") or {}).items() if isinstance(v, (int, float))},
         }
 
@@ -186,6 +186,13 @@ def _stats(vals: list[float]) -> tuple[int, float, float]:
     return n, mean, math.sqrt(var / n)
 
 
+def _verdict(z: float) -> str:
+    """Veredicto de la comparación según su z: «separa», «igual» o «dudoso»."""
+    if abs(z) >= SEPARATES_Z:
+        return "separa"
+    return "igual" if abs(z) < SAME_Z else "dudoso"
+
+
 def compare(by_group: dict[str, list[float]]) -> dict:
     """El elo más bajo con muestra frente al más alto: medias, z y veredicto."""
     present = [g for g in GROUPS if len(by_group.get(g, [])) >= MIN_GAMES]
@@ -196,7 +203,7 @@ def compare(by_group: dict[str, list[float]]) -> dict:
     n2, m2, se2 = _stats(by_group[hi])
     se = math.sqrt(se1**2 + se2**2) or 1e-9
     z = (m2 - m1) / se
-    verdict = "separa" if abs(z) >= SEPARATES_Z else "igual" if abs(z) < SAME_Z else "dudoso"
+    verdict = _verdict(z)
     return {
         "veredicto": verdict, "z": round(z, 1), "bajo": lo, "alto": hi,
         "media_bajo": round(m1, 3), "media_alto": round(m2, 3), "n_bajo": n1, "n_alto": n2,
@@ -216,69 +223,109 @@ def _pearson(xs: list[float], ys: list[float]) -> float | None:
     return round(sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy), 2)
 
 
+def _by_position_certainty(item: dict, rows: list[dict], k: str) -> None:
+    """¿La mitad con la posición más segura sí separa? Entonces lo iguala el ruido de la reconstrucción."""
+    sure: dict[str, list[float]] = defaultdict(list)
+    unsure: dict[str, list[float]] = defaultdict(list)
+    # Por orden (no por valor: con empates, la mitad «segura» se lo llevaba todo).
+    ranked = sorted((r for r in rows if k in r["values"] and r["certainty"] is not None), key=lambda r: r["certainty"])
+    for i, r in enumerate(ranked):
+        (sure if i < len(ranked) // 2 else unsure)[r["group"]].append(r["values"][k])
+    s, u = compare(sure), compare(unsure)
+    item["posicion_segura"] = {x: s.get(x) for x in ("veredicto", "z", "medias")}
+    item["posicion_insegura"] = {x: u.get(x) for x in ("veredicto", "z", "medias")}
+    if s["veredicto"] == "separa" and u["veredicto"] != "separa":
+        item["diagnostico"] = "lo iguala el ruido de la reconstrucción"
+
+
+def _vs_official(item: dict, rows: list[dict], k: str, official: str) -> None:
+    """Correlación, partida a partida, con la estadística oficial de Riot que le corresponde (casi 0: no mide eso)."""
+    pairs = [(r["values"][k], r["official"][official]) for r in rows if k in r["values"] and official in r["official"]]
+    rho = _pearson([p[0] for p in pairs], [p[1] for p in pairs])
+    item.setdefault("riot", {})[official] = rho
+    if rho is not None and abs(rho) < 0.1 and "diagnostico" not in item:
+        item["diagnostico"] = f"no va con la estadística oficial de Riot ({official}, r = {rho}): no mide lo que dice"
+
+
+def _audit_metric(role: str, rows: list[dict], k: str, median: float | None) -> dict:
+    """Una métrica de un rol entre elos, con su diagnóstico (reconstrucción, estadística de Riot o de verdad igual)."""
+    groups: dict[str, list[float]] = defaultdict(list)
+    for r in rows:
+        if k in r["values"]:
+            groups[r["group"]].append(r["values"][k])
+    item = compare(groups)
+    if item["veredicto"] != "separa" and k in TRACK_BASED and median is not None:
+        _by_position_certainty(item, rows, k)
+    for metric, official, roles in OFFICIAL:
+        if metric == k and role in roles:
+            _vs_official(item, rows, k, official)
+    if item["veredicto"] == "igual" and "diagnostico" not in item:
+        item["diagnostico"] = "igual en todos los elos con muestra de sobra: de verdad no cambia"
+    return item
+
+
+def _by_detection_certainty(item: dict, ev_rows: list[dict], m: str) -> None:
+    """Las detecciones seguras / inseguras de un error: si solo separan las seguras, lo iguala el ruido."""
+    sure, unsure = defaultdict(list), defaultdict(list)
+    for r in ev_rows:
+        sure[r["group"]].append(100.0 if m in r["sure_mistakes"] else 0.0)
+        unsure[r["group"]].append(100.0 if m in r["unsure_mistakes"] else 0.0)
+    s_, u_ = compare(sure), compare(unsure)
+    item["deteccion_segura"] = {x: s_.get(x) for x in ("veredicto", "z", "medias")}
+    item["deteccion_insegura"] = {x: u_.get(x) for x in ("veredicto", "z", "medias")}
+    if s_["veredicto"] == "separa" and u_["veredicto"] != "separa" and item["veredicto"] != "separa":
+        item["diagnostico"] = "lo iguala el ruido: las detecciones con posiciones seguras sí separan"
+
+
+def _audit_mistake(rows: list[dict], m: str) -> dict:
+    """Un tipo de error de un rol entre elos (% de partidas con el error), con su diagnóstico."""
+    groups = defaultdict(list)
+    for r in rows:
+        groups[r["group"]].append(100.0 if m in r["mistakes"] else 0.0)
+    item = compare(groups)
+    # Solo las detecciones seguras / inseguras (partidas analizadas ya con ``ev``).
+    ev_rows = [r for r in rows if r.get("with_ev")]
+    if ev_rows:
+        _by_detection_certainty(item, ev_rows, m)
+    if item["veredicto"] == "igual" and "diagnostico" not in item:
+        item["diagnostico"] = "igual en todos los elos (% de partidas con el error)"
+    return item
+
+
+def _audit_role(role: str, rows: list[dict]) -> dict:
+    """La auditoría de un rol: cada métrica y cada tipo de error."""
+    certs = sorted(r["certainty"] for r in rows if r["certainty"] is not None)
+    median = certs[len(certs) // 2] if certs else None
+    res: dict = {"partidas": len(rows), "posicion_insegura_mediana": round(median, 2) if median is not None else None,
+                 "metricas": {}, "errores": {}}
+    keys = sorted({k for r in rows for k in r["values"]})
+    for k in keys:
+        res["metricas"][k] = _audit_metric(role, rows, k, median)
+    mistake_ids = sorted({m for r in rows for m in r["mistakes"]})
+    for m in mistake_ids:
+        res["errores"][m] = _audit_mistake(rows, m)
+    return res
+
+
 def audit(recs: list[dict]) -> dict:
     by_role: dict[str, list[dict]] = defaultdict(list)
     for r in recs:
         by_role[r["role"]].append(r)
     out: dict = {}
     for role, rows in sorted(by_role.items()):
-        certs = sorted(r["certainty"] for r in rows if r["certainty"] is not None)
-        median = certs[len(certs) // 2] if certs else None
-        res: dict = {"partidas": len(rows), "posicion_insegura_mediana": round(median, 2) if median is not None else None,
-                     "metricas": {}, "errores": {}}
-        keys = sorted({k for r in rows for k in r["values"]})
-        for k in keys:
-            groups: dict[str, list[float]] = defaultdict(list)
-            for r in rows:
-                if k in r["values"]:
-                    groups[r["group"]].append(r["values"][k])
-            item = compare(groups)
-            if item["veredicto"] != "separa" and k in TRACK_BASED and median is not None:
-                # ¿La mitad con la posición más segura sí separa? Entonces lo iguala el ruido de la reconstrucción.
-                sure: dict[str, list[float]] = defaultdict(list)
-                unsure: dict[str, list[float]] = defaultdict(list)
-                # Por orden (no por valor: con empates, la mitad «segura» se lo llevaba todo).
-                ranked = sorted((r for r in rows if k in r["values"] and r["certainty"] is not None), key=lambda r: r["certainty"])
-                for i, r in enumerate(ranked):
-                    (sure if i < len(ranked) // 2 else unsure)[r["group"]].append(r["values"][k])
-                s, u = compare(sure), compare(unsure)
-                item["posicion_segura"] = {x: s.get(x) for x in ("veredicto", "z", "medias")}
-                item["posicion_insegura"] = {x: u.get(x) for x in ("veredicto", "z", "medias")}
-                if s["veredicto"] == "separa" and u["veredicto"] != "separa":
-                    item["diagnostico"] = "lo iguala el ruido de la reconstrucción"
-            for metric, official, roles in OFFICIAL:
-                if metric == k and role in roles:
-                    pairs = [(r["values"][k], r["official"][official]) for r in rows if k in r["values"] and official in r["official"]]
-                    rho = _pearson([p[0] for p in pairs], [p[1] for p in pairs])
-                    item.setdefault("riot", {})[official] = rho
-                    if rho is not None and abs(rho) < 0.1 and "diagnostico" not in item:
-                        item["diagnostico"] = f"no va con la estadística oficial de Riot ({official}, r = {rho}): no mide lo que dice"
-            if item["veredicto"] == "igual" and "diagnostico" not in item:
-                item["diagnostico"] = "igual en todos los elos con muestra de sobra: de verdad no cambia"
-            res["metricas"][k] = item
-        mistake_ids = sorted({m for r in rows for m in r["mistakes"]})
-        for m in mistake_ids:
-            groups = defaultdict(list)
-            for r in rows:
-                groups[r["group"]].append(100.0 if m in r["mistakes"] else 0.0)
-            item = compare(groups)
-            # Solo las detecciones seguras / inseguras (partidas analizadas ya con ``ev``).
-            ev_rows = [r for r in rows if r.get("with_ev")]
-            if ev_rows:
-                sure, unsure = defaultdict(list), defaultdict(list)
-                for r in ev_rows:
-                    sure[r["group"]].append(100.0 if m in r["sure_mistakes"] else 0.0)
-                    unsure[r["group"]].append(100.0 if m in r["unsure_mistakes"] else 0.0)
-                s_, u_ = compare(sure), compare(unsure)
-                item["deteccion_segura"] = {x: s_.get(x) for x in ("veredicto", "z", "medias")}
-                item["deteccion_insegura"] = {x: u_.get(x) for x in ("veredicto", "z", "medias")}
-                if s_["veredicto"] == "separa" and u_["veredicto"] != "separa" and item["veredicto"] != "separa":
-                    item["diagnostico"] = "lo iguala el ruido: las detecciones con posiciones seguras sí separan"
-            if item["veredicto"] == "igual" and "diagnostico" not in item:
-                item["diagnostico"] = "igual en todos los elos (% de partidas con el error)"
-            res["errores"][m] = item
-        out[role] = res
+        out[role] = _audit_role(role, rows)
     return out
+
+
+def _summary_extra(item: dict) -> str:
+    """Lo que se añade a la línea de una métrica o un error: diagnóstico, posición segura y correlación con Riot."""
+    extra = f" · {item['diagnostico']}" if item.get("diagnostico") else ""
+    seg = item.get("posicion_segura")
+    if seg:
+        extra += f" · con posición segura: {seg.get('veredicto')} (z {seg.get('z')})"
+    if item.get("riot"):
+        extra += " · Riot: " + ", ".join(f"{o} r={v}" for o, v in item["riot"].items())
+    return extra
 
 
 def summary_lines(report: dict) -> list[str]:
@@ -289,12 +336,7 @@ def summary_lines(report: dict) -> list[str]:
             for k, item in res[kind].items():
                 if item["veredicto"] in ("separa", "pocos datos"):
                     continue
-                extra = f" · {item['diagnostico']}" if item.get("diagnostico") else ""
-                seg = item.get("posicion_segura")
-                if seg:
-                    extra += f" · con posición segura: {seg.get('veredicto')} (z {seg.get('z')})"
-                if item.get("riot"):
-                    extra += " · Riot: " + ", ".join(f"{o} r={v}" for o, v in item["riot"].items())
+                extra = _summary_extra(item)
                 lines.append(f"  {kind[:-1]:7s} {k:28s} {item['veredicto']:7s} z {item.get('z')} {item.get('medias')}{extra}")
     return lines
 

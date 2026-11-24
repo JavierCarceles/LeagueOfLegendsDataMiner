@@ -73,14 +73,46 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
       pop.style.top = `${fitsBelow || above < MARGIN ? below : above}px`;
     };
 
+    // Texto a la derecha de una opción: la puntuación de la recomendación o, si no hay, la pista del campo.
+    const optionMeta = (c, meta) => {
+      if (meta) return h(meta.cls ? `span.meta.${meta.cls}` : "span.meta", { title: meta.title || "" }, meta.text);
+      return hint ? h("span.meta", hint(c) || "") : null;
+    };
     const option = (c, i, meta = null, extraCls = "") =>
       h(
         `div.picker-opt${i === active ? ".active" : ""}${taken.has(c) && c !== current ? ".disabled" : ""}${extraCls}`,
         { onclick: () => choose(c), onmouseenter: () => setActive(i), dataset: { index: i } },
         champImg(c, "sm"),
         h("span.picker-name", dd.name(c)),
-        meta ? h(`span.meta${meta.cls ? "." + meta.cls : ""}`, { title: meta.title || "" }, meta.text) : hint ? h("span.meta", hint(c) || "") : null,
+        optionMeta(c, meta),
       );
+    // Añade una opción a la lista; su índice es su posición en `options` (para el teclado).
+    const pushOption = (nodes, c, meta = null, extraCls = "") => {
+      nodes.push(option(c, options.length, meta, extraCls));
+      options.push(c);
+    };
+    const scoreOf = (c) => recs?.scores?.get(c) || null;
+    // Sin buscar: las secciones recomendadas y, detrás, la cabecera del resto.
+    const pushRecommended = (nodes, matches) => {
+      for (const section of recs.sections) {
+        const items = section.items.filter((it) => matches(it.champ));
+        if (!items.length) continue;
+        nodes.push(h("div.picker-section", section.title));
+        for (const it of items) pushOption(nodes, it.champ, it.meta, ".picker-rec");
+      }
+      nodes.push(h("div.picker-section", poolSet?.size ? "Campeones de esta línea" : "Todos"));
+    };
+    // Con los campeones de la línea: solo esos; buscando, el resto aparte (para anotar un pick raro del rival).
+    const pushChamps = (nodes, all, q) => {
+      const hasPool = Boolean(poolSet?.size);
+      const inPool = hasPool ? all.filter((c) => poolSet.has(c)) : all;
+      const others = hasPool && q ? all.filter((c) => !poolSet.has(c)) : [];
+      if (hasPool && !recs && !q) nodes.push(h("div.picker-section", "Campeones de esta línea"));
+      for (const c of inPool.slice(0, q ? 80 : 200)) pushOption(nodes, c, scoreOf(c));
+      if (!others.length) return;
+      nodes.push(h("div.picker-section", { title: "Casi nunca se juegan en esta línea: no se recomiendan" }, "Poco jugados en esta línea"));
+      for (const c of others.slice(0, 40)) pushOption(nodes, c, null, ".picker-offrole");
+    };
 
     const setActive = (i) => {
       if (i === active) return;
@@ -97,35 +129,9 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
       options = [];
       const nodes = [];
       if (current) nodes.push(h("div.picker-opt", { onclick: () => choose(null) }, icon("close"), h("span.muted", "Quitar campeón")));
-      const scoreOf = (c) => recs?.scores?.get(c) || null;
       if (!q && recsLoading) nodes.push(h("div.picker-loading", h("div.spinner"), "Calculando recomendados…"));
-      if (!q && recs) {
-        for (const section of recs.sections) {
-          const items = section.items.filter((it) => matches(it.champ));
-          if (!items.length) continue;
-          nodes.push(h("div.picker-section", section.title));
-          for (const it of items) {
-            nodes.push(option(it.champ, options.length, it.meta, ".picker-rec"));
-            options.push(it.champ);
-          }
-        }
-        nodes.push(h("div.picker-section", poolSet && poolSet.size ? "Campeones de esta línea" : "Todos"));
-      }
-      // Con los campeones de la línea: solo esos; buscando, el resto aparte (para anotar un pick raro del rival).
-      const inPool = poolSet && poolSet.size ? all.filter((c) => poolSet.has(c)) : all;
-      const others = poolSet && poolSet.size && q ? all.filter((c) => !poolSet.has(c)) : [];
-      if (poolSet && poolSet.size && !recs && !q) nodes.push(h("div.picker-section", "Campeones de esta línea"));
-      for (const c of inPool.slice(0, q ? 80 : 200)) {
-        nodes.push(option(c, options.length, scoreOf(c)));
-        options.push(c);
-      }
-      if (others.length) {
-        nodes.push(h("div.picker-section", { title: "Casi nunca se juegan en esta línea: no se recomiendan" }, "Poco jugados en esta línea"));
-        for (const c of others.slice(0, 40)) {
-          nodes.push(option(c, options.length, null, ".picker-offrole"));
-          options.push(c);
-        }
-      }
+      if (!q && recs) pushRecommended(nodes, matches);
+      pushChamps(nodes, all, q);
       active = Math.min(active, Math.max(0, options.length - 1));
       list.replaceChildren(...nodes);
       list.querySelector(`.picker-opt[data-index="${active}"]`)?.classList.add("active");
@@ -140,10 +146,21 @@ export function champPicker({ value = null, onChange, placeholder = "Elegir camp
     const scrollActive = () => list.querySelector(".picker-opt.active")?.scrollIntoView({ block: "nearest" });
     input.addEventListener("input", () => { active = 0; draw(); place(); });
     input.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") { setActive(Math.min(options.length - 1, active + 1)); scrollActive(); e.preventDefault(); }
-      else if (e.key === "ArrowUp") { setActive(Math.max(0, active - 1)); scrollActive(); e.preventDefault(); }
-      else if (e.key === "Enter") { const c = options[active]; if (c) choose(c); e.preventDefault(); }
-      else if (e.key === "Escape") closePop();
+      if (e.key === "ArrowDown") {
+        setActive(Math.min(options.length - 1, active + 1));
+        scrollActive();
+        e.preventDefault();
+      } else if (e.key === "ArrowUp") {
+        setActive(Math.max(0, active - 1));
+        scrollActive();
+        e.preventDefault();
+      } else if (e.key === "Enter") {
+        const c = options[active];
+        if (c) choose(c);
+        e.preventDefault();
+      } else if (e.key === "Escape") {
+        closePop();
+      }
     });
     draw();
     document.body.append(pop);

@@ -132,10 +132,7 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
         "rm": _route_macro(analysis),
         "rl": _rules(analysis),
         # Movimiento (posiciones reconstruidas cada 5 s): el tuyo y el de tu rival directo (de jungla, el otro jungla).
-        "mv": {
-            "me": (analysis.get("movement") or {}).get(str(analysis.get("me"))),
-            "opp": (analysis.get("movement") or {}).get(str(analysis.get("enemy_jungler") if analysis.get("role") == "JUNGLE" else analysis.get("opponent"))),
-        } if analysis.get("movement") else None,
+        "mv": _movement_digest(analysis),
         "dv": DIGEST_VERSION,
         "issues": {
             "high": sum(1 for m in moments if m.get("severity") == "high"),
@@ -145,6 +142,15 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
             "info": sum(1 for m in moments if m.get("severity") == "info"),
         },
     }
+
+
+def _movement_digest(analysis: dict) -> dict | None:
+    """Tus posiciones y las de tu rival directo para el resumen (None si el análisis no trae movimiento)."""
+    movement = analysis.get("movement")
+    if not movement:
+        return None
+    rival = analysis.get("enemy_jungler") if analysis.get("role") == "JUNGLE" else analysis.get("opponent")
+    return {"me": movement.get(str(analysis.get("me"))), "opp": movement.get(str(rival))}
 
 
 def refresh_digests(db) -> int:
@@ -162,30 +168,47 @@ def refresh_digests(db) -> int:
         return 0
     done = 0
     for r in rows:
-        try:
-            analysis = store.unpack(r["analysis"])
-        # blob dañado: se queda como estaba
-        except Exception:  # noqa: BLE001
-            continue
-        if not analysis:
-            continue
-        skill_t = None
-        if not (analysis.get("build") or {}).get("skill_t") and r["has_tl"]:
-            skill_t = skill_times(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))
-        if r["has_match"]:
-            # Analizada antes de guardar ``riot_rules`` (o de que llevaran todos los retos que se miden): se sacan del
-            # participante de Riot (sin volver a analizar).
-            have = (analysis.get("riot_rules") or {}).get("ch") or {}
-            if "riot_rules" not in analysis or not all(k in have for k in ("controlWardsPlaced", "visionScorePerMinute")):
-                analysis["riot_rules"] = _riot_rules(store.raw_game(db, r["match_id"])[0], r["pid"] or analysis.get("me"))
-        if "my_wards" not in analysis and r["has_tl"]:
-            # Analizada antes de guardar tus wards: salen de la línea de tiempo (sin volver a analizar).
-            analysis["my_wards"] = my_wards(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))
-        store.update_digest(db, r["match_id"], digest(analysis, skill_t))
-        done += 1
+        if _refresh_digest(db, r):
+            done += 1
     if done:
         log.info("Resúmenes de %d partidas puestos al día.", done)
     return done
+
+
+def _refresh_digest(db, r) -> bool:
+    """Rehace el resumen de una fila de ``refresh_digests`` (False si su análisis guardado no se puede leer)."""
+    try:
+        analysis = store.unpack(r["analysis"])
+    # blob dañado: se queda como estaba
+    except Exception:  # noqa: BLE001
+        return False
+    if not analysis:
+        return False
+    pid = r["pid"] or analysis.get("me")
+    skill_t = None
+    if not (analysis.get("build") or {}).get("skill_t") and r["has_tl"]:
+        skill_t = skill_times(store.raw_timeline(db, r["match_id"]), pid)
+    if r["has_match"] and _lacks_riot_rules(analysis):
+        # Analizada antes de guardar ``riot_rules`` (o de que llevaran todos los retos que se miden): se sacan del
+        # participante de Riot (sin volver a analizar).
+        analysis["riot_rules"] = _riot_rules(store.raw_game(db, r["match_id"])[0], pid)
+    if "my_wards" not in analysis and r["has_tl"]:
+        # Analizada antes de guardar tus wards: salen de la línea de tiempo (sin volver a analizar).
+        analysis["my_wards"] = my_wards(store.raw_timeline(db, r["match_id"]), pid)
+    store.update_digest(db, r["match_id"], digest(analysis, skill_t))
+    return True
+
+
+def _lacks_riot_rules(analysis: dict) -> bool:
+    """Si al análisis le faltan las estadísticas de Riot (``riot_rules``) o alguno de los retos que se miden."""
+    have = (analysis.get("riot_rules") or {}).get("ch") or {}
+    return "riot_rules" not in analysis or not all(k in have for k in ("controlWardsPlaced", "visionScorePerMinute"))
+
+
+def _events(timeline: dict):
+    """Los eventos de la línea de tiempo de Riot, minuto a minuto y en orden."""
+    for frame in (timeline.get("info") or {}).get("frames") or []:
+        yield from frame.get("events") or []
 
 
 def my_wards(timeline: dict | None, pid: int | None) -> list | None:
@@ -193,12 +216,11 @@ def my_wards(timeline: dict | None, pid: int | None) -> list | None:
     if not timeline or not pid:
         return None
     out = []
-    for frame in (timeline.get("info") or {}).get("frames") or []:
-        for e in frame.get("events") or []:
-            if e.get("type") == "WARD_PLACED" and e.get("creatorId") == pid:
-                kind = (e.get("wardType") or "").upper()
-                if kind not in ("UNDEFINED", "TEEMO_MUSHROOM", ""):
-                    out.append([round((e.get("timestamp") or 0) / 1000, 1), kind])
+    for e in _events(timeline):
+        if e.get("type") == "WARD_PLACED" and e.get("creatorId") == pid:
+            kind = (e.get("wardType") or "").upper()
+            if kind not in ("UNDEFINED", "TEEMO_MUSHROOM", ""):
+                out.append([round((e.get("timestamp") or 0) / 1000, 1), kind])
     return out
 
 
@@ -259,6 +281,59 @@ def resolve_account(svc, game_name: str, tag_line: str, platform: str, **kw) -> 
         "profile_icon": summoner.get("profileIconId"),
         "summoner_level": summoner.get("summonerLevel"),
     }
+
+
+def _pending(st: dict | None) -> bool:
+    """Si una partida está por procesar: nueva, a la espera del timeline o con un error que aún se reintenta."""
+    return (
+        st is None
+        or st["status"] == "pending_timeline" and st["tries"] < MAX_TIMELINE_TRIES
+        or st["status"] == "error" and st["tries"] < 3
+    )
+
+
+def _game_base(match_id: str, puuid: str, info: dict, me: dict) -> dict:
+    """Lo que se guarda de cualquier partida tuya, también de las que no se analizan (cola, duración, campeón…)."""
+    queue = int(info.get("queueId") or 0)
+    duration = duration_seconds(info)
+    return {
+        "match_id": match_id,
+        "puuid": puuid,
+        "pid": int(me.get("participantId") or 0) or None,
+        "queue": queue,
+        "game_start": int(info.get("gameStartTimestamp") or info.get("gameCreation") or 0),
+        "duration": duration,
+        "champ": int(me.get("championId") or 0),
+        "role": player_role(me),
+        "team": int(me.get("teamId") or 0),
+        "win": int(bool(me.get("win"))),
+    }
+
+
+def _ignore_reason(info: dict, me: dict, base: dict) -> str | None:
+    """Por qué no se analiza una partida (otro modo de juego o remake); None si se analiza."""
+    if int(info.get("mapId") or 0) != SUMMONERS_RIFT or base["queue"] not in TRACKED_QUEUES:
+        return "otro modo de juego"
+    if base["duration"] < 300 or me.get("gameEndedInEarlySurrender"):
+        return "remake"
+    return None
+
+
+def _timeline_status(timeline: dict | None, tries: int) -> tuple[str, int]:
+    """(estado, intentos) con que se guarda una partida analizada: lista con timeline; sin él, un intento más."""
+    if timeline:
+        return "ready", tries
+    tries_out = tries + 1
+    return ("pending_timeline" if tries_out < MAX_TIMELINE_TRIES else "no_timeline"), tries_out
+
+
+def _peer_row(match: dict, timeline: dict, pid: int, items) -> dict | None:
+    """Rol y métricas de un jugador de la partida para calibrar las referencias (None si no se le encuentra)."""
+    try:
+        a = analyze_game(match, timeline, pid=pid, items=items)
+    except NotInMatch:
+        return None
+    return {"pid": pid, "role": a.get("role"), "reliable": reliable(a) and bool(a.get("role")), "metrics": a.get("metrics") or {}}
 
 
 class GameTracker:
@@ -341,10 +416,7 @@ class GameTracker:
     # ------------------------------------------------------------------ bucle
     def _run(self) -> None:
         self._set(status="starting")
-        try:
-            self.reanalyze_outdated()
-        except Exception:
-            log.exception("No se pudieron re-analizar las partidas antiguas")
+        self._reanalyze_safe()
         self._sample_peers_safe()
         next_poll = 0.0
         while not self.stop_event.is_set():
@@ -352,24 +424,9 @@ class GameTracker:
                 # El cliente se vigila en su propio hilo (``_watch_loop``), haya perfil o no: el precargador, el
                 # recolector y la calibración se pausan con ``state["in_game"]``.
                 profile = store.get_profile(self.svc.db)
-                if not profile:
-                    self._set(status="no_profile", next_check=None)
-                    self._sleep(CLIENT_POLL_S)
+                if self._waiting(profile):
                     continue
-                if not profile["settings"].get("enabled", True):
-                    self._set(status="paused", next_check=None)
-                    self._sleep(CLIENT_POLL_S)
-                    continue
-                if not self.svc.keys.get() or self.svc.keys.status == "invalid":
-                    self._set(status="waiting_key", next_check=None)
-                    self._sleep(10)
-                    continue
-                now = time.time()
-                if now >= next_poll or any(t <= now for t in self._scheduled):
-                    self._scheduled = [t for t in self._scheduled if t > now]
-                    self.sync(profile)
-                    self._sample_peers_safe()
-                    next_poll = time.time() + max(1, int(profile["settings"].get("poll_minutes") or 3)) * 60
+                next_poll = self._poll(profile, next_poll)
                 upcoming = min([next_poll, *self._scheduled])
                 self._set(status="idle", next_check=upcoming, waiting_after_game=bool(self._scheduled))
                 self._sleep(min(CLIENT_POLL_S, upcoming - time.time()))
@@ -395,6 +452,39 @@ class GameTracker:
                 next_poll = time.time() + 180
                 self._sleep(10)
         self._set(status="stopped")
+
+    def _reanalyze_safe(self) -> None:
+        """``reanalyze_outdated`` sin excepciones: si falla, el seguimiento arranca igual."""
+        try:
+            self.reanalyze_outdated()
+        except Exception:
+            log.exception("No se pudieron re-analizar las partidas antiguas")
+
+    def _waiting(self, profile: dict | None) -> bool:
+        """Sin perfil, en pausa o sin key válida: lo deja en el estado, espera un poco y devuelve True."""
+        if not profile:
+            self._set(status="no_profile", next_check=None)
+            self._sleep(CLIENT_POLL_S)
+            return True
+        if not profile["settings"].get("enabled", True):
+            self._set(status="paused", next_check=None)
+            self._sleep(CLIENT_POLL_S)
+            return True
+        if not self.svc.keys.get() or self.svc.keys.status == "invalid":
+            self._set(status="waiting_key", next_check=None)
+            self._sleep(10)
+            return True
+        return False
+
+    def _poll(self, profile: dict, next_poll: float) -> float:
+        """Sincroniza si toca (por el reloj o por un aviso del cliente al acabar una partida); devuelve la siguiente hora."""
+        now = time.time()
+        if now >= next_poll or any(t <= now for t in self._scheduled):
+            self._scheduled = [t for t in self._scheduled if t > now]
+            self.sync(profile)
+            self._sample_peers_safe()
+            next_poll = time.time() + max(1, int(profile["settings"].get("poll_minutes") or 3)) * 60
+        return next_poll
 
     def _watch_loop(self) -> None:
         while not self.stop_event.is_set():
@@ -437,30 +527,10 @@ class GameTracker:
             target = max(20, min(int(settings.get("backfill") or 50), 300))
             deep = int(settings.get("scanned") or 0) < target
             self._set(status="syncing")
-            since = None if deep else store.newest_start(db, store.known_puuids(profile))
-            if since:
-                # Todas las posteriores a la última guardada (hasta 100): recupera también las que
-                # jugaste con la web cerrada, con una sola llamada.
-                ids, profile = self._match_ids(profile, 100, kw, start_time=since // 1000 - 3600)
-            else:
-                ids, profile = self._match_ids(profile, target if deep else 20, kw)
-            for match_id in store.retry_candidates(db, store.known_puuids(profile), MAX_TIMELINE_TRIES):
-                if match_id not in ids:
-                    ids.append(match_id)
+            ids, profile = self._sync_ids(profile, target, deep, kw)
             states = store.game_states(db, ids)
-            todo = []
-            for match_id in ids:
-                st = states.get(match_id)
-                if st is None or st["status"] == "pending_timeline" and st["tries"] < MAX_TIMELINE_TRIES or st["status"] == "error" and st["tries"] < 3:
-                    todo.append(match_id)
-            new = 0
-            for index, match_id in enumerate(todo):
-                self._set(queue=len(todo) - index)
-                result = self._process(profile, match_id, states.get(match_id), kw)
-                self._set(processed=self.state["processed"] + 1)
-                if result == "new":
-                    new += 1
-                    self._set(new_total=self.state["new_total"] + 1, last_new_at=time.time())
+            todo = [match_id for match_id in ids if _pending(states.get(match_id))]
+            new = self._process_todo(profile, todo, states, kw)
             if deep:
                 store.update_profile(db, settings={"scanned": target})
             self._refresh_rank(store.get_profile(db) or profile, kw)
@@ -468,6 +538,33 @@ class GameTracker:
             if todo:
                 log.info("Seguimiento: %d partidas revisadas, %d nuevas analizadas.", len(todo), new)
             return {"checked": len(ids), "processed": len(todo), "new": new}
+
+    def _sync_ids(self, profile: dict, target: int, deep: bool, kw: dict) -> tuple[list[str], dict]:
+        """Partidas que revisar: las recientes (o hasta ``target`` en la pasada hacia atrás) y las que quedaron a medias."""
+        db = self.svc.db
+        since = None if deep else store.newest_start(db, store.known_puuids(profile))
+        if since:
+            # Todas las posteriores a la última guardada (hasta 100): recupera también las que
+            # jugaste con la web cerrada, con una sola llamada.
+            ids, profile = self._match_ids(profile, 100, kw, start_time=since // 1000 - 3600)
+        else:
+            ids, profile = self._match_ids(profile, target if deep else 20, kw)
+        for match_id in store.retry_candidates(db, store.known_puuids(profile), MAX_TIMELINE_TRIES):
+            if match_id not in ids:
+                ids.append(match_id)
+        return ids, profile
+
+    def _process_todo(self, profile: dict, todo: list[str], states: dict, kw: dict) -> int:
+        """Procesa las partidas pendientes llevando la cuenta en el estado; devuelve cuántas eran nuevas."""
+        new = 0
+        for index, match_id in enumerate(todo):
+            self._set(queue=len(todo) - index)
+            result = self._process(profile, match_id, states.get(match_id), kw)
+            self._set(processed=self.state["processed"] + 1)
+            if result == "new":
+                new += 1
+                self._set(new_total=self.state["new_total"] + 1, last_new_at=time.time())
+        return new
 
     def _refresh_rank(self, profile: dict, kw: dict) -> None:
         """Tu liga actual en SoloQ (1 petición a la hora como mucho): para compararte con la que quieres alcanzar."""
@@ -523,39 +620,20 @@ class GameTracker:
     def _process(self, profile: dict, match_id: str, state: dict | None, kw: dict) -> str:
         db = self.svc.db
         tries = (state or {}).get("tries") or 0
-        match = timeline = None
-        if state and state.get("has_match"):
-            match, timeline, _pid = store.raw_game(db, match_id)
+        match, timeline = self._fetch(match_id, state, kw)
         if match is None:
-            match = self.svc.riot.match(match_id, **kw)
-            if match is None:
-                store.save_game(db, {"match_id": match_id, "puuid": profile["puuid"], "status": "error", "reason": "Riot no encuentra la partida", "tries": tries + 1})
-                return "error"
+            store.save_game(db, {"match_id": match_id, "puuid": profile["puuid"], "status": "error", "reason": "Riot no encuentra la partida", "tries": tries + 1})
+            return "error"
         info = match.get("info") or {}
         try:
             me = find_me(match, puuid=profile["puuid"], game_name=profile["game_name"], tag_line=profile["tag_line"])
         except NotInMatch:
             store.save_game(db, {"match_id": match_id, "puuid": profile["puuid"], "status": "ignored", "reason": "no apareces en la partida"})
             return "ignored"
-        queue = int(info.get("queueId") or 0)
-        duration = duration_seconds(info)
-        base = {
-            "match_id": match_id,
-            "puuid": profile["puuid"],
-            "pid": int(me.get("participantId") or 0) or None,
-            "queue": queue,
-            "game_start": int(info.get("gameStartTimestamp") or info.get("gameCreation") or 0),
-            "duration": duration,
-            "champ": int(me.get("championId") or 0),
-            "role": player_role(me),
-            "team": int(me.get("teamId") or 0),
-            "win": int(bool(me.get("win"))),
-        }
-        if int(info.get("mapId") or 0) != SUMMONERS_RIFT or queue not in TRACKED_QUEUES:
-            store.save_game(db, {**base, "status": "ignored", "reason": "otro modo de juego"})
-            return "ignored"
-        if duration < 300 or me.get("gameEndedInEarlySurrender"):
-            store.save_game(db, {**base, "status": "ignored", "reason": "remake"})
+        base = _game_base(match_id, profile["puuid"], info, me)
+        reason = _ignore_reason(info, me, base)
+        if reason:
+            store.save_game(db, {**base, "status": "ignored", "reason": reason})
             return "ignored"
         self._store_general(match)
         if timeline is None:
@@ -563,11 +641,7 @@ class GameTracker:
         analysis = analyze_game(match, timeline, pid=base["pid"], items=self.items_for(match))
         # El rol del análisis (None si teamPosition venía vacío o repetido): con él se eligen las referencias.
         base["role"] = analysis.get("role")
-        if timeline:
-            status, tries_out = "ready", tries
-        else:
-            tries_out = tries + 1
-            status = "pending_timeline" if tries_out < MAX_TIMELINE_TRIES else "no_timeline"
+        status, tries_out = _timeline_status(timeline, tries)
         store.save_game(
             db,
             {
@@ -585,18 +659,31 @@ class GameTracker:
         )
         if status == "ready":
             self._prefetch_build(base["champ"], base["role"])
-            high = sum(1 for m in analysis["moments"] if m["severity"] == "high")
-            log.info(
-                "Partida analizada: %s (%s) · %s · %d/%d/%d · %d errores graves.",
-                self.svc.dd.name(base["champ"]),
-                ROLE_LABEL.get(base["role"] or "", "sin rol"),
-                "victoria" if base["win"] else "derrota",
-                analysis["metrics"]["kills"],
-                analysis["metrics"]["deaths"],
-                analysis["metrics"]["assists"],
-                high,
-            )
+            self._log_analyzed(base, analysis)
         return "new" if not state or state.get("status") != "ready" else "updated"
+
+    def _fetch(self, match_id: str, state: dict | None, kw: dict) -> tuple[dict | None, dict | None]:
+        """(match, timeline): los guardados si ya se descargó (falta el timeline) o el match de Riot (None si no está)."""
+        match = timeline = None
+        if state and state.get("has_match"):
+            match, timeline, _ = store.raw_game(self.svc.db, match_id)
+        if match is None:
+            match = self.svc.riot.match(match_id, **kw)
+        return match, timeline
+
+    def _log_analyzed(self, base: dict, analysis: dict) -> None:
+        """Deja en el registro el resumen de una partida recién analizada."""
+        high = sum(1 for m in analysis["moments"] if m["severity"] == "high")
+        log.info(
+            "Partida analizada: %s (%s) · %s · %d/%d/%d · %d errores graves.",
+            self.svc.dd.name(base["champ"]),
+            ROLE_LABEL.get(base["role"] or "", "sin rol"),
+            "victoria" if base["win"] else "derrota",
+            analysis["metrics"]["kills"],
+            analysis["metrics"]["deaths"],
+            analysis["metrics"]["assists"],
+            high,
+        )
 
     def items_for(self, match: dict):
         """Catálogo del parche de esa partida (o el actual si no se puede conseguir)."""
@@ -661,25 +748,29 @@ class GameTracker:
             if self.stop_event.is_set():
                 break
             match, timeline, my_pid = store.raw_game(db, match_id)
-            rows: list[dict] = []
-            if match and timeline:
-                items = self.items_for(match) or self.items()
-                info = match.get("info") or {}
-                for p in info.get("participants") or []:
-                    pid = int(p.get("participantId") or 0)
-                    if not pid or pid == my_pid:
-                        continue
-                    try:
-                        a = analyze_game(match, timeline, pid=pid, items=items)
-                    except NotInMatch:
-                        continue
-                    rows.append({"pid": pid, "role": a.get("role"), "reliable": reliable(a) and bool(a.get("role")), "metrics": a.get("metrics") or {}})
+            rows = self._peer_rows(match, timeline, my_pid)
             start = int((match or {}).get("info", {}).get("gameStartTimestamp") or 0) or None
             store.save_peer_samples(db, match_id, start, ANALYSIS_VERSION, rows)
             done += 1
         if done:
             log.info("Analizados los jugadores de %d partidas tuyas (referencias calibradas con tu elo).", done)
         return done
+
+    def _peer_rows(self, match: dict | None, timeline: dict | None, my_pid: int | None) -> list[dict]:
+        """Rol y métricas de los otros 9 jugadores de una partida guardada (ninguno si falta el match o el timeline)."""
+        if not match or not timeline:
+            return []
+        items = self.items_for(match) or self.items()
+        info = match.get("info") or {}
+        rows: list[dict] = []
+        for p in info.get("participants") or []:
+            pid = int(p.get("participantId") or 0)
+            if not pid or pid == my_pid:
+                continue
+            row = _peer_row(match, timeline, pid, items)
+            if row is not None:
+                rows.append(row)
+        return rows
 
     def reanalyze_outdated(self, force: bool = False) -> int:
         db = self.svc.db

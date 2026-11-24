@@ -34,6 +34,8 @@ from app.logbus import get_logger
 
 log = get_logger("rofl")
 
+# En una constante (y no ``os.name == "nt"`` en cada sitio): así el editor analiza las dos ramas en cualquier sistema.
+WINDOWS = os.name == "nt"
 ROFL_SUFFIX = ".rofl"
 RESCAN_S = 180  # cada cuánto se mira si hay repeticiones nuevas en la carpeta
 NOT_FOUND_RETRY_S = 12 * 3600  # una búsqueda completa sin resultado no se repite antes de 12 h (salvo que la pidas)
@@ -69,7 +71,7 @@ def has_rofl(folder: Path) -> bool:
 def _documents_dirs() -> list[Path]:
     home = Path.home()
     out = [home / "Documents", home / "Documentos"]
-    if os.name == "nt":
+    if WINDOWS:
         for env in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
             if os.environ.get(env):
                 out += [Path(os.environ[env]) / "Documents", Path(os.environ[env]) / "Documentos"]
@@ -114,7 +116,7 @@ def client_dir() -> Path | None:
 def scan_roots() -> list[Path]:
     """Primero tu carpeta de usuario (lo más probable) y después cada unidad o la raíz."""
     roots = [Path.home()]
-    if os.name == "nt":
+    if WINDOWS:
         roots += [Path(f"{d}:\\") for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
     else:
         roots += [Path("/Volumes")] if Path("/Volumes").is_dir() else []
@@ -128,44 +130,66 @@ def full_scan(roots: list[Path], stop: threading.Event | None = None, progress=N
     Entre varias, gana la primera llamada ``Replays``; si no hay ninguna así, la primera con ``.rofl``.
     """
     seen: set[str] = set()
-    fallback: Path | None = None
-    visited = 0
     for root in roots:
-        queue = deque([root])
-        while queue:
-            if stop is not None and stop.is_set():
-                return fallback
-            folder = queue.popleft()
-            key = os.path.normcase(str(folder))
-            if key in seen:
-                continue
-            seen.add(key)
-            visited += 1
-            if progress and visited % 500 == 0:
-                progress(visited, str(folder))
-            found_here = False
-            try:
-                with os.scandir(folder) as it:
-                    for entry in it:
-                        try:
-                            if entry.is_symlink():
-                                continue
-                            if entry.is_dir(follow_symlinks=False):
-                                if entry.name.lower() not in SKIP_NAMES and not entry.name.startswith("."):
-                                    queue.append(Path(entry.path))
-                            elif not found_here and entry.name.lower().endswith(ROFL_SUFFIX):
-                                found_here = True
-                        except OSError:
-                            continue
-            except OSError:
-                continue
-            if found_here:
-                if folder.name.lower() == "replays":
-                    return folder
-                fallback = fallback or folder
-        if fallback is not None:
+        found = _scan_root(root, seen, stop, progress)
+        if found is not None:
+            return found
+    return None
+
+
+def _scan_root(root: Path, seen: set[str], stop: threading.Event | None, progress) -> Path | None:
+    """Búsqueda en anchura desde una raíz: la primera carpeta ``Replays`` con ``.rofl`` o, si no hay, la primera con ``.rofl``."""
+    fallback: Path | None = None
+    queue = deque([root])
+    while queue:
+        if stop is not None and stop.is_set():
             return fallback
+        folder = queue.popleft()
+        if not _first_visit(folder, seen, progress):
+            continue
+        if _list_folder(folder, queue):
+            if folder.name.lower() == "replays":
+                return folder
+            fallback = fallback or folder
     return fallback
+
+
+def _first_visit(folder: Path, seen: set[str], progress) -> bool:
+    """True la primera vez que se pasa por la carpeta; cada 500 carpetas recorridas avisa a ``progress``."""
+    key = os.path.normcase(str(folder))
+    if key in seen:
+        return False
+    seen.add(key)
+    visited = len(seen)  # cada carpeta recorrida entra una sola vez en ``seen``
+    if progress and visited % 500 == 0:
+        progress(visited, str(folder))
+    return True
+
+
+def _list_folder(folder: Path, queue: deque) -> bool:
+    """Encola las subcarpetas que hay que recorrer y dice si en esta hay algún ``.rofl`` (False si no se puede leer)."""
+    found_here = False
+    try:
+        with os.scandir(folder) as it:
+            for entry in it:
+                try:
+                    found_here = _visit_entry(entry, queue) or found_here
+                except OSError:
+                    continue
+    except OSError:
+        return False
+    return found_here
+
+
+def _visit_entry(entry: os.DirEntry, queue: deque) -> bool:
+    """Encola la entrada si es una subcarpeta que se recorre (sin enlaces, ocultas ni de sistema); True si es un ``.rofl``."""
+    if entry.is_symlink():
+        return False
+    if entry.is_dir(follow_symlinks=False):
+        if entry.name.lower() not in SKIP_NAMES and not entry.name.startswith("."):
+            queue.append(Path(entry.path))
+        return False
+    return entry.name.lower().endswith(ROFL_SUFFIX)
 
 
 # ------------------------------------------------------------------ cabecera del .rofl
@@ -183,11 +207,11 @@ def parse_rofl(path: Path) -> dict | None:
             meta = None
             if len(head) >= 288:
                 try:
-                    _hl, _fl, meta_off, meta_len = struct.unpack_from("<HIII", head, 262)
+                    meta_off, meta_len = struct.unpack_from("<II", head, 268)  # 262: u16 + u32 que no se usan; 268: offset y tamaño
                     if 0 < meta_len < 50_000_000:
                         fh.seek(meta_off)
                         meta = json.loads(fh.read(meta_len).decode("utf-8"))
-                except (struct.error, ValueError, UnicodeDecodeError, OSError):
+                except (struct.error, ValueError, OSError):  # ValueError incluye UnicodeDecodeError y el JSON mal formado
                     meta = None
             if not isinstance(meta, dict) or "gameLength" not in meta:
                 size = fh.seek(0, os.SEEK_END)
@@ -281,13 +305,7 @@ class LocalReplays:
         """La carpeta de repeticiones de este sistema (la guardada, la del cliente, la de por defecto o buscándola)."""
         saved = self.saved() or {}
         if saved.get("path") and Path(saved["path"]).is_dir():
-            folder = Path(saved["path"])
-            client = client_dir() if saved.get("found_by") != "manual" else None
-            if client is not None and client.is_dir() and client != folder:
-                self._remember(client, "client")  # cambiaste la carpeta en los ajustes del cliente
-                folder = client
-            self.state.update(path=str(folder), found_by=(self.saved() or saved).get("found_by"))
-            return folder
+            return self._saved_folder(saved)
         client = client_dir()
         if client is not None and client.is_dir():
             self._remember(client, "client")
@@ -302,11 +320,29 @@ class LocalReplays:
         # La carpeta por defecto existe pero vacía: puede que las tengas en otra; si no aparecen, se usa esa.
         empty_default = defaults[0] if defaults else None
         if not self.force_scan and saved.get("not_found_at") and now_s() - int(saved["not_found_at"]) < NOT_FOUND_RETRY_S:
-            if empty_default is not None:
-                self.state.update(path=str(empty_default), found_by="default")
-                return empty_default
-            self.state.update(status="not_found", path=None)
-            return None
+            return self._use_empty_default(empty_default)
+        return self._scan_disk(empty_default)
+
+    def _saved_folder(self, saved: dict) -> Path:
+        """La carpeta guardada, salvo que el cliente tenga configurada otra (entonces se guarda y se usa esa)."""
+        folder = Path(saved["path"])
+        client = client_dir() if saved.get("found_by") != "manual" else None
+        if client is not None and client.is_dir() and client != folder:
+            self._remember(client, "client")  # cambiaste la carpeta en los ajustes del cliente
+            folder = client
+        self.state.update(path=str(folder), found_by=(self.saved() or saved).get("found_by"))
+        return folder
+
+    def _use_empty_default(self, empty_default: Path | None) -> Path | None:
+        """Sin repeticiones en ningún sitio: la carpeta por defecto (vacía) si existe; si no, queda «no encontrada»."""
+        if empty_default is not None:
+            self.state.update(path=str(empty_default), found_by="default")
+            return empty_default
+        self.state.update(status="not_found", path=None)
+        return None
+
+    def _scan_disk(self, empty_default: Path | None) -> Path | None:
+        """Busca la carpeta por todo el disco y guarda lo encontrado (o que no hay ninguna, con la hora para no repetir)."""
         self.force_scan = False
         self.state.update(status="scanning", path=None, scanned=0, at=None)
         started = time.time()
@@ -317,11 +353,7 @@ class LocalReplays:
             log.info("No se encontró ninguna repetición (.rofl) en este ordenador (%.0f s buscando).", time.time() - started)
             # Sin ninguna repetición en el disco: se usa la carpeta por defecto si existe (ahí caerán las que bajes).
             self._remember(empty_default, "default" if empty_default else "scan", not_found_at=now_s())
-            if empty_default is not None:
-                self.state.update(path=str(empty_default), found_by="default")
-                return empty_default
-            self.state.update(status="not_found", path=None)
-            return None
+            return self._use_empty_default(empty_default)
         self._remember(found, "scan")
         self.state.update(path=str(found), found_by="scan")
         log.info("Carpeta de repeticiones encontrada: %s (%.0f s buscando).", found, time.time() - started)

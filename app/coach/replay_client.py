@@ -15,9 +15,9 @@ pidas desde la web.
 
 from __future__ import annotations
 
-import re
 import threading
 import time
+from itertools import takewhile
 
 from app import lcu
 from app.logbus import get_logger
@@ -37,11 +37,20 @@ STATE_TEXT = {
 
 
 def game_id(match_id: str) -> int:
-    """``EUW1_7412345678`` -> ``7412345678``."""
-    match = re.search(r"(\d+)$", match_id or "")
-    if not match:
+    """``EUW1_7412345678`` -> ``7412345678``: los dígitos del final (un salto de línea al final no cuenta).
+
+    Sin expresión regular: la de antes (``(\\d+)$`` con ``re.search``) volvía a probar desde cada posición. Mismo
+    resultado: cualquier dígito que Python lea como número (``str.isdecimal``, como ``\\d``)."""
+    text = (match_id or "").removesuffix("\n")
+    digits = "".join(takewhile(str.isdecimal, reversed(text)))[::-1]
+    if not digits:
         raise ValueError(f"Identificador de partida no válido: {match_id}")
-    return int(match.group(1))
+    return int(digits)
+
+
+def _downloading_text(progress) -> str:
+    """Mensaje de «descargando» con el porcentaje cuando el cliente lo da."""
+    return f"Descargando la repetición… {int(progress)} %" if isinstance(progress, (int, float)) else "Descargando la repetición…"
 
 
 class ClientReplays:
@@ -107,25 +116,7 @@ class ClientReplays:
 
     def _watch(self, match_id: str, gid: int, seconds: float) -> None:
         try:
-            deadline = time.monotonic() + DOWNLOAD_TIMEOUT_S
-            started = False
-            while True:
-                meta = lcu.replay_metadata(gid)
-                state = meta.get("state")
-                if state == "watch":
-                    break
-                if state in STATE_TEXT:
-                    raise lcu.LCUError(STATE_TEXT[state])
-                if state in ("download", "retryDownload") and not started:
-                    self._set(match_id, "running", "Descargando la repetición (cuenta para el límite de 50 al día)…")
-                    lcu.replay_download(gid)
-                    started = True
-                elif state == "downloading":
-                    progress = meta.get("downloadProgress")
-                    self._set(match_id, "running", f"Descargando la repetición… {int(progress)} %" if isinstance(progress, (int, float)) else "Descargando la repetición…")
-                if time.monotonic() > deadline:
-                    raise lcu.LCUError("La descarga está tardando demasiado. Revisa el cliente de LoL.")
-                time.sleep(2)
+            self._wait_downloaded(match_id, gid)
             self._set(match_id, "running", "Abriendo la repetición en el juego…")
             lcu.replay_watch(gid)
             if seconds <= 0:
@@ -134,24 +125,49 @@ class ClientReplays:
             if lcu.replay_api_enabled() is False:
                 self._set(match_id, "done", f"Repetición abierta. Ve a mano al {int(seconds) // 60}:{int(seconds) % 60:02d} (activa el salto automático para que lo haga yo).")
                 return
-            self._set(match_id, "running", "Esperando a que el juego cargue la repetición…")
-            deadline = time.monotonic() + LOAD_TIMEOUT_S
-            while time.monotonic() < deadline:
-                playback = lcu.replay_playback()
-                if playback and (playback.get("length") or 0) > 0:
-                    target = min(seconds, max(0.0, float(playback["length"]) - 1))
-                    lcu.replay_seek(target)
-                    self._set(match_id, "done", f"Listo: repetición en el {int(target) // 60}:{int(target) % 60:02d}.")
-                    log.info("Repetición %s abierta en el cliente en el segundo %d.", match_id, int(target))
-                    return
-                time.sleep(2)
-            self._set(match_id, "done", "Repetición abierta, pero el juego no respondió a tiempo para saltar al momento: búscalo a mano.")
+            self._seek_when_loaded(match_id, seconds)
         except lcu.LCUError as exc:
             self._set(match_id, "error", str(exc))
             log.warning("Repetición %s: %s", match_id, exc)
         except Exception as exc:  # nunca dejar el trabajo «en curso» para siempre
             self._set(match_id, "error", f"Error inesperado: {exc}")
             log.exception("Fallo abriendo la repetición %s", match_id)
+
+    def _wait_downloaded(self, match_id: str, gid: int) -> None:
+        """Descarga la repetición si hace falta y espera a que se pueda ver; ``LCUError`` si no se puede o tarda demasiado."""
+        deadline = time.monotonic() + DOWNLOAD_TIMEOUT_S
+        started = False
+        while True:
+            meta = lcu.replay_metadata(gid)
+            state = meta.get("state")
+            if state == "watch":
+                return
+            if state in STATE_TEXT:
+                raise lcu.LCUError(STATE_TEXT[state])
+            if state in ("download", "retryDownload") and not started:
+                self._set(match_id, "running", "Descargando la repetición (cuenta para el límite de 50 al día)…")
+                lcu.replay_download(gid)
+                started = True
+            elif state == "downloading":
+                self._set(match_id, "running", _downloading_text(meta.get("downloadProgress")))
+            if time.monotonic() > deadline:
+                raise lcu.LCUError("La descarga está tardando demasiado. Revisa el cliente de LoL.")
+            time.sleep(2)
+
+    def _seek_when_loaded(self, match_id: str, seconds: float) -> None:
+        """Espera a que el juego cargue la repetición y salta al segundo pedido (o avisa de que hay que ir a mano)."""
+        self._set(match_id, "running", "Esperando a que el juego cargue la repetición…")
+        deadline = time.monotonic() + LOAD_TIMEOUT_S
+        while time.monotonic() < deadline:
+            playback = lcu.replay_playback()
+            if playback and (playback.get("length") or 0) > 0:
+                target = min(seconds, max(0.0, float(playback["length"]) - 1))
+                lcu.replay_seek(target)
+                self._set(match_id, "done", f"Listo: repetición en el {int(target) // 60}:{int(target) % 60:02d}.")
+                log.info("Repetición %s abierta en el cliente en el segundo %d.", match_id, int(target))
+                return
+            time.sleep(2)
+        self._set(match_id, "done", "Repetición abierta, pero el juego no respondió a tiempo para saltar al momento: búscalo a mano.")
 
     def seek(self, seconds: float) -> dict:
         playback = lcu.replay_playback()

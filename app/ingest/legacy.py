@@ -38,22 +38,41 @@ def legacy_status(db: Database) -> dict:
     return json.loads(raw) if raw else {"status": "pending"}
 
 
-def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) -> dict:
-    current = legacy_status(db)
-    if current.get("status") == "done" and not force:
-        return current
-    if not path.exists():
-        report = {"status": "missing", "path": str(path)}
-        db.meta_set("legacy_import", json.dumps(report))
-        return report
-    if not dd.champions:
-        return {"status": "waiting_ddragon"}
+def _add_games(directed: dict[tuple, list[int]], role: str, a: int, b: int, tier: str, wins: int, losses: int) -> None:
+    """Suma un enfrentamiento en ambos sentidos (un *mirror* cuenta 2 partidas y exactamente un 50 % de victorias)."""
+    games = wins + losses
+    if a == b:
+        row = directed[(role, a, a, tier)]
+        row[0] += 2 * games
+        row[1] += games
+    else:
+        row = directed[(role, a, b, tier)]
+        row[0] += games
+        row[1] += wins
+        row = directed[(role, b, a, tier)]
+        row[0] += games
+        row[1] += losses
 
-    started = time.time()
-    log.info("Importando histórico %s (puede tardar unos segundos)…", path.name)
-    with path.open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
 
+def _add_matchup(directed: dict[tuple, list[int]], unmapped: Counter, dd: DDragon, role: str, key: str, value) -> None:
+    """Suma un ``a_vs_b`` del histórico por elo (sin elos, como UNRANKED); si un campeón no se reconoce, a ``unmapped``."""
+    if "_vs_" not in key or not isinstance(value, dict):
+        return
+    name_a, name_b = key.split("_vs_", 1)
+    a, b = dd.resolve(name_a), dd.resolve(name_b)
+    if not a or not b:
+        unmapped[name_a if not a else name_b] += int(value.get("wins", 0)) + int(value.get("losses", 0))
+        return
+    elos = value.get("elos") or {"UNRANKED": {"wins": value.get("wins", 0), "losses": value.get("losses", 0)}}
+    for tier_raw, ev in elos.items():
+        wins, losses = int(ev.get("wins", 0)), int(ev.get("losses", 0))
+        if wins + losses <= 0:
+            continue
+        _add_games(directed, role, a, b, normalize_tier(tier_raw), wins, losses)
+
+
+def _directed_matchups(data: dict, dd: DDragon) -> tuple[dict[tuple, list[int]], Counter]:
+    """(partidas, victorias) por (rol, campeón, rival, elo) en ambos sentidos y lo que no se pudo mapear."""
     directed: dict[tuple, list[int]] = defaultdict(lambda: [0, 0])
     unmapped: Counter = Counter()
     for role_raw, matchups in (data.get("stats") or {}).items():
@@ -61,35 +80,15 @@ def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) ->
         if role not in ROLES or not isinstance(matchups, dict):
             continue
         for key, value in matchups.items():
-            if "_vs_" not in key or not isinstance(value, dict):
-                continue
-            name_a, name_b = key.split("_vs_", 1)
-            a, b = dd.resolve(name_a), dd.resolve(name_b)
-            if not a or not b:
-                unmapped[name_a if not a else name_b] += int(value.get("wins", 0)) + int(value.get("losses", 0))
-                continue
-            elos = value.get("elos") or {"UNRANKED": {"wins": value.get("wins", 0), "losses": value.get("losses", 0)}}
-            for tier_raw, ev in elos.items():
-                wins, losses = int(ev.get("wins", 0)), int(ev.get("losses", 0))
-                games = wins + losses
-                if games <= 0:
-                    continue
-                tier = normalize_tier(tier_raw)
-                if a == b:
-                    row = directed[(role, a, a, tier)]
-                    row[0] += 2 * games
-                    row[1] += games
-                else:
-                    row = directed[(role, a, b, tier)]
-                    row[0] += games
-                    row[1] += wins
-                    row = directed[(role, b, a, tier)]
-                    row[0] += games
-                    row[1] += losses
+            _add_matchup(directed, unmapped, dd, role, key, value)
+    return directed, unmapped
 
+
+def _totals(directed: dict[tuple, list[int]]) -> tuple[dict[tuple, list[int]], dict[str, float]]:
+    """Totales por (rol, campeón, elo) y partidas por elo."""
     champ_totals: dict[tuple, list[int]] = defaultdict(lambda: [0, 0])
     role_tier_games: dict[tuple, int] = defaultdict(int)
-    for (role, champ, _opp, tier), (games, wins) in directed.items():
+    for (role, champ, _, tier), (games, wins) in directed.items():
         total = champ_totals[(role, champ, tier)]
         total[0] += games
         total[1] += wins
@@ -97,16 +96,24 @@ def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) ->
 
     # Cada partida aporta 2 filas dirigidas por rol -> partidas = juegos/2 (media de roles).
     tier_matches: dict[str, float] = defaultdict(float)
-    for (_role, tier), games in role_tier_games.items():
+    for (_, tier), games in role_tier_games.items():
         tier_matches[tier] += games / 2 / len(ROLES)
+    return champ_totals, tier_matches
 
+
+def _processed_ids(data: dict) -> list[tuple[str]]:
+    """Ids de las partidas que ya contó el histórico (para que el recolector nuevo no las vuelva a contar)."""
     processed = data.get("processed_matches") or []
     match_ids = []
     for item in processed:
         mid = item.get("id") if isinstance(item, dict) else item
         if isinstance(mid, str) and "_" in mid:
             match_ids.append((mid,))
+    return match_ids
 
+
+def _store(db: Database, directed: dict, champ_totals: dict, tier_matches: dict, match_ids: list[tuple[str]]) -> None:
+    """Sustituye las filas del histórico en los agregados y guarda los ids de sus partidas."""
     with db.write() as conn:
         for table in ("agg_matchup", "agg_champ", "agg_totals"):
             conn.execute(f"DELETE FROM {table} WHERE patch = ?", (LEGACY,))
@@ -123,6 +130,28 @@ def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) ->
             [(LEGACY, t, LEGACY, round(m)) for t, m in tier_matches.items() if m >= 1],
         )
         conn.executemany("INSERT OR IGNORE INTO legacy_matches(match_id) VALUES (?)", match_ids)
+
+
+def import_legacy(db: Database, dd: DDragon, path: Path, force: bool = False) -> dict:
+    current = legacy_status(db)
+    if current.get("status") == "done" and not force:
+        return current
+    if not path.exists():
+        report = {"status": "missing", "path": str(path)}
+        db.meta_set("legacy_import", json.dumps(report))
+        return report
+    if not dd.champions:
+        return {"status": "waiting_ddragon"}
+
+    started = time.time()
+    log.info("Importando histórico %s (puede tardar unos segundos)…", path.name)
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    directed, unmapped = _directed_matchups(data, dd)
+    champ_totals, tier_matches = _totals(directed)
+    match_ids = _processed_ids(data)
+    _store(db, directed, champ_totals, tier_matches, match_ids)
 
     report = {
         "status": "done",

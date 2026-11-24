@@ -359,7 +359,7 @@ def test_dragon_conceded_without_priority_is_not_a_mistake():
     split = _jungle_far_from_dragon_at_20({(3, 20): {"minionsKilled": 120}})  # el mismo dragón, solo mid por detrás
     assert a["metrics"]["obj_lost_far"] == split["metrics"]["obj_lost_far"] - 1  # ya no cuenta como regalado
     assert a["metrics"]["obj_lost_noprio"] == 1
-    assert insights._mistake_type("objective", set(m["tags"])) is None
+    assert insights.mistake_type("objective", set(m["tags"])) is None
     # Al top no se le enseña (como cualquier dragón cedido), pero tampoco cuenta como regalado.
     from tests.test_coach_audit import _dragon_at_20
 

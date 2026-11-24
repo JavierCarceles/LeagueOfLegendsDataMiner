@@ -53,7 +53,8 @@ function go(id) {
 
 /** Partidas, duración, lado azul y rendiciones de tu base de datos (o el aviso de que aún no hay). */
 function ownKpis(d) {
-  if (!(d.matches > 0)) {
+  const hasGames = d.matches > 0; // falso también sin dato (undefined)
+  if (!hasGames) {
     return notice("Aún no hay partidas propias de esta región. La meta de abajo sale de OP.GG; para objetivos, duración y lado del mapa inicia el recolector en «Datos y API».", "info");
   }
   const blueCi = d.blue_ci ? `IC ${fmt.pct(d.blue_ci[0])}–${fmt.pct(d.blue_ci[1])}` : null;

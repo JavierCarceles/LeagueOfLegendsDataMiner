@@ -86,11 +86,8 @@ def validate_jungle(files: list[Path], catalog=None, max_minute: int = 15) -> di
     with_camps: list[float] = []
     spans = misses = 0
     for f in files:
-        try:
-            d = json.load(gzip.open(f, "rt", encoding="utf-8"))
-            match, timeline, me = d["match"], d["timeline"], d["analysis"]["me"]
-            g = A._Game(match, timeline, A.find_me(match, pid=me), catalog)
-        except (OSError, ValueError, KeyError, TypeError, A.NotInMatch):
+        g = _load_game(f, catalog)
+        if g is None:
             continue
         spans += getattr(g, "camp_minutes", 0)
         misses += getattr(g, "camp_misses", 0)
@@ -98,20 +95,36 @@ def validate_jungle(files: list[Path], catalog=None, max_minute: int = 15) -> di
         for p, info in g.players.items():
             if not info.get("smite"):
                 continue
-            fountain = geo.FOUNTAIN.get(info["team"])
-            for i in range(2, min(len(g.ts) - 1, max_minute)):
-                t, truth = g.ts[i], g.frame_pos(p, i)
-                if truth is None or g.is_dead(p, t):
-                    continue
-                rest = [a for a in base[p] if not (a[0] == t and a[3] == 0)]
-                if any(a[0] == t for a in rest):
-                    continue
-                camps = A.infer_camps(g, {**base, p: rest}, frozenset({(p, i)})).get(p, [])
-                if not any(abs(c[0] - t) < 60_000 for c in camps):
-                    continue
-                without.append(geo.dist(A.interpolate(A._reconstruct(rest, fountain), t), truth))
-                with_camps.append(geo.dist(A.interpolate(A._reconstruct(sorted(rest + camps), fountain), t), truth))
+            for error_without, error_camps in _jungle_errors(g, base, p, geo.FOUNTAIN.get(info["team"]), max_minute):
+                without.append(error_without)
+                with_camps.append(error_camps)
     return {"without": stats(without), "with_camps": stats(with_camps), "spans": spans, "misses": misses}
+
+
+def _load_game(f: Path, catalog=None):
+    """Partida de ``data/mis_partidas`` lista para reconstruir (None si el fichero no sirve)."""
+    try:
+        d = json.load(gzip.open(f, "rt", encoding="utf-8"))
+        match, timeline, me = d["match"], d["timeline"], d["analysis"]["me"]
+        return A._Game(match, timeline, A.find_me(match, pid=me), catalog)
+    except (OSError, ValueError, KeyError, TypeError, A.NotInMatch):
+        return None
+
+
+def _jungle_errors(g, base: dict, p: int, fountain, max_minute: int):
+    """(error sin campamentos, error con ellos) de cada minuto en que se esconde la posición del jungla ``p``."""
+    for i in range(2, min(len(g.ts) - 1, max_minute)):
+        t, truth = g.ts[i], g.frame_pos(p, i)
+        if truth is None or g.is_dead(p, t):
+            continue
+        rest = [a for a in base[p] if not (a[0] == t and a[3] == 0)]
+        if any(a[0] == t for a in rest):
+            continue
+        camps = A.infer_camps(g, {**base, p: rest}, frozenset({(p, i)})).get(p, [])
+        if not any(abs(c[0] - t) < 60_000 for c in camps):
+            continue
+        error_without = geo.dist(A.interpolate(A._reconstruct(rest, fountain), t), truth)
+        yield error_without, geo.dist(A.interpolate(A._reconstruct(sorted(rest + camps), fountain), t), truth)
 
 
 LANE_NEAR = 1600  # radio de experiencia de los súbditos: a más de esto de la línea no la ganas
@@ -119,7 +132,7 @@ LANE_CS_MIN = 6  # CS de súbditos en un minuto que exige haber pasado buena par
 
 
 def _lane_d(p) -> float:
-    return min(geo.dist_polyline(p, pts) for pts, _half in geo.LANES.values())
+    return min(geo.dist_polyline(p, pts) for pts, _ in geo.LANES.values())
 
 
 def validate_lane_xp(files: list[Path], catalog=None, max_minute: int = 15) -> dict:
@@ -130,49 +143,82 @@ def validate_lane_xp(files: list[Path], catalog=None, max_minute: int = 15) -> d
     out = {"minutes": 0, "rec_bad": 0, "old_bad": 0, "bins": {}}
     bins: dict[str, list[tuple[float, float]]] = {"0-25": [], "25-50": [], "50-75": [], "75-100": []}
     for f in files:
-        try:
-            d = json.load(gzip.open(f, "rt", encoding="utf-8"))
-            match, timeline, me = d["match"], d["timeline"], d["analysis"]["me"]
-            g = A._Game(match, timeline, A.find_me(match, pid=me), catalog)
-        except (OSError, ValueError, KeyError, TypeError, A.NotInMatch):
+        g = _load_game(f, catalog)
+        if g is None:
             continue
-        fights: dict[int, list[int]] = {}
-        for k in g.kills:
-            for p in (k["killer"], k["victim"], *k["assists"]):
-                fights.setdefault(p, []).append(k["t"])
+        fights = _fight_times(g)
         for p, info in g.players.items():
             lane = geo.ROLE_LANE.get(info.get("role"))
             if info.get("role") not in ("TOP", "MID", "ADC") or not lane:
                 continue
-            frames = [a for a in g.raw_anchors[p] if a[3] == 0]
-            frame_t = [a[0] for a in frames]
-            for i in range(2, min(len(g.ts), max_minute)):
-                t0, t1 = g.ts[i - 1], g.ts[i]
-                if g.dead_overlap(p, t0, t1) or any(t0 <= t <= t1 for t in fights.get(p, ())):
-                    continue
-                if any(a[3] == 2 and t0 - 30_000 <= a[0] <= t1 for a in g.raw_anchors[p]):
-                    continue  # minuto con vuelta a base
-                v = [g.fval(p, j, k) for j in (i - 1, i) for k in ("minionsKilled", "jungleMinionsKilled", "xp")]
-                if None in v or v[4] != v[1]:
-                    continue
-                cs, xp = v[3] - v[0], v[5] - v[2]
-                ts = range(t0 + 2_500, t1, 5_000)
-                rec = [q for t in ts if (q := g.pos_at(p, t))]
-                old = [q for t in ts if (q := A.interpolate(frames, t, frame_t))]
-                if not rec or not old:
-                    continue
-                out["minutes"] += 1
-                own = sum(geo.dist_polyline(q, geo.LANES[lane][0]) <= LANE_NEAR for q in rec) / len(rec)
-                key = "0-25" if own < 0.25 else "25-50" if own < 0.5 else "50-75" if own < 0.75 else "75-100"
-                bins[key].append((cs, xp))
-                if cs >= LANE_CS_MIN:
-                    out["rec_bad"] += sum(_lane_d(q) <= LANE_NEAR for q in rec) / len(rec) < 0.25
-                    out["old_bad"] += sum(_lane_d(q) <= LANE_NEAR for q in old) / len(old) < 0.25
+            for minute in _lane_minutes(g, p, fights, max_minute):
+                _count_lane_minute(out, bins, lane, minute)
     out["bins"] = {
         k: {"n": len(v), "cs": round(sum(c for c, _ in v) / len(v), 1), "xp": round(sum(x for _, x in v) / len(v))}
         for k, v in bins.items() if v
     }
     return out
+
+
+def _fight_times(g) -> dict[int, list[int]]:
+    """Instantes (ms) de las kills en que participó cada jugador: como asesino, víctima o asistente."""
+    fights: dict[int, list[int]] = {}
+    for k in g.kills:
+        for p in (k["killer"], k["victim"], *k["assists"]):
+            fights.setdefault(p, []).append(k["t"])
+    return fights
+
+
+def _lane_minutes(g, p: int, fights: dict, max_minute: int):
+    """Los minutos útiles del laner ``p`` (los que no descarta ``_lane_minute``), en orden."""
+    frames = [a for a in g.raw_anchors[p] if a[3] == 0]
+    frame_t = [a[0] for a in frames]
+    for i in range(2, min(len(g.ts), max_minute)):
+        minute = _lane_minute(g, p, i, fights, frames, frame_t)
+        if minute is not None:
+            yield minute
+
+
+def _lane_minute(g, p: int, i: int, fights: dict, frames: list, frame_t: list):
+    """(CS, experiencia, puntos reconstruidos, puntos en línea recta) del minuto ``i`` del laner ``p``; None si no sirve
+    (muerto, peleando o volviendo a base, sin sus datos de ese minuto o sin puntos del recorrido)."""
+    t0, t1 = g.ts[i - 1], g.ts[i]
+    if g.dead_overlap(p, t0, t1) or any(t0 <= t <= t1 for t in fights.get(p, ())):
+        return None
+    if any(a[3] == 2 and t0 - 30_000 <= a[0] <= t1 for a in g.raw_anchors[p]):
+        return None  # minuto con vuelta a base
+    v = [g.fval(p, j, k) for j in (i - 1, i) for k in ("minionsKilled", "jungleMinionsKilled", "xp")]
+    if None in v or v[4] != v[1]:
+        return None
+    cs, xp = v[3] - v[0], v[5] - v[2]
+    ts = range(t0 + 2_500, t1, 5_000)
+    rec = [q for t in ts if (q := g.pos_at(p, t))]
+    old = [q for t in ts if (q := A.interpolate(frames, t, frame_t))]
+    if not rec or not old:
+        return None
+    return cs, xp, rec, old
+
+
+def _lane_bin(own: float) -> str:
+    """Tramo (en %) del minuto que el recorrido reconstruido pasa en su línea."""
+    if own < 0.25:
+        return "0-25"
+    if own < 0.5:
+        return "25-50"
+    if own < 0.75:
+        return "50-75"
+    return "75-100"
+
+
+def _count_lane_minute(out: dict, bins: dict, lane: str, minute: tuple) -> None:
+    """Suma un minuto útil de un laner a los recuentos de ``validate_lane_xp``."""
+    cs, xp, rec, old = minute
+    out["minutes"] += 1
+    own = sum(geo.dist_polyline(q, geo.LANES[lane][0]) <= LANE_NEAR for q in rec) / len(rec)
+    bins[_lane_bin(own)].append((cs, xp))
+    if cs >= LANE_CS_MIN:
+        out["rec_bad"] += sum(_lane_d(q) <= LANE_NEAR for q in rec) / len(rec) < 0.25
+        out["old_bad"] += sum(_lane_d(q) <= LANE_NEAR for q in old) / len(old) < 0.25
 
 
 def main() -> int:

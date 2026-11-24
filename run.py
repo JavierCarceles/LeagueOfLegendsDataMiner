@@ -34,6 +34,8 @@ import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+# En una constante (y no ``os.name == "nt"`` en cada sitio): así el editor analiza las dos ramas en cualquier sistema.
+WINDOWS = os.name == "nt"
 REQUIREMENTS = ROOT / "requirements.txt"
 INSIDE = "TEMPU_DRAFTER_ENV"  # marca del proceso relanzado dentro del entorno
 REQ_STAMP = ".tempu-requirements"  # huella de requirements.txt instalada
@@ -58,7 +60,7 @@ def _utf8_console() -> None:
 
 def _own_console() -> bool:
     """¿Esta ventana de consola se abrió solo para nosotros (doble clic)? Entonces hay que pausar antes de cerrar."""
-    if os.name != "nt":
+    if not WINDOWS:
         return False
     try:
         import ctypes
@@ -86,14 +88,14 @@ def venv_dir() -> Path:
     custom = os.environ.get("TEMPU_VENV")
     if custom:
         return Path(custom)
-    if os.name == "nt":
+    if WINDOWS:
         base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
         return base / "TempuDrafter" / f"venv-py{sys.version_info[0]}{sys.version_info[1]}"
     return ROOT / ".venv"
 
 
 def venv_python(path: Path) -> Path:
-    return path / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    return path / ("Scripts/python.exe" if WINDOWS else "bin/python")
 
 
 def _run_quiet(cmd: list[str], timeout: float = 120) -> subprocess.CompletedProcess:
@@ -125,7 +127,7 @@ class _SetupLock:
             raise OSError("no se pudo bloquear el entorno")
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *_) -> None:
         _unlock(self.handle)
         self.handle.close()
 
@@ -135,7 +137,7 @@ def ensure_venv(path: Path) -> Path:
         return venv_python(path)
     say("Preparando el entorno de Python (solo la primera vez, 1-2 minutos)…")
     try:
-        venv.EnvBuilder(with_pip=True, clear=path.exists(), symlinks=os.name != "nt").create(path)
+        venv.EnvBuilder(with_pip=True, clear=path.exists(), symlinks=not WINDOWS).create(path)
     except (OSError, subprocess.CalledProcessError) as exc:
         output = getattr(exc, "output", None)
         raise RuntimeError(f"No se pudo crear el entorno en {path}: {exc}" + (f"\n{output}" if output else "")) from exc
@@ -197,7 +199,7 @@ def _remove_old_project_venv(current: Path) -> None:
     """
     old = ROOT / ".venv"
     try:
-        if os.name != "nt" or old.resolve() == current.resolve():
+        if not WINDOWS or old.resolve() == current.resolve():
             return
     except OSError:
         return
@@ -225,7 +227,7 @@ def bootstrap(argv: list[str]) -> int:
     path = venv_dir()
     try:
         # El candado va fuera de la raíz del proyecto: junto al entorno en Windows, en .cache/ en macOS/Linux.
-        lock_dir = path.parent if os.name == "nt" else ROOT / ".cache"
+        lock_dir = path.parent if WINDOWS else ROOT / ".cache"
         with _SetupLock(lock_dir / f"{path.name.lstrip('.')}.lock"):
             python = ensure_venv(path)
             ensure_requirements(path, python)
@@ -257,7 +259,7 @@ def bootstrap(argv: list[str]) -> int:
 # ====================================================================== una sola copia
 def _try_lock(handle, wait: bool = False) -> bool:
     try:
-        if os.name == "nt":
+        if WINDOWS:
             import msvcrt
 
             handle.seek(0)
@@ -279,7 +281,7 @@ def _try_lock(handle, wait: bool = False) -> bool:
 
 def _unlock(handle) -> None:
     try:
-        if os.name == "nt":
+        if WINDOWS:
             import msvcrt
 
             handle.seek(0)
@@ -312,7 +314,7 @@ def _url(host: str, port: int) -> str:
 def _port_free(host: str, port: int) -> bool:
     bind_host = "127.0.0.1" if host in ("", "localhost") else host
     with socket.socket(socket.AF_INET6 if ":" in bind_host else socket.AF_INET, socket.SOCK_STREAM) as sock:
-        if os.name != "nt":
+        if not WINDOWS:
             # Igual que uvicorn: un puerto con conexiones en TIME_WAIT (reinicio rápido) sí se puede usar.
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -324,7 +326,7 @@ def _port_free(host: str, port: int) -> bool:
 
 def _disable_quick_edit() -> None:
     """Windows 10: con QuickEdit, un clic en la consola congela la app hasta pulsar Esc. Se desactiva."""
-    if os.name != "nt":
+    if not WINDOWS:
         return
     with contextlib.suppress(Exception):  # consola sin modo (redirigida, IDE): no hace falta
         import ctypes
@@ -337,7 +339,7 @@ def _disable_quick_edit() -> None:
 
 
 def _lower_priority(enabled: bool) -> None:
-    if os.name != "nt" or not enabled:
+    if not WINDOWS or not enabled:
         return
     with contextlib.suppress(Exception):  # sin psutil o sin permiso: no es imprescindible
         import psutil
@@ -452,7 +454,7 @@ def main() -> int:
     parser.add_argument("--reload", action="store_true", help="Recarga automática al editar código")
     parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador al arrancar")
     parser.add_argument("--no-venv", action="store_true", help="Usar el Python actual con sus dependencias")
-    args, _unknown = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
     if not (os.environ.get(INSIDE) or args.no_venv):
         path = venv_dir()
         if not _in_dir(path):

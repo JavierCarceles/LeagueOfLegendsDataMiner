@@ -201,30 +201,40 @@ class RateLimiter:
                 reserve = self._reserve_now(priority, now)
                 app = self._app_bucket(host)
                 meth = self._method.get((host, method))
-                terms = {
-                    "bloqueo_429": max(self._blocked.get(host, 0.0), self._blocked.get(method_key, 0.0)) - now,
-                    "ventana_llena": app.wait(now, reserve),
-                    "limite_metodo": meth.wait(now) if meth else 0.0,
-                    # Prioridad baja repartida a lo largo de la ventana: si llenara la ventana de golpe, sus marcas
-                    # caducarían todas a la vez al final y una búsqueda tuya esperaría hasta 2 min (se midieron 92 s).
-                    "ritmo": self._low_next.get(host, 0.0) - now if paced else 0.0,
-                }
+                terms = self._wait_terms(host, method_key, now, reserve, app, meth, paced)
                 reason = max(terms, key=terms.get)
                 wait = terms[reason]
                 if wait <= 0:
-                    if paced:
-                        self._low_next[host] = max(now, self._low_next.get(host, now)) + app.pace(reserve)
-                    app.record(now)
-                    if meth:
-                        meth.record(now)
-                    self._stats[host]["requests"] += 1
-                    self._calls[host].append((now, priority))
+                    self._grant(host, priority, now, reserve, app, meth)
                     return True
                 if deadline is not None and now + wait > deadline:
                     return False
                 t0 = self._clock()
                 self._cond.wait(timeout=min(wait, 0.5))
                 self._waited[host][reason] += self._clock() - t0
+
+    def _wait_terms(
+        self, host: str, method_key: str, now: float, reserve: float, app: _Bucket, meth: _Bucket | None, paced: bool
+    ) -> dict[str, float]:
+        """Segundos que faltan por cada motivo de espera (en este orden; el mayor es el que manda)."""
+        return {
+            "bloqueo_429": max(self._blocked.get(host, 0.0), self._blocked.get(method_key, 0.0)) - now,
+            "ventana_llena": app.wait(now, reserve),
+            "limite_metodo": meth.wait(now) if meth else 0.0,
+            # Prioridad baja repartida a lo largo de la ventana: si llenara la ventana de golpe, sus marcas
+            # caducarían todas a la vez al final y una búsqueda tuya esperaría hasta 2 min (se midieron 92 s).
+            "ritmo": self._low_next.get(host, 0.0) - now if paced else 0.0,
+        }
+
+    def _grant(self, host: str, priority: int, now: float, reserve: float, app: _Bucket, meth: _Bucket | None) -> None:
+        """Anota la petición que sale: ventanas, ritmo de la prioridad baja y diagnóstico."""
+        if priority == Priority.LOW:
+            self._low_next[host] = max(now, self._low_next.get(host, now)) + app.pace(reserve)
+        app.record(now)
+        if meth:
+            meth.record(now)
+        self._stats[host]["requests"] += 1
+        self._calls[host].append((now, priority))
 
     def update(self, host: str, method: str, status: int, headers) -> float:
         """Procesa las cabeceras de la respuesta. Devuelve la espera aplicada si fue 429."""
@@ -233,45 +243,55 @@ class RateLimiter:
             now = self._clock()
             if self._born is None:
                 self._born = now
-            app = self._app_bucket(host)
-            app_limits = parse_limits(headers.get("X-App-Rate-Limit"))
-            if app_limits:
-                app.set_limits(app_limits)
-            app_counts = parse_limits(headers.get("X-App-Rate-Limit-Count"))
-            if app_counts:
-                foreign = app.sync_counts(app_counts, now)
-                if foreign and now - self._born >= FOREIGN_GRACE_S:
-                    seen = self._foreign[host]
-                    seen.append((now, foreign))
-                    while seen and seen[0][0] < now - FOREIGN_WINDOW_S:  # sin la web abierta nadie lo podaba
-                        seen.popleft()
-
-            method_limits = parse_limits(headers.get("X-Method-Rate-Limit"))
-            if method_limits:
-                bucket = self._method.get((host, method))
-                if bucket is None:
-                    bucket = self._method[(host, method)] = _Bucket(method_limits)
-                    bucket.record(now)  # la petición actual
-                else:
-                    bucket.set_limits(method_limits)
-                method_counts = parse_limits(headers.get("X-Method-Rate-Limit-Count"))
-                if method_counts:
-                    bucket.sync_counts(method_counts, now)
-
+            self._sync_app(host, headers, now, count_foreign=now - self._born >= FOREIGN_GRACE_S)
+            self._sync_method(host, method, headers, now)
             if status == 429:
-                kind = (headers.get("X-Rate-Limit-Type") or "").lower()
-                try:
-                    retry = float(headers.get("Retry-After") or 0)
-                except ValueError:
-                    retry = 0.0
-                if retry <= 0:
-                    retry = 2.0 if kind == "service" else 5.0
-                key = host if kind == "application" else f"{host}|{method}"
-                self._blocked[key] = max(self._blocked.get(key, 0.0), now + retry + 0.25)
-                self._stats[host]["rate_limited"] += 1
-                applied = retry
+                applied = self._block_429(host, method, headers, now)
             self._cond.notify_all()
         return applied
+
+    def _sync_app(self, host: str, headers, now: float, count_foreign: bool) -> None:
+        """Límite de aplicación: adopta el de las cabeceras, sincroniza los contadores y anota las peticiones ajenas."""
+        app = self._app_bucket(host)
+        app_limits = parse_limits(headers.get("X-App-Rate-Limit"))
+        if app_limits:
+            app.set_limits(app_limits)
+        app_counts = parse_limits(headers.get("X-App-Rate-Limit-Count"))
+        if app_counts:
+            foreign = app.sync_counts(app_counts, now)
+            if foreign and count_foreign:
+                seen = self._foreign[host]
+                seen.append((now, foreign))
+                while seen and seen[0][0] < now - FOREIGN_WINDOW_S:  # sin la web abierta nadie lo podaba
+                    seen.popleft()
+
+    def _sync_method(self, host: str, method: str, headers, now: float) -> None:
+        """Límite del método (endpoint): lo crea o ajusta con las cabeceras y sincroniza sus contadores."""
+        method_limits = parse_limits(headers.get("X-Method-Rate-Limit"))
+        if method_limits:
+            bucket = self._method.get((host, method))
+            if bucket is None:
+                bucket = self._method[(host, method)] = _Bucket(method_limits)
+                bucket.record(now)  # la petición actual
+            else:
+                bucket.set_limits(method_limits)
+            method_counts = parse_limits(headers.get("X-Method-Rate-Limit-Count"))
+            if method_counts:
+                bucket.sync_counts(method_counts, now)
+
+    def _block_429(self, host: str, method: str, headers, now: float) -> float:
+        """429: bloquea el host (o solo el método) lo que pide ``Retry-After`` o una espera por defecto; la devuelve."""
+        kind = (headers.get("X-Rate-Limit-Type") or "").lower()
+        try:
+            retry = float(headers.get("Retry-After") or 0)
+        except ValueError:
+            retry = 0.0
+        if retry <= 0:
+            retry = 2.0 if kind == "service" else 5.0
+        key = host if kind == "application" else f"{host}|{method}"
+        self._blocked[key] = max(self._blocked.get(key, 0.0), now + retry + 0.25)
+        self._stats[host]["rate_limited"] += 1
+        return retry
 
     def snapshot(self) -> dict[str, dict]:
         with self._cond:

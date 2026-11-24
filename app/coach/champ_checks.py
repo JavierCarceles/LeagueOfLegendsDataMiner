@@ -184,7 +184,7 @@ def check(rec: dict, ref: dict | None, catalog=None, champ_name: str = "tu campe
     out += _skills(rec, ref, champ_name)
     out += _first_back(rec, ref, catalog, champ_name)
     out += _item_tempo(rec, ref, catalog, champ_name)
-    out += _second_item(rec, ref, catalog, champ_name)
+    out += _second_item(rec, ref, champ_name)
     out += _slow_clear(rec, ref, champ_name)
     return out
 
@@ -239,18 +239,24 @@ def _game_checks(rec: dict) -> list[dict]:
             "partidas de jungla y 1 de cada 8 de top (en Platino y Esmeralda, el doble o más).",
             ["vision", "no_sweep"], kind="vision",
         ))
+    out += _low_kp(rec, role, minutes)
+    return out
+
+
+def _low_kp(rec: dict, role: str | None, minutes: float) -> list[dict]:
+    """Jungla que apenas participa en las kills de su equipo (si hubo kills suficientes para que el porcentaje diga algo)."""
     kp, kills, assists = _num(rec.get("kp")), _num(rec.get("kills")) or 0, _num(rec.get("assists")) or 0
     if role == "JUNGLE" and kp is not None and kp < LOW_KP and kp > 0:
         team_kills = (kills + assists) * 100 / kp
         if team_kills >= LOW_KP_TEAM_KILLS:
-            out.append(_moment(
+            return [_moment(
                 minutes * 60, "medium" if kp < 30 else "low", f"Participaste en el {round(kp)} % de las kills",
                 f"Tu equipo hizo unas {round(team_kills)} kills y estuviste en {int(kills + assists)}. Un jungla de Aspirante baja del "
                 "40 % en 1 de cada 14 partidas (en Platino, 1 de cada 7): sigue las peleas de tus líneas, llega a los ganks del "
                 "rival (contragank) y agrupa con tu equipo antes de cada objetivo.",
                 ["jungle", "low_kp"], kind="jungle",
-            ))
-    return out
+            )]
+    return []
 
 
 def _moment(t: float | None, severity: str, title: str, detail: str, tags: list[str], kind: str = "build") -> dict:
@@ -263,28 +269,40 @@ def _skills(rec: dict, ref: dict, champ_name: str) -> list[dict]:
     total = ref.get("skill_games") or 0
     if total < MIN_REF_GAMES or len(letters) < 2:
         return []
+    found = _rare_skill_level(letters, levels, total)
+    if found is None:
+        return []
+    lvl, mine, mine_n, usual, usual_n, n = found
+    share = mine_n / n
+    times = rec.get("skill_t") or []
+    t = times[lvl - 1] if len(times) >= lvl else None
+    picked = letters[lvl - 1]
+    severity = "medium" if lvl <= 3 and share < 0.03 and usual_n / n >= 0.8 else "low"
+    return [
+        _moment(
+            t, severity, f"Nivel {lvl}: subiste la {picked} (orden poco habitual)",
+            f"A nivel {lvl} llevabas {_vector_label(mine)}; el {_pct(usual_n, n)} de los OTPs de {champ_name} "
+            f"(Diamante o más) llevan {_vector_label(usual)} y solo el {_pct(mine_n, n)} lo hacen como tú. "
+            "Los primeros niveles deciden la velocidad del despeje y los duelos: copia su orden salvo que tengas un motivo concreto.",
+            ["build", "skill_order"],
+        )
+    ] if t is not None else []
+
+
+def _rare_skill_level(letters: str, levels: list[dict], total: int) -> tuple | None:
+    """Primer nivel en que tu reparto de puntos es raro entre los OTPs y hay uno habitual: (nivel, tu reparto, cuántos
+    lo llevan, el habitual, cuántos lo llevan, partidas con ese nivel); None si no hay ninguno."""
     for lvl in range(1, min(SKILL_LEVELS, len(letters), len(levels)) + 1):
         dist = levels[lvl - 1]
         mine = skill_vector(letters, lvl)
         n = sum(dist.values()) or total
         usual, usual_n = max(dist.items(), key=lambda kv: kv[1])
-        share = dist.get(mine, 0) / n
+        mine_n = dist.get(mine, 0)
+        share = mine_n / n
         if mine == usual or share >= SKILL_RARE or usual_n / n < SKILL_USUAL:
             continue
-        times = rec.get("skill_t") or []
-        t = times[lvl - 1] if len(times) >= lvl else None
-        picked = letters[lvl - 1]
-        severity = "medium" if lvl <= 3 and share < 0.03 and usual_n / n >= 0.8 else "low"
-        return [
-            _moment(
-                t, severity, f"Nivel {lvl}: subiste la {picked} (orden poco habitual)",
-                f"A nivel {lvl} llevabas {_vector_label(mine)}; el {_pct(usual_n, n)} de los OTPs de {champ_name} "
-                f"(Diamante o más) llevan {_vector_label(usual)} y solo el {_pct(dist.get(mine, 0), n)} lo hacen como tú. "
-                "Los primeros niveles deciden la velocidad del despeje y los duelos: copia su orden salvo que tengas un motivo concreto.",
-                ["build", "skill_order"],
-            )
-        ] if t is not None else []
-    return []
+        return lvl, mine, mine_n, usual, usual_n, n
+    return None
 
 
 def _first_back(rec: dict, ref: dict, catalog, champ_name: str) -> list[dict]:
@@ -346,7 +364,7 @@ def _item_tempo(rec: dict, ref: dict, catalog, champ_name: str) -> list[dict]:
     ]
 
 
-def _second_item(rec: dict, ref: dict, catalog, champ_name: str) -> list[dict]:
+def _second_item(rec: dict, ref: dict, champ_name: str) -> list[dict]:
     p50, p75 = ref.get("second_item_p50"), ref.get("second_item_p75")
     mine = _num(rec.get("second_item_min"))
     if p75 is None or mine is None or not rec.get("items_reliable", True):

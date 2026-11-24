@@ -218,7 +218,6 @@ def parse_mcp_text(text: str):
 
 
 # ------------------------------------------------------------------ cliente
-_Throttle = Throttle  # compatibilidad
 
 
 WEB_KINDS = {"versions", "tier", "counters"}

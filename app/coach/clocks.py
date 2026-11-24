@@ -105,45 +105,75 @@ def assign_spawns(objectives: list[dict], clocks: dict[str, int] | None) -> bool
         o["spawn"] = None
     if not clocks:
         return False
-    next_dragon = clocks["dragon_first"]
-    next_baron = clocks["baron_first"]
-    next_elder: int | None = None
-    dragons = {100: 0, 200: 0}
-    spawns: list[tuple[dict, int]] = []
-    for o in objectives:
-        kind, t = o["kind"], o["t"]
-        if kind == "dragon":
-            spawn = next_dragon
-            next_dragon = t + clocks["dragon_respawn"]
-            if o["team"] in dragons:
-                dragons[o["team"]] += 1
-                if dragons[o["team"]] == SOUL_DRAGONS and next_elder is None:
-                    next_elder = t + clocks["elder_after_soul"]
-                    next_dragon = 10**12  # tras el alma solo sale el ancestral
-        elif kind == "elder":
-            if next_elder is None:
-                return _invalid(objectives)
-            spawn = next_elder
-            next_elder = t + clocks["elder_respawn"]
-        elif kind == "baron":
-            spawn = next_baron
-            next_baron = t + clocks["baron_respawn"]
-        elif kind == "grubs":
-            spawn = clocks["grubs_first"]
-            if t > clocks["grubs_until"] + IN_COMBAT_GRACE:
-                return _invalid(objectives)
-        elif kind == "herald":
-            spawn = clocks["herald_first"]
-            if t > clocks["herald_until"] + IN_COMBAT_GRACE:
-                return _invalid(objectives)
-        else:  # Atakhan u otro objetivo que estos relojes no conocen: la temporada no es la de la tabla
-            return _invalid(objectives)
-        if t < spawn - EARLY_TOLERANCE:
-            return _invalid(objectives)
-        spawns.append((o, spawn))
+    clock = _SpawnClock(clocks)
+    try:
+        spawns = [(o, clock.spawn(o)) for o in objectives]
+    except _ClocksMismatch:
+        return _invalid(objectives)
     for o, spawn in spawns:
         o["spawn"] = spawn
     return True
+
+
+class _ClocksMismatch(Exception):
+    """Un objetivo no cuadra con los relojes de la temporada: los de esa partida no son fiables."""
+
+
+class _SpawnClock:
+    """Cuándo apareció cada objetivo, recorriendo en orden los que murieron en la partida."""
+
+    def __init__(self, clocks: dict[str, int]) -> None:
+        self.clocks = clocks
+        self.next_dragon = clocks["dragon_first"]
+        self.next_baron = clocks["baron_first"]
+        self.next_elder: int | None = None
+        self.dragons = {100: 0, 200: 0}
+
+    def spawn(self, o: dict) -> int:
+        """Cuándo apareció ``o`` (y prepara los relojes siguientes); ``_ClocksMismatch`` si no cuadra con ellos."""
+        kind, t = o["kind"], o["t"]
+        if kind == "dragon":
+            spawn = self._dragon(o, t)
+        elif kind == "elder":
+            spawn = self._elder(t)
+        elif kind == "baron":
+            spawn = self.next_baron
+            self.next_baron = t + self.clocks["baron_respawn"]
+        elif kind == "grubs":
+            spawn = self._until(t, "grubs_first", "grubs_until")
+        elif kind == "herald":
+            spawn = self._until(t, "herald_first", "herald_until")
+        else:  # Atakhan u otro objetivo que estos relojes no conocen: la temporada no es la de la tabla
+            raise _ClocksMismatch
+        if t < spawn - EARLY_TOLERANCE:
+            raise _ClocksMismatch
+        return spawn
+
+    def _dragon(self, o: dict, t: int) -> int:
+        """Dragón elemental: el siguiente sale ``dragon_respawn`` después; tras el alma de un equipo, solo el ancestral."""
+        spawn = self.next_dragon
+        self.next_dragon = t + self.clocks["dragon_respawn"]
+        if o["team"] in self.dragons:
+            self.dragons[o["team"]] += 1
+            if self.dragons[o["team"]] == SOUL_DRAGONS and self.next_elder is None:
+                self.next_elder = t + self.clocks["elder_after_soul"]
+                self.next_dragon = 10**12  # tras el alma solo sale el ancestral
+        return spawn
+
+    def _elder(self, t: int) -> int:
+        """Ancestral: solo sale tras el alma, y el siguiente ``elder_respawn`` después."""
+        if self.next_elder is None:
+            raise _ClocksMismatch
+        spawn = self.next_elder
+        self.next_elder = t + self.clocks["elder_respawn"]
+        return spawn
+
+    def _until(self, t: int, first: str, until: str) -> int:
+        """Larvas y heraldo: salen a su hora y se van a la suya (más tarde solo si alguien los estaba pegando)."""
+        spawn = self.clocks[first]
+        if t > self.clocks[until] + IN_COMBAT_GRACE:
+            raise _ClocksMismatch
+        return spawn
 
 
 def _invalid(objectives: list[dict]) -> bool:
@@ -156,24 +186,9 @@ def alive_at(objectives: list[dict], clocks: dict[str, int], t: int) -> list[str
     """Objetivos vivos en el mapa en el instante ``t`` según los relojes (``dragon``, ``elder``, ``grubs``…)."""
     out: list[str] = []
     before = [o for o in objectives if o["t"] <= t]
-    dragons = [o for o in before if o["kind"] == "dragon"]
-    soul = None
-    counts = {100: 0, 200: 0}
-    for o in dragons:
-        if o["team"] in counts:
-            counts[o["team"]] += 1
-            if counts[o["team"]] == SOUL_DRAGONS:
-                soul = o
-                break
-    if soul is None:
-        spawn = (dragons[-1]["t"] + clocks["dragon_respawn"]) if dragons else clocks["dragon_first"]
-        if t >= spawn:
-            out.append("dragon")
-    else:
-        elders = [o for o in before if o["kind"] == "elder"]
-        spawn = (elders[-1]["t"] + clocks["elder_respawn"]) if elders else soul["t"] + clocks["elder_after_soul"]
-        if t >= spawn:
-            out.append("elder")
+    pit = _dragon_pit(before, clocks, t)
+    if pit:
+        out.append(pit)
     barons = [o for o in before if o["kind"] == "baron"]
     spawn = (barons[-1]["t"] + clocks["baron_respawn"]) if barons else clocks["baron_first"]
     if t >= spawn:
@@ -183,6 +198,29 @@ def alive_at(objectives: list[dict], clocks: dict[str, int], t: int) -> list[str
     if clocks["herald_first"] <= t <= clocks["herald_until"] and not any(o["kind"] == "herald" for o in before):
         out.append("herald")
     return out
+
+
+def _dragon_pit(before: list[dict], clocks: dict[str, int], t: int) -> str | None:
+    """Qué hay vivo en el foso del dragón en ``t``: ``dragon``, ``elder`` (tras el alma) o nada (None)."""
+    dragons = [o for o in before if o["kind"] == "dragon"]
+    soul = _soul_dragon(dragons)
+    if soul is None:
+        spawn = (dragons[-1]["t"] + clocks["dragon_respawn"]) if dragons else clocks["dragon_first"]
+        return "dragon" if t >= spawn else None
+    elders = [o for o in before if o["kind"] == "elder"]
+    spawn = (elders[-1]["t"] + clocks["elder_respawn"]) if elders else soul["t"] + clocks["elder_after_soul"]
+    return "elder" if t >= spawn else None
+
+
+def _soul_dragon(dragons: list[dict]) -> dict | None:
+    """El dragón con el que un equipo se llevó el alma (None si nadie la tiene aún)."""
+    counts = {100: 0, 200: 0}
+    for o in dragons:
+        if o["team"] in counts:
+            counts[o["team"]] += 1
+            if counts[o["team"]] == SOUL_DRAGONS:
+                return o
+    return None
 
 
 def pit_of(kind: str) -> tuple[int, int]:

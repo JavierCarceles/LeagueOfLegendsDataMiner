@@ -43,7 +43,7 @@ class Metric:
     category: str
     unit: str = ""
     decimals: int = 1
-    roles: tuple[str, ...] | None = None  # None = todos
+    roles: tuple[str, ...] | None = None  # todos los roles si no se indica ninguno
     scale: bool = True  # se ajusta al elo objetivo
     floor: float = 0.5  # para normalizar métricas que valen ~0
     count: bool = False  # recuento por partida (muertes, objetivos…): se valora con su incertidumbre (Poisson)
@@ -300,16 +300,32 @@ def _db_refs(svc, role: str, tier: str) -> dict[str, float]:
     }
     if role != "SUPPORT":
         out["cs_min"] = row["cs"] / minutes
-        cs10 = safe_div(row.get("cs10_sum") or 0, row.get("cs10_n") or 0)
+        cs10 = _row_mean(row, "cs10")
         if cs10:
             out["cs10"] = cs10
-    kp = safe_div(row.get("kp_sum") or 0, row.get("kp_n") or 0)
+    kp = _row_mean(row, "kp")
     if kp:
         out["kp"] = kp * 100
-    share = safe_div(row.get("dshare_sum") or 0, row.get("dshare_n") or 0)
+    share = _row_mean(row, "dshare")
     if share and role in ("TOP", "MID", "ADC"):
         out["dmg_share"] = share * 100
     return {k: round(v, 3) for k, v in out.items()}
+
+
+def _row_mean(row: dict, key: str) -> float | None:
+    """Media de una métrica de los totales por rol (``<key>_sum`` entre ``<key>_n``; None si no hay datos)."""
+    return safe_div(row.get(f"{key}_sum") or 0, row.get(f"{key}_n") or 0)
+
+
+def _ref_source(db: dict, tier: dict, peers: dict) -> str:
+    """De dónde salen las referencias de un rol: tu BD, partidas de tu elo objetivo, jugadores de tus partidas u orientativas."""
+    if db:
+        return "db"
+    if tier:
+        return "tier"
+    if peers:
+        return "peers"
+    return "static"
 
 
 class References:
@@ -358,7 +374,7 @@ class References:
             # Tamaño de la muestra de cada referencia calibrada (las orientativas y las de la BD no tienen: None).
             self._sizes[role] = {k: n for k, n in {**peer_sizes, **tier_sizes}.items() if k not in db}
             self._info[role] = {
-                "source": "db" if db else "tier" if tier else "peers" if peers else "static",
+                "source": _ref_source(db, tier, peers),
                 "peer_samples": samples,
                 "tier_samples": tier_samples,
                 "calibrated": sorted(set(peers) | set(tier)),
@@ -397,8 +413,8 @@ def _champ_refs(svc, champ: int, role: str, tier: str) -> dict | None:
         summary = json.loads((Path(settings.data_dir) / FILES_DIR / _slug(name) / "resumen.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    block = ((((summary.get("roles") or {}).get(role) or {}).get("by_tier")) or {}).get(tier) or {}
-    if (block.get("games") or 0) < MIN_CHAMP_REF_GAMES or (block.get("players") or 0) < MIN_CHAMP_REF_PLAYERS:
+    block = _champ_block(summary, role, tier)
+    if block is None:
         return None
     metrics = block.get("metrics") or {}
     refs = {
@@ -407,6 +423,14 @@ def _champ_refs(svc, champ: int, role: str, tier: str) -> dict | None:
         if isinstance((metrics.get(k) or {}).get("mean"), (int, float)) and METRICS.get(k) is not None and applies(METRICS[k], role)
     }
     return {"refs": refs, "games": block["games"], "players": block.get("players"), "champ": champ} if refs else None
+
+
+def _champ_block(summary: dict, role: str, tier: str) -> dict | None:
+    """Datos de los OTPs del campeón en ese rol y elo si hay partidas y OTPs suficientes (None si no)."""
+    block = ((((summary.get("roles") or {}).get(role) or {}).get("by_tier")) or {}).get(tier) or {}
+    if (block.get("games") or 0) < MIN_CHAMP_REF_GAMES or (block.get("players") or 0) < MIN_CHAMP_REF_PLAYERS:
+        return None
+    return block
 
 
 def next_target(current: str | None, target: str | None) -> str | None:

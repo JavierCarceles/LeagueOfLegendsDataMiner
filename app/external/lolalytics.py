@@ -312,7 +312,7 @@ def _item_sets_of(sets: dict) -> dict:
         "items": items,
         "first": first,
         "boots": boots,
-        "games": sum(g for _ids, g, _w in five),
+        "games": sum(g for _, g, _ in five),
         "paths": [[ids, g, w] for ids, g, w in ranked[:8]],
         "pos": {i: round(total / games, 2) for i, (total, games) in pos.items() if games},
         # Las builds completas (las más jugadas): para medir qué se compra junto al núcleo que se recomienda.

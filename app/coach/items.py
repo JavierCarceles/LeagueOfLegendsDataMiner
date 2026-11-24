@@ -67,6 +67,35 @@ def season(version) -> str | None:
     return head if head.isdigit() else None
 
 
+def _on_rift(key, v: dict) -> bool:
+    """¿Es una entrada de ``item.json`` con id numérico que existe en la Grieta (o que no dice en qué mapas está)?"""
+    if not str(key).isdigit():
+        return False
+    maps = v.get("maps") or {}
+    return not maps or bool(maps.get(SR, False))
+
+
+def _item_entry(v: dict) -> dict:
+    """Ficha de un objeto de ``item.json``: coste, receta, etiquetas, si se compra, pasivas…"""
+    gold = v.get("gold") or {}
+    return {
+        "name": v.get("name", ""),
+        "cost": int(gold.get("total") or 0),
+        "sell": int(gold.get("sell") or 0),
+        "from": _ids(v.get("from")),
+        "into": _ids(v.get("into")),
+        "tags": list(v.get("tags") or []),
+        "depth": int(v.get("depth") or 1),
+        "consumed": bool(v.get("consumed")),
+        "stacks": _stack_size(v.get("stacks")),  # pociones (5), pinks (2)… comparten un hueco
+        "buyable": bool(gold.get("purchasable", True)) and v.get("inStore", True) is not False and not v.get("requiredAlly"),
+        "champion": v.get("requiredChampion") or "",
+        "special": int(v.get("specialRecipe") or 0),  # objeto que se transforma en este (Manamune -> Muramana)
+        "passives": sorted(set(_PASSIVE.findall(v.get("description") or ""))),  # pasivas únicas por su nombre
+        "gw": bool(_GW.search(v.get("description") or "")),
+    }
+
+
 class ItemCatalog:
     """Datos de cada objeto: coste, receta, etiquetas y si es un objeto completo."""
 
@@ -81,28 +110,8 @@ class ItemCatalog:
         raw = (item_json or {}).get("data") or {}
         items: dict[int, dict] = {}
         for key, v in raw.items():
-            if not str(key).isdigit():
-                continue
-            maps = v.get("maps") or {}
-            if maps and not maps.get(SR, False):
-                continue
-            gold = v.get("gold") or {}
-            items[int(key)] = {
-                "name": v.get("name", ""),
-                "cost": int(gold.get("total") or 0),
-                "sell": int(gold.get("sell") or 0),
-                "from": _ids(v.get("from")),
-                "into": _ids(v.get("into")),
-                "tags": list(v.get("tags") or []),
-                "depth": int(v.get("depth") or 1),
-                "consumed": bool(v.get("consumed")),
-                "stacks": _stack_size(v.get("stacks")),  # pociones (5), pinks (2)… comparten un hueco
-                "buyable": bool(gold.get("purchasable", True)) and v.get("inStore", True) is not False and not v.get("requiredAlly"),
-                "champion": v.get("requiredChampion") or "",
-                "special": int(v.get("specialRecipe") or 0),  # objeto que se transforma en este (Manamune -> Muramana)
-                "passives": sorted(set(_PASSIVE.findall(v.get("description") or ""))),  # pasivas únicas por su nombre
-                "gw": bool(_GW.search(v.get("description") or "")),
-            }
+            if _on_rift(key, v):
+                items[int(key)] = _item_entry(v)
         for item in items.values():  # solo recetas que existen en la Grieta
             item["from"] = [c for c in item["from"] if c in items]
             item["into"] = [c for c in item["into"] if c in items and items[c]["buyable"] and not items[c]["champion"]]
@@ -219,15 +228,23 @@ class ItemCatalog:
                 continue
             need = self.tree(target)
             for item in (target, *need):
-                if item in seen or not self.get(item).get("buyable", True):
+                if item in seen:
                     continue
-                if item != target and inv[item] >= need[item]:  # ya lo llevas
-                    continue
-                cost, freed = self.buy_cost(item, inv)
-                if cost <= 0 or 1 - freed > free_slots:
-                    continue
-                seen[item] = cost
+                cost = self._option_cost(item, target, need, inv, free_slots)
+                if cost is not None:
+                    seen[item] = cost
         return sorted(seen.items(), key=lambda x: x[1])
+
+    def _option_cost(self, item: int, target: int, need: Counter, inv: Counter, free_slots: int) -> int | None:
+        """Oro que cuesta ahora ``item`` camino de ``target`` (None si no se vende, ya lo llevas, no hay hueco o no cuesta nada)."""
+        if not self.get(item).get("buyable", True):
+            return None
+        if item != target and inv[item] >= need[item]:  # ya lo llevas
+            return None
+        cost, freed = self.buy_cost(item, inv)
+        if cost <= 0 or 1 - freed > free_slots:
+            return None
+        return cost
 
     def merges(self, inv: Counter, free_slots: int) -> list[tuple[int, int]]:
         """Sin saber tu build: objetos que combinan componentes que ya llevas."""
@@ -258,60 +275,76 @@ class Inventory:
         # Objetos gastados en este instante: si a continuación hay una compra, eran su receta;
         # si no, se gastaron (poción, pink) o se transformaron (Manamune -> Muramana).
         pending: list[tuple[int, int]] = []
-
-        def flush() -> None:
-            changed = False
-            for _ts, old in pending:
-                if old in TRANSFORMS:
-                    inv[TRANSFORMS[old]] += 1
-                    changed = True
-            pending.clear()
-            if changed and self.snaps:
-                self.snaps[-1] = Counter({k: v for k, v in inv.items() if v > 0})
-
         for e in events:
             kind = e.get("type")
             t = int(e.get("timestamp") or 0)
             item = int(e.get("itemId") or 0)
             if pending and not (pending[-1][0] == t and kind in ("ITEM_DESTROYED", "ITEM_PURCHASED")):
-                flush()
+                self._flush(inv, pending)
             if kind == "ITEM_DESTROYED":
-                if inv[item] <= 0 and item in RECEIVED_FREE:
-                    self._received(item, t, inv)
-                if inv[item] > 0:
-                    inv[item] -= 1
-                    pending.append((t, item))
-                elif item in TRANSFORMS:  # objeto recibido sin compra (el de support viene dado por el rol)
-                    pending.append((t, item))
+                self._on_destroyed(item, t, inv, pending)
             elif kind == "ITEM_PURCHASED":
-                consumed = [i for _ts, i in pending]
-                pending.clear()
-                inv[item] += 1
-                if item and item not in catalog:
-                    self.unknown.add(item)
-                self.purchases.append({"t": t, "item": item, "cost": catalog.cost(item), "undone": False, "consumed": consumed})
+                self._on_purchased(item, t, inv, pending)
             elif kind == "ITEM_SOLD":
-                if inv[item] > 0:
-                    inv[item] -= 1
-                self.sold.append({"t": t, "item": item})
+                self._on_sold(item, t, inv)
             elif kind == "ITEM_UNDO":
-                before, after = int(e.get("beforeId") or 0), int(e.get("afterId") or 0)
-                if before and inv[before] > 0:
-                    inv[before] -= 1
-                    buy = next((p for p in reversed(self.purchases) if p["item"] == before and not p["undone"]), None)
-                    if buy:
-                        buy["undone"] = True
-                        inv.update(buy["consumed"])  # vuelven los componentes
-                if after:
-                    inv[after] += 1
-                    sale = next((s for s in reversed(self.sold) if s["item"] == after), None)
-                    if sale:
-                        self.sold.remove(sale)
+                self._on_undo(e, inv)
             else:
                 continue
             self.times.append(t)
             self.snaps.append(Counter({k: v for k, v in inv.items() if v > 0}))
-        flush()
+        self._flush(inv, pending)
+
+    def _flush(self, inv: Counter, pending: list[tuple[int, int]]) -> None:
+        """Lo gastado que no fue receta de una compra: lo que se transforma (Manamune -> Muramana) aparece ya transformado."""
+        changed = False
+        for _, old in pending:
+            if old in TRANSFORMS:
+                inv[TRANSFORMS[old]] += 1
+                changed = True
+        pending.clear()
+        if changed and self.snaps:
+            self.snaps[-1] = Counter({k: v for k, v in inv.items() if v > 0})
+
+    def _on_destroyed(self, item: int, t: int, inv: Counter, pending: list[tuple[int, int]]) -> None:
+        """ITEM_DESTROYED: el objeto sale del inventario y queda pendiente (receta de una compra, gastado o transformado)."""
+        if inv[item] <= 0 and item in RECEIVED_FREE:
+            self._received(item, t, inv)
+        if inv[item] > 0:
+            inv[item] -= 1
+            pending.append((t, item))
+        elif item in TRANSFORMS:  # objeto recibido sin compra (el de support viene dado por el rol)
+            pending.append((t, item))
+
+    def _on_purchased(self, item: int, t: int, inv: Counter, pending: list[tuple[int, int]]) -> None:
+        """ITEM_PURCHASED: lo gastado justo antes en el mismo instante era su receta."""
+        consumed = [i for _, i in pending]
+        pending.clear()
+        inv[item] += 1
+        if item and item not in self.catalog:
+            self.unknown.add(item)
+        self.purchases.append({"t": t, "item": item, "cost": self.catalog.cost(item), "undone": False, "consumed": consumed})
+
+    def _on_sold(self, item: int, t: int, inv: Counter) -> None:
+        """ITEM_SOLD: sale del inventario y se anota la venta."""
+        if inv[item] > 0:
+            inv[item] -= 1
+        self.sold.append({"t": t, "item": item})
+
+    def _on_undo(self, e: dict, inv: Counter) -> None:
+        """ITEM_UNDO: deshace la última compra de ``beforeId`` (vuelven sus componentes) o la venta de ``afterId``."""
+        before, after = int(e.get("beforeId") or 0), int(e.get("afterId") or 0)
+        if before and inv[before] > 0:
+            inv[before] -= 1
+            buy = next((p for p in reversed(self.purchases) if p["item"] == before and not p["undone"]), None)
+            if buy:
+                buy["undone"] = True
+                inv.update(buy["consumed"])  # vuelven los componentes
+        if after:
+            inv[after] += 1
+            sale = next((s for s in reversed(self.sold) if s["item"] == after), None)
+            if sale:
+                self.sold.remove(sale)
 
     def _received(self, item: int, t: int, inv: Counter) -> None:
         """Un objeto que llegó sin compra (lo delata su ITEM_DESTROYED): se añade desde que pudo llegar hasta ``t``."""

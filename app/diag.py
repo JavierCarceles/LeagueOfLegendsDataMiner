@@ -161,7 +161,7 @@ class Sampler:
         """Por grupo de hilos (de más a menos ocupado): % de tiempo en cada cosa y las líneas donde más está."""
         merged: dict[str, list] = {}
         with self._lock:
-            for _minute, block in self._minutes:
+            for _, block in self._minutes:
                 for group, (n, cats, wheres) in block.items():
                     m = merged.setdefault(group, [0, Counter(), Counter()])
                     m[0] += n

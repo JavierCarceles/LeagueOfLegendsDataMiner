@@ -41,7 +41,7 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
     svc = Services(settings)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(_: FastAPI):
         bus.attach_loop(asyncio.get_running_loop())
         log.info("Tempu Drafter %s arrancando…", __version__)
         if run_startup:
@@ -67,7 +67,7 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
         return JSONResponse({"detail": exc.message, "code": "riot_api", "status": exc.status}, status_code=code)
 
     @app.exception_handler(Cancelled)
-    async def _cancelled(_: Request, __: Cancelled):
+    async def _cancelled(*_: object):
         return JSONResponse({"detail": "Operación cancelada"}, status_code=499)
 
     @app.exception_handler(ValueError)
@@ -75,7 +75,7 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
         return JSONResponse({"detail": str(exc)}, status_code=400)
 
     @app.exception_handler(Exception)
-    async def _unexpected(request: Request, exc: Exception):
+    async def _unexpected(request: Request, _: Exception):
         # Nunca una página en blanco: el error llega a la web con un mensaje legible y queda en el log.
         log.exception("Error inesperado en %s", request.url.path)
         return JSONResponse({"detail": "Error interno inesperado. El detalle está en «Actividad en tiempo real».", "code": "internal"}, status_code=500)

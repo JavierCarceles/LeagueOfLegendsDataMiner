@@ -14,7 +14,6 @@ let buildsEl = null;
 let laneEls = {};
 let bottomEl = null;
 let pickers = { ally: {}, enemy: {} };
-let lastResult = null;
 let seq = 0;
 // Recomendaciones automáticas por hueco (sin pulsar nada): caché por draft + filtros.
 const recsCache = new Map();
@@ -481,7 +480,6 @@ async function analyze() {
   const mine = ++seq;
   const picks = Object.keys(draft.ally).length + Object.keys(draft.enemy).length;
   if (!picks) {
-    lastResult = null;
     mount(summaryEl, h("div.card", { style: { gridColumn: "1 / -1" } }, empty("Empieza el draft", "Elige campeones en cualquier orden: el análisis se actualiza solo. Los mejores picks de cada hueco salen en el centro de cada línea y arriba de cada selector.", "draft")));
     ROLES.forEach((r) => renderLane(r, null));
     mount(bottomEl);
@@ -497,7 +495,6 @@ async function analyze() {
   try {
     const result = await api.post("/api/draft/analyze", { ally: draft.ally, enemy: draft.enemy }, filterParams());
     if (mine !== seq || !root) return;
-    lastResult = result;
     renderSummary(result);
     result.lanes.forEach((lane) => renderLane(lane.role, lane));
     renderBottom(result);

@@ -5,8 +5,8 @@
 // Encima se pintan tus momentos clave (errores y aciertos) con su gravedad, un
 // globo en el mapa cuando ocurren y los campeones implicados resaltados.
 import { dd } from "../state.js";
-import { champImg, champText, fmt, h, icon } from "../ui.js";
-import { minimap, OBJ_ICON, pct, trackPos } from "./minimap.js";
+import { champText, fmt, h, icon } from "../ui.js";
+import { buildingEffects, champIcon, killEffects, minimap, objectiveEffects, pct, placeIcons, trackPos } from "./minimap.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const SEV_LABEL = { high: "Grave", medium: "A mejorar", low: "Leve", good: "Bien hecho", info: "Informativo" };
@@ -50,6 +50,102 @@ function seriesStep(series, key, t) {
   return values[i];
 }
 
+/** Puntos del rastro de tus últimos TRAIL_S segundos (cada 3 s; sin los ratos muerto o sin posición). */
+function trailPoints(track, t) {
+  const pts = [];
+  for (let s = Math.max(0, t - TRAIL_S); s <= t; s += 3) {
+    const pos = trackPos(track, s);
+    if (pos && !pos.dead && pos.x !== null && pos.x !== undefined) {
+      const p = pct(pos.x, pos.y);
+      pts.push(`${p.left.toFixed(2)},${p.top.toFixed(2)}`);
+    }
+  }
+  return pts.join(" ");
+}
+
+/** ¿Se ve el globo del momento m en el segundo t? (el seleccionado, con una ventana algo más amplia) */
+function calloutVisible(m, t, selected) {
+  if (m === selected) return t >= m.t - 12 && t <= m.t + 10;
+  return t >= m.t - CALLOUT_BEFORE && t <= m.t + CALLOUT_AFTER;
+}
+
+/** El momento del aviso de arriba: el que está pasando en t; si ya había uno grave, se queda ese. */
+function bannerMoment(active, m, t) {
+  if (t < m.t - 1 || t > m.t + CALLOUT_AFTER) return active;
+  return active?.severity === "high" ? active : m;
+}
+
+/** Globo de un momento en el mapa: marcado si está seleccionado y lleno cuando ya ha pasado. */
+function calloutEl(m, t, selected, onSelect) {
+  const p = pct(m.x, m.y);
+  const sel = m === selected ? ".selected" : "";
+  const reached = t >= m.t ? ".reached" : "";
+  return h(
+    `div.map-callout.sev-${m.severity}${sel}${reached}`,
+    { style: { left: `${p.left}%`, top: `${p.top}%` }, onclick: () => onSelect(m), title: champText(m.title) },
+    h("span.callout-ring"),
+    h("span.callout-label", fmt.duration(m.t), " · ", SEV_LABEL[m.severity] || ""),
+  );
+}
+
+/** Globos de los momentos cercanos a t y el momento que va en el aviso de arriba. */
+function nearCallouts(moments, t, selected, onSelect) {
+  const callouts = [];
+  let active = null;
+  for (const m of moments) {
+    if (!calloutVisible(m, t, selected)) continue;
+    active = bannerMoment(active, m, t);
+    if (m.x === null || m.x === undefined) continue;
+    callouts.push(calloutEl(m, t, selected, onSelect));
+  }
+  return { callouts, active };
+}
+
+/** Aviso de arriba con el momento que está pasando (o escondido si no hay ninguno). */
+function showBanner(banner, active) {
+  if (!active) {
+    banner.className = "replay-banner hidden";
+    return;
+  }
+  banner.className = `replay-banner sev-${active.severity}`;
+  banner.replaceChildren(h("b", SEV_LABEL[active.severity] || ""), " · ", champText(active.title));
+}
+
+/** Kills de cada equipo hasta el segundo t: [azul, rojo]. */
+function scoreAt(kills, players, t) {
+  let blue = 0;
+  let red = 0;
+  for (const [time, , victim] of kills) {
+    if (time > t) break;
+    if (players[victim]?.team === 100) red++;
+    else if (players[victim]?.team === 200) blue++;
+  }
+  return [blue, red];
+}
+
+/** Color de la diferencia de oro: a favor o en contra si pasa de 500. */
+function goldClass(diff) {
+  if (diff > 500) return "good";
+  return diff < -500 ? "bad" : "";
+}
+
+/** Marcador, diferencia de oro y tus números (nivel, CS, oro sin gastar) en el segundo t. */
+function updateHud(hud, a, players, t) {
+  const [blue, red] = scoreAt(a.replay.kills, players, t);
+  const mineBlue = a.team === 100;
+  hud.score.replaceChildren(h("span.blue-text", String(mineBlue ? blue : red)), " – ", h("span.red-text", String(mineBlue ? red : blue)));
+  hud.score.title = "Tu equipo – rival (kills hasta este momento)";
+  const diff = seriesAt(a.series, "team_gold_diff", t);
+  hud.gold.textContent = diff === null ? "—" : fmt.signed(Math.round(diff / 100) / 10, 1, " k");
+  hud.gold.className = goldClass(diff);
+  const level = seriesStep(a.series, "level", t);
+  hud.level.textContent = level ?? "—";
+  const cs = seriesStep(a.series, "cs", t);
+  hud.cs.textContent = cs ?? "—";
+  const cur = seriesStep(a.series, "current_gold", t);
+  hud.current.textContent = cur === null || cur === undefined ? "—" : fmt.int(cur);
+}
+
 /**
  * a = análisis de /api/coach/games/{id}.
  * opts.moments: momentos visibles (filtrados); opts.onTime(t); opts.onSelect(moment)
@@ -69,12 +165,7 @@ export function createReplay(a, opts = {}) {
   const icons = {};
   const champsLayer = h("div.map-layer");
   for (const pid of Object.keys(r.tracks)) {
-    const p = players[pid] || {};
-    const el = h(
-      `div.map-champ.${p.team === 100 ? "blue" : "red"}${Number(pid) === me ? ".me" : ""}`,
-      { title: `${dd.name(p.champ)}${p.name ? ` · ${p.name}` : ""}` },
-      champImg(p.champ),
-    );
+    const el = champIcon(pid, players[pid] || {}, me);
     icons[pid] = el;
     champsLayer.append(el);
   }
@@ -145,98 +236,17 @@ export function createReplay(a, opts = {}) {
   // ------------------------------------------------------------- dibujo
   const focus = new Set();
   const draw = () => {
-    for (const [pid, el] of Object.entries(icons)) {
-      const pos = trackPos(r.tracks[pid], t);
-      if (!pos || pos.x === null || pos.x === undefined) {
-        el.style.display = "none";
-        continue;
-      }
-      el.style.display = "";
-      const p = pct(pos.x, pos.y);
-      el.style.left = `${p.left}%`;
-      el.style.top = `${p.top}%`;
-      el.classList.toggle("dead", !!pos.dead);
-      el.classList.toggle("estimated", !pos.dead && !pos.sure);
-      el.classList.toggle("focus", focus.has(Number(pid)));
-    }
-    // Rastro de tus últimos segundos.
-    const pts = [];
-    for (let s = Math.max(0, t - TRAIL_S); s <= t; s += 3) {
-      const pos = trackPos(r.tracks[String(me)], s);
-      if (pos && !pos.dead && pos.x !== null && pos.x !== undefined) {
-        const p = pct(pos.x, pos.y);
-        pts.push(`${p.left.toFixed(2)},${p.top.toFixed(2)}`);
-      }
-    }
-    trail.setAttribute("points", pts.join(" "));
-
-    const recent = [];
-    for (const [time, killer, victim, x, y] of r.kills) {
-      if (x === null || time > t || t - time > 10) continue;
-      const p = pct(x, y);
-      const mine = victim === me ? "my-death" : killer === me ? "my-kill" : "";
-      recent.push(h(`span.map-fx.kill${mine ? "." + mine : ""}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 10) }, title: `${dd.name(players[killer]?.champ) || "torre/súbditos"} → ${dd.name(players[victim]?.champ)}` }, "✕"));
-    }
-    for (const [time, kind, team, x, y] of r.objectives) {
-      if (time > t || t - time > 25) continue;
-      const p = pct(x, y);
-      recent.push(h(`span.map-fx.obj.${team === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%`, opacity: String(1 - (t - time) / 25) }, title: OBJ_NAME[kind] || kind }, OBJ_ICON[kind] || "★"));
-    }
-    for (const [time, owner, kind, lane, x, y] of r.buildings) {
-      if (x === null || time > t) continue;
-      const p = pct(x, y);
-      recent.push(h(`span.map-fx.building.${owner === 100 ? "blue" : "red"}`, { style: { left: `${p.left}%`, top: `${p.top}%` }, title: `${kind === "tower" ? "Torre" : "Inhibidor"} destruido (${lane})` }));
-    }
-    fx.replaceChildren(...recent);
-
-    // Globos de los momentos cercanos.
-    const callouts = [];
-    let active = null;
-    for (const m of moments) {
-      const near = t >= m.t - CALLOUT_BEFORE && t <= m.t + CALLOUT_AFTER;
-      if (!near && m !== selected) continue;
-      if (m === selected && !(t >= m.t - 12 && t <= m.t + 10)) continue;
-      if (t >= m.t - 1 && t <= m.t + CALLOUT_AFTER) active = active && active.severity === "high" ? active : m;
-      if (m.x === null || m.x === undefined) continue;
-      const p = pct(m.x, m.y);
-      const reached = t >= m.t;
-      callouts.push(
-        h(
-          `div.map-callout.sev-${m.severity}${m === selected ? ".selected" : ""}${reached ? ".reached" : ""}`,
-          { style: { left: `${p.left}%`, top: `${p.top}%` }, onclick: () => select(m), title: champText(m.title) },
-          h("span.callout-ring"),
-          h("span.callout-label", fmt.duration(m.t), " · ", SEV_LABEL[m.severity] || ""),
-        ),
-      );
-    }
+    placeIcons(icons, r.tracks, t, focus);
+    trail.setAttribute("points", trailPoints(r.tracks[String(me)], t));
+    fx.replaceChildren(
+      ...killEffects(r.kills, t, players, me, "torre/súbditos"),
+      ...objectiveEffects(r.objectives, t, (kind) => OBJ_NAME[kind] || kind),
+      ...buildingEffects(r.buildings, t),
+    );
+    const { callouts, active } = nearCallouts(moments, t, selected, (m) => select(m));
     calloutLayer.replaceChildren(...callouts);
-    if (active) {
-      banner.className = `replay-banner sev-${active.severity}`;
-      banner.replaceChildren(h("b", SEV_LABEL[active.severity] || ""), " · ", champText(active.title));
-    } else {
-      banner.className = "replay-banner hidden";
-    }
-
-    // HUD
-    let blue = 0;
-    let red = 0;
-    for (const [time, , victim] of r.kills) {
-      if (time > t) break;
-      if (players[victim]?.team === 100) red++;
-      else if (players[victim]?.team === 200) blue++;
-    }
-    const mineBlue = a.team === 100;
-    hud.score.replaceChildren(h("span.blue-text", String(mineBlue ? blue : red)), " – ", h("span.red-text", String(mineBlue ? red : blue)));
-    hud.score.title = "Tu equipo – rival (kills hasta este momento)";
-    const diff = seriesAt(a.series, "team_gold_diff", t);
-    hud.gold.textContent = diff === null ? "—" : fmt.signed(Math.round(diff / 100) / 10, 1, " k");
-    hud.gold.className = diff > 500 ? "good" : diff < -500 ? "bad" : "";
-    const level = seriesStep(a.series, "level", t);
-    hud.level.textContent = level ?? "—";
-    const cs = seriesStep(a.series, "cs", t);
-    hud.cs.textContent = cs ?? "—";
-    const cur = seriesStep(a.series, "current_gold", t);
-    hud.current.textContent = cur === null || cur === undefined ? "—" : fmt.int(cur);
+    showBanner(banner, active);
+    updateHud(hud, a, players, t);
 
     clock.textContent = `${fmt.duration(Math.max(1, t))} / ${fmt.duration(duration)}`;
     slider.value = String(Math.round(t));
