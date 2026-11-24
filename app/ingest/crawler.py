@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import calendar
 import json
+from collections import deque
 import threading
 import time
 from dataclasses import asdict, dataclass, field, fields, replace
@@ -557,6 +558,9 @@ class Ingested:
     detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
+RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
+
+
 class RegionWorker(threading.Thread):
     def __init__(self, crawler: Crawler, region: str, platforms: list[str], config: CrawlerConfig) -> None:
         super().__init__(name=f"crawler-{region}", daemon=True)
@@ -571,6 +575,7 @@ class RegionWorker(threading.Thread):
         self._otp_fails: dict[str, tuple[int, float]] = {}  # puuid -> (fallos seguidos, descansa hasta)
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
+        self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
         self.state = {
             "region": region,
             "platforms": platforms,
@@ -1346,6 +1351,7 @@ class RegionWorker(threading.Thread):
         if got.result == "stored":
             self.state["stored"] += 1
             self.crawler.total_stored += 1
+            self.stored_at.append(time.time())
         elif got.result == "duplicate":
             self.state["duplicates"] += 1
         elif got.result == "remake":
@@ -1593,7 +1599,22 @@ class Crawler:
                 "focus": cfg.focus, "min_mastery": cfg.min_mastery, "min_share": cfg.min_share, "period": cfg.otp_depth,
                 "platforms": cfg.platforms, "tiers": cfg.tiers,
             }
-            funnel["workers"] = {r: {k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error")} for r, w in self.workers.items()}
+            funnel["workers"] = {
+                r: {
+                    **{k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error", "stored", "duplicates")},
+                    "rate_recent": self.recent_rate(getattr(w, "stored_at", ())),
+                }
+                for r, w in self.workers.items()
+            }
+            # Uso del cupo de cada host de Riot en los últimos 2 minutos: si una región no llega al límite, el cuello
+            # de botella no es la key (es la búsqueda de jugadores o el filtro); «foreign»: otra app con la misma key.
+            limiter = getattr(self.svc, "limiter", None)
+            if limiter is not None:
+                funnel["ratelimit"] = {
+                    host: {"windows": h.get("windows"), "foreign": h.get("foreign"), "rate_limited": h.get("rate_limited")}
+                    for host, h in limiter.snapshot().items()
+                }
+            funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
             base = Path(self.svc.settings.data_dir) / "otps"
             base.mkdir(parents=True, exist_ok=True)
             tmp = base / "_busqueda.json.tmp"
@@ -1683,9 +1704,29 @@ class Crawler:
         for worker in list(self.workers.values()):
             worker.join(timeout=3)
 
+    def _all_stored_at(self) -> list[float]:
+        out: list[float] = []
+        for w in list(self.workers.values()):
+            out += list(getattr(w, "stored_at", ()))
+        return out
+
+    def recent_rate(self, stamps) -> float | None:
+        """Partidas por minuto de los últimos 5 minutos (la media desde que arrancó arrastra el arranque: al principio
+        se buscan jugadores y Riot aún cuenta las llamadas de la sesión anterior)."""
+        if not self.started_at or not self.running:
+            return None
+        stamps = list(stamps)  # copia de una vez: otro hilo puede estar añadiendo
+        now = time.time()
+        window = min(RECENT_RATE_S, now - self.started_at)
+        if window < 60:
+            return None
+        return round(sum(1 for t in stamps if t >= now - window) / (window / 60), 1)
+
     def status(self) -> dict:
         elapsed = (time.time() - self.started_at) if self.started_at and self.running else None
-        workers = {region: dict(w.state, alive=w.is_alive()) for region, w in self.workers.items()}
+        workers = {
+            region: dict(w.state, alive=w.is_alive(), rate_recent=self.recent_rate(getattr(w, "stored_at", ()))) for region, w in self.workers.items()
+        }
         return {
             "running": self.running,
             "stopping": self.stop_event.is_set() and self.running,
@@ -1695,5 +1736,6 @@ class Crawler:
             "started_at": self.started_at,
             "stored": self.total_stored,
             "rate_per_min": round(self.total_stored / (elapsed / 60), 1) if elapsed and elapsed > 30 else None,
+            "rate_recent": self.recent_rate(self._all_stored_at()),
             "workers": workers,
         }

@@ -290,7 +290,7 @@ function renderCrawler(c, key) {
   const running = !!c.running;
   const mode = running ? "running" : "stopped";
   if (!crawlerForm) crawlerForm = JSON.parse(JSON.stringify(c.config));
-  const sig = JSON.stringify([c.stored, c.rate_per_min, c.stopping, c.paused, c.autostart, key.configured]);
+  const sig = JSON.stringify([c.stored, c.rate_per_min, c.rate_recent, c.stopping, c.paused, c.autostart, key.configured]);
   if (crawlerFormFor !== mode) {
     crawlerFormFor = mode;
     runningSig = sig;
@@ -500,7 +500,13 @@ function crawlerPanel(c, key) {
             "div.row-wrap",
             h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
             h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"),
-            h("span.small.muted", `${fmt.int(c.stored)} partidas nuevas`, c.rate_per_min ? ` · ${fmt.num(c.rate_per_min, 1)}/min` : ""),
+            h(
+              "span.small.muted",
+              { title: "«Ahora»: últimos 5 minutos. «Media»: desde que arrancó (arrastra el arranque, cuando aún busca jugadores)." },
+              `${fmt.int(c.stored)} partidas nuevas`,
+              c.rate_recent !== null && c.rate_recent !== undefined ? ` · ahora ${fmt.num(c.rate_recent, 1)}/min` : "",
+              c.rate_per_min ? ` · media ${fmt.num(c.rate_per_min, 1)}/min` : "",
+            ),
             regionsHint(c),
           )
         : h(
@@ -863,7 +869,7 @@ function renderCrawlerStatus(c, key) {
                 "div.small",
                 { style: { marginTop: "4px" } },
                 w.search
-                  ? `${fmt.int(w.otps_known)} ${noun(focus, w.otps_known)} · ${fmt.int(w.stored)} partidas nuevas · ${fmt.int(w.mastery_checked)} revisados${searchRate(w)}`
+                  ? `${fmt.int(w.otps_known)} ${noun(focus, w.otps_known)} · ${fmt.int(w.stored)} partidas nuevas${w.rate_recent ? ` (${fmt.num(w.rate_recent, 1)}/min)` : ""} · ${fmt.int(w.mastery_checked)} revisados${searchRate(w)}`
                   : `${fmt.int(w.stored)} partidas guardadas · ${fmt.int(w.players)} jugadores`,
               ),
               sharedKeyLine(w),
