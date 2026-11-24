@@ -1318,7 +1318,8 @@ def test_el_reparto_con_las_cifras_reales_da_mas_a_oro_que_a_maestro():
 
 
 def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
-    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva ~4 de cada 5 partidas, Diamante el resto."""
+    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva el 87,5 % de las partidas, Diamante el
+    resto (Diamante entra cuando Oro ya lleva más de 150 de 175: lo que le falta a cada uno, no quién tiene 0)."""
     now = _now_s()
     db = keyed_svc.db
     lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
@@ -1338,7 +1339,10 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
     assert worker._next_otp()["tier"] == "GOLD"  # nadie visitado aún: el que va por detrás
     crawler.note_visit_tier("GOLD")
     crawler.note_visit_tier("GOLD")
-    assert worker._next_otp()["tier"] == "DIAMOND"  # Oro ya va por encima de su parte (2 visitas / 0,75)
+    assert worker._next_otp()["tier"] == "GOLD"  # 50 de Oro: aún le faltan más que a Diamante (37,5 frente a 12,5)
+    for _ in range(5):
+        crawler.note_visit_tier("GOLD")
+    assert worker._next_otp()["tier"] == "DIAMOND"  # 175 de Oro: ya le faltan más a Diamante (28,1 frente a 21,9)
     crawler.note_visit_tier("DIAMOND")
     assert worker._next_otp()["tier"] == "GOLD"
     report = crawler.tier_report()
@@ -1439,6 +1443,28 @@ def test_el_diagnostico_dice_que_elo_se_queda_sin_candidatos_y_lo_que_da_cada_vi
         "visitas": 2, "analizadas": 60, "nuevas": 62, "por_visita": 30.0, "min_por_visita": 1.5, "completo_pct": 50,
     }
     assert report["ultimas_visitas"][-1]["fin"] == "historial completo"
+
+
+def test_el_reparto_no_rota_por_todos_los_elos_cuando_uno_tiene_poca_parte():
+    """24-11-2026 14:29: con «(recientes + 1) / parte» cualquier elo sin partidas recientes pasaba delante y se elegían
+    los 10 elos por turnos (Diamante, con un 2 % de parte, tanto como Oro). Con lo que le falta a cada uno, no."""
+    from app.ingest.crawler import tier_need, tier_shares
+
+    real = {"CHALLENGER": 6900, "GRANDMASTER": 3000, "MASTER": 5100, "DIAMOND": 17400, "EMERALD": 2300, "PLATINUM": 1800,
+            "GOLD": 1550, "SILVER": 1700, "BRONZE": 1450, "IRON": 1800}
+    shares = tier_shares(real, list(real))
+    recent: dict[str, int] = {}
+    picks = []
+    yield_of = {"IRON": 25, "BRONZE": 20, "SILVER": 25, "GOLD": 17}  # los elos bajos dan menos partidas por visita
+    for _ in range(200):
+        need = tier_need(recent, shares)
+        tier = max(need, key=need.get)
+        picks.append(tier)
+        recent[tier] = recent.get(tier, 0) + yield_of.get(tier, 50)
+    total = sum(recent.values())
+    assert abs(recent["GOLD"] / total - shares["GOLD"]) < 0.02
+    assert abs(recent["DIAMOND"] / total - shares["DIAMOND"]) < 0.02
+    assert picks.count("GOLD") > 5 * picks.count("DIAMOND")
 
 
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):

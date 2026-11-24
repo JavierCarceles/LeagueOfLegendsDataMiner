@@ -80,7 +80,11 @@ OTP_VISIT_MATCHES = 100  # partidas descargadas por visita antes de pasar a otro
 # repartían visitas, no partidas, y un jugador de Maestro da ~50 partidas por visita y uno de Oro 7-25: Maestro se llevaba
 # la mayoría y Oro y Platino ninguna (24-11-2026).
 RECENT_TIER_VISITS = 40  # (compatibilidad) visitas recientes
-RECENT_TIER_GAMES = 400  # partidas analizadas recientes con las que se mide el reparto
+# Con 400 (unas 8 visitas de ~50) cualquier elo sin partidas en la ventana pasaba delante aunque su parte fuera del 2 %:
+# iba rotando por los 10 elos casi a partes iguales (Diamante 12 %, Oro 3-10 %, 24-11-2026 14:29). Una visita da hasta
+# ~50 partidas: para que una parte del 2 % se note hacen falta unas 2.500.
+RECENT_TIER_GAMES = 3000  # partidas analizadas recientes con las que se mide el reparto
+NEXT_VISIT_GAMES = 50  # lo que puede dar la siguiente visita (para medir cuánto le falta a cada elo)
 ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (menos lo que ya lleva analizado)
 # Las últimas partidas analizadas se guardan en la base de datos (cada 5 min y al detener): antes se perdían al
 # reiniciar y cada sesión de 5-15 min (unas 10 visitas) empezaba el reparto de cero.
@@ -665,6 +669,14 @@ def tier_shares(totals: dict[str, int], tiers: list[str]) -> dict[str, float]:
     return {t: FLOOR_SHARE / n + (1 - FLOOR_SHARE) * inv[t] / total for t in tiers}
 
 
+def tier_need(recent: dict, shares: dict) -> dict[str, float]:
+    """Partidas que le faltan a cada elo para su parte contando la siguiente visita (más = más atrasado). Antes se
+    elegía el menor ``(recientes + 1) / parte``: un elo con 0 recientes ganaba a cualquiera que tuviera unas pocas, así
+    que al arrancar (y en cuanto un elo salía de la ventana) se rotaba por todos los elos casi por igual."""
+    total = sum(recent.get(t, 0) for t in shares)
+    return {t: sh * (total + NEXT_VISIT_GAMES) - recent.get(t, 0) for t, sh in shares.items()}
+
+
 def _field(row, key: str):
     """Un campo de un jugador, sea un ``dict`` o una fila de la base de datos (``sqlite3.Row`` no tiene ``get``)."""
     try:
@@ -1179,6 +1191,8 @@ class RegionWorker(threading.Thread):
         shares = getattr(self, "_plan_shares", None) or {}
         recent = self.crawler.recent_tiers() if shares and hasattr(self.crawler, "recent_tiers") else None
 
+        need = tier_need(recent, shares) if recent is not None else {}
+
         def live(entry):
             # Primero el elo más por debajo de su parte y, dentro de él, el tipo de jugador (nuevos, partidas nuevas,
             # historial a medias). Antes el tipo iba primero: sin jugadores nuevos de Oro o Platino esperando, cualquier
@@ -1187,7 +1201,7 @@ class RegionWorker(threading.Thread):
             if recent is None or key[0] == 3:
                 return (float("inf"), *key) if recent is not None else key
             tier = row["tier"] or ""
-            return ((recent.get(tier, 0) + 1) / max(shares.get(tier, 0.0), 1e-6), *key)  # +1: a igualdad, el de más parte
+            return (-need.get(tier, float("-inf")), *key)  # el elo al que más partidas le faltan
 
         self._pick = None
         if recent is not None:
@@ -1210,8 +1224,8 @@ class RegionWorker(threading.Thread):
         for key, row in self._plan:
             c = counts.setdefault(row["tier"] or "", [0, 0, 0, 0])
             c[min(3, max(0, int(key[0])))] += 1
-        behind = {t: (recent.get(t, 0) + 1) / max(sh, 1e-6) for t, sh in shares.items()}
-        wanted = min(behind, key=behind.get) if behind else None
+        need = tier_need(recent, shares)
+        wanted = max(need, key=need.get) if need else None
         has = bool(wanted) and sum(counts.get(wanted, [0, 0, 0, 0])[:3]) > 0
         self._pick = {"mas_atrasado": wanted, "hay_de_ese": has}
         self.crawler.note_queue(self.region, counts)
@@ -1290,9 +1304,11 @@ class RegionWorker(threading.Thread):
         if hasattr(self.crawler, "note_tier_shares"):
             self.crawler.note_tier_shares(self.region, shares, tier_totals)
 
+        need = tier_need(recent, shares)
+
         def behind(tier: str) -> float:
-            """Partidas recientes de ese elo (y visitas en curso) frente a su parte (menos = más por debajo: va antes)."""
-            return (recent.get(tier, 0) + 1) / max(shares.get(tier, 0.0), 1e-6)  # +1: sin recientes, el de más parte antes
+            """Menos = más por debajo de su parte (va antes): lo que le falta, en negativo."""
+            return -need.get(tier, float("-inf"))
 
         for row, champ, state in info:
             if state in ("done", "share"):
