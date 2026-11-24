@@ -428,3 +428,33 @@ def test_la_grafica_por_elo_cuenta_hasta_la_subida(repos):
     (a / "data" / "otps" / "x.json").write_text("{}", encoding="utf-8")
     auto._run()
     assert auto.public()["tiers"] == {"analizadas": {}, "guardadas": {}}
+
+
+def test_al_detener_la_subida_espera_a_los_resumenes(repos, monkeypatch):
+    """Al detener se rehacen los resúmenes por campeón en otro hilo: antes se escribían después del commit (40-50
+    ficheros sin subir). Ahora la subida espera a que acaben."""
+    from app.ingest import otp_details
+
+    order = []
+    monkeypatch.setattr(otp_details, "wait_summaries", lambda svc: order.append("resúmenes") or True)
+    real_push = autopush.push_data
+    monkeypatch.setattr(autopush, "push_data", lambda *a, **k: order.append("subida") or real_push(*a, **k))
+    a = repos.a
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event(), crawler=None)
+    auto = autopush.AutoPush(svc, repo=a)
+    auto._run(wait_summaries=True)
+    assert order == ["resúmenes", "subida"]
+
+
+def test_esperar_a_los_resumenes(monkeypatch):
+    import time as _time
+
+    from app.ingest import otp_details
+
+    t = threading.Thread(target=lambda: _time.sleep(0.3))
+    t.start()
+    files = SimpleNamespace(thread=t)
+    monkeypatch.setattr(otp_details.Files, "of", classmethod(lambda cls, svc, kind="otp": files if kind == "otp" else None))
+    t0 = _time.monotonic()
+    assert otp_details.wait_summaries(object(), timeout=5)
+    assert _time.monotonic() - t0 >= 0.25 and not t.is_alive()

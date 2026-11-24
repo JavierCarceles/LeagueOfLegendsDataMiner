@@ -721,3 +721,7 @@ Lo que encontró con ~35.000 partidas:
 - **Subida de las 13:46:** la key otra vez al 86-95 % (41-45 de 47,5 llamadas/min) y ~82 partidas/min con el reparto
   por elo cumpliéndose. «Detener» paró los 4 recolectores en 13 s y subió lo recogido solo. La cola de jugadores ahora se
   recalcula cada minuto (`OTP_PLAN_TTL_S = 60`, antes 5): las partes de cada elo usan los totales más recientes.
+- **Tras «Detener» quedaban 40-50 ficheros sin subir:** al parar, cada región pide rehacer ya los resúmenes de los
+  campeones con partidas nuevas (`otp_details.flush`), en otro hilo, y la subida empezaba sin esperarlos (los
+  `resumen.json` se escribían después del commit). Ahora la subida al detener espera a que acaben (`wait_summaries`,
+  como mucho 15 min; en «Datos y API», «esperando a que se rehagan los resúmenes por campeón»).

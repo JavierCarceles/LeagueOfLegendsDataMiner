@@ -1548,8 +1548,9 @@ def test_al_detener_se_sube_lo_recogido_cuando_todo_esta_parado(keyed_svc, monke
         def public(self):
             return {"enabled": True}
 
-        def start(self):
+        def start(self, wait_summaries=False):
             self.started.append(keyed_svc.crawler.running)  # ¿seguía algún hilo del recolector?
+            assert wait_summaries  # al detener, la subida espera a los resúmenes por campeón
             return True
 
     for git_ok, expected in ((True, [False]), (None, [])):

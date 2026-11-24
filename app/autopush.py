@@ -73,6 +73,7 @@ def _git(repo: Path, *args: str, check: bool = True, timeout: int = GIT_TIMEOUT_
 # Fases de una subida (lo que enseña «Datos y API» mientras sube: antes solo decía «subiendo los datos ahora…»).
 STEPS = {
     "game": "esperando a que acabe tu partida (no gasta tu conexión mientras juegas)",
+    "summaries": "esperando a que se rehagan los resúmenes por campeón (para subirlos ya hechos)",
     "report": "poniendo al día el estado de la búsqueda y el registro",
     "locks": "esperando a que se termine de escribir la partida en curso",
     "add": "añadiendo los ficheros nuevos (git add)",
@@ -282,11 +283,13 @@ class AutoPush:
             self.start()
         return self.public()
 
-    def start(self) -> bool:
+    def start(self, wait_summaries: bool = False) -> bool:
+        """Sube en segundo plano. ``wait_summaries``: antes, que terminen los resúmenes por campeón (al detener el
+        recolector se rehacen todos; si no, se escribían después del commit y quedaban 40-50 ficheros sin subir)."""
         with self.lock:
             if self.thread is not None and self.thread.is_alive():
                 return False
-            self.thread = threading.Thread(target=self._run, name="autopush", daemon=True)
+            self.thread = threading.Thread(target=self._run, args=(wait_summaries,), name="autopush", daemon=True)
             self.thread.start()
             return True
 
@@ -376,10 +379,15 @@ class AutoPush:
         tracker = getattr(self.svc, "tracker", None)
         return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
 
-    def _run(self) -> None:
+    def _run(self, wait_summaries: bool = False) -> None:
         stop = getattr(self.svc, "shutdown_event", None)
         t0 = time.time()
         try:
+            if wait_summaries:
+                self._step("summaries")
+                from app.ingest import otp_details  # aquí: evita un import circular
+
+                otp_details.wait_summaries(self.svc)
             self._run_steps(stop, t0)
         finally:
             with self.lock:

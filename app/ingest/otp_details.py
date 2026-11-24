@@ -1391,6 +1391,27 @@ def ensure_files(svc) -> None:
             files.rebuild_in_background()
 
 
+SUMMARIES_WAIT_MAX_S = 900
+
+
+def wait_summaries(svc, timeout: float = SUMMARIES_WAIT_MAX_S) -> bool:
+    """Espera a que terminen los resúmenes por campeón en curso o pendientes (los de ``flush``). ``True`` si acabaron."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        busy = False
+        for kind in KIND_DIRS:
+            files = Files.of(svc, kind)
+            if files is None:
+                continue
+            thread = files.thread
+            if thread is not None and thread.is_alive():
+                busy = True
+                thread.join(min(5.0, max(0.0, deadline - time.time())))
+        if not busy:
+            return True
+    return False
+
+
 def flush(svc) -> None:
     """Al parar el recolector: los resúmenes pendientes se rehacen ya."""
     for kind in KIND_DIRS:

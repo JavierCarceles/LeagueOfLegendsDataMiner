@@ -2275,8 +2275,9 @@ class Crawler:
             auto = autopush.AutoPush.of(self.svc)
             if auto is None or not auto.public().get("enabled") or auto.state.get("git_ok") is not True:
                 return
-            if auto.start():
-                log.info("Recolector detenido: subiendo a GitHub lo recogido en segundo plano.")
+            otp_details.flush(self.svc)  # por si alguna región no llegó a pedirlos: todos los resúmenes, antes de subir
+            if auto.start(wait_summaries=True):
+                log.info("Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).")
         except Exception:  # noqa: BLE001  (subir es un extra: detener ya está hecho)
             log.exception("No se pudo subir a GitHub al detener el recolector")
 
