@@ -109,3 +109,13 @@ def keyed_svc(tmp_path, monkeypatch):
     for worker in services.crawler.workers.values():
         worker.join(timeout=5)
     services.db.close()
+
+
+@pytest.fixture(autouse=True)
+def _otp_queue_always_fresh(monkeypatch):
+    """La cola de OTPs del recolector se reutiliza 2 min en la app; en los tests se recalcula en cada llamada (cada test
+    cambia la base de datos entre llamadas). ``test_la_cola_de_otps_se_reutiliza`` prueba la caché."""
+    from app.ingest import crawler
+
+    monkeypatch.setattr(crawler, "OTP_PLAN_TTL_S", 0)
+    monkeypatch.setattr(crawler, "OTP_ROWS_FRESH_S", 0)

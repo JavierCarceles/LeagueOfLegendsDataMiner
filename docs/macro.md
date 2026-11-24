@@ -479,3 +479,9 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   jugadores ya visitados vuelven a la cola, sus partidas dejaban de contar en «la línea y el elo con menos partidas», todo
   empataba a 0 y el desempate era el elo más alto. Ahora lo recogido cuenta siempre y, a igualdad, van antes los nunca
   visitados.
+- **Velocidad del recolector:** en la subida de las 01:23 cada región usaba la mitad de su cupo (50-59 de 100 llamadas
+  cada 2 min): el freno no era Riot. Elegir a quién visitar después leía y ordenaba todos los jugadores revisados (5 s con
+  280.000 en un Mac) antes de cada visita y en cada región, y las 4 regiones se esperaban entre ellas (Python usa un
+  núcleo). Ahora la cola se calcula una vez cada 2 min (las regiones comparten la lectura) y las visitas siguientes se
+  eligen al instante; quien ya se visitó no se repite hasta la siguiente lectura. Techo con la key gratuita: ~85-95
+  partidas/min con las 4 regiones (100 llamadas cada 2 min por región, 2 por partida, menos la reserva para la web).
