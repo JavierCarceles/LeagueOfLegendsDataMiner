@@ -725,3 +725,11 @@ Lo que encontró con ~35.000 partidas:
   campeones con partidas nuevas (`otp_details.flush`), en otro hilo, y la subida empezaba sin esperarlos (los
   `resumen.json` se escribían después del commit). Ahora la subida al detener espera a que acaben (`wait_summaries`,
   como mucho 15 min; en «Datos y API», «esperando a que se rehagan los resúmenes por campeón»).
+- **Los pesos no daban más a los elos atrasados (Oro y Platino con 0 partidas nuevas, Maestro el que más):** (1) la
+  parte se medía frente al elo con más partidas (Diamante, 17.000) y todos salían casi iguales; (2) se repartían visitas,
+  no partidas (Maestro da ~50 por visita, Oro 7-25); (3) la cola ordenaba primero por tipo de jugador (nuevos antes que
+  historiales a medias) y solo después por elo. Ahora la parte es inversa a las partidas analizadas de cada elo (las de
+  «Datos y API»; 10 % a partes iguales, `FLOOR_SHARE`), se mide con las últimas 400 partidas analizadas más 25 por cada
+  visita en curso, y manda el elo antes que el tipo de jugador. Con las cifras del 24-11-2026: Bronce 15,9 %, Oro y Plata
+  14,1 %, Platino 13,3 %, Hierro 12,6 %, Esmeralda 10,5 %, Gran Maestro 8,2 %, Maestro 5,1 %, Aspirante 4,0 %,
+  Diamante 2,2 %.

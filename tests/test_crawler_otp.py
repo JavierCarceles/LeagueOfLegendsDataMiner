@@ -1298,14 +1298,27 @@ def test_el_reparto_por_elo_da_mas_a_los_que_van_por_detras_sin_quitarselo_a_nad
     from app.ingest.crawler import tier_shares
 
     shares = tier_shares({"GOLD": 0, "DIAMOND": 1000}, ["GOLD", "DIAMOND"])
-    assert shares == {"GOLD": 0.75, "DIAMOND": 0.25}  # la mitad a partes iguales, la otra mitad para el que va por detrás
-    assert tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]) == {"GOLD": 0.5, "DIAMOND": 0.5}
+    assert round(shares["GOLD"], 3) == 0.875 and round(shares["DIAMOND"], 3) == 0.125  # inversa a lo analizado, con mínimo
+    assert {t: round(v, 6) for t, v in tier_shares({"GOLD": 5, "DIAMOND": 5}, ["GOLD", "DIAMOND"]).items()} == {"GOLD": 0.5, "DIAMOND": 0.5}
     five = tier_shares({"IRON": 0, "GOLD": 100, "EMERALD": 900, "MASTER": 1000, "CHALLENGER": 1000}, ["IRON", "GOLD", "EMERALD", "MASTER", "CHALLENGER"])
-    assert abs(sum(five.values()) - 1) < 1e-9 and min(five.values()) == 0.1 and five["IRON"] > five["GOLD"] > five["EMERALD"]
+    assert abs(sum(five.values()) - 1) < 1e-9 and five["IRON"] > five["GOLD"] > five["EMERALD"] > five["MASTER"]
+
+
+def test_el_reparto_con_las_cifras_reales_da_mas_a_oro_que_a_maestro():
+    """Lo que había el 24-11-2026: Oro (1.500) recibía casi lo mismo que Maestro (5.000) porque todo se medía frente a
+    Diamante (17.000). Ahora la parte es inversa a lo analizado."""
+    from app.ingest.crawler import tier_shares
+
+    real = {"CHALLENGER": 6800, "GRANDMASTER": 2800, "MASTER": 5000, "DIAMOND": 17000, "EMERALD": 2100, "PLATINUM": 1600,
+            "GOLD": 1500, "SILVER": 1500, "BRONZE": 1300, "IRON": 1700}
+    shares = tier_shares(real, list(real))
+    assert shares["GOLD"] > 2.5 * shares["MASTER"] and shares["PLATINUM"] > 2.5 * shares["MASTER"]
+    assert max(shares, key=shares.get) == "BRONZE" and min(shares, key=shares.get) == "DIAMOND"
+    assert shares["DIAMOND"] >= 0.02  # ninguno se para
 
 
 def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
-    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva 3 de cada 4 visitas, Diamante 1."""
+    """Diamante con 1.000 partidas analizadas y Oro sin ninguna: Oro se lleva ~4 de cada 5 partidas, Diamante el resto."""
     now = _now_s()
     db = keyed_svc.db
     lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], roles=["TOP"], role_champions=[AATROX],
@@ -1329,7 +1342,7 @@ def test_la_cola_sigue_el_reparto_por_elo(keyed_svc):
     crawler.note_visit_tier("DIAMOND")
     assert worker._next_otp()["tier"] == "GOLD"
     report = crawler.tier_report()
-    assert report["GOLD"]["parte_pct"] == 75.0 and report["DIAMOND"]["analizadas"] == 1000
+    assert report["GOLD"]["parte_pct"] == 87.5 and report["DIAMOND"]["analizadas"] == 1000
 
 
 def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, monkeypatch):
@@ -1357,6 +1370,32 @@ def test_el_reparto_por_elo_se_aplica_aunque_la_cola_este_guardada(keyed_svc, mo
         keyed_svc.crawler.note_visit_tier(row["tier"])  # lo que hace la visita al empezar
     assert len(calls) == 1  # la cola se calculó una vez
     assert sorted(picked) == ["BRONZE", "GOLD", "MASTER"]  # un elo de cada, no los 3 de Bronce seguidos
+
+
+def test_el_elo_atrasado_va_antes_aunque_solo_tenga_historiales_a_medias(keyed_svc, monkeypatch):
+    """Oro sin jugadores nuevos (solo uno con el historial a medias) y Maestro con jugadores nuevos: antes iban siempre
+    los nuevos de Maestro primero y Oro se quedaba a 0. Ahora manda el reparto por elo."""
+    from app.ingest import crawler as crawler_mod
+
+    monkeypatch.setattr(crawler_mod, "OTP_PLAN_TTL_S", 300)
+    now = _now_s()
+    db = keyed_svc.db
+    lines = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "MASTER"], roles=["TOP"], role_champions=[AATROX],
+                          role_pools={"TOP": [AATROX]}, focus="games", min_mastery=10_000).validated()
+    with db.write() as conn:
+        for puuid, tier in (("g-half", "GOLD"), ("m1", "MASTER"), ("m2", "MASTER"), ("m-old", "MASTER")):
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, 50)", (puuid, tier))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 900_000, now]])))
+        # Oro: uno a medias (historial aún por bajar); Maestro: uno con 1.000 partidas ya analizadas.
+        for puuid, hits, reason in (("g-half", 10, None), ("m-old", 1000, "end")):
+            conn.execute(
+                "INSERT INTO otp_progress (puuid, list_key, anchor, back_offset, back_done_at, back_done_start, back_done_reason, seen, hits, updated_at) "
+                "VALUES (?, ?, ?, 100, ?, 0, ?, ?, ?, ?)",
+                (puuid, otp_list_key(lines), now - 3600, now - 3600 if reason else None, reason, hits, hits, now - 3600),
+            )
+            conn.execute("UPDATE players SET last_crawled_at = ? WHERE puuid = ?", (now, puuid))
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], lines)
+    assert worker._next_otp()["puuid"] == "g-half"
 
 def test_reclassified_players_move_folder_alone_without_rebuilding_everything(keyed_svc):
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
