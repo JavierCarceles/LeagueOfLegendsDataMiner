@@ -413,3 +413,18 @@ seguir al jungla rival y contraganks (jungla 24-26 → `tracking`, `rm_counter_*
 16-17, 21-22; mid 16-17; ADC 18-20), Castigo (jungla 22), dónde se pone cada ward (jungla 28-29; mid 22; support 21-22,
 24), avisos y pings (jungla 21; mid 20), intenciones en las peleas (support 27-28; general 49) y lo que se cede a
 propósito (general 53-54; support 26).
+
+### Recorridos frente a la experiencia y el CS de cada minuto (24-11-2026)
+
+La experiencia de los súbditos solo se gana a menos de ~1.600 unidades de donde mueren, y el CS de súbditos exige estar
+en una línea. Riot da los dos cada minuto, así que sirven para comprobar los tramos que se reconstruyen sin posición
+(validación 3 de `python -m app.coach.track_check`, con las 55 partidas de `data/mis_partidas`). En 1.385 minutos de
+top, mid y ADC sin pelea ni vuelta a base:
+
+- Minutos imposibles (fuera de todas las líneas el 75 % o más del minuto con 6 o más CS de súbditos): 1 con el
+  reconstruido y 2 con la línea recta de antes.
+- Cuanto más tiempo pone el recorrido a alguien en su línea, más CS y experiencia tiene ese minuto: 0-25 % del minuto,
+  5,6 CS y 349 de experiencia; 75-100 %, 8,7 CS y 535 de experiencia.
+
+Así que los roams y las rotaciones reconstruidas (`route_macro`) no se inventan salidas de línea que la experiencia
+contradiga. No se corrige nada más: con 1 caso de 1.385 no compensa añadir otra regla a la reconstrucción.
