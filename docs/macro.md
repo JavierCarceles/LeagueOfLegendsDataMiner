@@ -504,3 +504,6 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   `SAVE_IN_BACKGROUND`); ahora otro hilo solo **descarga** la siguiente partida (y su timeline si es de las que
   interesan) mientras la región analiza la actual (`_Prefetch`, sin tocar la base de datos ni los ficheros). Coste: al
   cortar una visita, a veces una descarga de más.
+- **Registro de la subida de las 03:18 (49 partidas/min):** guardar cada partida en la base de datos tardaba 1,3-1,5 s
+  por región. `otp_details.save` comprimía partida, timeline y análisis (>1 MB de JSON) dentro del candado de escritura
+  de la base de datos: las demás regiones y las 15 búsquedas esperaban. Ahora se comprime antes de cogerlo.
