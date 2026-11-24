@@ -106,7 +106,11 @@ export function destroy() {
 export async function render(container, args = []) {
   destroy();
   root = container;
-  if (!learnCat) learnCatalog().then((cat) => (learnCat = cat));
+  if (!learnCat) {
+    learnCatalog()
+      .then((cat) => (learnCat = cat))
+      .catch(() => null); // sin el catálogo de vídeos, la repetición se ve igual
+  }
   if (args[0]) return renderViewer(container, args[0].toUpperCase(), Number(args[1]) || null);
   return renderList(container);
 }
@@ -145,6 +149,13 @@ async function renderList(container) {
   await loadList(body, profile);
 }
 
+/** Título y texto de la lista vacía: sin cuenta vinculada, descargando o sin partidas con esos filtros. */
+function emptyListText(linked, status) {
+  if (!linked) return ["Esperando tu API key de Riot", "En cuanto haya una key válida en «Datos y API» se vincula tu cuenta y llegan tus partidas solas."];
+  if (status === "syncing") return ["Descargando tus partidas…", "La primera vez se descargan tus últimas partidas con su timeline. Irán apareciendo aquí."];
+  return ["No hay partidas con estos filtros", "Cambia la cola, el rol o el resultado."];
+}
+
 async function loadList(body, profile) {
   let data;
   let local;
@@ -164,7 +175,7 @@ async function loadList(body, profile) {
   const refresh = (patch) => {
     setPrefs(patch);
     mount(body, loading("Filtrando…"));
-    loadList(body, profile);
+    loadList(body, profile).catch((err) => mount(body, errorBox(err)));
   };
   const filters = h(
     "div.row-wrap.coach-filters",
@@ -178,11 +189,7 @@ async function loadList(body, profile) {
   if (!games.length) {
     const t = profile.tracker || {};
     const linked = profile.profile?.linked;
-    const [title, text] = !linked
-      ? ["Esperando tu API key de Riot", "En cuanto haya una key válida en «Datos y API» se vincula tu cuenta y llegan tus partidas solas."]
-      : t.status === "syncing"
-        ? ["Descargando tus partidas…", "La primera vez se descargan tus últimas partidas con su timeline. Irán apareciendo aquí."]
-        : ["No hay partidas con estos filtros", "Cambia la cola, el rol o el resultado."];
+    const [title, text] = emptyListText(linked, t.status);
     return mount(body, h("div.stack", filters, h("section.card", empty(title, text, "film"))));
   }
   // 20 a la vista; el resto, de 20 en 20 al pulsar «Ver más».
@@ -411,9 +418,11 @@ function viewer(a, startAt = null) {
 
   const afk = (a.afk || []).reduce((acc, x) => acc + (x.end - x.start), 0);
   const afkNotice = afk >= 60 ? notice(`Estuviste ${fmt.duration(afk)} sin moverte (desconexión o AFK). Esos minutos no cuentan como minutos vacíos ni como oro sin gastar.`, "warn") : null;
-  const reliableNotice = a.reliable === false
-    ? notice(a.queue === 480 ? "Partida de Swiftplay: empieza con más nivel y oro, así que no se compara con tus referencias ni cuenta en tus estadísticas (los errores se muestran igual)." : "Alguien estuvo desconectado 3 minutos o más: esta partida no cuenta en tus estadísticas ni en tu nota.", "info")
-    : null;
+  const unreliableText =
+    a.queue === 480
+      ? "Partida de Swiftplay: empieza con más nivel y oro, así que no se compara con tus referencias ni cuenta en tus estadísticas (los errores se muestran igual)."
+      : "Alguien estuvo desconectado 3 minutos o más: esta partida no cuenta en tus estadísticas ni en tu nota.";
+  const reliableNotice = a.reliable === false ? notice(unreliableText, "info") : null;
   const itemsNotice = a.items_reliable === false
     ? notice("Esta partida tiene objetos que no están en el catálogo actual (otra temporada o cambios de objetos): el análisis de oro y build se omite para no darte avisos falsos.", "info")
     : null;
@@ -447,10 +456,10 @@ function reviewCard(a, goTo) {
     .get(`/api/coach/games/${a.match_id}/review`)
     .then((r) => {
       if (!r.moments?.length) return mount(box, h("div.small.muted", "En esta partida no hay errores que revisar."));
-      const answers = { ...(r.answers || {}) };
+      const answers = { ...r.answers };
       const total = r.moments.length * r.questions.length;
       const progress = h("span.tiny.muted");
-      const count = () => (progress.textContent = `${Object.values(answers).filter((v) => v && v.trim()).length} de ${total} respuestas`);
+      const count = () => (progress.textContent = `${Object.values(answers).filter((v) => v?.trim()).length} de ${total} respuestas`);
       count();
       mount(
         box,
@@ -532,7 +541,6 @@ function frameAt(a, key, pid, t) {
 
 function levelsLine(a, death, players) {
   if (!a.replay?.frames || !death) return null;
-  const me = { pid: a.me, champ: players[a.me]?.champ };
   const myLevel = frameAt(a, "level", a.me, death.t);
   const myGold = frameAt(a, "gold", a.me, death.t);
   if (myLevel === null) return null;
@@ -560,26 +568,58 @@ function eloLine(m) {
     "div.tiny.muted.elo-moment",
     h("span", `Partidas ${e.scope === "champ" ? "de los OTPs de tu campeón" : "de tu rol"} con este error: `),
     tiers.map(([t, pct], i) => [i ? " · " : "", h("b", `${ELO_NAMES[t] || t} ${Math.round(pct)} %`)]),
-    e.rises
-      ? h("div", "Los mejores lo hacen más (juegan con más presión): no es lo que te separa de subir.")
-      : e.separates === false
-      ? h("div", "Lo cometen igual en todos los elos: cuenta, pero no es lo que te separa de subir.")
-      : e.separates
-        ? h("div.bad", "Los mejores lo cometen mucho menos: es de lo que separa elos.")
-        : null,
+    eloVerdict(e),
   );
 }
 
+/** ¿Lo hacen más los mejores, igual en todos los elos o mucho menos (lo que separa elos)? */
+function eloVerdict(e) {
+  if (e.rises) return h("div", "Los mejores lo hacen más (juegan con más presión): no es lo que te separa de subir.");
+  if (e.separates === false) return h("div", "Lo cometen igual en todos los elos: cuenta, pero no es lo que te separa de subir.");
+  if (e.separates) return h("div.bad", "Los mejores lo cometen mucho menos: es de lo que separa elos.");
+  return null;
+}
+
+/** Consejo de un momento ("" si no hay). */
 function tipFor(m) {
   if (m.severity === "good") return "Bien hecho: repite esta decisión.";
   if (m.kind === "afk") return "No cuenta como error de juego: es tiempo sin moverte (desconexión o AFK).";
-  if (m.kind !== "death") return null;
+  if (m.kind !== "death") return "";
   const tags = new Set(m.tags || []);
   if (tags.has("game_end")) return "Morir en el empujón final que gana la partida no es un error.";
   if (tags.has("fight_won")) return "Caíste, pero tu equipo ganó la pelea: suele ser un buen intercambio.";
   const tip = TIPS.find(([need]) => need.every((t) => tags.has(t)));
-  if (!tip) return tags.has("traded") ? "Tu equipo sacó algo a cambio, así que esta muerte pesa menos." : null;
+  if (!tip) return tags.has("traded") ? "Tu equipo sacó algo a cambio, así que esta muerte pesa menos." : "";
   return tags.has("traded") ? `Tu equipo sacó algo a cambio, así que pesa menos. Aun así: ${tip[1].charAt(0).toLowerCase()}${tip[1].slice(1)}` : tip[1];
+}
+
+function tagsLine(tags) {
+  if (!tags.length) return null;
+  return h("div.row-wrap", { style: { marginTop: "8px", gap: "4px" } }, tags.map((t) => h(`span.tag-chip.${TAG_LABEL[t][1] || "neutral"}`, TAG_LABEL[t][0])));
+}
+
+/** Quién te mató (o torre o súbditos) y cuántos cayeron en la pelea. */
+function killersLine(death, players) {
+  if (!death) return null;
+  const killers = death.enemies?.length
+    ? death.enemies.map((pid) => h("span.row", { style: { gap: "4px" } }, champImg(players[pid]?.champ, "xs"), dd.name(players[pid]?.champ)))
+    : h("span", "torre o súbditos");
+  const fight = death.fight?.size > 1 ? h("span.muted", ` · pelea: ${death.fight.enemies} rivales caídos, ${death.fight.allies} aliados caídos`) : null;
+  return h("div.row-wrap.small", { style: { marginTop: "8px" } }, h("span.muted", "Te mataron: "), killers, fight);
+}
+
+/** «Cerca en ese momento: 1 aliado (Lee Sin) y 2 rivales (…)». */
+function nearLine(near, m) {
+  if (!near || !(near.allies.length || near.enemies.length || m.kind === "death")) return null;
+  const group = (list, one, many) => {
+    const names = list.length ? ` (${list.map((p) => dd.name(p.champ)).join(", ")})` : "";
+    return `${list.length} ${list.length === 1 ? one : many}${names}`;
+  };
+  return h(
+    "div.small.muted",
+    { style: { marginTop: "6px" } },
+    `Cerca en ese momento (≈2.500 u., posiciones aproximadas): ${group(near.allies, "aliado", "aliados")} y ${group(near.enemies, "rival", "rivales")}.`,
+  );
 }
 
 function momentDetail(a, m, player) {
@@ -603,28 +643,10 @@ function momentDetail(a, m, player) {
       h(
         "div.col",
         { style: { gap: "6px", marginTop: "6px" } },
-          tags.length ? h("div.row-wrap", { style: { marginTop: "8px", gap: "4px" } }, tags.map((t) => h(`span.tag-chip.${TAG_LABEL[t][1] || "neutral"}`, TAG_LABEL[t][0]))) : null,
-          death
-            ? h(
-                "div.row-wrap.small",
-                { style: { marginTop: "8px" } },
-                h("span.muted", "Te mataron: "),
-                death.enemies?.length ? death.enemies.map((pid) => h("span.row", { style: { gap: "4px" } }, champImg(players[pid]?.champ, "xs"), dd.name(players[pid]?.champ))) : h("span", "torre o súbditos"),
-                death.fight?.size > 1 ? h("span.muted", ` · pelea: ${death.fight.enemies} rivales caídos, ${death.fight.allies} aliados caídos`) : null,
-              )
-            : null,
+          tagsLine(tags),
+          killersLine(death, players),
           levelsLine(a, death, players),
-          near && (near.allies.length || near.enemies.length || m.kind === "death")
-            ? h(
-                "div.small.muted",
-                { style: { marginTop: "6px" } },
-                `Cerca en ese momento (≈2.500 u., posiciones aproximadas): ${near.allies.length} ${near.allies.length === 1 ? "aliado" : "aliados"}`,
-                near.allies.length ? ` (${near.allies.map((p) => dd.name(p.champ)).join(", ")})` : "",
-                ` y ${near.enemies.length} ${near.enemies.length === 1 ? "rival" : "rivales"}`,
-                near.enemies.length ? ` (${near.enemies.map((p) => dd.name(p.champ)).join(", ")})` : "",
-                ".",
-              )
-            : null,
+          nearLine(near, m),
           m.severity !== "good" && m.kind !== "afk" ? learnBox(learnForTags(learnCat, m.tags || [])) : null,
       ),
     ),
@@ -696,33 +718,41 @@ function renderClientStatus(el, a, s) {
   const job = s.job && s.job.match_id === a.match_id ? s.job : null;
   mount(
     el,
-    h("div.row-wrap", h(`span.pill.pill-dot${tone === "good" ? ".pill-good" : tone === "warn" ? ".pill-warn" : tone === "bad" ? ".pill-bad" : ""}`, label), s.progress ? h("span.small.muted", `${Math.round(s.progress)} %`) : null),
+    h("div.row-wrap", h(`span.pill.pill-dot${TONE_CLASS[tone] || ""}`, label), s.progress ? h("span.small.muted", `${Math.round(s.progress)} %`) : null),
     s.detail ? h("div.small.muted", s.detail) : null,
     job ? h("div.small", { style: { marginTop: "6px" } }, job.message) : null,
-    s.client_open
-      ? h(
-          "div.row-wrap",
-          { style: { marginTop: "8px" } },
-          s.state === "download" || s.state === "retryDownload"
-            ? h("button.btn.btn-sm", { type: "button", onclick: () => clientAction(a, "download") }, icon("download"), "Descargar repetición")
-            : null,
-          ["download", "retryDownload", "watch", "downloading"].includes(s.state)
-            ? h("button.btn.btn-sm.btn-primary", { type: "button", onclick: () => watchInClient(a, player?.time() ?? 0) }, icon("play"), "Abrir en el momento actual")
-            : null,
-        )
-      : null,
-    s.client_open && s.replay_api === false
-      ? h(
-          "div.notice.notice-info",
-          { style: { marginTop: "10px" } },
-          icon("info"),
-          h(
-            "div",
-            "Para saltar solo al segundo exacto, el juego necesita la opción «EnableReplayApi=1» en su archivo de configuración (game.cfg). Sin ella la repetición se abre igual, pero tendrás que buscar el minuto a mano.",
-            h("div", { style: { marginTop: "8px" } }, h("button.btn.btn-sm", { type: "button", onclick: enableReplayApi }, "Activar el salto automático"), h("span.tiny.muted", " (se guarda una copia de game.cfg; se aplica al abrir la siguiente repetición)")),
-          ),
-        )
-      : null,
+    clientButtons(a, s),
+    replayApiNotice(s),
+  );
+}
+
+const TONE_CLASS = { good: ".pill-good", warn: ".pill-warn", bad: ".pill-bad" };
+
+/** Descargar la repetición y abrirla en el momento actual (con el cliente abierto). */
+function clientButtons(a, s) {
+  if (!s.client_open) return null;
+  const canDownload = s.state === "download" || s.state === "retryDownload";
+  const canWatch = ["download", "retryDownload", "watch", "downloading"].includes(s.state);
+  return h(
+    "div.row-wrap",
+    { style: { marginTop: "8px" } },
+    canDownload ? h("button.btn.btn-sm", { type: "button", onclick: () => clientAction(a, "download") }, icon("download"), "Descargar repetición") : null,
+    canWatch ? h("button.btn.btn-sm.btn-primary", { type: "button", onclick: () => watchInClient(a, player?.time() ?? 0) }, icon("play"), "Abrir en el momento actual") : null,
+  );
+}
+
+/** Sin «EnableReplayApi=1» la repetición se abre, pero no salta sola al segundo exacto. */
+function replayApiNotice(s) {
+  if (!s.client_open || s.replay_api !== false) return null;
+  return h(
+    "div.notice.notice-info",
+    { style: { marginTop: "10px" } },
+    icon("info"),
+    h(
+      "div",
+      "Para saltar solo al segundo exacto, el juego necesita la opción «EnableReplayApi=1» en su archivo de configuración (game.cfg). Sin ella la repetición se abre igual, pero tendrás que buscar el minuto a mano.",
+      h("div", { style: { marginTop: "8px" } }, h("button.btn.btn-sm", { type: "button", onclick: enableReplayApi }, "Activar el salto automático"), h("span.tiny.muted", " (se guarda una copia de game.cfg; se aplica al abrir la siguiente repetición)")),
+    ),
   );
 }
 

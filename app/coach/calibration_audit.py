@@ -103,51 +103,78 @@ def mistake_of(moment: dict, role: str) -> str | None:
     return mt["id"] if mt else None
 
 
-def records(data_dir: Path):
-    """Una fila por partida: rol, elo, certeza del recorrido, métricas, errores y estadísticas oficiales."""
+def _folder_dossiers(data_dir: Path):
     for src in ("otps", "partidas_campeon"):
         for f in Path(data_dir, src).glob("*/*/*/partidas.jsonl.gz"):
             try:
                 with gzip.open(f, "rt", encoding="utf-8") as fh:
                     for line in fh:
                         try:
-                            d = json.loads(line)
+                            yield json.loads(line)
                         except ValueError:
                             continue
-                        a = d.get("analysis") or {}
-                        group = GROUP_OF.get((d.get("tier") or "").upper())
-                        role = d.get("role") or a.get("role")
-                        if not group or not role or not a.get("has_timeline") or not reliable(a):
-                            continue
-                        values = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
-                        try:
-                            values.update(route_macro.from_dossier(d))
-                            values.update(rule_metrics.from_dossier(d))
-                        except Exception:  # noqa: BLE001
-                            pass
-                        values["pinks_rio_mitad_rival_pct"] = _pinks_river_enemy_half(d)
-                        # Errores con la certeza con la que se decidieron (``ev`` de cada momento; solo partidas nuevas).
-                        moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
-                        sure_m, unsure_m, with_ev = set(), set(), False
-                        for mo in moments:
-                            ev = mo.get("ev")
-                            if ev is None or mo.get("severity") not in ("high", "medium", "low"):
-                                continue
-                            with_ev = True
-                            mt = mistake_of(mo, role)
-                            if mt is None:
-                                continue
-                            gap = max((v for v in ev.values() if isinstance(v, (int, float))), default=0.0)
-                            (sure_m if gap <= SURE_GAP_S else unsure_m).add(mt)
-                        yield {
-                            "role": role, "group": group, "certainty": _certainty(d.get("track") or {}),
-                            "with_ev": with_ev, "sure_mistakes": sure_m, "unsure_mistakes": unsure_m,
-                            "values": {k: float(v) for k, v in values.items() if isinstance(v, (int, float)) and not isinstance(v, bool)},
-                            "mistakes": {m for m, _sev in game_mistakes(moments, role, d.get("champ"))},
-                            "official": {k: float(v) for k, v in (d.get("challenges") or {}).items() if isinstance(v, (int, float))},
-                        }
             except (OSError, EOFError):
                 continue
+
+
+def _dossiers(data_dir: Path):
+    """Cada partida de cada jugador: carpetas de OTPs y de jugadores y, una vez, los 10 de la búsqueda por partidas."""
+    from app.ingest import patterns
+
+    seen: set[tuple] = set()
+    for d in _folder_dossiers(data_dir):
+        seen.add((d.get("match_id"), d.get("team"), d.get("champ")))
+        yield d
+    for _player, d in patterns.iter_dossiers(data_dir):
+        if (d.get("match_id"), d.get("team"), d.get("champ")) not in seen:
+            yield d
+
+
+def _values(d: dict, a: dict) -> dict:
+    """Métricas de «Mi progreso» de una partida (movimiento, recorridos, reglas y pinks en el río o la mitad rival)."""
+    values = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
+    try:
+        values.update(route_macro.from_dossier(d))
+        values.update(rule_metrics.from_dossier(d))
+    except Exception:  # noqa: BLE001
+        pass
+    values["pinks_rio_mitad_rival_pct"] = _pinks_river_enemy_half(d)
+    return {k: float(v) for k, v in values.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+
+
+def _by_certainty(moments: list[dict], role: str) -> tuple[set, set, bool]:
+    """Errores decididos con posiciones seguras / inseguras (``ev`` de cada momento; solo partidas nuevas)."""
+    sure_m, unsure_m, with_ev = set(), set(), False
+    for mo in moments:
+        ev = mo.get("ev")
+        if ev is None or mo.get("severity") not in ("high", "medium", "low"):
+            continue
+        with_ev = True
+        mt = mistake_of(mo, role)
+        if mt is None:
+            continue
+        gap = max((v for v in ev.values() if isinstance(v, (int, float))), default=0.0)
+        (sure_m if gap <= SURE_GAP_S else unsure_m).add(mt)
+    return sure_m, unsure_m, with_ev
+
+
+def records(data_dir: Path):
+    """Una fila por partida: rol, elo, certeza del recorrido, métricas, errores y estadísticas oficiales."""
+    for d in _dossiers(data_dir):
+        a = d.get("analysis") or {}
+        group = GROUP_OF.get((d.get("tier") or "").upper())
+        role = d.get("role") or a.get("role")
+        if not group or not role or not a.get("has_timeline") or not reliable(a):
+            continue
+        moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
+        sure_m, unsure_m, with_ev = _by_certainty(moments, role)
+        yield {
+            "role": role, "group": group, "certainty": _certainty(d.get("track") or {}),
+            "with_ev": with_ev, "sure_mistakes": sure_m, "unsure_mistakes": unsure_m,
+            "values": _values(d, a),
+            "mistakes": {m for m, _sev in game_mistakes(moments, role, d.get("champ"))},
+            "official": {k: float(v) for k, v in (d.get("challenges") or {}).items() if isinstance(v, (int, float))},
+        }
 
 
 def _stats(vals: list[float]) -> tuple[int, float, float]:

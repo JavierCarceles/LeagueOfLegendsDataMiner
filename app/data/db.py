@@ -254,6 +254,23 @@ CREATE TABLE IF NOT EXISTS otp_progress (
 
 -- Partidas de un OTP con otro campeón descartadas por «solo sus partidas con esos campeones»: solo para su
 -- recorrido (para el resto del programa la partida sigue disponible).
+-- Búsqueda por partidas (matchups y composiciones, ``app/ingest/patterns.py``): qué partida encaja con qué ventana.
+CREATE TABLE IF NOT EXISTS pattern_games (
+    match_id    TEXT NOT NULL,
+    window_id   TEXT NOT NULL,
+    side_a      INTEGER NOT NULL,
+    win_a       INTEGER NOT NULL,
+    hits        INTEGER NOT NULL,
+    exact       INTEGER NOT NULL,
+    platform    TEXT,
+    tier        TEXT,
+    game_start  INTEGER,
+    analyzed    INTEGER NOT NULL DEFAULT 0,
+    found_at    INTEGER NOT NULL,
+    PRIMARY KEY (match_id, window_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pattern_games_window ON pattern_games(window_id, game_start);
+
 CREATE TABLE IF NOT EXISTS otp_skips (
     puuid    TEXT NOT NULL,
     match_id TEXT NOT NULL,

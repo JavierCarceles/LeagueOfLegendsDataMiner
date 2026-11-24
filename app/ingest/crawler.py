@@ -44,6 +44,7 @@ from pathlib import Path
 from app.data.db import now_s
 from app.data.repository import known_match_ids, mark_skipped, store_match, upsert_seed_players
 from app.ingest import otp_details
+from app.ingest import patterns as pattern_search
 from app.ingest.extractor import parse_match
 from app.logbus import get_logger
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
@@ -251,14 +252,57 @@ class CrawlerConfig:
     # partidas más recientes con esos campeones; el resto de su historial, cuando ya no quedan jugadores por revisar.
     # 0 = sin tope.
     games_per_otp: int = 30
+    # Búsqueda por partidas (``patterns``): ventanas tipo minidraft con matchups («Lee Sin vs Hecarim en jungla y Ahri vs
+    # Viktor en mid, en la misma partida») o composiciones. Con ventanas, los campeones y sus roles salen de ellas, el
+    # elo no filtra (todos) y solo se guardan como resultado las partidas que encajan (enteras, con los 10 analizados).
+    patterns: list[dict] = field(default_factory=list)
 
     def validated(self) -> CrawlerConfig:
+        from app.ingest import patterns as pat
+
+        windows = pat.clean(self.patterns)
+        platforms, tiers = self._platforms_tiers(bool(windows))
+        focus, share = self._focus_share()
+        roles = [] if windows else [r for r in ROLES if r in {str(x).upper() for x in (self.roles or [])}]
+        default_mastery = GAMES_MIN_MASTERY if focus == "games" else 300_000
+        per_otp = int(self.games_per_otp or 0)
+        return CrawlerConfig(
+            platforms=platforms,
+            tiers=tiers,
+            include_flex=bool(self.include_flex),
+            matches_per_player=max(5, min(int(self.matches_per_player), 100)),
+            recrawl_hours=max(1.0, min(float(self.recrawl_hours), 168.0)),
+            champions=pat.champions(windows) if windows else _ids(self.champions),
+            focus=focus,
+            min_mastery=max(GAMES_MIN_MASTERY, min(int(self.min_mastery or default_mastery), 10_000_000)),
+            min_share=share,
+            only_target_games=bool(self.only_target_games) or self.focus == "games" or bool(windows),
+            otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
+            champion_roles=pat.champion_roles(windows) if windows else self._clean_roles(),
+            save_details=bool(self.save_details),
+            games_per_otp=max(5, min(per_otp, 1000)) if per_otp else 0,
+            roles=roles,
+            role_champions=_ids(self.role_champions) if roles else [],
+            role_pools=self._pools(roles),
+            season_version=str(self.season_version) if self.season_version else None,
+            patterns=windows,
+        )
+
+    def _platforms_tiers(self, by_game: bool) -> tuple[list[str], list[str]]:
+        """Servidores y elos válidos; buscando por partidas, todos los elos (el elo no filtra)."""
         platforms = [p for p in dict.fromkeys(p.lower() for p in self.platforms) if p in PLATFORMS]
-        tiers = sorted({t.upper() for t in self.tiers if t.upper() in TIER_INDEX}, key=TIER_INDEX.get)
+        if by_game:
+            tiers = sorted(TIER_INDEX, key=TIER_INDEX.get)
+        else:
+            tiers = sorted({t.upper() for t in self.tiers if t.upper() in TIER_INDEX}, key=TIER_INDEX.get)
         if not platforms:
             raise ValueError("Selecciona al menos una plataforma válida")
         if not tiers:
             raise ValueError("Selecciona al menos un tier")
+        return platforms, tiers
+
+    def _focus_share(self) -> tuple[str, float]:
+        """A quién se busca y, si son especialistas, qué parte mínima de sus partidas con el campeón."""
         focus = self.focus if self.focus in FOCUSES else "otp"
         try:
             share = float(self.min_share)
@@ -267,34 +311,11 @@ class CrawlerConfig:
         share = min(SHARE_OPTIONS, key=lambda o: abs(o - share))
         if focus == "otp" and share <= 0:
             focus = "mastery"  # especialistas sin mínimo de partidas = mucha maestría
-        if focus != "otp":
-            share = 0.0
-        roles = [r for r in ROLES if r in {str(x).upper() for x in (self.roles or [])}]
-        pools: dict[str, list[int]] = {}
-        for lane, champs in (self.role_pools or {}).items():
-            lane = str(lane).upper()
-            if lane in roles:
-                pools[lane] = list(dict.fromkeys(int(c) for c in champs or [] if str(c).isdigit() and int(c) > 0))
-        return CrawlerConfig(
-            platforms=platforms,
-            tiers=tiers,
-            include_flex=bool(self.include_flex),
-            matches_per_player=max(5, min(int(self.matches_per_player), 100)),
-            recrawl_hours=max(1.0, min(float(self.recrawl_hours), 168.0)),
-            champions=list(dict.fromkeys(int(c) for c in (self.champions or []) if str(c).isdigit() and int(c) > 0)),
-            focus=focus,
-            min_mastery=max(GAMES_MIN_MASTERY, min(int(self.min_mastery or (GAMES_MIN_MASTERY if focus == "games" else 300_000)), 10_000_000)),
-            min_share=share,
-            only_target_games=bool(self.only_target_games) or self.focus == "games",
-            otp_depth=str(self.otp_depth) if str(self.otp_depth) in OTP_DEPTHS else "season",
-            champion_roles=self._clean_roles(),
-            save_details=bool(self.save_details),
-            games_per_otp=0 if not int(self.games_per_otp or 0) else max(5, min(int(self.games_per_otp), 1000)),
-            roles=roles,
-            role_champions=list(dict.fromkeys(int(c) for c in (self.role_champions or []) if str(c).isdigit() and int(c) > 0)) if roles else [],
-            role_pools=pools,
-            season_version=str(self.season_version) if self.season_version else None,
-        )
+        return focus, (share if focus == "otp" else 0.0)
+
+    def _pools(self, roles: list[str]) -> dict[str, list[int]]:
+        """Campeones de cada línea elegida (de la tier list)."""
+        return {str(lane).upper(): _ids(champs) for lane, champs in (self.role_pools or {}).items() if str(lane).upper() in roles}
 
     @classmethod
     def from_saved(cls, data: dict) -> CrawlerConfig:
@@ -374,6 +395,11 @@ class CrawlerConfig:
         if self.focus != "otp" or self.min_share <= 0 or seen < SHARE_MIN_SEEN:
             return True
         return hits >= self.min_share * seen
+
+
+def _ids(values) -> list[int]:
+    """Ids de campeón válidos (positivos), sin repetir y en orden."""
+    return list(dict.fromkeys(int(c) for c in (values or []) if str(c).isdigit() and int(c) > 0))
 
 
 def role_pool(svc, roles: list[str]) -> list[int]:
@@ -719,6 +745,11 @@ class _Prefetch:
         cfg = w.config
         if payload is not None and cfg.targets and cfg.save_details:
             record = parse_match(payload)
+            if cfg.patterns:
+                # Buscando por partidas: el timeline, solo de las que encajan con una ventana (~1 de cada 20-30).
+                if pattern_search.match_record(cfg.patterns, record):
+                    timeline = w.svc.riot.timeline(match_id, **kw)
+                return payload, timeline
             mine = next((pr for pr in record.participants if pr.puuid == puuid), None) if record else None
             if mine is not None and record.is_rift and not record.is_remake and cfg.is_target(mine.champ, mine.role):
                 timeline = w.svc.riot.timeline(match_id, **kw)  # aún no guardada (si no, no se estaría descargando)
@@ -774,6 +805,7 @@ class RegionWorker(threading.Thread):
         self._pick: dict | None = None  # por qué se eligió al jugador de la visita en curso (diagnóstico del reparto)
         self._visit_analyzed = 0  # partidas analizadas en la visita en curso
         self._visit_result: dict = {}
+        self.pattern_backlog: deque = deque()  # partidas ya guardadas que encajan con una ventana (``scan_stored``)
         # Segundos de esta sesión en cada fase (para ver dónde se va el tiempo si el cupo de Riot no se llena).
         self.timing: dict[str, float] = {}
         self.waiting_by_tier: dict[tuple[str, str], int] = {}
@@ -913,6 +945,12 @@ class RegionWorker(threading.Thread):
                     # encontró está guardado y «no hay nada pendiente» es cierto.
                     search_done = all(sc.status in ("idle", "stopped") for sc in self.scouts)
                     self._wake.clear()
+                    if self.pattern_backlog:
+                        # Partidas ya guardadas que encajan con una ventana: 2 llamadas cada una (partida y timeline),
+                        # frente a ~20-30 partidas bajadas por cada una que encaja buscando entre las de los jugadores.
+                        self.state["status"] = "running"
+                        self._pattern_from_store(self.pattern_backlog.popleft())
+                        continue
                     target = self._next_otp()
                     if target is None:
                         self.state["status"] = "idle" if search_done else "searching"
@@ -1257,7 +1295,8 @@ class RegionWorker(threading.Thread):
         recrawl = int(cfg.recrawl_hours * 3600)
         rows, self._plan_rows_at = self.crawler.otp_rows_cached(cfg, now)
         rows = [(row, top) for row, top in rows if row["platform"] in self.platforms]
-        lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details else set()
+        # Buscando por partidas no: su análisis va con la partida entera, solo si encaja con una ventana.
+        lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details and not cfg.patterns else set()
         cap = self._games_cap()
         # Cobertura: OTPs ya visitados por campeón y por (campeón, elo), y partidas por campeón.
         info = []
@@ -1383,6 +1422,73 @@ class RegionWorker(threading.Thread):
                 )
             }
         return out
+
+    def _pattern_detail(self, match_id: str, payload: dict, tier: str | None, found: list) -> bool:
+        """Partida que encaja con una o varias ventanas: su timeline y la partida entera (los 10 analizados) a sus
+        resultados. ``True`` si se guardó en alguna."""
+        db = self.svc.db
+        todo = [(w, res) for w, res in found if not pattern_search.done(db, match_id, w["id"])]
+        if not todo:
+            return False
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        try:
+            with self.timed("riot"):
+                timeline = self._prefetch.take_timeline(match_id) or self.svc.riot.timeline(match_id, **kw)
+        except RiotKeyError:
+            raise
+        except RiotAPIError as exc:
+            if exc.status not in (400, 403, 404, 422):
+                raise
+            timeline = None  # Riot no tiene el timeline: se guarda lo que da la partida
+        try:
+            with self.timed("analizar_guardar"):
+                saved = pattern_search.save_game(self.svc, payload, timeline, todo, tier)
+        except Exception:
+            log.exception("No se pudo guardar la partida %s de la búsqueda", match_id)
+            return False
+        if saved:
+            self.state["details"] += 1
+            self.crawler.note_pattern_saved(todo)
+        return bool(saved)
+
+    def _pattern_from_store(self, item: dict) -> None:
+        """Una partida ya guardada que encaja con una ventana (``scan_stored``): se completa con su timeline (y la
+        partida, que la base de datos no guarda en bruto) y va a los resultados."""
+        svc, db = self.svc, self.svc.db
+        mid = item["match_id"]
+        todo = [(w, res) for w, res in item["found"] if not pattern_search.done(db, mid, w["id"])]
+        if not todo:
+            return
+        kw = {"priority": Priority.LOW, "stop": self.stop_event}
+        match, timeline = otp_details.load_raw(db, svc, mid, "")
+        try:
+            with self.timed("riot"):
+                if match is None:
+                    match = svc.riot.match(mid, **kw)
+                if match is not None and timeline is None:
+                    timeline = svc.riot.timeline(mid, **kw)
+        except RiotKeyError:
+            raise
+        except RiotAPIError as exc:
+            if exc.status not in (400, 403, 404, 422):
+                raise
+            if match is None:
+                return
+        if match is None:
+            return
+        try:
+            with self.timed("analizar_guardar"):
+                saved = pattern_search.save_game(svc, match, timeline, todo, item.get("tier"))
+        except Exception:
+            log.exception("No se pudo guardar la partida %s de la búsqueda", mid)
+            return
+        if saved:
+            self.state["details"] += 1
+            self.crawler.note_pattern_saved(todo, from_store=True)
+            self.crawler.note_analyzed(item.get("tier") or "", region=self.region)
+            from app import autopush
+
+            autopush.note_game(svc, item.get("tier"), analyzed=True)
 
     def _detail(self, match_id: str, payload: dict | None, player) -> bool:
         """Baja el timeline (y la partida si no se tiene) y guarda el micro/macro de ese OTP. ``True`` si se guardó."""
@@ -1651,7 +1757,7 @@ class RegionWorker(threading.Thread):
                     row["game_name"] or puuid[:8], prog["hits"], prog["seen"], round(100 * cfg.min_share),
                 )
             # 3) Micro/macro de sus partidas ya guardadas que aún no lo tienen (de antes de activarlo o que fallaron).
-            if cfg.save_details and budget > 0 and not self.stop_event.is_set():
+            if cfg.save_details and not cfg.patterns and budget > 0 and not self.stop_event.is_set():
                 cond, params = target_sql(cfg, "p")
                 for match_id in otp_details.missing(db, puuid, row["id"], cond, params, min(budget, OTP_DETAIL_BACKFILL)):
                     if self.stop_event.is_set():
@@ -1749,9 +1855,10 @@ class RegionWorker(threading.Thread):
                 continue
         return False
 
-    def _ingest(self, match_id: str, player) -> Ingested:
-        """Descarga una partida y la guarda (o la recuerda como descartada para no volver a pedirla)."""
-        svc, cfg = self.svc, self.config
+    def _download_match(self, match_id: str) -> tuple[dict | None, Ingested | None]:
+        """La partida (de la precarga o de Riot). Si Riot da un error propio de esa partida, se recuerda para no atascar
+        el historial en ella y se devuelve su resultado."""
+        svc = self.svc
         try:
             payload = self._prefetch.take(match_id)
             if payload is None:
@@ -1762,15 +1869,84 @@ class RegionWorker(threading.Thread):
         except RiotAPIError as exc:
             if exc.status not in (400, 403, 422):
                 raise  # red o Riot caído: se reintenta en la siguiente visita
-            # Error propio de esa partida: se recuerda para no atascar el historial en ella.
             mark_skipped(svc.db, match_id, f"error {exc.status}")
             self.state["errors"] += 1
-            return Ingested("unknown")
+            return None, Ingested("unknown")
         self.state["fetched"] += 1
         self.state["last_activity"] = time.time()
         if payload is None:
             mark_skipped(svc.db, match_id, "404")
-            return Ingested("missing")
+            return None, Ingested("missing")
+        return payload, None
+
+    def _keep(self, record, mine, player, got: Ingested) -> tuple[bool, list]:
+        """¿Se guarda la partida? Y, buscando por partidas, las ventanas con las que encaja."""
+        cfg = self.config
+        got.mine_target = mine is not None and cfg.is_target(mine.champ, mine.role)
+        if cfg.patterns:
+            # Buscando por partidas: toda partida bajada se guarda en la base de datos (sirve para todo lo demás, y una
+            # ventana nueva la encuentra sin volver a bajarla); como resultado, solo las que encajan.
+            found = pattern_search.match_record(cfg.patterns, record)
+            self.crawler.note_pattern_checked(found)
+            if found:
+                self.state["target_games"] += 1
+            return True, found
+        keep = got.mine_target or self._other_target(record, player["puuid"])
+        if keep:
+            self.state["target_games"] += 1
+        return keep, []
+
+    def _skip_for_player(self, match_id: str, mine, player) -> None:
+        """Solo interesan sus partidas con los campeones elegidos (en su rol): se recuerda para su recorrido (no para
+        todo el programa: otro OTP o su perfil sí pueden necesitarla)."""
+        champ, role = (mine.champ, mine.role or "") if mine is not None else (0, "")
+        with self.svc.db.write() as conn:
+            conn.execute("INSERT OR REPLACE INTO otp_skips (puuid, match_id, champ, role) VALUES (?, ?, ?, ?)", (player["puuid"], match_id, champ, role))
+        self.state["other_champ_skipped"] += 1
+
+    def _details_for(self, match_id: str, payload: dict, player, got: Ingested, found: list) -> bool:
+        """Timeline y análisis: de la partida entera si encaja con una ventana; si no, del jugador con su campeón."""
+        cfg = self.config
+        if not cfg.save_details or got.result not in ("stored", "duplicate"):
+            return False
+        if cfg.patterns:
+            return bool(found) and self._pattern_detail(match_id, payload, _field(player, "tier"), found)
+        return bool(cfg.targets) and got.mine_target and self._detail(match_id, payload, player)
+
+    def _count_stored(self, payload: dict, player, got: Ingested) -> None:
+        """Contadores, subida a GitHub y medias del ranking de una partida ya guardada (o repetida)."""
+        svc, cfg = self.svc, self.config
+        if got.detailed:
+            self.crawler.note_analyzed(_field(player, "tier") or "", region=self.region)
+            self._visit_analyzed += 1
+        # Buscando por partidas solo cuentan para la subida las que encajan (las demás van a la base de datos, que no se sube).
+        if got.detailed or (got.result == "stored" and not cfg.patterns):
+            from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
+
+            autopush.note_game(svc, _field(player, "tier"), analyzed=bool(got.detailed))
+        if got.result != "stored":
+            key = {"duplicate": "duplicates", "remake": "remakes"}.get(got.result, "ignored")
+            self.state[key] += 1
+            return
+        # Las estadísticas exactas de Riot de sus 10 jugadores, a las medias por elo (también sin análisis).
+        try:
+            from app.coach import ranking_stats
+
+            stats = ranking_stats.of(svc)
+            if stats is not None:
+                stats.add(payload, _field(player, "tier"))
+        except Exception:  # noqa: BLE001  (son medias: nunca paran la recogida)
+            log.debug("No se pudieron sumar las medias del ranking", exc_info=True)
+        self.state["stored"] += 1
+        self.crawler.total_stored += 1
+        self.stored_at.append(time.time())
+
+    def _ingest(self, match_id: str, player) -> Ingested:
+        """Descarga una partida y la guarda (o la recuerda como descartada para no volver a pedirla)."""
+        svc, cfg = self.svc, self.config
+        payload, failed = self._download_match(match_id)
+        if failed is not None:
+            return failed
         record = parse_match(payload)
         if record is None:
             mark_skipped(svc.db, match_id, "formato desconocido")
@@ -1778,52 +1954,17 @@ class RegionWorker(threading.Thread):
         mine = next((pr for pr in record.participants if pr.puuid == player["puuid"]), None)
         valid = mine is not None and record.is_rift and not record.is_remake
         got = Ingested("", record.game_start, _patch_major(record.patch), valid)
+        found: list = []
         if cfg.targets:
-            got.mine_target = mine is not None and cfg.is_target(mine.champ, mine.role)
-            keep = got.mine_target or self._other_target(record, player["puuid"])
-            if keep:
-                self.state["target_games"] += 1
-            elif cfg.only_target_games:
-                # Solo interesan sus partidas con los campeones elegidos (en su rol): se recuerda para su recorrido (no
-                # para todo el programa: otro OTP o su perfil sí pueden necesitarla).
-                with svc.db.write() as conn:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO otp_skips (puuid, match_id, champ, role) VALUES (?, ?, ?, ?)",
-                        (player["puuid"], match_id, mine.champ if mine is not None else 0, (mine.role or "") if mine is not None else ""),
-                    )
-                self.state["other_champ_skipped"] += 1
+            keep, found = self._keep(record, mine, player, got)
+            if not keep and cfg.only_target_games:
+                self._skip_for_player(match_id, mine, player)
                 got.result = "other"
                 return got
         with self.timed("guardar_partida"):
             got.result = store_match(svc.db, record, seed_tier=player["tier"], stats_queues=svc.settings.stats_queues)
-        if cfg.targets and cfg.save_details and got.mine_target and got.result in ("stored", "duplicate"):
-            got.detailed = self._detail(match_id, payload, player)
-        if got.detailed:
-            self.crawler.note_analyzed(_field(player, "tier") or "", region=self.region)
-            self._visit_analyzed += 1
-        if got.result == "stored" or got.detailed:
-            from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
-
-            autopush.note_game(svc, _field(player, "tier"), analyzed=bool(got.detailed))
-        if got.result == "stored":
-            # Las estadísticas exactas de Riot de sus 10 jugadores, a las medias por elo (también sin análisis).
-            try:
-                from app.coach import ranking_stats
-
-                stats = ranking_stats.of(svc)
-                if stats is not None:
-                    stats.add(payload, _field(player, "tier"))
-            except Exception:  # noqa: BLE001  (son medias: nunca paran la recogida)
-                log.debug("No se pudieron sumar las medias del ranking", exc_info=True)
-            self.state["stored"] += 1
-            self.crawler.total_stored += 1
-            self.stored_at.append(time.time())
-        elif got.result == "duplicate":
-            self.state["duplicates"] += 1
-        elif got.result == "remake":
-            self.state["remakes"] += 1
-        else:
-            self.state["ignored"] += 1
+        got.detailed = self._details_for(match_id, payload, player, got, found)
+        self._count_stored(payload, player, got)
         return got
 
     def _refill_seeds(self, platform: str, tier: str) -> int:
@@ -2056,6 +2197,8 @@ class Crawler:
         self._visit_log: deque = deque(maxlen=VISIT_LOG_SIZE)
         self._pick_misses: dict[str, Counter] = {}  # elo más atrasado sin candidatos -> Counter(región)
         self._queue_by_tier: dict[str, dict] = {}  # región -> elo -> candidatos por tipo [nuevos, partidas nuevas, historial, sin análisis]
+        # Búsqueda por partidas: partidas revisadas y, por ventana, las que encajan y las guardadas (desde que arrancó).
+        self._pattern_stats: dict = {"revisadas": 0, "ventanas": {}, "en_bd": None}
         self._load_recent()
         saved = svc.db.meta_get("crawler_config")
         if saved:
@@ -2158,6 +2301,84 @@ class Crawler:
             "sin_candidatos": {t: misses[t] for t in sorted(misses, key=order)},
             "ultimas_visitas": last,
         }
+
+    def _reset_session(self, config: CrawlerConfig) -> None:
+        """«Desde que arrancó»: el diagnóstico de visitas y la búsqueda por partidas empiezan de cero (el reparto
+        reciente por elo no)."""
+        with self._rows_lock:
+            self._visit_stats.clear()
+            self._visit_log.clear()
+            self._pick_misses.clear()
+            self._queue_by_tier.clear()
+            self._pattern_stats = {
+                "revisadas": 0, "ventanas": {w["id"]: {"encontradas": 0, "guardadas": 0, "de_bd": 0} for w in config.patterns}, "en_bd": None,
+            }
+
+    # ------------------------------------------------------------ búsqueda por partidas
+    def note_pattern_checked(self, found: list) -> None:
+        """Una partida bajada y comprobada con las ventanas (``found``: con las que encaja)."""
+        with self._rows_lock:
+            st = self._pattern_stats
+            st["revisadas"] += 1
+            for w, _res in found:
+                st["ventanas"].setdefault(w["id"], {"encontradas": 0, "guardadas": 0, "de_bd": 0})["encontradas"] += 1
+
+    def note_pattern_saved(self, found: list, from_store: bool = False) -> None:
+        with self._rows_lock:
+            for w, _res in found:
+                v = self._pattern_stats["ventanas"].setdefault(w["id"], {"encontradas": 0, "guardadas": 0, "de_bd": 0})
+                v["guardadas"] += 1
+                v["de_bd"] += int(from_store)
+
+    def pattern_report(self) -> dict | None:
+        """Para la web y el registro: partidas revisadas, por ventana las encontradas y guardadas (y en total, de la base
+        de datos) y las ya guardadas que faltan por completar."""
+        cfg = self.config
+        if cfg is None or not cfg.patterns:
+            return None
+        with self._rows_lock:
+            st = json.loads(json.dumps(self._pattern_stats))
+        pending = sum(len(w.pattern_backlog) for w in self.workers.values()) if self.workers else 0
+        totals = {}
+        try:
+            for r in self.svc.db.query(
+                "SELECT window_id, COUNT(*) AS n, SUM(win_a) AS w, SUM(exact) AS e FROM pattern_games WHERE analyzed = 1 GROUP BY window_id"
+            ):
+                totals[r["window_id"]] = {"partidas": int(r["n"]), "ganadas_a": int(r["w"] or 0), "iguales": int(r["e"] or 0)}
+        except Exception:  # noqa: BLE001
+            pass
+        return {
+            "revisadas": st["revisadas"],
+            "pendientes_bd": pending,
+            "en_bd": st.get("en_bd"),
+            "ventanas": {
+                w["id"]: {**st["ventanas"].get(w["id"], {"encontradas": 0, "guardadas": 0, "de_bd": 0}),
+                          "total": totals.get(w["id"], {"partidas": 0, "ganadas_a": 0, "iguales": 0})}
+                for w in cfg.patterns
+            },
+        }
+
+    def _scan_patterns(self, config: CrawlerConfig, stop: threading.Event) -> None:
+        """Al arrancar: las partidas ya guardadas que encajan con alguna ventana van a la cola de su región."""
+        t0 = time.time()
+        try:
+            queues = (QUEUE_SOLO, 440) if config.include_flex else (QUEUE_SOLO,)
+            items = pattern_search.scan_stored(self.svc.db, config.patterns, config.platforms, queues)
+        except Exception:
+            log.exception("No se pudieron buscar las ventanas en las partidas ya guardadas")
+            return
+        if stop.is_set():
+            return
+        for item in items:
+            w = self.workers.get(region_of(item["platform"]))
+            if w is not None:
+                w.pattern_backlog.append(item)
+        with self._rows_lock:
+            self._pattern_stats["en_bd"] = len(items)
+        for w in self.workers.values():
+            w.wake()
+        log.info("Búsqueda por partidas: %d partidas ya guardadas encajan con las ventanas (se completan con su timeline; %.0f s).",
+                 len(items), time.time() - t0)
 
     def note_analyzed(self, tier: str, n: int = 1, region: str | None = None) -> None:
         """Partidas analizadas de ese elo (el reparto se mide en partidas, no en visitas)."""
@@ -2331,7 +2552,7 @@ class Crawler:
                     ))
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
             funnel["reparto_elo"] = self.tier_report()
-            if funnel["reparto_elo"]:
+            if funnel["reparto_elo"] and not cfg.patterns:  # buscando por partidas el elo no reparte: no se usa
                 log.info("Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): %s", ", ".join(
                     f"{t} {e['parte_pct']}%/{e['recientes_pct']}%/{e['analizadas']}" for t, e in funnel["reparto_elo"].items()
                 ))
@@ -2350,6 +2571,15 @@ class Crawler:
                          ", ".join(f"{t} {sum(r.values())} ({', '.join(f'{k} {n}' for k, n in r.items())})"
                                    for t, r in report["sin_candidatos"].items()))
             self._save_recent()
+            pat = self.pattern_report()
+            if pat:
+                funnel["busqueda_partidas"] = pat
+                name = getattr(getattr(self.svc, "dd", None), "name", None)
+                log.info("Búsqueda por partidas: %d partidas revisadas, %d ya guardadas por completar. %s", pat["revisadas"], pat["pendientes_bd"], " | ".join(
+                    f"{pattern_search.label(w, name)}: {v['encontradas']} encontradas, {v['guardadas']} guardadas ({v['total']['partidas']} en total, "
+                    f"gana el equipo A {round(100 * v['total']['ganadas_a'] / v['total']['partidas']) if v['total']['partidas'] else 0} %)"
+                    for w in cfg.patterns if (v := pat["ventanas"].get(w["id"]))
+                ))
             # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
             from app import diag
 
@@ -2401,17 +2631,7 @@ class Crawler:
         return True
 
     def start(self, config: CrawlerConfig, require_key: bool = True, remember: bool = True) -> dict:
-        config = config.validated()
-        dd = getattr(self.svc, "dd", None)
-        config = replace(config, season_version=getattr(dd, "version", None) or config.season_version)
-        if config.roles:
-            pools = role_pools(self.svc, config.roles) or dict(config.role_pools)  # sin red: las listas de la última vez
-            pool = role_pool_from(pools) or list(config.role_champions)
-            if not pool:
-                raise ValueError("Aún no se sabe qué campeones se juegan en esa línea: activa OP.GG o Lolalytics y vuelve a probar")
-            config = replace(config, role_champions=pool, role_pools=pools)
-        elif config.role_champions or config.role_pools:
-            config = replace(config, role_champions=[], role_pools={})
+        config = self._with_role_pool(config.validated())
         with self._lock:
             if self.running:
                 raise RuntimeError("El recolector ya está en marcha")
@@ -2433,17 +2653,27 @@ class Crawler:
             }
             self.started_at = time.time()
             self.total_stored = 0
-            with self._rows_lock:  # «desde que arrancó»: el diagnóstico de visitas empieza de cero (el reparto reciente no)
-                self._visit_stats.clear()
-                self._visit_log.clear()
-                self._pick_misses.clear()
-                self._queue_by_tier.clear()
+            self._reset_session(config)
             for worker in self.workers.values():
                 worker.start()
+            if config.patterns:
+                threading.Thread(target=self._scan_patterns, args=(config, self.stop_event), name="crawler-patterns-scan", daemon=True).start()
             if config.targets and config.save_details:
                 otp_details.ensure_files(self.svc)  # carpeta de OTPs que falta o de otro formato: se regenera sola
         log.info("Recolector en marcha en %d regiones en paralelo.", len(self.workers))
         return self.status()
+
+    def _with_role_pool(self, config: CrawlerConfig) -> CrawlerConfig:
+        """La versión del juego y, con líneas enteras, sus campeones (de la tier list; sin red, los de la última vez)."""
+        dd = getattr(self.svc, "dd", None)
+        config = replace(config, season_version=getattr(dd, "version", None) or config.season_version)
+        if not config.roles:
+            return replace(config, role_champions=[], role_pools={}) if config.role_champions or config.role_pools else config
+        pools = role_pools(self.svc, config.roles) or dict(config.role_pools)
+        pool = role_pool_from(pools) or list(config.role_champions)
+        if not pool:
+            raise ValueError("Aún no se sabe qué campeones se juegan en esa línea: activa OP.GG o Lolalytics y vuelve a probar")
+        return replace(config, role_champions=pool, role_pools=pools)
 
     def stop(self) -> dict:
         """Parada pedida por el usuario: tampoco arrancará solo la próxima vez.
@@ -2583,6 +2813,7 @@ class Crawler:
             "rate_recent": self.recent_rate(self._all_stored_at()),
             "workers": workers,
             "push": self._push_status(),
+            "patterns": self.pattern_report() if self.config and self.config.patterns else None,
         }
 
     def _push_status(self) -> dict | None:

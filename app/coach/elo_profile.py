@@ -129,9 +129,10 @@ def _files(data_dir: Path) -> list[Path]:
 
 def signature(data_dir: Path) -> str:
     from app.coach import ranking_stats
+    from app.ingest import patterns
 
     h = hashlib.sha1(str(VERSION).encode())
-    for f in [*_files(data_dir), Path(data_dir) / "otps" / ranking_stats.FILE]:
+    for f in [*_files(data_dir), *patterns.files(data_dir), Path(data_dir) / "otps" / ranking_stats.FILE]:
         try:
             st = f.stat()
         except OSError:
@@ -140,44 +141,70 @@ def signature(data_dir: Path) -> str:
     return h.hexdigest()
 
 
-def _records(data_dir: Path, throttle: bool = False):
+def _record(d: dict, role: str | None, player: str) -> dict | None:
+    """Lo que el perfil usa de una partida de un jugador (``None`` si no tiene timeline o el análisis no es fiable)."""
     from app.coach.insights import lens_on_cooldown, reliable  # aquí: evita un import circular
 
-    read = 0
+    a = d.get("analysis") or {}
+    if not a.get("has_timeline") or not reliable(a):
+        return None
+    skill_t = [s[0] for s in ((d.get("events") or {}).get("skills") or []) if len(s) >= 3 and s[2] == "NORMAL"]
+    rec = champ_checks.record_from_analysis(a, skill_t or None)
+    rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
+    moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
+    rec["mistakes"] = game_mistakes(moments, rec["role"], rec.get("champ"))
+    rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
+    rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in (a.get("metrics") or {})]
+    try:
+        rec["move"].update(route_macro.from_dossier(d))
+    except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
+        pass
+    try:
+        rec["move"].update(rule_metrics.from_dossier(d))
+    except Exception:  # noqa: BLE001
+        pass
+    return rec
+
+
+def _folder_dossiers(data_dir: Path):
+    """(dossier, rol de la carpeta, jugador) de cada partida de las carpetas de OTPs y de jugadores."""
     for f in _files(data_dir):
-        role = f.parent.parent.name
-        player = f.parent.name
+        role, player = f.parent.parent.name, f.parent.name
         try:
             with gzip.open(f, "rt", encoding="utf-8") as fh:
                 for line in fh:
                     try:
-                        d = json.loads(line)
+                        yield json.loads(line), role, player
                     except ValueError:
                         continue  # una línea a medio escribir
-                    a = d.get("analysis") or {}
-                    if not a.get("has_timeline") or not reliable(a):
-                        continue
-                    skill_t = [s[0] for s in ((d.get("events") or {}).get("skills") or []) if len(s) >= 3 and s[2] == "NORMAL"]
-                    rec = champ_checks.record_from_analysis(a, skill_t or None)
-                    rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
-                    moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
-                    rec["mistakes"] = game_mistakes(moments, rec["role"], rec.get("champ"))
-                    read += 1
-                    if throttle and read % YIELD_EVERY == 0:
-                        time.sleep(0.005)
-                    rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
-                    rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in (a.get("metrics") or {})]
-                    try:
-                        rec["move"].update(route_macro.from_dossier(d))
-                    except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
-                        pass
-                    try:
-                        rec["move"].update(rule_metrics.from_dossier(d))
-                    except Exception:  # noqa: BLE001
-                        pass
-                    yield rec
         except (OSError, EOFError, gzip.BadGzipFile):
             log.debug("No se pudo leer %s", f, exc_info=True)
+
+
+def _all_dossiers(data_dir: Path):
+    """Las carpetas y, una vez cada uno, los 10 jugadores de la búsqueda por partidas (``data/busquedas``)."""
+    from app.ingest import patterns
+
+    seen: set[tuple] = set()
+    for d, role, player in _folder_dossiers(data_dir):
+        seen.add((d.get("match_id"), d.get("team"), d.get("champ")))
+        yield d, role, player
+    for player, d in patterns.iter_dossiers(data_dir):
+        if (d.get("match_id"), d.get("team"), d.get("champ")) not in seen:  # si no, ya estaba en la carpeta de su campeón
+            yield d, d.get("role"), player
+
+
+def _records(data_dir: Path, throttle: bool = False):
+    """Cada partida de cada jugador con lo que usa el perfil (las que tienen timeline y análisis fiable)."""
+    read = 0
+    for d, role, player in _all_dossiers(data_dir):
+        rec = _record(d, role, player)
+        if rec is None:
+            continue
+        read += 1
+        if throttle and read % YIELD_EVERY == 0:
+            time.sleep(0.005)
+        yield rec
 
 
 def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False) -> dict:

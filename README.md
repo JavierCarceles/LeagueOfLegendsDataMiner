@@ -17,7 +17,7 @@ partidas y, si lo dejaste en marcha, el recolector sigue recogiendo partidas. Mi
 | **Jugador** / **Partida** | Perfil de cualquier jugador y detalle de cualquier partida (Riot API). |
 | **Regiones** | Meta por región y, con datos propios, objetivos, duración, lado azul/rojo y elo. |
 | **Guías** | Guías de matchup guardadas en tu carpeta de coachings, enfrentamientos frecuentes sin guía y amigos del cliente de LoL. |
-| **Datos y API** | API key, estado de la precarga y de cada fuente, recolector de partidas con filtros en una lista (campeones —líneas completas o sueltos—, jugadores —cualquiera, OTPs o mucha maestría—, servidores, elos, periodo y partidas; p. ej. KR + Aspirante + OTPs de Ahri), límites de la API, base de datos y calibración del modelo. |
+| **Datos y API** | API key, estado de la precarga y de cada fuente, recolector de partidas con filtros en una lista: qué buscar (todo el ranking, por campeón —líneas completas o sueltos, con su rol—, por matchup —ventanas tipo minidraft: Lee Sin vs Hecarim en jungla y Ahri vs Viktor en mid en la misma partida— o por composición, con quién gana), jugadores (cualquiera, OTPs o mucha maestría), servidores, elos, periodo y partidas; p. ej. KR + Aspirante + OTPs de Ahri. Límites de la API, base de datos y calibración del modelo. |
 
 ## Puesta en marcha
 

@@ -832,3 +832,61 @@ Bajan de forma limpia, elo a elo:
   salen ~69 partidas analizadas por minuto. El reparto por elo se cumple a ±1 punto. Hubo subida automática a las 2.000
   partidas y otra al detener. El perfil por elo se rehízo con los grupos nuevos (42.594 partidas en 7 min, en segundo
   plano).
+
+
+## O) Búsqueda por partidas: matchups y composiciones (24-11-2026, `app/ingest/patterns.py`)
+
+En «Datos y API», la primera fila del recolector es **Qué buscar**: todo el ranking, por campeón (con su rol, o líneas
+enteras), **por matchup** o **por composición**.
+
+- **Por matchup:** cada ventana es una partida, como un minidraft. Se ponen campeones contra campeones en su rol, en el
+  equipo A y en el B; el lado azul o rojo da igual. Una partida cuenta si tiene **todos** los enfrentamientos de su
+  ventana: con «Lee Sin vs Hecarim (jungla)» y «Ahri vs Viktor (mid)» en la misma ventana, solo las que tienen los dos.
+  Hay hasta 20 ventanas y cada una se busca por separado.
+- **Por composición:** campeones del mismo equipo, con rol o sin él, y si quieres el rival. Con «al menos N de los M»
+  también cuentan las parecidas. Los resultados separan las iguales de las parecidas y dicen quién gana.
+- **El elo no filtra:** se busca en todos los elos de los servidores elegidos. El elo de cada partida es el del jugador
+  por el que se encontró.
+
+**Cómo se buscan.** No hay forma de pedirle a Riot partidas por campeón. Por eso se visitan jugadores de los campeones de
+las ventanas (OTPs, mucha maestría o cualquiera que los juegue, como al buscar por campeón) y se comprueba cada partida
+suya:
+
+- **Toda partida que se baja va a la base de datos:** sirve para todo lo demás, y una ventana nueva la encuentra sin
+  volver a bajarla.
+- **El timeline (una llamada más) solo se baja de las que encajan**, también en la descarga por adelantado.
+- **Lo ya guardado primero:** al arrancar se buscan las ventanas entre las partidas ya guardadas (`scan_stored`, por el
+  campeón menos jugado de cada ventana). Las que encajan se completan antes que nada, con 2 llamadas cada una.
+- **Lo que cuesta encontrarlas:** un enfrentamiento suelto sale ~1 de cada 15-30 partidas de un OTP de uno de los dos;
+  dos enfrentamientos en la misma partida, ~1 de cada varios miles.
+
+**Qué se guarda de cada partida que encaja** (`data/busquedas/<ventana>/`, se sube a GitHub con lo demás):
+
+- **`partidas.jsonl.gz`:** la partida **entera**, con los 10 jugadores analizados minuto a minuto (el mismo análisis y
+  formato que las carpetas de OTPs, sin el oro de cada minuto). Los equipos van con sus baneos y objetivos, y está qué
+  equipo hizo de A y si ganó. Analizar a los 10 con el mismo timeline cuesta ~0,3 s y ~11 KB comprimidos por jugador,
+  sin llamadas de más.
+- **`resumen.json`:** partidas, cuántas gana el equipo A (por lado y por elo) y, en composiciones, iguales frente a
+  parecidas.
+- **Para el análisis general:** el perfil por elo y la auditoría de la calibración leen también a esos 10 jugadores
+  (`iter_dossiers`, una vez cada uno). Así, los demás matchups y composiciones de cada partida sirven para comprobar el
+  análisis general.
+- **Subida a GitHub:** buscando por partidas, solo cuentan para las 2.000 las que encajan.
+
+**En la web y el registro:**
+- **«Partidas encontradas»** sale en «Datos y API», con cada ventana y sus partidas: los 10 campeones y quién gana.
+- **El registro** dice cada 5 min las partidas revisadas y, por ventana, las encontradas y guardadas («Búsqueda por
+  partidas»).
+
+**Código sin avisos de SonarLint** (escaneo del 24-11-2026, `.problems/toon`):
+- **Los 23 avisos de `web/js/views/replays.js`:**
+  - los ternarios anidados, pasados a funciones con `if`;
+  - las dos funciones demasiado complejas, partidas;
+  - las dos promesas sin tratar, con su `.catch`;
+  - una variable sin usar, quitada;
+  - una función que devolvía tipos distintos;
+  - un objeto vacío inútil;
+  - una cadena opcional.
+- **Lo nuevo de este cambio** se ha escrito ya con esas reglas: sin ternarios anidados y con cada función por debajo
+  de 15 de complejidad cognitiva. Para cumplirlo se han partido `_ingest`, `validated` y `start` del recolector y la
+  lista de OTPs de la API.

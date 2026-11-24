@@ -72,6 +72,11 @@ class CrawlerBody(BaseModel):
     otp_depth: str = Field("season", pattern="^(30|90|180|season|365|all)$", description="Periodo: cuenta quien jugó el campeón en él y se bajan sus partidas de ese periodo")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
+    patterns: list[dict] = Field(
+        default_factory=list,
+        description="Búsqueda por partidas: ventanas {kind: matchup|comp, name, a: [{champ, role}], b: [{champ, role}], min_a, min_b}. "
+        "Con ventanas, los campeones salen de ellas y el elo no filtra",
+    )
 
 
 @router.get("/status")
@@ -79,23 +84,43 @@ def status(svc=Depends(svc_from)):
     return svc.crawler.status()
 
 
+def _champ_id(svc, value) -> int:
+    """Id de un campeón (id, clave o nombre) o 400."""
+    champ = svc.dd.resolve(value)
+    if not champ:
+        raise HTTPException(400, f"Campeón desconocido: {value}")
+    return champ
+
+
+def _resolve_windows(svc, raw: list) -> list[dict]:
+    """Las ventanas de la búsqueda por partidas con los campeones como id (admiten nombres)."""
+    from app.ingest import patterns as pattern_search
+
+    windows = []
+    for w in raw or []:
+        if not isinstance(w, dict):
+            continue
+        w = dict(w)
+        for side in ("a", "b"):
+            w[side] = [
+                {**slot, "champ": _champ_id(svc, slot.get("champ"))}
+                for slot in w.get(side) or []
+                if isinstance(slot, dict) and slot.get("champ") not in (None, "")
+            ]
+        windows.append(w)
+    if windows and not pattern_search.clean(windows):
+        raise HTTPException(400, "Las ventanas de partida no tienen ningún campeón válido (en un matchup, cada campeón con su rol)")
+    return windows
+
+
 @router.post("/start")
 def start(body: CrawlerBody, svc=Depends(svc_from)):
     data = body.model_dump()
-    champs = []
-    for value in data.pop("champions") or []:
-        champ = svc.dd.resolve(value)
-        if not champ:
-            raise HTTPException(400, f"Campeón desconocido: {value}")
-        champs.append(champ)
-    roles = {}
-    for value, wanted in (data.pop("champion_roles") or {}).items():
-        champ = svc.dd.resolve(value)
-        if not champ:
-            raise HTTPException(400, f"Campeón desconocido: {value}")
-        roles[champ] = wanted
+    champs = [_champ_id(svc, value) for value in data.pop("champions") or []]
+    roles = {_champ_id(svc, value): wanted for value, wanted in (data.pop("champion_roles") or {}).items()}
+    windows = _resolve_windows(svc, data.pop("patterns"))
     try:
-        return svc.crawler.start(CrawlerConfig(**data, champions=champs, champion_roles=roles))
+        return svc.crawler.start(CrawlerConfig(**data, champions=champs, champion_roles=roles, patterns=windows))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except PermissionError as exc:
@@ -145,25 +170,8 @@ def otps(
     entries, by_champion = heavy["entries"], heavy["by_champion"]
 
     # Lista de jugadores: filtros, orden y página (sobre una copia: lo de la caché no se toca).
-    rows = list(entries)
-    if champ is not None:
-        rows = [e for e in rows if e["champ"] == champ]
-    if platform:
-        rows = [e for e in rows if e["platform"] == platform.lower()]
-    if q and q.strip():
-        needle = q.strip().lower()
-        rows = [e for e in rows if needle in f"{e['game_name'] or ''}#{e['tag_line'] or ''}".lower()]
-    if sort == "winrate":
-        rows.sort(key=lambda e: (-(e["wins"] / e["total"]) if e["total"] >= 5 else 1, -e["total"]))
-    elif sort == "elo":
-        rows.sort(key=lambda e: (-TIER_INDEX.get(e["tier"] or "", -1), -(e["lp"] or 0), -e["total"]))
-    elif sort == "points":
-        rows.sort(key=lambda e: (-e["points"], -e["total"]))
-    elif sort == "name":
-        rows.sort(key=lambda e: ((e["game_name"] or "~").lower(), -e["total"]))
-    else:
-        rows.sort(key=lambda e: (-e["total"], -e["points"]))
-    matched = len(rows)
+    rows = _filter_players(entries, champ, platform, q)
+    rows.sort(key=OTP_SORT_KEYS.get(sort, OTP_SORT_KEYS["games"]))
     page = [dict(e) for e in rows[offset : offset + limit]]
     for p in page:
         games = svc.db.query(
@@ -175,6 +183,45 @@ def otps(
         p.pop("puuid", None)
         p["games"] = [dict(g) for g in games]
     return {
+        **_search_config(cfg, cap),
+        "found": heavy["found"],
+        "complete": heavy["complete"],
+        # Mientras se buscan más jugadores, de cada uno solo se bajan sus N primeras: cuántos ya las tienen.
+        "capped": heavy["capped"],
+        "games": heavy["games"],
+        "by_champion": by_champion,
+        "matched": len(rows),
+        "offset": offset,
+        "players": page,
+        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
+        "funnel": _funnel(svc, cfg),
+    }
+
+
+OTP_SORT_KEYS = {
+    "winrate": lambda e: (-(e["wins"] / e["total"]) if e["total"] >= 5 else 1, -e["total"]),
+    "elo": lambda e: (-TIER_INDEX.get(e["tier"] or "", -1), -(e["lp"] or 0), -e["total"]),
+    "points": lambda e: (-e["points"], -e["total"]),
+    "name": lambda e: ((e["game_name"] or "~").lower(), -e["total"]),
+    "games": lambda e: (-e["total"], -e["points"]),
+}
+
+
+def _filter_players(entries: list[dict], champ: int | None, platform: str | None, q: str | None) -> list[dict]:
+    rows = list(entries)
+    if champ is not None:
+        rows = [e for e in rows if e["champ"] == champ]
+    if platform:
+        rows = [e for e in rows if e["platform"] == platform.lower()]
+    needle = (q or "").strip().lower()
+    if needle:
+        rows = [e for e in rows if needle in f"{e['game_name'] or ''}#{e['tag_line'] or ''}".lower()]
+    return rows
+
+
+def _search_config(cfg, cap: int) -> dict:
+    """Lo de la búsqueda que la web enseña junto a los jugadores."""
+    return {
         "champions": cfg.targets,
         "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
         "lines": cfg.roles,
@@ -184,17 +231,6 @@ def otps(
         "otp_depth": cfg.otp_depth,
         "games_per_otp": cfg.games_per_otp,
         "searching": bool(cap),
-        "found": heavy["found"],
-        "complete": heavy["complete"],
-        # Mientras se buscan más jugadores, de cada uno solo se bajan sus N primeras: cuántos ya las tienen.
-        "capped": heavy["capped"],
-        "games": heavy["games"],
-        "by_champion": by_champion,
-        "matched": matched,
-        "offset": offset,
-        "players": page,
-        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
-        "funnel": _funnel(svc, cfg),
     }
 
 
@@ -210,15 +246,7 @@ def _otp_summary(svc, cfg, cap: int) -> dict:
     funnel = _funnel(svc, cfg)
     found = int(((funnel or {}).get("total") or {}).get("active") or 0) or len(rows)
     return {
-        "champions": cfg.targets,
-        "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
-        "lines": cfg.roles,
-        "focus": cfg.focus,
-        "min_mastery": cfg.min_mastery,
-        "min_share": cfg.min_share,
-        "otp_depth": cfg.otp_depth,
-        "games_per_otp": cfg.games_per_otp,
-        "searching": bool(cap),
+        **_search_config(cfg, cap),
         "found": found,
         "complete": sum(1 for st in states if st in ("done", "share")),
         "capped": sum(
@@ -235,17 +263,10 @@ def _otp_summary(svc, cfg, cap: int) -> dict:
     }
 
 
-def _otp_entries(svc, cfg, cap: int) -> dict:
-    """Jugadores encontrados (uno por campeón) con sus partidas y su historial, y el resumen por campeón."""
+def _target_stats(svc, cfg, ids: list[int]) -> dict[tuple[int, int], dict]:
+    """Partidas (y su rol) de cada jugador con cada campeón elegido, en el rol que buscas."""
     target_cond, target_params = target_sql(cfg)
-    # Los de los servidores y elos elegidos (los que se visitan).
-    found = _cached(svc, ("rows", _cfg_key(cfg)), ROWS_TTL_S, lambda: otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers))
-    list_key = otp_list_key(cfg)
-    depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
-
-    # Partidas (y su rol) de cada jugador con cada campeón elegido, en el rol que buscas.
     stats: dict[tuple[int, int], dict] = {}
-    ids = [row["id"] for row, _ in found]
     for i in range(0, len(ids), 400):
         chunk = ids[i : i + 400]
         for r in svc.db.query(
@@ -258,78 +279,75 @@ def _otp_entries(svc, cfg, cap: int) -> dict:
             st["wins"] += int(r["wins"] or 0)
             if r["role"]:
                 st["roles"][r["role"]] = st["roles"].get(r["role"], 0) + int(r["games"] or 0)
+    return stats
 
-    entries = []
-    for row, top in found:
-        history = otp_history_state(row, list_key, depth_start)
-        if history == "loading" and cap and cap_count(cfg, row["hits"], row["seen"]) >= cap:
-            history = "capped"  # ya tiene sus partidas; el resto de su historial, cuando acabe la búsqueda
-        seen = int(row["seen"] or 0)
-        points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}
-        for c in otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.targets), 0)]:
-            st = stats.get((row["id"], c), {"games": 0, "wins": 0, "roles": {}})
-            entries.append(
-                {
-                    "id": row["id"],
-                    "puuid": row["puuid"],
-                    "platform": row["platform"],
-                    "game_name": row["game_name"],
-                    "tag_line": row["tag_line"],
-                    "tier": row["tier"],
-                    "division": row["division"],
-                    "lp": row["lp"],
-                    "champ": c,
-                    "points": points_of.get(c, 0),
-                    "top": top,
-                    "checked_at": row["checked_at"],
-                    "total": st["games"],
-                    "wins": st["wins"],
-                    "roles": dict(sorted(st["roles"].items(), key=lambda kv: -kv[1])),
-                    "history": history,
-                    "history_checked": int(row["back_offset"] or 0),
-                    "share": round(int(row["hits"] or 0) / seen, 3) if seen >= 10 else None,
-                }
-            )
 
-    # Resumen por campeón (en el orden en que los elegiste; los de una línea, de más a menos jugados).
-    by_champion = []
-    for c in cfg.targets:
-        mine = [e for e in entries if e["champ"] == c]
-        roles: dict[str, int] = {}
-        for e in mine:
-            for role, n in e["roles"].items():
-                roles[role] = roles.get(role, 0) + n
-        platforms: dict[str, int] = {}
-        for e in mine:
-            platforms[e["platform"]] = platforms.get(e["platform"], 0) + 1
-        best = max(mine, key=lambda e: (TIER_INDEX.get(e["tier"] or "", -1), e["lp"] or 0), default=None)
-        leaders = sorted(mine, key=lambda e: (-e["total"], -e["points"]))[:3]
-        by_champion.append(
-            {
-                "champ": c,
-                "roles_wanted": cfg.roles_for(c) or [],
-                "found": len(mine),
-                "with_games": sum(1 for e in mine if e["total"]),
-                "complete": sum(1 for e in mine if e["history"] in ("done", "share")),
-                "games": sum(e["total"] for e in mine),
-                "wins": sum(e["wins"] for e in mine),
-                "roles": dict(sorted(roles.items(), key=lambda kv: -kv[1])),
-                "platforms": dict(sorted(platforms.items(), key=lambda kv: -kv[1])),
-                "best": {k: best[k] for k in ("game_name", "tag_line", "platform", "tier", "division", "lp")} if best else None,
-                "leaders": [{k: e[k] for k in ("game_name", "tag_line", "platform", "tier", "lp", "total", "wins")} for e in leaders],
-            }
-        )
+def _player_entries(cfg, row, top, history: str, stats: dict) -> list[dict]:
+    """Una fila por campeón buscado del jugador, con sus partidas con él."""
+    seen = int(row["seen"] or 0)
+    points_of = {int(e[0]): int(e[1]) for e in top if len(e) >= 2}
+    champs = otp_champs(cfg, top, sourced_champs(row)) or [next((int(e[0]) for e in top if int(e[0]) in cfg.targets), 0)]
+    out = []
+    for c in champs:
+        st = stats.get((row["id"], c), {"games": 0, "wins": 0, "roles": {}})
+        out.append({
+            "id": row["id"], "puuid": row["puuid"], "platform": row["platform"], "game_name": row["game_name"],
+            "tag_line": row["tag_line"], "tier": row["tier"], "division": row["division"], "lp": row["lp"], "champ": c,
+            "points": points_of.get(c, 0), "top": top, "checked_at": row["checked_at"], "total": st["games"], "wins": st["wins"],
+            "roles": dict(sorted(st["roles"].items(), key=lambda kv: -kv[1])), "history": history,
+            "history_checked": int(row["back_offset"] or 0), "share": round(int(row["hits"] or 0) / seen, 3) if seen >= 10 else None,
+        })
+    return out
 
+
+def _champion_block(cfg, c: int, mine: list[dict]) -> dict:
+    """Resumen de un campeón: jugadores, historiales completos, partidas, roles, servidores, el mejor y los que más juegan."""
+    roles: dict[str, int] = {}
+    platforms: dict[str, int] = {}
+    for e in mine:
+        platforms[e["platform"]] = platforms.get(e["platform"], 0) + 1
+        for role, n in e["roles"].items():
+            roles[role] = roles.get(role, 0) + n
+    best = max(mine, key=lambda e: (TIER_INDEX.get(e["tier"] or "", -1), e["lp"] or 0), default=None)
+    leaders = sorted(mine, key=lambda e: (-e["total"], -e["points"]))[:3]
+    return {
+        "champ": c,
+        "roles_wanted": cfg.roles_for(c) or [],
+        "found": len(mine),
+        "with_games": sum(1 for e in mine if e["total"]),
+        "complete": sum(1 for e in mine if e["history"] in ("done", "share")),
+        "games": sum(e["total"] for e in mine),
+        "wins": sum(e["wins"] for e in mine),
+        "roles": dict(sorted(roles.items(), key=lambda kv: -kv[1])),
+        "platforms": dict(sorted(platforms.items(), key=lambda kv: -kv[1])),
+        "best": {k: best[k] for k in ("game_name", "tag_line", "platform", "tier", "division", "lp")} if best else None,
+        "leaders": [{k: e[k] for k in ("game_name", "tag_line", "platform", "tier", "lp", "total", "wins")} for e in leaders],
+    }
+
+
+def _otp_entries(svc, cfg, cap: int) -> dict:
+    """Jugadores encontrados (uno por campeón) con sus partidas y su historial, y el resumen por campeón."""
+    # Los de los servidores y elos elegidos (los que se visitan).
+    found = _cached(svc, ("rows", _cfg_key(cfg)), ROWS_TTL_S, lambda: otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers))
+    list_key = otp_list_key(cfg)
+    depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
+    stats = _target_stats(svc, cfg, [row["id"] for row, _ in found])
     states = [otp_history_state(row, list_key, depth_start) for row, _ in found]
+    capped = [bool(cap) and st == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap for (row, _), st in zip(found, states)]
+    entries = []
+    for (row, top), st, full in zip(found, states, capped):
+        # «capped»: ya tiene sus partidas; el resto de su historial, cuando acabe la búsqueda.
+        entries.extend(_player_entries(cfg, row, top, "capped" if full else st, stats))
+    # Resumen por campeón (en el orden en que los elegiste; los de una línea, de más a menos jugados).
+    by_champ: dict[int, list] = {}
+    for e in entries:
+        by_champ.setdefault(e["champ"], []).append(e)
     return {
         "entries": entries,
-        "by_champion": by_champion,
+        "by_champion": [_champion_block(cfg, c, by_champ.get(c, [])) for c in cfg.targets],
         "found": len(found),
         "complete": sum(1 for st in states if st in ("done", "share")),
-        "capped": sum(
-            1 for (row, _), st in zip(found, states)
-            if cap and st == "loading" and cap_count(cfg, row["hits"], row["seen"]) >= cap
-        ),
+        "capped": sum(capped),
         "games": sum(e["total"] for e in entries),
     }
 
@@ -384,3 +402,68 @@ def otps_files_rebuild(svc=Depends(svc_from)):
     if players is not None:
         players.rebuild_in_background()
     return files.rebuild_in_background()
+
+
+# ------------------------------------------------------------------ búsqueda por partidas
+def _window_stats(rows: list) -> dict:
+    """Partidas, ganadas por el equipo A, por lado y por elo, y las iguales (composiciones)."""
+    by_side: dict[str, list[int]] = {}
+    by_tier: dict[str, list[int]] = {}
+    exact = [0, 0]
+    for r in rows:
+        win = int(r["win_a"])
+        for bucket, key in ((by_side, "azul" if r["side_a"] == 100 else "rojo"), (by_tier, r["tier"] or "?")):
+            acc = bucket.setdefault(key, [0, 0])
+            acc[0] += 1
+            acc[1] += win
+        if r["exact"]:
+            exact[0] += 1
+            exact[1] += win
+    games = len(rows)
+    wins = sum(int(r["win_a"]) for r in rows)
+    return {
+        "games": games,
+        "wins_a": wins,
+        "winrate_a": round(100 * wins / games, 1) if games else None,
+        "exact": exact[0],
+        "exact_wins_a": exact[1],
+        "by_side": by_side,
+        "by_tier": by_tier,
+    }
+
+
+def _recent_games(db, rows: list, limit: int) -> list[dict]:
+    """Las últimas partidas con los 10 campeones (por equipo) y su duración."""
+    recent = [dict(r) for r in rows[:limit]]
+    ids = [r["match_id"] for r in recent]
+    if not ids:
+        return recent
+    marks = ",".join("?" * len(ids))
+    lineup: dict[str, dict] = {}
+    for r in db.query(f"SELECT match_id, team, role, champ, kills, deaths, assists FROM participants WHERE match_id IN ({marks})", ids):
+        lineup.setdefault(r["match_id"], {}).setdefault(str(r["team"]), []).append(
+            {"role": r["role"], "champ": r["champ"], "kda": [r["kills"], r["deaths"], r["assists"]]}
+        )
+    duration = {r["match_id"]: r["duration"] for r in db.query(f"SELECT match_id, duration FROM matches WHERE match_id IN ({marks})", ids)}
+    for g in recent:
+        g["teams"] = lineup.get(g["match_id"], {})
+        g["duration"] = duration.get(g["match_id"])
+    return recent
+
+
+@router.get("/patterns")
+def pattern_results(limit: int = Query(12, ge=0, le=100), svc=Depends(svc_from)):
+    """Resultados de cada ventana de la búsqueda por partidas: cuántas encajan, cuántas gana el equipo A (por lado y por
+    elo; en composiciones, las iguales frente a las parecidas) y las últimas con los 10 campeones."""
+    from app.ingest import patterns as pattern_search
+
+    cfg = svc.crawler.config
+    out = []
+    for w in list(cfg.patterns) if cfg is not None else []:
+        rows = svc.db.query(
+            "SELECT match_id, side_a, win_a, exact, tier, platform, game_start FROM pattern_games WHERE window_id = ? AND analyzed = 1 "
+            "ORDER BY game_start DESC",
+            (w["id"],),
+        )
+        out.append({"window": w, "label": pattern_search.label(w, svc.dd.name), **_window_stats(rows), "recent": _recent_games(svc.db, rows, limit)})
+    return {"windows": out, "live": svc.crawler.pattern_report()}

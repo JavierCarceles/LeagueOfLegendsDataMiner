@@ -70,6 +70,7 @@ export async function render(container) {
     crawlerStatus: h("div"),
     push: h("div"),
     otps: h("div"),
+    patterns: h("div"),
     results: h("div"),
     sources: h("div"),
     limits: h("div"),
@@ -159,6 +160,7 @@ async function refreshOnce() {
     renderCrawler(status.crawler, status.key);
     renderLimits(status.ratelimit);
     loadOtps(status.crawler);
+    loadPatterns(status.crawler);
     loadLive();
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
@@ -323,7 +325,11 @@ async function replan() {
 function renderCrawler(c, key) {
   const running = !!c.running;
   const mode = running ? "running" : "stopped";
-  if (!crawlerForm) crawlerForm = JSON.parse(JSON.stringify(c.config));
+  if (!crawlerForm) {
+    crawlerForm = JSON.parse(JSON.stringify(c.config));
+    // Buscando por partidas, los campeones de la configuración salen de las ventanas: no se enseñan como elegidos.
+    if (crawlerForm.patterns?.length) Object.assign(crawlerForm, { champions: [], champion_roles: {} });
+  }
   const sig = JSON.stringify([c.stored, c.rate_per_min, c.rate_recent, c.stopping, c.paused, c.autostart, key.configured]);
   if (crawlerFormFor !== mode) {
     crawlerFormFor = mode;
@@ -337,11 +343,13 @@ function renderCrawler(c, key) {
   renderPush(c.push, running);
   // Resultados: solo con el recolector en marcha (al cargar o parado no se enseña nada viejo). La gráfica por elo, siempre;
   // la búsqueda (servidores, jugadores encontrados, GitHub), solo buscando por campeones o líneas.
-  const resultsFor = running ? (hasTargets(c.config) ? c.config.focus : "ranking") : null;
+  const resultsFor = resultsModeFor(c);
   if (resultsFor !== resultsMode) {
     resultsMode = resultsFor;
     otpsSig = null;
     otpsAt = 0;
+    patternsSig = null;
+    patternsAt = 0;
     eloSig = null;
     mount(
       sections.results,
@@ -350,13 +358,26 @@ function renderCrawler(c, key) {
             "div",
             { style: { marginTop: "14px" } },
             (eloBox = h("div.elo-chart-box", eloChartShell())),
-            resultsFor !== "ranking"
-              ? collapsible("datos.otps", [icon("crown"), RESULTS_TITLE[resultsFor]], sections.otps, { summary: "por servidor, jugadores encontrados y subida a GitHub", cls: "flat", open: true })
-              : null,
+            resultsSection(resultsFor),
           )
         : null,
     );
   }
+}
+
+/** Qué resultados enseñar: ninguno (parado), la búsqueda por partidas, la de jugadores (por su enfoque) o el ranking. */
+function resultsModeFor(c) {
+  if (!c.running) return null;
+  if (c.config?.patterns?.length) return "patterns";
+  return hasTargets(c.config) ? c.config.focus : "ranking";
+}
+
+function resultsSection(mode) {
+  if (mode === "patterns") {
+    return collapsible("datos.patrones", [icon("swords"), "Partidas encontradas"], sections.patterns, { summary: "cada ventana: cuántas partidas encajan y quién gana", cls: "flat", open: true });
+  }
+  if (mode === "ranking") return null;
+  return collapsible("datos.otps", [icon("crown"), RESULTS_TITLE[mode]], sections.otps, { summary: "por servidor, jugadores encontrados y subida a GitHub", cls: "flat", open: true });
 }
 
 /** Subida a GitHub en marcha (al detener se sube lo recogido): se ve aunque el recolector esté parado. */
@@ -413,7 +434,68 @@ const isSpecialist = (focus) => focus === "otp" || focus === "mastery";
 const noun = (focus, n = 2) => (focus === "otp" ? (n === 1 ? "OTP" : "OTPs") : n === 1 ? "jugador" : "jugadores");
 const RESULTS_TITLE = { otp: "OTPs encontrados", mastery: "Jugadores con mucha maestría encontrados", games: "Jugadores encontrados" };
 const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[3]).label;
-const hasTargets = (cfg) => !!(cfg?.champions?.length || cfg?.roles?.length);
+// Qué buscar: todo el ranking, por campeón (y rol), por matchup (ventanas tipo minidraft) o por composición.
+const SEARCH_MODES = [
+  { value: "ranking", label: "Todo el ranking", hint: "Partidas de cualquier jugador del ranking, sin elegir campeones." },
+  { value: "champions", label: "Por campeón", hint: "Partidas de los campeones que elijas, en los roles que marques (o líneas enteras)." },
+  {
+    value: "matchups",
+    label: "Por matchup",
+    hint: "Ventanas de partida, como un minidraft: pones campeones contra campeones en su rol (Lee Sin vs Hecarim en jungla, Ahri vs Viktor en mid…). Una partida cuenta si tiene todos los enfrentamientos de su ventana; cada ventana se busca por separado.",
+  },
+  { value: "comps", label: "Por composición", hint: "Campeones del mismo equipo (con rol o sin él) y quién gana: composiciones iguales o parecidas." },
+];
+const PATTERN_MODES = new Set(["matchups", "comps"]);
+const ROLE_SHORT = { TOP: "top", JUNGLE: "jungla", MID: "mid", ADC: "ADC", SUPPORT: "support" };
+const MAX_WINDOWS = 20;
+
+function searchMode(cfg) {
+  if (cfg?.search_mode) return cfg.search_mode;
+  if (cfg?.patterns?.length) return cfg.patterns.some((w) => w.kind !== "comp") ? "matchups" : "comps";
+  return cfg?.champions?.length || cfg?.roles?.length ? "champions" : "ranking";
+}
+/** Ventanas del modo elegido (las de matchups y las de composiciones se guardan aparte al cambiar de modo). */
+function windowsOf(cfg) {
+  if (!cfg) return [];
+  if (!cfg._matchups) {
+    const copy = (w) => JSON.parse(JSON.stringify({ kind: w.kind, name: w.name || "", a: w.a || [], b: w.b || [], min_a: w.min_a, min_b: w.min_b }));
+    cfg._matchups = (cfg.patterns || []).filter((w) => w.kind !== "comp").map(copy);
+    cfg._comps = (cfg.patterns || []).filter((w) => w.kind === "comp").map(copy);
+  }
+  const mode = searchMode(cfg);
+  if (mode === "comps") return cfg._comps;
+  if (mode === "matchups") return cfg._matchups;
+  return [];
+}
+const windowFilled = (w) => (w.a?.length || 0) + (w.b?.length || 0) > 0;
+const activeWindows = (cfg) => windowsOf(cfg).filter(windowFilled);
+const hasTargets = (cfg) => !!(cfg?.champions?.length || cfg?.roles?.length || (cfg && PATTERN_MODES.has(searchMode(cfg)) && activeWindows(cfg).length));
+
+/** «Lee Sin vs Hecarim (jungla) + Ahri vs Viktor (mid)» o «Yasuo + Malphite vs cualquiera». */
+function windowLabel(w) {
+  const slots = [...(w.a || []), ...(w.b || [])];
+  if (w.kind === "comp") {
+    const team = (side) => (w[side] || []).map((s) => dd.name(s.champ) + (s.role ? ` (${ROLE_SHORT[s.role]})` : "")).join(" + ") || "cualquiera";
+    const min = (side) => {
+      const n = (w[side] || []).length;
+      const m = w[`min_${side}`] || n;
+      return n > 1 && m < n ? ` [${m} de ${n}]` : "";
+    };
+    return `${team("a")}${min("a")} vs ${team("b")}${min("b")}`;
+  }
+  return ROLES.filter((r) => slots.some((s) => s.role === r))
+    .map((r) => {
+      const a = (w.a || []).find((s) => s.role === r);
+      const b = (w.b || []).find((s) => s.role === r);
+      return `${a ? dd.name(a.champ) : "cualquiera"} vs ${b ? dd.name(b.champ) : "cualquiera"} (${ROLE_SHORT[r]})`;
+    })
+    .join(" · ");
+}
+function windowsText(cfg) {
+  const ws = activeWindows(cfg);
+  if (!ws.length) return searchMode(cfg) === "comps" ? "Ninguna: añade una composición" : "Ninguno: añade una partida con sus matchups";
+  return listText(ws.map(windowLabel), 2);
+}
 const linesText = (roles) => roles.map((r) => ROLE_LABEL[r]).join(" y ");
 const listText = (items, max = 4) => (items.length <= max ? items.join(", ") : `${items.slice(0, max).join(", ")} y ${items.length - max} más`);
 
@@ -470,30 +552,55 @@ function gamesText(cfg) {
 /** Lo que va a pasar, en una frase. */
 const joinY = (items) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`);
 const WHEN = { 30: "de los últimos 30 días", 90: "de los últimos 90 días", 180: "de los últimos 180 días", season: "de la temporada actual", 365: "del último año", all: "de todo lo que guarde Riot" };
+/** «ningún elo», «cualquier elo», «Oro a Diamante» o «Oro y Maestro». */
+function tiersPhrase(idx, contiguous) {
+  if (!idx.length) return "ningún elo";
+  if (idx.length === ALL_TIERS.length) return "cualquier elo";
+  if (contiguous && idx.length > 1) return `${TIER_LABEL[ALL_TIERS[idx[0]]]} a ${TIER_LABEL[ALL_TIERS[idx.at(-1)]]}`;
+  return joinY(idx.map((i) => TIER_LABEL[ALL_TIERS[i]]));
+}
+
+const WHO_PLAYS = { games: "cualquiera que juegue", mastery: "jugadores con mucha maestría de", otp: "especialistas de" };
+
 function sentence(cfg, poolSize, running = false) {
   const verb = running ? "Se están recogiendo" : "Se recogerán";
   const all = state.meta?.platforms || [];
   const servers = all.length && cfg.platforms.length === all.length ? "todos los servidores" : joinY(cfg.platforms.map((p) => platformLabel(p))) || "ningún servidor";
   const idx = cfg.tiers.map((x) => ALL_TIERS.indexOf(x)).sort((a, b) => a - b);
   const contiguous = idx.every((v, i) => !i || v === idx[i - 1] + 1);
-  const tiers = !idx.length
-    ? "ningún elo"
-    : idx.length === ALL_TIERS.length
-      ? "cualquier elo"
-      : contiguous && idx.length > 1
-        ? `${TIER_LABEL[ALL_TIERS[idx[0]]]} a ${TIER_LABEL[ALL_TIERS[idx.at(-1)]]}`
-        : joinY(idx.map((i) => TIER_LABEL[ALL_TIERS[i]]));
+  const tiers = tiersPhrase(idx, contiguous);
   const when = WHEN[cfg.otp_depth] || WHEN.season;
+  const mode = searchMode(cfg);
+  if (PATTERN_MODES.has(mode)) {
+    const ws = activeWindows(cfg);
+    if (!ws.length) return mode === "comps" ? "Añade una composición: campeones del mismo equipo, con rol o sin él." : "Añade una partida: pon campeones contra campeones en su rol, como en un minidraft.";
+    const who = WHO_PLAYS[cfg.focus] || WHO_PLAYS.otp;
+    const which = ws.length === 1 ? `con ${windowLabel(ws[0])}` : `que encajen con alguna de estas ${ws.length}: ${ws.map(windowLabel).join("; ")}`;
+    return `${verb} partidas ${when} de todos los elos en ${servers} ${which}. Se visitan ${who} esos campeones; cada partida que encaja se guarda entera, con los 10 jugadores analizados minuto a minuto (y quién gana), y las demás que se bajan, en la base de datos.`;
+  }
   const where = `de ${tiers} en ${servers}`;
   if (!hasTargets(cfg)) return `${verb} partidas de cualquier jugador del ranking ${where}: de cada uno, sus ${cfg.matches_per_player} más recientes ${when}.`;
+  const poolText = poolSize ? ` (${poolSize})` : "";
   const champs = joinY([
-    ...(cfg.roles.length ? [`cualquier campeón de ${linesText(cfg.roles).toLowerCase()}${poolSize ? ` (${poolSize})` : ""}`] : []),
+    ...(cfg.roles.length ? [`cualquier campeón de ${linesText(cfg.roles).toLowerCase()}${poolText}`] : []),
     ...cfg.champions.map((id) => dd.name(id)),
   ]);
   if (cfg.focus === "games") return `${verb} todas las partidas ${when} ${where} en las que alguien juegue ${champs}, analizadas minuto a minuto.`;
   const who = cfg.focus === "mastery" ? "jugadores con mucha maestría" : `especialistas (${Math.round(100 * Number(cfg.min_share ?? 0.5))} % o más de sus partidas con él)`;
   const which = cfg.only_target_games !== false ? "solo sus partidas con ese campeón" : "todas sus partidas";
   return `${verb} partidas de ${who} de ${champs}, ${where}: ${which} ${when}, analizadas minuto a minuto.`;
+}
+
+/** Por qué no se puede iniciar ("" si se puede). */
+function startBlocked(cfg, key) {
+  const mode = searchMode(cfg);
+  if (!key.configured) return "Configura primero la API key";
+  if (!cfg.platforms.length) return "Elige al menos un servidor";
+  if (PATTERN_MODES.has(mode)) {
+    if (activeWindows(cfg).length) return "";
+    return mode === "comps" ? "Añade al menos una composición" : "Añade al menos una partida con un matchup";
+  }
+  return cfg.tiers.length ? "" : "Elige al menos un elo";
 }
 
 // ------------------------------------------------------------------ panel
@@ -507,14 +614,31 @@ function crawlerPanel(c, key) {
   const foot = h("div.col", { style: { gap: "10px" } });
   let poolSize = running ? cfg.role_champions?.length || null : null;
 
-  const rows = () => [
-    { id: "champs", label: "Campeones", value: champsText(cfg, poolSize), edit: () => champsEditor(cfg, changed) },
-    { id: "players", label: "Jugadores", value: playersText(cfg), edit: () => playersEditor(cfg, changed), muted: !hasTargets(cfg) },
-    { id: "servers", label: "Servidores", value: serversText(cfg.platforms), edit: () => serversEditor(cfg, changed), bad: !cfg.platforms.length },
-    { id: "tiers", label: "Elos", value: tiersText(cfg.tiers), edit: () => tiersEditor(cfg, changed), bad: !cfg.tiers.length },
-    { id: "period", label: "Periodo", value: depthLabel(cfg.otp_depth), edit: () => periodEditor(cfg, changed) },
-    { id: "games", label: "Partidas", value: gamesText(cfg), edit: () => gamesEditor(cfg, changed) },
-  ];
+  const rows = () => {
+    const mode = searchMode(cfg);
+    const byGame = PATTERN_MODES.has(mode);
+    const windowsLabel = mode === "comps" ? "Composiciones" : "Matchups";
+    return [
+      { id: "mode", label: "Qué buscar", value: SEARCH_MODES.find((m) => m.value === mode)?.label || mode, edit: () => modeEditor(cfg, changed) },
+      mode === "champions" ? { id: "champs", label: "Campeones", value: champsText(cfg, poolSize), edit: () => champsEditor(cfg, changed) } : null,
+      byGame
+        ? { id: "windows", label: windowsLabel, value: windowsText(cfg), edit: () => windowsEditor(cfg, changed), bad: !activeWindows(cfg).length }
+        : null,
+      mode !== "ranking" ? { id: "players", label: "Jugadores", value: playersText(cfg), edit: () => playersEditor(cfg, changed), muted: !hasTargets(cfg) } : null,
+      { id: "servers", label: "Servidores", value: serversText(cfg.platforms), edit: () => serversEditor(cfg, changed), bad: !cfg.platforms.length },
+      byGame
+        ? {
+            id: "tiers",
+            label: "Elos",
+            value: "Todos (buscando por partidas el elo no filtra)",
+            edit: () => editHint("Buscando por matchups o composiciones se busca en todos los elos: el de cada partida queda guardado para compararlas después."),
+            muted: true,
+          }
+        : { id: "tiers", label: "Elos", value: tiersText(cfg.tiers), edit: () => tiersEditor(cfg, changed), bad: !cfg.tiers.length },
+      { id: "period", label: "Periodo", value: depthLabel(cfg.otp_depth), edit: () => periodEditor(cfg, changed) },
+      { id: "games", label: "Partidas", value: gamesText(cfg), edit: () => gamesEditor(cfg, changed) },
+    ].filter(Boolean);
+  };
 
   const values = {}; // id -> nodos de cada fila: un cambio actualiza su resumen sin rehacer el editor abierto
   const refreshValues = () => {
@@ -555,7 +679,7 @@ function crawlerPanel(c, key) {
     );
   };
   const drawFoot = () => {
-    const reason = !key.configured ? "Configura primero la API key" : !cfg.platforms.length ? "Elige al menos un servidor" : !cfg.tiers.length ? "Elige al menos un elo" : "";
+    const reason = startBlocked(cfg, key);
     mount(
       foot,
       h("p.filter-sentence", sentence(cfg, poolSize, running)),
@@ -628,6 +752,117 @@ function choiceList(options, value, onChange) {
 }
 const editHint = (text) => h("p.tiny.muted", { style: { margin: 0 } }, text);
 const inlineRow = (...children) => h("div.row-wrap.small", { style: { gap: "6px" } }, ...children);
+
+function modeEditor(cfg, changed) {
+  return choiceList(SEARCH_MODES, searchMode(cfg), (value) => {
+    windowsOf(cfg); // guarda las ventanas de cada modo antes de cambiar
+    cfg.search_mode = value;
+    if (PATTERN_MODES.has(value) && !windowsOf(cfg).length) windowsOf(cfg).push(emptyWindow(value === "comps"));
+    if (PATTERN_MODES.has(value) && cfg.focus === "games" && cfg.min_mastery < 50_000) cfg.min_mastery = 50_000; // más partidas de ese campeón por llamada
+    openRow = { matchups: "windows", comps: "windows", champions: "champs" }[value] || null;
+    changed({ rebuild: true });
+  });
+}
+
+const minLabel = (m, n) => (m === n ? `Los ${n} (la misma composición)` : `Al menos ${m} de los ${n}`);
+
+const emptyWindow = (comp) => (comp ? { kind: "comp", name: "", a: [], b: [], min_a: null, min_b: null } : { kind: "matchup", name: "", a: [], b: [] });
+
+/** Ventanas de partida: un minidraft por partida (matchups) o dos equipos (composiciones). */
+function windowsEditor(cfg, changed) {
+  const comps = searchMode(cfg) === "comps";
+  const list = windowsOf(cfg);
+  const box = h("div.col", { style: { gap: "10px" } });
+  const update = () => changed();
+  const addLabel = comps ? "Añadir composición" : "Añadir partida";
+  const draw = () =>
+    mount(
+      box,
+      editHint(
+        comps
+          ? "Campeones del mismo equipo (el equipo A) y, si quieres, del rival (el B). Con «al menos N» también cuentan las composiciones parecidas; los resultados separan las iguales de las parecidas y dicen quién gana."
+          : "Cada ventana es una partida: pon campeones contra campeones en su rol. Solo cuentan las partidas con todos los enfrentamientos de la ventana (el lado azul o rojo da igual); cada ventana se busca por separado. Con dos o más enfrentamientos en la misma partida, encontrarlas lleva más tiempo.",
+      ),
+      list.map((w, i) => (comps ? compCard(w, i) : matchupCard(w, i))),
+      list.length < MAX_WINDOWS
+        ? h(
+            "div",
+            h("button.btn.btn-sm", { type: "button", onclick: () => (list.push(emptyWindow(comps)), draw(), update()) }, icon("swords"), addLabel),
+          )
+        : h("div.tiny.muted", `Como mucho ${MAX_WINDOWS} ventanas.`),
+    );
+  const used = (w) => new Set([...(w.a || []), ...(w.b || [])].map((s) => s.champ));
+  const head = (w, i, title) =>
+    h(
+      "div.window-head",
+      h("b.small", title),
+      h("input.input.input-sm", { value: w.name || "", placeholder: "Nombre (opcional)", maxlength: 80, oninput: (e) => ((w.name = e.target.value), update()) }),
+      h("button.btn.btn-ghost.btn-sm", { type: "button", title: "Quitar esta ventana", onclick: () => (list.splice(i, 1), draw(), update()) }, icon("close")),
+    );
+  function matchupCard(w, i) {
+    const pick = (side, role) => {
+      const slot = (w[side] || []).find((s) => s.role === role);
+      return champPicker({
+        value: slot?.champ || null,
+        compact: true,
+        placeholder: "Cualquiera",
+        exclude: () => used(w),
+        onChange: (id) => {
+          w[side] = (w[side] || []).filter((s) => s.role !== role);
+          if (id) w[side].push({ champ: id, role });
+          update();
+        },
+      });
+    };
+    return h(
+      "div.window-card",
+      head(w, i, `Partida ${i + 1}`),
+      h(
+        "div.window-grid",
+        h("span"),
+        h("span.tiny.muted", "Equipo A"),
+        h("span"),
+        h("span.tiny.muted", "Equipo B"),
+        ROLES.flatMap((role) => [h("span.window-role", roleIcon(role), h("span", ROLE_LABEL[role])), pick("a", role), h("span.tiny.faint", "vs"), pick("b", role)]),
+      ),
+    );
+  }
+  function compCard(w, i) {
+    const team = (side, title) => {
+      const slots = (w[side] ||= []);
+      const minKey = `min_${side}`;
+      const chips = slots.map((s, k) =>
+        h(
+          "div.otp-champ",
+          h("span.row", { style: { gap: "6px", minWidth: 0 } }, champImg(s.champ, "xs"), h("b.small.ellipsis", dd.name(s.champ))),
+          select([{ value: "", label: "Cualquier rol" }, ...ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))], s.role || "", (v) => ((s.role = v || null), update()), "select select-sm"),
+          h("button.btn.btn-ghost.btn-sm", { type: "button", title: `Quitar ${dd.name(s.champ)}`, onclick: () => (slots.splice(k, 1), (w[minKey] = null), draw(), update()) }, icon("close")),
+        ),
+      );
+      const add =
+        slots.length < 5
+          ? champPicker({
+              compact: true,
+              placeholder: "Añadir campeón",
+              exclude: () => used(w),
+              onChange: (id) => {
+                if (id) slots.push({ champ: id, role: null });
+                w[minKey] = null;
+                draw();
+                update();
+              },
+            })
+          : null;
+      const n = slots.length;
+      const minOptions = Array.from({ length: n }, (_, k) => n - k).map((m) => ({ value: m, label: minLabel(m, n) }));
+      const min = n > 1 ? select(minOptions, w[minKey] || n, (v) => ((w[minKey] = Number(v)), update()), "select select-sm") : null;
+      return h("div.col", { style: { gap: "6px" } }, h("div.small.muted", title), chips, add ? h("div", { style: { width: "220px", maxWidth: "100%" } }, add) : null, min);
+    };
+    return h("div.window-card", head(w, i, `Composición ${i + 1}`), team("a", "Equipo A"), team("b", "Equipo B (opcional: contra quién)"));
+  }
+  draw();
+  return box;
+}
 
 function champsEditor(cfg, changed) {
   const preview = h("div.tiny.muted");
@@ -901,7 +1136,19 @@ function regionsHint(c) {
 /** Lo que se envía al pulsar «Iniciar». */
 function startPayload() {
   const cfg = { ...crawlerForm };
-  if (!hasTargets(cfg)) cfg.focus = "otp"; // sin campeones da igual: se recoge todo el ranking
+  const mode = searchMode(cfg);
+  if (PATTERN_MODES.has(mode)) {
+    // Buscando por partidas, los campeones salen de las ventanas (el servidor los saca de ellas).
+    cfg.patterns = activeWindows(cfg).map((w) => ({ kind: w.kind, name: w.name || "", a: w.a, b: w.b, min_a: w.min_a || null, min_b: w.min_b || null }));
+    cfg.champions = [];
+    cfg.roles = [];
+    cfg.champion_roles = {};
+  } else {
+    cfg.patterns = [];
+    if (mode === "ranking") Object.assign(cfg, { champions: [], roles: [], champion_roles: {} });
+  }
+  for (const k of ["_matchups", "_comps", "search_mode"]) delete cfg[k];
+  if (!hasTargets(cfg) && !cfg.patterns.length) cfg.focus = "otp"; // sin campeones da igual: se recoge todo el ranking
   if (cfg.focus === "games") cfg.only_target_games = true;
   delete cfg.save_details; // siempre activo: no se elige
   delete cfg.role_champions;
@@ -1069,6 +1316,84 @@ async function loadOtps(c) {
       otpFunnel(data),
       ((liveSig = null), (filesBox = h("div", otpFilesBar(data)))),
     ),
+  );
+}
+
+/** Resultados de la búsqueda por partidas (cada ~8 s, una petición cada vez). */
+let patternsAt = 0;
+let patternsSig = null;
+let patternsLoading = false;
+async function loadPatterns(c) {
+  const box = sections.patterns;
+  if (!box?.isConnected || patternsLoading || Date.now() - patternsAt < 8000) return;
+  if (!c?.running || !c.config?.patterns?.length) return;
+  patternsLoading = true;
+  let data;
+  try {
+    data = await api.get("/api/crawler/patterns", { limit: 8 });
+  } catch (err) {
+    return mount(box, errorBox(err));
+  } finally {
+    patternsLoading = false;
+    patternsAt = Date.now();
+  }
+  const sig = JSON.stringify(data);
+  if (sig === patternsSig) return;
+  patternsSig = sig;
+  mount(box, patternResults(data));
+}
+
+const pctText = (wins, games) => (games ? `${fmt.num((100 * wins) / games, 0)} %` : "—");
+function patternResults(data) {
+  const live = data.live || {};
+  return h(
+    "div.col",
+    { style: { gap: "12px" } },
+    h(
+      "div.tiny.muted",
+      `${fmt.int(live.revisadas || 0)} partidas revisadas en esta sesión`,
+      live.en_bd != null ? ` · ${fmt.int(live.en_bd)} ya guardadas encajaban` : " · mirando las ya guardadas…",
+      live.pendientes_bd ? ` (${fmt.int(live.pendientes_bd)} por completar con su timeline)` : "",
+    ),
+    (data.windows || []).map((win) => windowResult(win, live.ventanas?.[win.window.id])),
+  );
+}
+function windowResult(win, live) {
+  const comp = win.window.kind === "comp";
+  const partial = win.games - win.exact;
+  return h(
+    "div.window-result",
+    h("div.row-wrap", h("b.small", win.label), win.window.name ? h("span.tiny.muted", win.window.name) : null),
+    h(
+      "div.row-wrap.small",
+      { style: { gap: "4px 14px" } },
+      h("span", h("b", fmt.int(win.games)), win.games === 1 ? " partida" : " partidas"),
+      h("span", "gana el equipo A ", h("b", pctText(win.wins_a, win.games))),
+      Object.entries(win.by_side || {}).map(([side, [n, a]]) => h("span.tiny.muted", `A en ${side}: ${a} de ${n}`)),
+      comp ? h("span.tiny.muted", `iguales ${win.exact} (gana A ${pctText(win.exact_wins_a, win.exact)}) · parecidas ${partial} (gana A ${pctText(win.wins_a - win.exact_wins_a, partial)})`) : null,
+      liveLine(live),
+    ),
+    win.recent?.length
+      ? h("div.window-games", win.recent.map(gameRow))
+      : h("div.tiny.muted", "Aún ninguna: se buscan entre las partidas de los jugadores de esos campeones."),
+  );
+}
+function liveLine(live) {
+  if (!live) return null;
+  const fromStore = live.de_bd ? ` (${live.de_bd} de las ya guardadas)` : "";
+  return h("span.tiny.faint", `esta sesión: ${live.encontradas} encontradas · ${live.guardadas} guardadas${fromStore}`);
+}
+
+function gameRow(g) {
+  const order = (p) => ROLES.indexOf(p.role);
+  const team = (t) => h("span.window-team", [...(g.teams?.[String(t)] || [])].sort((x, y) => order(x) - order(y)).map((p) => champImg(p.champ, "xs")));
+  return h(
+    "div.window-game",
+    h(`span.pill${g.win_a ? ".pill-good" : ".pill-bad"}`, g.win_a ? "Gana A" : "Gana B"),
+    team(g.side_a),
+    h("span.tiny.faint", "vs"),
+    team(300 - g.side_a),
+    h("span.tiny.muted", [platformLabel(g.platform), TIER_LABEL[g.tier] || g.tier || "", g.game_start ? new Date(g.game_start).toLocaleDateString() : ""].filter(Boolean).join(" · ")),
   );
 }
 
