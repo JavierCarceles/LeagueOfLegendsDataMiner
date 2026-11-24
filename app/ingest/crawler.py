@@ -613,6 +613,9 @@ OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto 
 SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
 SCOUT_BACKLOG_WAIT_S = 60
 SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
+# Analizar en otro hilo mientras se descarga: desactivado (con él, el recolector se quedó parado en Windows el
+# 24-11-2026 a las ~22 partidas; hasta saber por qué, se analiza en el mismo hilo, como cuando iba a 36/min).
+SAVE_IN_BACKGROUND = False
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -1199,6 +1202,17 @@ class RegionWorker(threading.Thread):
                 return False
         info = otp_details.player_info(svc.db, player["puuid"])  # elo al bajarla (el de la liga ahora mismo)
         elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
+        if not SAVE_IN_BACKGROUND:
+            try:
+                # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
+                with self.timed("analizar_guardar"):
+                    saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
+            except Exception:
+                log.exception("No se pudo analizar la partida %s del jugador", match_id)
+                return False
+            if saved:
+                self.state["details"] += 1
+            return saved
         if self._saver is None or not self._saver.is_alive():
             self._saver = threading.Thread(target=self._save_loop, name=f"crawler-save-{self.region}", daemon=True)
             self._saver.start()
