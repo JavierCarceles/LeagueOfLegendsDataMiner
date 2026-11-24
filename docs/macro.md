@@ -890,3 +890,40 @@ suya:
 - **Lo nuevo de este cambio** se ha escrito ya con esas reglas: sin ternarios anidados y con cada función por debajo
   de 15 de complejidad cognitiva. Para cumplirlo se han partido `_ingest`, `validated` y `start` del recolector y la
   lista de OTPs de la API.
+
+### Prueba real contra Riot (24-11-2026, carpeta temporal, sin tocar `data/`)
+
+**Fase 1** (8 min, EUW, NA y KR, jugadores con mucha maestría ≥ 100.000):
+
+- **Ventanas:** Lee Sin vs Hecarim (jungla), Ahri vs Viktor (mid), las dos en la misma partida, y Lee Sin + Ahri en el
+  mismo equipo.
+- **Llamadas:** 782 partidas bajadas y solo 22 timelines (el de las que encajan).
+- **Partidas que encajan:** 21. Lee Sin vs Hecarim: 10. Ahri vs Viktor: 8. Lee Sin + Ahri: 3. Las dos en la misma
+  partida: ninguna en 8 min (es ~100 veces más rara).
+- **Ritmo:** ~47 partidas/min por región, el máximo de la key.
+- **Tamaño:** 49 KB por partida con los 10 jugadores.
+- **Fichero frente a base de datos:** ningún problema, jugador a jugador (campeón, rol, equipo y resultado).
+- **Los 10 jugadores:** todos con análisis fiable, CS y oro al 10, recorrido y retos de Riot. Las métricas de movimiento
+  por línea faltan solo a los 2 junglas de cada partida, como debe ser.
+- **El análisis de los 9 no visitados** da los mismos errores por partida que el perfil de Aspirante (jungla 2,3 frente
+  a 2,5; ADC 2,6 frente a 2,6; mid 2,7 frente a 2,9).
+
+**Detección comprobada aparte:**
+- **Qué se probó:** 239 ventanas sacadas de partidas reales guardadas (matchups sueltos, dobles y triples en la misma
+  partida, «contra cualquiera», composiciones exactas, parecidas, con rol y con rival).
+- **Cómo:** se calculó a mano, partida a partida, qué partidas encajan, y se comparó con lo que da `scan_stored`.
+- **Resultado:** 6.321 partidas, sin ninguna diferencia (también el lado que hace de equipo A).
+
+**Lo que arregló la prueba:**
+
+- **Composiciones parecidas en lo ya guardado:** con «al menos 2 de 3» se perdían partidas (8 de 20 ventanas), porque
+  solo se miraban las del campeón menos jugado. Ahora se miran las de los n − k + 1 menos jugados (`_anchors`): una
+  partida sin ninguno de ellos tiene como mucho k − 1. Hay un test con el caso.
+- **Las partidas ya guardadas que encajan no se completaban:** las regiones empezaban a visitar antes de que acabara la
+  búsqueda en lo guardado, y una visita dura minutos. Ahora esperan a que acabe (como mucho 2 min,
+  `PATTERN_SCAN_WAIT_S`) y las completan primero. Comprobado: 12 partidas de Qiyana vs Nidalee completadas en 30 s
+  (12 timelines). Un índice por campeón (`idx_participants_champ`) hace esa búsqueda rápida con cientos de miles de
+  partidas.
+- **Al arrancar, ~3 min sin visitar a nadie:** la lista de jugadores, leída vacía al arrancar, se reutilizaba 2 min, y
+  la región sin trabajo esperaba 30 s. Ahora una lista vacía se vuelve a leer a los 15 s, y mientras se buscan jugadores
+  la región vuelve a mirar cada 15 s. En la fase 2 se empezó a visitar en los primeros 30 s.

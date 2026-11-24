@@ -197,3 +197,18 @@ def test_el_arranque_acepta_ventanas_con_nombres_de_campeon(keyed_svc, monkeypat
     cfg = started["cfg"]
     assert cfg.champions == [LEE_SIN, VIEGO] and cfg.champion_roles == {LEE_SIN: ["JUNGLE"], VIEGO: ["JUNGLE"]}
     assert len(cfg.tiers) == 10
+
+
+def test_en_lo_ya_guardado_una_composicion_parecida_no_necesita_al_campeon_menos_jugado(keyed_svc):
+    """Con «al menos 2 de 3», una partida encaja sin el campeón menos jugado de la ventana. Antes se miraban solo las
+    partidas de ese campeón y se perdían (8 de 20 ventanas, comprobado con partidas reales el 24-11-2026)."""
+    payloads = [
+        make_match("EUW1_8001"),  # azul: Lee Sin y Ahri (2 de 3, sin Wukong)
+        make_match("EUW1_8002", red={"JUNGLE": WUKONG}),  # azul: Lee Sin y Ahri; Wukong en el otro equipo
+        make_match("EUW1_8003", blue={"MID": SYNDRA}),  # azul: solo Lee Sin (1 de 3)
+    ]
+    store_payloads(keyed_svc, payloads)
+    (w,) = patterns.clean([{"kind": "comp", "a": [{"champ": LEE_SIN}, {"champ": AHRI}, {"champ": WUKONG}], "min_a": 2}])
+    found = {f["match_id"]: f["found"][0][1] for f in patterns.scan_stored(keyed_svc.db, [w])}
+    assert set(found) == {"EUW1_8001", "EUW1_8002"}
+    assert all(res["side_a"] == 100 and not res["exact"] for res in found.values())

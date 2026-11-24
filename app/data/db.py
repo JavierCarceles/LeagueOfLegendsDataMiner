@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS participants (
     PRIMARY KEY (match_id, pid)
 );
 CREATE INDEX IF NOT EXISTS idx_participants_player ON participants(player_id);
+-- Búsqueda por partidas: las ya guardadas con un campeón (en su rol) sin recorrer toda la tabla.
+CREATE INDEX IF NOT EXISTS idx_participants_champ ON participants(champ, role);
 
 CREATE TABLE IF NOT EXISTS legacy_matches (match_id TEXT PRIMARY KEY) WITHOUT ROWID;
 

@@ -1722,3 +1722,26 @@ def test_al_detener_se_sube_lo_recogido_cuando_todo_esta_parado(keyed_svc, monke
         fake_riot = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
         run_history(keyed_svc, fake_riot, champions=[AATROX])
         assert fake.started == expected
+
+
+def test_una_lista_de_jugadores_vacia_se_vuelve_a_leer_pronto(keyed_svc, monkeypatch):
+    """Al arrancar una búsqueda nueva aún no hay candidatos: la lista vacía se guardaba 2 min y las regiones se quedaban
+    ~3 min sin visitar a nadie aunque la búsqueda ya los hubiera encontrado (prueba real del 24-11-2026). Ahora una vacía
+    se vuelve a leer a los ``OTP_PLAN_EMPTY_S``; una con jugadores, a los ``OTP_ROWS_FRESH_S``."""
+    from app.ingest import crawler as crawler_mod
+
+    monkeypatch.setattr(crawler_mod, "OTP_ROWS_FRESH_S", 120)
+    monkeypatch.setattr(crawler_mod, "OTP_PLAN_EMPTY_S", 0)
+    now = _now_s()
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX], focus="mastery", min_mastery=10_000).validated()
+    crawler = keyed_svc.crawler
+    assert crawler.otp_rows_cached(cfg)[0] == []
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('p1', 'euw1', 'CHALLENGER', 1, 900)")
+        conn.execute("INSERT INTO mastery_checks VALUES ('p1', 'euw1', ?, ?)", (now, json.dumps([[AATROX, 900_000, now]])))
+    first = crawler.otp_rows_cached(cfg)[0]
+    assert [row["puuid"] for row, _top in first] == ["p1"]  # la vacía no se reutiliza
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('p2', 'euw1', 'CHALLENGER', 1, 800)")
+        conn.execute("INSERT INTO mastery_checks VALUES ('p2', 'euw1', ?, ?)", (now, json.dumps([[AATROX, 800_000, now]])))
+    assert crawler.otp_rows_cached(cfg)[0] is first  # con jugadores, se reutiliza hasta los 2 min

@@ -90,6 +90,7 @@ ACTIVE_VISIT_GAMES = 25  # lo que se cuenta por una visita en curso (menos lo qu
 # Las últimas partidas analizadas se guardan en la base de datos (cada 5 min y al detener): antes se perdían al
 # reiniciar y cada sesión de 5-15 min (unas 10 visitas) empezaba el reparto de cero.
 RECENT_META_KEY = "crawler_recent_games"
+PATTERN_SCAN_WAIT_S = 120  # espera máxima de las regiones a la búsqueda de las ventanas en lo ya guardado
 VISIT_LOG_SIZE = 40  # últimas visitas en el embudo (``_busqueda.json``): elo, por qué se eligió, cuánto dio y por qué acabó
 PLAN_KIND = {0: "nuevo", 1: "partidas nuevas", 2: "historial", 3: "sin análisis"}
 # Inversa al cubo y sin reparto a partes iguales: el elo con muchas más partidas que los demás casi no recibe hasta que lo
@@ -934,44 +935,7 @@ class RegionWorker(threading.Thread):
             while not self.stop_event.is_set():
                 self.crawler.write_funnel()
                 try:
-                    if not self.svc.keys.get() or self.svc.keys.status == "invalid":
-                        self._wait_for_key()
-                        continue
-                    if self.crawler.paused_reason():
-                        self.state["status"] = "paused_game"
-                        self.stop_event.wait(5)
-                        continue
-                    # Se lee el estado de la búsqueda ANTES de buscar trabajo: si ya había terminado, todo lo que
-                    # encontró está guardado y «no hay nada pendiente» es cierto.
-                    search_done = all(sc.status in ("idle", "stopped") for sc in self.scouts)
-                    self._wake.clear()
-                    if self.pattern_backlog:
-                        # Partidas ya guardadas que encajan con una ventana: 2 llamadas cada una (partida y timeline),
-                        # frente a ~20-30 partidas bajadas por cada una que encaja buscando entre las de los jugadores.
-                        self.state["status"] = "running"
-                        self._pattern_from_store(self.pattern_backlog.popleft())
-                        continue
-                    target = self._next_otp()
-                    if target is None:
-                        self.state["status"] = "idle" if search_done else "searching"
-                        with self.timed("esperando"):
-                            self._wake.wait(OTP_IDLE_WAIT_S)
-                        continue
-                    self.state.update(status="running", platform=target["platform"], tier=target["tier"])
-                    self.crawler.visit_started(self.region, target["tier"] or "")
-                    t0 = time.time()
-                    self._visit_analyzed = 0
-                    self._visit_result = {"fin": "error o detenido"}
-                    try:
-                        with self.timed("visitas"):
-                            self._visit_otp(target)
-                    finally:
-                        self.crawler.visit_ended(self.region, {
-                            "plataforma": PLATFORMS.get(target["platform"], (None, target["platform"]))[1],
-                            "elo": target["tier"] or "", "analizadas": self._visit_analyzed,
-                            "s": round(time.time() - t0, 1), **(self._pick or {}), **self._visit_result,
-                        })
-                    self.timing["n_visitas"] = self.timing.get("n_visitas", 0) + 1
+                    self._otp_step()
                 except Cancelled:
                     break
                 except RiotKeyError as exc:
@@ -991,6 +955,64 @@ class RegionWorker(threading.Thread):
         finally:
             for scout in self.scouts:
                 scout.join(timeout=5)
+
+    def _otp_step(self) -> None:
+        """Una vuelta del bucle por campeones: esperar a la key o a la partida en curso, completar partidas ya guardadas
+        que encajan con una ventana o visitar al siguiente jugador."""
+        if not self.svc.keys.get() or self.svc.keys.status == "invalid":
+            self._wait_for_key()
+            return
+        if self.crawler.paused_reason():
+            self.state["status"] = "paused_game"
+            self.stop_event.wait(5)
+            return
+        # Se lee el estado de la búsqueda ANTES de buscar trabajo: si ya había terminado, todo lo que encontró está
+        # guardado y «no hay nada pendiente» es cierto.
+        search_done = all(sc.status in ("idle", "stopped") for sc in self.scouts)
+        self._wake.clear()
+        if self._pattern_step():
+            return
+        target = self._next_otp()
+        if target is None:
+            self.state["status"] = "idle" if search_done else "searching"
+            # Mientras se buscan jugadores, los candidatos pueden aparecer en cualquier momento: se vuelve a mirar cada
+            # 15 s (con la búsqueda terminada, cada 30).
+            with self.timed("esperando"):
+                self._wake.wait(OTP_IDLE_WAIT_S if search_done else OTP_PLAN_EMPTY_S)
+            return
+        self._visit(target)
+
+    def _pattern_step(self) -> bool:
+        """Buscando por partidas: esperar a la búsqueda en lo ya guardado (como mucho ``PATTERN_SCAN_WAIT_S``) y
+        completar lo que encontró (2 llamadas por partida, frente a ~30-40 por cada una que encaja buscando entre las de
+        los jugadores). ``True`` si ha hecho algo (la vuelta acaba aquí)."""
+        if not self.crawler.pattern_scan_done.is_set() and time.time() - (self.crawler.started_at or 0) < PATTERN_SCAN_WAIT_S:
+            self.state["status"] = "searching"  # mirando las ventanas en lo ya guardado
+            self.crawler.pattern_scan_done.wait(2)
+            return True
+        if not self.pattern_backlog:
+            return False
+        self.state["status"] = "running"
+        self._pattern_from_store(self.pattern_backlog.popleft())
+        return True
+
+    def _visit(self, target) -> None:
+        """Una visita, con su diagnóstico (elo, por qué se eligió, cuánto dio y por qué acabó)."""
+        self.state.update(status="running", platform=target["platform"], tier=target["tier"])
+        self.crawler.visit_started(self.region, target["tier"] or "")
+        t0 = time.time()
+        self._visit_analyzed = 0
+        self._visit_result = {"fin": "error o detenido"}
+        try:
+            with self.timed("visitas"):
+                self._visit_otp(target)
+        finally:
+            self.crawler.visit_ended(self.region, {
+                "plataforma": PLATFORMS.get(target["platform"], (None, target["platform"]))[1],
+                "elo": target["tier"] or "", "analizadas": self._visit_analyzed,
+                "s": round(time.time() - t0, 1), **(self._pick or {}), **self._visit_result,
+            })
+        self.timing["n_visitas"] = self.timing.get("n_visitas", 0) + 1
 
     def _wait_for_key(self) -> None:
         self.state["status"] = "waiting_key"
@@ -2199,6 +2221,10 @@ class Crawler:
         self._queue_by_tier: dict[str, dict] = {}  # región -> elo -> candidatos por tipo [nuevos, partidas nuevas, historial, sin análisis]
         # Búsqueda por partidas: partidas revisadas y, por ventana, las que encajan y las guardadas (desde que arrancó).
         self._pattern_stats: dict = {"revisadas": 0, "ventanas": {}, "en_bd": None}
+        # Hasta que acaba la búsqueda en lo ya guardado, las regiones no visitan a nadie (``PATTERN_SCAN_WAIT_S`` como
+        # mucho): lo que encuentra da una partida por cada 2 llamadas y una visita, una por cada ~30-40.
+        self.pattern_scan_done = threading.Event()
+        self.pattern_scan_done.set()
         self._load_recent()
         saved = svc.db.meta_get("crawler_config")
         if saved:
@@ -2360,6 +2386,14 @@ class Crawler:
 
     def _scan_patterns(self, config: CrawlerConfig, stop: threading.Event) -> None:
         """Al arrancar: las partidas ya guardadas que encajan con alguna ventana van a la cola de su región."""
+        try:
+            self._scan_patterns_now(config, stop)
+        finally:
+            self.pattern_scan_done.set()
+            for w in self.workers.values():
+                w.wake()
+
+    def _scan_patterns_now(self, config: CrawlerConfig, stop: threading.Event) -> None:
         t0 = time.time()
         try:
             queues = (QUEUE_SOLO, 440) if config.include_flex else (QUEUE_SOLO,)
@@ -2375,8 +2409,6 @@ class Crawler:
                 w.pattern_backlog.append(item)
         with self._rows_lock:
             self._pattern_stats["en_bd"] = len(items)
-        for w in self.workers.values():
-            w.wake()
         log.info("Búsqueda por partidas: %d partidas ya guardadas encajan con las ventanas (se completan con su timeline; %.0f s).",
                  len(items), time.time() - t0)
 
@@ -2437,8 +2469,11 @@ class Crawler:
         key = (otp_list_key(cfg), tuple(cfg.platforms), tuple(cfg.tiers), cfg.focus, cfg.min_mastery, cfg.min_share)
         with self._rows_lock:
             cached = self._rows_cache
-            if cached is not None and cached[0] == key and (ROWS_REFRESH_IN_BACKGROUND or time.time() - cached[1] < OTP_ROWS_FRESH_S):
-                if time.time() - cached[1] < OTP_ROWS_FRESH_S:
+            # Vacía (al arrancar una búsqueda nueva aún no hay candidatos): se vuelve a leer a los 15 s, no a los 2 min. Si
+            # no, las regiones se quedaban ~3 min sin visitar a nadie con candidatos ya encontrados (24-11-2026).
+            fresh_s = OTP_ROWS_FRESH_S if cached is not None and cached[2] else min(OTP_PLAN_EMPTY_S, OTP_ROWS_FRESH_S)
+            if cached is not None and cached[0] == key and (ROWS_REFRESH_IN_BACKGROUND or time.time() - cached[1] < fresh_s):
+                if time.time() - cached[1] < fresh_s:
                     return cached[2], cached[1]
                 # Caducada: se rehace en segundo plano y mientras tanto se sigue con la anterior. Con muchos jugadores
                 # encontrados de elos bajos la consulta llegó a 52 s y la región que la pedía se quedaba parada.
@@ -2657,7 +2692,10 @@ class Crawler:
             for worker in self.workers.values():
                 worker.start()
             if config.patterns:
+                self.pattern_scan_done.clear()
                 threading.Thread(target=self._scan_patterns, args=(config, self.stop_event), name="crawler-patterns-scan", daemon=True).start()
+            else:
+                self.pattern_scan_done.set()
             if config.targets and config.save_details:
                 otp_details.ensure_files(self.svc)  # carpeta de OTPs que falta o de otro formato: se regenera sola
         log.info("Recolector en marcha en %d regiones en paralelo.", len(self.workers))

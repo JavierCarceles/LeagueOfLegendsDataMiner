@@ -429,18 +429,35 @@ def save_game(svc, match: dict, timeline: dict | None, found: list[tuple[dict, d
 
 
 # ------------------------------------------------------------------ partidas ya guardadas
+def _anchors(w: dict, counts: dict[int, int]) -> list[dict]:
+    """Campeones de la ventana tales que toda partida que encaja tiene al menos uno: con «al menos k de n» en un equipo,
+    los n − k + 1 menos jugados de ese equipo (una partida sin ninguno tendría como mucho k − 1); con todos, el menos
+    jugado. Del equipo con el que menos partidas hay que mirar."""
+    best: tuple[int, list[dict]] | None = None
+    for side in ("a", "b"):
+        slots, need = w[side], w[f"min_{side}"]
+        if not slots or not need:
+            continue
+        rare = sorted(slots, key=lambda s: (counts.get(s["champ"], 0), s["role"] is None))[: len(slots) - need + 1]
+        cost = sum(counts.get(s["champ"], 0) for s in rare)
+        if best is None or cost < best[0]:
+            best = (cost, rare)
+    return best[1] if best else []
+
+
 def _anchor_matches(db, w: dict, counts: dict[int, int], cond: list[str], params: list) -> list:
-    """Partidas guardadas con el campeón menos jugado de la ventana (en su rol, si lo tiene) que aún no están en sus
-    resultados."""
-    slots = [s for side in ("a", "b") for s in w[side]]
-    anchor = min(slots, key=lambda s: (counts.get(s["champ"], 0), s["role"] is None))
-    role_sql = " AND p.role = ?" if anchor["role"] else ""
-    return db.query(
-        f"SELECT p.match_id, m.platform, m.tier, m.game_start FROM participants p JOIN matches m ON m.match_id = p.match_id "
-        f"WHERE p.champ = ?{role_sql} AND {' AND '.join(cond)} "
-        f"AND p.match_id NOT IN (SELECT match_id FROM pattern_games WHERE window_id = ? AND analyzed = 1)",
-        (anchor["champ"], *([anchor["role"]] if anchor["role"] else []), *params, w["id"]),
-    )
+    """Partidas guardadas con alguno de los campeones ancla de la ventana (en su rol, si lo tiene) que aún no están en
+    sus resultados."""
+    rows = []
+    for anchor in _anchors(w, counts):
+        role_sql = " AND p.role = ?" if anchor["role"] else ""
+        rows += db.query(
+            f"SELECT p.match_id, m.platform, m.tier, m.game_start FROM participants p JOIN matches m ON m.match_id = p.match_id "
+            f"WHERE p.champ = ?{role_sql} AND {' AND '.join(cond)} "
+            f"AND p.match_id NOT IN (SELECT match_id FROM pattern_games WHERE window_id = ? AND analyzed = 1)",
+            (anchor["champ"], *([anchor["role"]] if anchor["role"] else []), *params, w["id"]),
+        )
+    return rows
 
 
 def _lineups_of(db, ids: list[str]) -> dict[str, list]:
