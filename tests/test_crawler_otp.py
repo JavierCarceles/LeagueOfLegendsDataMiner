@@ -736,6 +736,10 @@ def test_saved_games_without_a_mark_are_classified_on_startup(keyed_svc):
     ids, payloads = history("otp-a", 3, prefix="1")
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
     run_history(keyed_svc, fake, champions=[AATROX], save_details=True)
+    for kind in ("otp", "player"):  # el resumen que se rehace al parar escribe en la carpeta: que acabe antes
+        f = otp_details.Files.of(keyed_svc, kind)
+        if f is not None and f.thread is not None:
+            f.thread.join(10)
     now = _now_s()
     with keyed_svc.db.write() as conn:
         conn.execute("UPDATE otp_games SET kind = NULL")
