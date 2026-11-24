@@ -473,3 +473,9 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   Tristana y uno de Twitch con su propio orden), no una tendencia del elo. Se deja; en mid no separa (0,06 en todos) y
   el perfil ya le da la mitad de peso. En top, jungla y support sí separa (Esmeralda 0,17-0,27 → Aspirante 0,07-0,10).
 - Mid Aspirante (34 partidas) y Esmeralda (47) siguen siendo pocas para sacar conclusiones.
+- **Por qué no llegaban partidas de Hierro a Esmeralda aunque se buscaran todos los elos:** casi todo lo recogido se
+  hizo con búsquedas de Diamante+ (hasta el 23-11 a las 23:56). Con todos los elos, el 24-11 a las 00:20 ya había 47.705
+  jugadores de Hierro a Esmeralda válidos, pero no se visitaban: al cambiar la búsqueda (campeones o líneas) todos los
+  jugadores ya visitados vuelven a la cola, sus partidas dejaban de contar en «la línea y el elo con menos partidas», todo
+  empataba a 0 y el desempate era el elo más alto. Ahora lo recogido cuenta siempre y, a igualdad, van antes los nunca
+  visitados.

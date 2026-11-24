@@ -968,7 +968,11 @@ class RegionWorker(threading.Thread):
             tier = row["tier"] or ""
             info.append((row, champ, state))
             found_by_tier[(row["platform"], tier)] = found_by_tier.get((row["platform"], tier), 0) + 1
-            if state != "queued":
+            # Lo ya recogido cuenta siempre, también si cambió la búsqueda (otros campeones o líneas: el jugador vuelve a
+            # «queued» para recorrer su historial otra vez). Antes solo contaban los no «queued»: al cambiar la búsqueda
+            # todas las líneas y elos quedaban a 0 partidas, el desempate era «el elo más alto primero» y miles de
+            # jugadores de Diamante+ ya visitados pasaban por delante de los de Hierro a Esmeralda recién encontrados.
+            if state != "queued" or row["anchor"] is not None:
                 champ_otps[champ] = champ_otps.get(champ, 0) + 1
                 champ_tier[(champ, tier)] = champ_tier.get((champ, tier), 0) + 1
                 champ_games[champ] = champ_games.get(champ, 0) + int(row["hits"] or 0)
@@ -989,8 +993,10 @@ class RegionWorker(threading.Thread):
                 level = 0 if not in_champ else 1 if in_tier < ELO_MIN_OTPS else 2
                 likely = 0 if cfg.focus != "otp" else likely_specialist(cfg, top_of[row["puuid"]], row)
                 if by_elo:
-                    # Primero la línea y el elo con menos partidas; la variedad de campeones, después.
-                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), level, likely, in_tier, *rank)
+                    # Primero la línea y el elo con menos partidas; la variedad de campeones, después. Los nunca visitados
+                    # antes que los que vuelven a la cola por un cambio de búsqueda (de esos ya hay partidas).
+                    again = int(row["anchor"] is not None)
+                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), again, level, likely, in_tier, *rank)
                 else:
                     # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
                     key = (0, level, likely, in_tier, in_champ, *rank)

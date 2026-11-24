@@ -224,3 +224,17 @@ def test_per_player_cap_counts_every_game_when_collecting_a_champions_games():
     games = CrawlerConfig(roles=["JUNGLE"], role_champions=[LEE_SIN], focus="games").validated()
     otp = CrawlerConfig(champions=[LEE_SIN], focus="otp").validated()
     assert cap_count(games, hits=8, seen=30) == 30 and cap_count(otp, hits=8, seen=30) == 8
+
+
+def test_al_cambiar_la_busqueda_lo_recogido_sigue_contando_y_van_primero_los_elos_sin_partidas(keyed_svc):
+    """Al añadir campeones o líneas, los jugadores ya visitados vuelven a la cola (su historial se recorre de nuevo),
+    pero sus partidas siguen contando: un Oro recién encontrado va antes que un Diamante con 100 partidas."""
+    old = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], champions=[AATROX], roles=["TOP"]).validated()
+    new = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], champions=[AATROX, DARIUS], roles=["TOP"]).validated()
+    assert otp_list_key(old) != otp_list_key(new)
+    db = keyed_svc.db
+    _otp(db, "dia-1", AATROX, "DIAMOND", lp=900, visited=True, hits=100, cfg=old)
+    _otp(db, "dia-2", DARIUS, "DIAMOND", lp=800, visited=True, hits=100, cfg=old)
+    _otp(db, "gold-1", DARIUS, "GOLD", lp=10)
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], new)
+    assert worker._next_otp()["puuid"] == "gold-1"
