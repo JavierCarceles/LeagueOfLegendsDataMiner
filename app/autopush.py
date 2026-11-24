@@ -215,6 +215,19 @@ class AutoPush:
             self.thread.start()
             return True
 
+    def _fresh_funnel(self) -> None:
+        """El estado de la búsqueda (``data/otps/_busqueda.json``) al momento: si no, se sube uno de hasta 5 min antes."""
+        crawler = getattr(self.svc, "crawler", None)
+        if crawler is None or not getattr(crawler, "running", False):
+            return
+        try:
+            crawler.write_funnel(force=True)
+            thread = getattr(crawler, "_funnel_thread", None)
+            if thread is not None:
+                thread.join(60)
+        except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
+            log.debug("No se pudo poner al día el estado de la búsqueda antes de subir", exc_info=True)
+
     def _in_game(self) -> bool:
         tracker = getattr(self.svc, "tracker", None)
         return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
@@ -228,6 +241,7 @@ class AutoPush:
                 time.sleep(IN_GAME_WAIT_S)
         with self.lock:
             counted = int(self.state.get("pending") or 0)
+        self._fresh_funnel()
         from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
 
         locks = [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
