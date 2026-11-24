@@ -718,3 +718,6 @@ Lo que encontró con ~35.000 partidas:
   siguen con la anterior), los resúmenes van cada hora cediendo el procesador y la lista de la web se reutiliza 5 min.
 - **Detener sube lo recogido:** con todo parado, se vuelcan las medias del ranking y el embudo y se lanza la subida a
   GitHub en segundo plano (solo si al arrancar se comprobó git). «Datos y API» enseña el paso en que va.
+- **Subida de las 13:46:** la key otra vez al 86-95 % (41-45 de 47,5 llamadas/min) y ~82 partidas/min con el reparto
+  por elo cumpliéndose. «Detener» paró los 4 recolectores en 13 s y subió lo recogido solo. La cola de jugadores ahora se
+  recalcula cada minuto (`OTP_PLAN_TTL_S = 60`, antes 5): las partes de cada elo usan los totales más recientes.

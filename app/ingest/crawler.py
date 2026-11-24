@@ -618,7 +618,7 @@ class Ingested:
 
 
 ROWS_REFRESH_IN_BACKGROUND = True  # la lista caducada se rehace en otro hilo y mientras se sigue con la anterior
-OTP_PLAN_TTL_S = 300  # la cola de OTPs se recalcula cada 5 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S); ~10 s en Windows
+OTP_PLAN_TTL_S = 60  # la cola se recalcula cada minuto (antes 5: el reparto por elo se ponía al día tarde; la lista de jugadores, OTP_ROWS_FRESH_S)
 OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
 # Jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más. Tiene que ser menor que
@@ -1151,7 +1151,7 @@ class RegionWorker(threading.Thread):
                 self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
             self._plan_at = now_t
         # El reparto por elo, con las visitas de ahora (de las 4 regiones), no con las de cuando se calculó la cola: la
-        # cola dura 5 min y en ese rato las regiones seguían su orden sin enterarse (salían Bronce, Maestro y Aspirante
+        # cola duraba 5 min (ahora 1) y en ese rato las regiones seguían su orden sin enterarse (salían Bronce, Maestro y Aspirante
         # una y otra vez, 24-11-2026). Reordenar sobre la cola ya calculada cuesta milisegundos.
         shares = getattr(self, "_plan_shares", None) or {}
         recent = self.crawler.recent_tiers() if shares and hasattr(self.crawler, "recent_tiers") else None
