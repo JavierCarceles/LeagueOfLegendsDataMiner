@@ -995,8 +995,11 @@ class RegionWorker(threading.Thread):
                 if by_elo:
                     # Primero la línea y el elo con menos partidas; la variedad de campeones, después. Los nunca visitados
                     # antes que los que vuelven a la cola por un cambio de búsqueda (de esos ya hay partidas).
+                    # A igualdad (muchas líneas y elos a 0 partidas), el elo más bajo: de los altos hay mucho más guardado
+                    # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
                     again = int(row["anchor"] is not None)
-                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), again, level, likely, in_tier, *rank)
+                    low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
+                    key = (0, lane_tier_games.get((lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
                 else:
                     # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
                     key = (0, level, likely, in_tier, in_champ, *rank)

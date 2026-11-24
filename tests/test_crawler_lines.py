@@ -238,3 +238,13 @@ def test_al_cambiar_la_busqueda_lo_recogido_sigue_contando_y_van_primero_los_elo
     _otp(db, "gold-1", DARIUS, "GOLD", lp=10)
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], new)
     assert worker._next_otp()["puuid"] == "gold-1"
+
+
+def test_a_igualdad_de_partidas_va_primero_el_elo_mas_bajo(keyed_svc):
+    """Top en Gran Maestro y en Oro sin ninguna partida: primero Oro (de los elos altos hay mucho más en general)."""
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "GRANDMASTER"], champions=[AATROX], roles=["TOP"]).validated()
+    db = keyed_svc.db
+    _otp(db, "gm-1", AATROX, "GRANDMASTER", lp=900)
+    _otp(db, "gold-1", AATROX, "GOLD", lp=10)
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    assert worker._next_otp()["puuid"] == "gold-1"
