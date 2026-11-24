@@ -116,5 +116,30 @@ def setup_logging() -> None:
     root._tempu_configured = True  # type: ignore[attr-defined]
 
 
+LOG_FILE_BYTES = 1_000_000  # ``data/registro/app.log`` y 2 anteriores (app.log.1, app.log.2): ~3 MB como mucho
+
+
+def add_file_log(data_dir) -> None:
+    """Registro completo en ``data/registro/app.log`` (se sube a GitHub con los datos): todo lo que sale en la ventana
+    negra, con fecha y, en los errores, dónde fallaron. Así se puede revisar desde otro ordenador qué pasó entre dos
+    subidas."""
+    from logging.handlers import RotatingFileHandler
+    from pathlib import Path
+
+    root = logging.getLogger("tempu")
+    if any(getattr(h, "_tempu_file", False) for h in root.handlers):
+        return
+    folder = Path(data_dir) / "registro"
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(folder / "app.log", maxBytes=LOG_FILE_BYTES, backupCount=2, encoding="utf-8", delay=True)
+    except OSError:
+        return
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(threadName)s %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+    handler._tempu_file = True  # type: ignore[attr-defined]
+    root.addHandler(handler)
+
+
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"tempu.{name}")

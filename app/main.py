@@ -16,7 +16,7 @@ from app.api import coach, collector, draft, external, guides, otps, players, re
 from app.budget import BudgetMiddleware
 from app.config import WEB_DIR, Settings
 from app.config import settings as default_settings
-from app.logbus import bus, get_logger, setup_logging
+from app.logbus import add_file_log, bus, get_logger, setup_logging
 from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
 from app.services import Services
 
@@ -36,6 +36,8 @@ class StaticNoCache(StaticFiles):
 def create_app(settings: Settings | None = None, run_startup: bool = True) -> FastAPI:
     setup_logging()
     settings = settings or default_settings
+    if run_startup:
+        add_file_log(settings.data_dir)  # data/registro/app.log (se sube con los datos)
     svc = Services(settings)
 
     @asynccontextmanager
