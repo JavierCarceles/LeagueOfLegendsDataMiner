@@ -511,3 +511,6 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   volcarlo; las 15 búsquedas hicieron 1.864 escrituras en 5 min (~50 ms cada una) y esperaron 2.333 s el candado; cada
   región, ~1 s por escritura. Las búsquedas no paraban porque el umbral (200 sin visitar) era mayor que lo que carga la
   cola (100 por elo): ahora 60. Ninguna escritura vuelca el WAL (lo hace un hilo cada 30 s) y se recorta a 64 MB.
+- **Subida de las 03:48 (53,2 partidas/min):** el WAL bajó de 504 a 67 MB y las búsquedas ya paran (384 escrituras en
+  5 min frente a 2.577). Cada región usaba ~29 llamadas por minuto de las ~47 que permite el ritmo: el hilo de descarga
+  iba solo una partida por delante y se paraba mientras la región guardaba y analizaba. Ahora va 2 por delante.

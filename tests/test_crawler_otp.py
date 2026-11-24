@@ -364,7 +364,7 @@ def test_season_depth_stops_at_previous_season_patch(keyed_svc, monkeypatch):
     run_history(keyed_svc, fake, champions=[AATROX])
     # La primera de la temporada anterior se guarda y ahí se para (la siguiente puede haberse descargado ya mientras se
     # analizaba esa: se descarta).
-    assert len(fake.calls_to("match")) in (16, 17)
+    assert 16 <= len(fake.calls_to("match")) <= 16 + crawler_mod.PREFETCH_AHEAD
     assert len(stored(keyed_svc)) == 16
     assert progress(keyed_svc, "otp-a")["back_done_reason"] == "end"
 
