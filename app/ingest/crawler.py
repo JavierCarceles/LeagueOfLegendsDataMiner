@@ -1631,6 +1631,12 @@ class Crawler:
                 }
                 for r, w in self.workers.items()
             }
+            # Jugadores encontrados por elo (todas las plataformas): para ver si la búsqueda reparte entre elos.
+            by_tier: dict[str, int] = {}
+            for w in self.workers.values():
+                for (_platform, tier), n in (getattr(w, "found_by_tier", None) or {}).items():
+                    by_tier[tier] = by_tier.get(tier, 0) + n
+            funnel["found_by_tier"] = by_tier
             # Uso del cupo de cada host de Riot en los últimos 2 minutos: si una región no llega al límite, el cuello
             # de botella no es la key (es la búsqueda de jugadores o el filtro); «foreign»: otra app con la misma key.
             limiter = getattr(self.svc, "limiter", None)
