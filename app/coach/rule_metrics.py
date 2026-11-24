@@ -27,7 +27,12 @@ MIN_MINUTES = 15
 
 CHALLENGES = (
     "visionScoreAdvantageLaneOpponent", "killsOnOtherLanesEarlyJungleAsLaner", "kTurretsDestroyedBeforePlatesFall",
+    # Visión y jungla, exactas de Riot (24-11-2026, ~35.000 partidas; mis estimaciones por zonas salían planas porque la
+    # posición al poner un ward no es lo bastante precisa para la frontera del río):
+    "wardTakedownsBefore20M", "controlWardsPlaced", "visionScorePerMinute", "wardsGuarded", "twoWardsOneSweeperCount",
+    "killAfterHiddenWithAlly", "enemyJungleMonsterKills", "scuttleCrabKills",
 )
+WARD_TAKEDOWNS_MIN = 20  # «antes del 20»: solo en partidas que llegan al 20
 RIOT = ("wardsKilled", "visionWardsBoughtInGame")
 
 # (clave, etiqueta, roles, unidad): lo que enseña «Mi progreso» junto a los roams.
@@ -39,6 +44,19 @@ ROWS = [
     ("rl_towers_pre14", "Torres antes del 14 en las que participas", ("TOP", "JUNGLE", "MID", "ADC"), ""),
     ("rl_tp_casts", "Teletransportes usados (si lo llevas)", ("TOP", "MID"), ""),
     ("rl_cheap_recall_pct", "Vueltas a base antes del 20 sin oro para nada útil (< 400)", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), "%"),
+    # Exactas de Riot (24-11-2026, ~35.000 partidas), Platino → Aspirante: wards quitados antes del 20 por partida,
+    # jungla 1,4 → 2,6, mid 0,9 → 2,2, ADC 1,2 → 3,7, support 3,5 → 5,5 (top igual, ~1,2); pinks cada 10 min, jungla
+    # 0,4 → 1,1, support 0,9 → 2,2, ADC 0,2 → 0,6; visión por minuto, jungla 0,86 → 1,18 y support 2,1 → 3,0; jungla:
+    # campamentos rivales cada 10 min 3,0 → 5,7, cangrejos 3,4 → 4,1, emboscadas 1,35 → 1,6; support: dos wards con un
+    # barrido 0,41 → 0,63 y wards protegidos 0,47 → 0,63.
+    ("rl_ward_takedowns20", "Wards rivales que quitas antes del 20", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), ""),
+    ("rl_pinks10", "Pinks que pones cada 10 min", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), ""),
+    ("rl_vision_min", "Puntuación de visión por minuto", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), ""),
+    ("rl_wards_guarded", "Wards tuyos que protegen de que los quiten", ("JUNGLE", "SUPPORT"), ""),
+    ("rl_two_wards_sweep", "Veces que quitas dos wards con un barrido", ("JUNGLE", "SUPPORT"), ""),
+    ("rl_hidden_kills", "Kills saliendo de la niebla con un aliado (emboscadas)", ("JUNGLE",), ""),
+    ("rl_enemy_camps10", "Campamentos de la jungla rival cada 10 min", ("JUNGLE",), ""),
+    ("rl_scuttles", "Cangrejos que coges", ("JUNGLE",), ""),
 ]
 KEYS = tuple(r[0] for r in ROWS)
 
@@ -78,6 +96,22 @@ def metrics(raw: dict | None, backs: list[dict] | None, minutes: float | None, r
         out["rl_towers_pre14"] = v
     if role in ("TOP", "MID") and (v := _num(raw.get("tp_casts"))) is not None:
         out["rl_tp_casts"] = v
+    if minutes >= WARD_TAKEDOWNS_MIN and (v := _num(ch.get("wardTakedownsBefore20M"))) is not None:
+        out["rl_ward_takedowns20"] = v
+    if (v := _num(ch.get("controlWardsPlaced"))) is not None:
+        out["rl_pinks10"] = round(10 * v / minutes, 2)
+    if (v := _num(ch.get("visionScorePerMinute"))) is not None:
+        out["rl_vision_min"] = round(v, 2)
+    if role in ("JUNGLE", "SUPPORT"):
+        for key, name in (("rl_wards_guarded", "wardsGuarded"), ("rl_two_wards_sweep", "twoWardsOneSweeperCount"),
+                          ("rl_hidden_kills", "killAfterHiddenWithAlly")):
+            if (v := _num(ch.get(name))) is not None:
+                out[key] = v
+    if role == "JUNGLE":
+        if (v := _num(ch.get("enemyJungleMonsterKills"))) is not None:
+            out["rl_enemy_camps10"] = round(10 * v / minutes, 2)
+        if (v := _num(ch.get("scuttleCrabKills"))) is not None:
+            out["rl_scuttles"] = v
     alive = [b for b in backs or [] if (b.get("t") or 0) > 60 and not b.get("dead")]
     if alive:
         out["rl_pink_back_pct"] = round(100 * sum(1 for b in alive if CONTROL_WARD in (b.get("items") or [])) / len(alive), 1)

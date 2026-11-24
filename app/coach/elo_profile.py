@@ -28,7 +28,7 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 5  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión
+VERSION = 6  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le

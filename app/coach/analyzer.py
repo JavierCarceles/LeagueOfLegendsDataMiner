@@ -694,6 +694,22 @@ class _Game:
             self.anchors[pid] = _walk(fixed, self.players[pid].get("champ")) if self.route_all or pid == me_pid else fixed
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
 
+    def anchor_gap(self, pid: int | None, t: int) -> float | None:
+        """Segundos de ``t`` al punto real más cercano de ``pid`` (frame, evento propio, fuente o muerte): cuánto se fía
+        uno de su posición en ese momento. Lo guarda cada detección (``ev``) para la auditoría de la calibración."""
+        if pid is None:
+            return None
+        real = getattr(self, "_real_t", None)
+        if real is None:
+            real = self._real_t = {
+                p: sorted(a[0] for a in items if a[3] in EXACT_ANCHOR_KINDS) for p, items in (self.raw_anchors or {}).items()
+            }
+        times = real.get(pid) or []
+        if not times:
+            return None
+        i = bisect.bisect_left(times, t)
+        return round(min(abs(t - times[j]) for j in (i - 1, i) if 0 <= j < len(times)) / 1000, 1)
+
     def pos_at(self, pid: int, t: int) -> tuple[float, float] | None:
         """Posición estimada (interpolada) o ``None`` si estaba muerto o no se sabe."""
         if self.is_dead(pid, t):
@@ -752,6 +768,7 @@ class _Game:
 # reaparición) · 3 muerte · 4 «se queda aquí y salta» (vuelta a base o teletransporte) · 5 a distancia de combate de una
 # muerte (hizo o recibió daño; aproximado).
 ANCHOR_BASE, ANCHOR_DEATH, ANCHOR_HOLD, ANCHOR_NEAR = 2, 3, 4, 5
+EXACT_ANCHOR_KINDS = (0, 1, ANCHOR_BASE, ANCHOR_DEATH)  # posiciones que da Riot (el resto se deducen)
 RECALL_MS = 8_000 + 1_000  # canalización de la vuelta a base y un segundo hasta comprar
 MAX_SPEED = 0.65  # unidades por ms: ni con fantasmal y arrastres se va más rápido de media; más, teletransporte
 NEAR_BASE = 1500
@@ -1206,6 +1223,10 @@ def analyze_game(
         result["build"] = build
 
     moments.sort(key=lambda m: m["t"])
+    # Con qué certeza se decidió cada detección (segundos a una posición real tuya y, en las muertes, de los rivales
+    # implicados): la auditoría (``calibration_audit``) separa así lo que no cambia entre elos de lo que el ruido iguala.
+    for m in moments:
+        m.setdefault("ev", {})["gap_tu_s"] = g.anchor_gap(me, int((m.get("t") or 0) * 1000))
     result["afk"] = [{"start": round(s / 1000, 1), "end": round(e / 1000, 1)} for s, e in g.afk[me]]
     result["series"] = _series(g)
     # Mayor ventaja y desventaja de oro de equipo (para «ventajas que se escapan» y remontadas).
@@ -1533,6 +1554,10 @@ def _classify_death(g: _Game, k: dict) -> dict:
         "y": entry["y"],
         "tags": tags,
     }
+    # Certeza de las posiciones de los rivales implicados (gank, aislado, sin visión… dependen de dónde estaban).
+    gaps = [x for e in enemies if (x := g.anchor_gap(e, t)) is not None]
+    if gaps:
+        entry["moment"]["ev"] = {"gap_rivales_s": max(gaps)}
     return entry
 
 

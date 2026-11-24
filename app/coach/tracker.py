@@ -49,9 +49,9 @@ class ProfileNotFound(ValueError):
     pass
 
 
-DIGEST_VERSION = 6  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y
+DIGEST_VERSION = 7  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y
 # contraganks; 5: reglas medibles de las guías (``rule_metrics``: pinks por vuelta, visión, roams, TP); 6: destinos de los
-# roams y visión útil (wards del objetivo, de la jungla rival, pinks)
+# roams y visión útil (wards del objetivo, de la jungla rival, pinks); 7: visión y jungla exactas de Riot (``rule_metrics``)
 
 
 def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
@@ -168,9 +168,12 @@ def refresh_digests(db) -> int:
         skill_t = None
         if not (analysis.get("build") or {}).get("skill_t") and r["has_tl"]:
             skill_t = skill_times(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))
-        if "riot_rules" not in analysis and r["has_match"]:
-            # Analizada antes de guardar ``riot_rules``: se sacan del participante de Riot (sin volver a analizar).
-            analysis["riot_rules"] = _riot_rules(store.raw_game(db, r["match_id"])[0], r["pid"] or analysis.get("me"))
+        if r["has_match"]:
+            # Analizada antes de guardar ``riot_rules`` (o de que llevaran todos los retos que se miden): se sacan del
+            # participante de Riot (sin volver a analizar).
+            have = (analysis.get("riot_rules") or {}).get("ch") or {}
+            if "riot_rules" not in analysis or not all(k in have for k in ("controlWardsPlaced", "visionScorePerMinute")):
+                analysis["riot_rules"] = _riot_rules(store.raw_game(db, r["match_id"])[0], r["pid"] or analysis.get("me"))
         if "my_wards" not in analysis and r["has_tl"]:
             # Analizada antes de guardar tus wards: salen de la línea de tiempo (sin volver a analizar).
             analysis["my_wards"] = my_wards(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))

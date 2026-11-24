@@ -643,3 +643,36 @@ quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
   parados el 15-25 % del tiempo porque, mientras la región esperaba 1-3 s el candado para guardar, las 4 partidas por
   delante ya estaban bajadas. Ahora van 8 (`PREFETCH_AHEAD`). El resumen de la caché de OP.GG («Datos y API», cada 2,5 s,
   ~0,75 s) se reutiliza 30 s. Errores de visión rival: 1.212 partidas con ellos, solo 18 de Diamante o más.
+
+### Auditoría de la calibración: ¿todos igual o falla el detector? (24-11-2026, `app/coach/calibration_audit.py`)
+
+`python -m app.coach.calibration_audit data salida.json`. Para cada rol, métrica de «Mi progreso» y tipo de error:
+¿separa elos (z del elo más bajo con 100+ partidas frente al más alto)?; si no, ¿la mitad de partidas con la posición más
+segura (menos tiempo a más de 20 s de un punto real antes del 14) sí separa? (entonces lo iguala el ruido de la
+reconstrucción); y ¿va con la estadística oficial de Riot que le toca? Cada detección guarda ahora su certeza (`ev`:
+segundos de tu posición y de la de los rivales implicados a un punto real) para repartir los errores igual.
+
+Lo que encontró con ~35.000 partidas:
+
+- **Wards por zona (río, mitad rival, jungla rival): el detector no distingue.** Mi % de pinks en el río o la mitad rival
+  no va con la estadística oficial de Riot (`controlWardTimeCoverageInRiverOrEnemyHalf`: r = −0,05 … 0,08); calculando
+  lo mismo que Riot (tiempo con una pink allí), r = 0,31-0,36, y sin mirar dónde, 0,59-0,79: la posición al poner un
+  ward (la del campeón, reconstruida, ~1.100 de error típico) no basta para la frontera del río, que es justo donde se
+  ponen. Por eso esas métricas salían planas.
+- **En su lugar, la visión exacta de Riot, que sí separa** (nuevas filas `rl_*` en «Mi progreso» y en el perfil por elo,
+  `VERSION = 6`; tus partidas las sacan del participante guardado, `DIGEST_VERSION = 7`), Platino → Aspirante:
+
+  | Por partida (o cada 10 min) | Jungla | Mid | ADC | Support |
+  |---|---|---|---|---|
+  | Wards rivales quitados antes del 20 | 1,4 → 2,6 | 0,9 → 2,2 | 1,2 → 3,7 | 3,5 → 5,5 |
+  | Pinks cada 10 min | 0,4 → 1,1 | 0,3 → 0,6 | 0,2 → 0,6 | 0,9 → 2,2 |
+  | Visión por minuto | 0,86 → 1,18 | 0,73 → 0,86 | 0,69 → 0,90 | 2,1 → 3,0 |
+
+  Jungla, además: campamentos de la jungla rival cada 10 min 3,0 → 5,7, cangrejos 3,4 → 4,1, emboscadas (kill saliendo de
+  la niebla con un aliado) 1,35 → 1,6. Support: dos wards quitados con un barrido 0,41 → 0,63, wards protegidos
+  0,47 → 0,63. En top, quitar wards no cambia (~1,2).
+- **Lo que el ruido iguala** (la mitad con posición segura sí separa): en ADC, el % de wards en tu línea y las visitas a tu
+  jungla. Lo que de verdad no cambia (igual también con posición segura): el CS perdido por roamear, morir en los roams,
+  el tiempo en base y el % de objetivos con ward tuyo en top.
+- **Roams y Riot:** el éxito de los roams va con las kills oficiales en otras líneas (`killsOnOtherLanesEarlyJungleAsLaner`,
+  r = 0,22 en mid): mide lo que dice.
