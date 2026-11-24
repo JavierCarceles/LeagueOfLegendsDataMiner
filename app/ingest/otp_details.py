@@ -448,6 +448,9 @@ def save(
         return False
     kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
     is_new = not db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
+    # Comprimir (>1 MB de JSON entre partida, timeline y análisis) antes de coger el candado de escritura: dentro, las
+    # demás regiones y búsquedas esperaban para escribir (guardar una partida tardaba 1,3 s en Windows).
+    packed = pack(match), pack(timeline), pack(dossier)
     with db.write() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO otp_games (match_id, puuid, champ, role, win, game_start, patch, platform, tier, "
@@ -456,8 +459,8 @@ def save(
             (
                 dossier["match_id"], puuid, dossier["champ"], dossier["role"], int(bool(dossier["win"])),
                 dossier["game_start"], dossier["patch"], dossier["platform"], dossier["tier"], dossier["division"],
-                dossier["lp"], int(timeline is not None), DOSSIER_VERSION * 1000 + ANALYSIS_VERSION, pack(match),
-                pack(timeline), pack(dossier), now_s(), kind,
+                dossier["lp"], int(timeline is not None), DOSSIER_VERSION * 1000 + ANALYSIS_VERSION, *packed,
+                now_s(), kind,
             ),
         )
     if is_new and write_files:
