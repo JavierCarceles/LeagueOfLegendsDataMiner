@@ -110,14 +110,17 @@ def walkable(p) -> bool:
     return WALK[y][x]
 
 
+@lru_cache(maxsize=200_000)
 def _line_clear(a: tuple[int, int], b: tuple[int, int]) -> bool:
-    """¿Se ve b desde a sin cruzar un muro? (muestreo cada media celda)."""
-    steps = max(abs(b[0] - a[0]), abs(b[1] - a[1])) * 2
+    """¿Se ve b desde a sin cruzar un muro? (muestreo cada media celda). Con caché: las rutas de una partida y de otras
+    repiten muchos tramos (el análisis de cada partida hacía ~10.000 comprobaciones)."""
+    ax, ay = a
+    dx, dy = b[0] - ax, b[1] - ay
+    steps = max(abs(dx), abs(dy)) * 2
+    free = _FREE
     for i in range(1, steps):
         f = i / steps
-        x = int(round(a[0] + (b[0] - a[0]) * f))
-        y = int(round(a[1] + (b[1] - a[1]) * f))
-        if not WALK[y][x]:
+        if not free[round(ay + dy * f) * N + round(ax + dx * f)]:
             return False
     return True
 
@@ -143,7 +146,7 @@ _STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0), (1, 1, 1.414), (
 # A* ponderado: la heurística (octil) pesa un 30 % más. Explora unas 5 veces menos celdas y las rutas salen como mucho
 # un 30 % más largas que la óptima (en la práctica, casi iguales tras el suavizado). Con ~6.500 tramos por partida, el
 # análisis pasaba de 0,02 a 0,24 s; así no frena al recolector.
-HEURISTIC_WEIGHT = 1.3
+HEURISTIC_WEIGHT = 2.0
 
 
 @lru_cache(maxsize=50_000)

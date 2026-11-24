@@ -563,6 +563,8 @@ class Ingested:
 OTP_PLAN_TTL_S = 120  # la cola de OTPs se recalcula cada 2 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S)
 OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto comparten la lectura de jugadores
+SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
+SCOUT_BACKLOG_WAIT_S = 60
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -584,6 +586,7 @@ class RegionWorker(threading.Thread):
         self._visited: dict[str, float] = {}  # puuid -> cuándo empezó su última visita
         # Segundos de esta sesión en cada fase (para ver dónde se va el tiempo si el cupo de Riot no se llena).
         self.timing: dict[str, float] = {}
+        self.waiting_by_tier: dict[tuple[str, str], int] = {}
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
         self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
@@ -1007,6 +1010,7 @@ class RegionWorker(threading.Thread):
         champ_tier: dict[tuple[int, str], int] = {}
         champ_games: dict[int, int] = {}
         found_by_tier: dict[tuple[str, str], int] = {}
+        waiting_by_tier: dict[tuple[str, str], int] = {}  # encontrados aún sin visitar
         # Partidas ya recogidas por (línea, elo): con líneas enteras o «cualquiera que lo juegue», lo primero es tener
         # muchas partidas de cada elo en cada línea (para comparar elos), no un jugador de cada uno de 150 campeones.
         lane_tier_games: dict[tuple[str, str], int] = {}
@@ -1022,6 +1026,8 @@ class RegionWorker(threading.Thread):
             tier = row["tier"] or ""
             info.append((row, champ, state))
             found_by_tier[(row["platform"], tier)] = found_by_tier.get((row["platform"], tier), 0) + 1
+            if state == "queued" and row["anchor"] is None:
+                waiting_by_tier[(row["platform"], tier)] = waiting_by_tier.get((row["platform"], tier), 0) + 1
             # Lo ya recogido cuenta siempre, también si cambió la búsqueda (otros campeones o líneas: el jugador vuelve a
             # «queued» para recorrer su historial otra vez). Antes solo contaban los no «queued»: al cambiar la búsqueda
             # todas las líneas y elos quedaban a 0 partidas, el desempate era «el elo más alto primero» y miles de
@@ -1033,6 +1039,7 @@ class RegionWorker(threading.Thread):
                 key_lt = (lane_of(champ), tier)
                 lane_tier_games[key_lt] = lane_tier_games.get(key_lt, 0) + int(row["hits"] or 0)
         self.found_by_tier = found_by_tier  # la búsqueda en el ranking reparte por elos con esto
+        self.waiting_by_tier = waiting_by_tier  # y no busca más en un elo con jugadores de sobra esperando visita
         plan = []
         complete = 0
         for row, champ, state in info:
@@ -1611,7 +1618,15 @@ class OtpScout(threading.Thread):
                     pending = getattr(w, "leaderboard_pending", None)
                     pending_boards = list(pending(self.platform)) if pending else []
                 now = time.time()
-                tier = next((t for t in w.tier_order(self.platform, tiers) if cooldown.get(t, 0) <= now), None)
+                # Elos con jugadores de sobra esperando visita: no se buscan más (las descargas van a ~1 jugador por
+                # minuto y región; revisar ~350 maestrías por minuto solo quitaba CPU y base de datos a las descargas).
+                waiting = getattr(w, "waiting_by_tier", None) or {}
+                full = {t for t in tiers if waiting.get((self.platform, t), 0) >= SCOUT_BACKLOG}
+                tier = next((t for t in w.tier_order(self.platform, tiers) if cooldown.get(t, 0) <= now and t not in full), None)
+                if tier is None and full:
+                    self._set("idle")
+                    w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)
+                    continue
                 if pending_boards and (tier is None or tier in LEADERBOARD_TIERS):
                     board_turn = not board_turn
                     if tier is None or board_turn:

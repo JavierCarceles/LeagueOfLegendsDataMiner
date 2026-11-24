@@ -1340,3 +1340,28 @@ def test_con_lineas_enteras_no_se_piden_las_tablas_de_opgg(keyed_svc):
     lines = CrawlerConfig(tiers=["GOLD", "DIAMOND"], champions=[AATROX], roles=["TOP"]).validated()
     for cfg in (games, lines):
         assert crawler_mod.RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg).leaderboard_pending("euw1") == []
+
+
+def test_no_se_busca_mas_en_un_elo_con_jugadores_de_sobra_esperando(keyed_svc):
+    """Con cientos de jugadores de un elo aún sin visitar, buscar más solo quita CPU y base de datos a las descargas."""
+    from types import SimpleNamespace
+
+    calls = []
+    stop = __import__("threading").Event()
+
+    def discover(platform, tier):
+        calls.append(tier)
+        if len(calls) >= 3:
+            stop.set()
+        return 1
+
+    worker = SimpleNamespace(
+        config=CrawlerConfig(tiers=["GOLD", "DIAMOND"], champions=[AATROX], focus="games").validated(),
+        stop_event=stop, svc=keyed_svc, crawler=SimpleNamespace(paused_reason=lambda: None), state={"errors": 0},
+        scouts=[], wake=lambda: None, leaderboard_pending=lambda platform: [],
+        _seed_from_leaderboards=lambda platform, champs: 0, _discover=discover, _refill_seeds=lambda platform, tier: 0,
+        found_by_tier={}, waiting_by_tier={("euw1", "DIAMOND"): crawler_mod.SCOUT_BACKLOG},
+    )
+    worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
+    OtpScout(worker, "euw1").run()
+    assert calls and set(calls) == {"GOLD"}
