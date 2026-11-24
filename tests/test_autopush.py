@@ -232,3 +232,20 @@ def test_el_registro_completo_va_a_un_fichero_dentro_de_data(tmp_path):
             if h not in before:
                 root.removeHandler(h)
                 h.close()
+
+
+def test_la_base_de_datos_cuenta_quien_espera_el_candado_y_vuelca_el_wal_aparte(tmp_path):
+    import threading as th
+
+    from app.data.db import Database
+
+    db = Database(tmp_path / "t.db")
+    stop = th.Event()
+    db.start_checkpointer(stop)
+    with db.write() as conn:
+        conn.execute("INSERT INTO meta(key, value) VALUES('x', '1')")
+    st = db.lock_stats.get(th.current_thread().name.rsplit("_", 1)[0])
+    assert st and st[2] == 1 and st[0] >= 0 and st[1] >= 0
+    assert db.wal_mb() is not None
+    stop.set()
+    db.close()

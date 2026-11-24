@@ -30,8 +30,9 @@ MARGIN = 0.12  # segundos extra por jitter de red / reloj
 FOREIGN_GRACE_S = 130  # al arrancar, lo que Riot recuerda de la ejecución anterior no es «otra app»
 FOREIGN_WINDOW_S = 120
 # Si llevas un rato sin usar la web (ninguna petición de prioridad alta), el recolector puede usar casi todo el cupo:
-# la reserva para tus búsquedas baja de ``reserve_frac`` a ``IDLE_RESERVE``; vuelve en cuanto haces algo.
-IDLE_AFTER_S = 600
+# la reserva para tus búsquedas baja de ``reserve_frac`` a ``IDLE_RESERVE``; vuelve en cuanto haces algo. 2 min (antes
+# 10): con el recolector en marcha casi nunca hay búsquedas, y cada llamada esperaba 1,41 s en vez de 1,26 s.
+IDLE_AFTER_S = 120
 IDLE_RESERVE = 0.05
 
 

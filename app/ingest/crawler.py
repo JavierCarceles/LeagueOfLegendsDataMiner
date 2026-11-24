@@ -608,9 +608,9 @@ class Ingested:
     detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
-OTP_PLAN_TTL_S = 120  # la cola de OTPs se recalcula cada 2 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S)
+OTP_PLAN_TTL_S = 300  # la cola de OTPs se recalcula cada 5 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S); ~10 s en Windows
 OTP_PLAN_EMPTY_S = 15
-OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto comparten la lectura de jugadores
+OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
 SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
 SCOUT_BACKLOG_WAIT_S = 60
 SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
@@ -1937,6 +1937,15 @@ class Crawler:
                     },
                 }
                 for r, w in self.workers.items()
+            }
+            # Base de datos: quién espera el candado de escritura y quién lo tiene cogido (s en total) y tamaño del WAL.
+            db = self.svc.db
+            funnel["db"] = {
+                "wal_mb": db.wal_mb() if hasattr(db, "wal_mb") else None,
+                "candado": {
+                    k: {"esperando_s": round(v[0], 1), "cogido_s": round(v[1], 1), "escrituras": v[2]}
+                    for k, v in sorted((getattr(db, "lock_stats", None) or {}).items(), key=lambda kv: -kv[1][0])
+                },
             }
             # Jugadores encontrados por elo (todas las plataformas): para ver si la búsqueda reparte entre elos.
             by_tier: dict[str, int] = {}
