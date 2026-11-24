@@ -248,3 +248,24 @@ def test_a_igualdad_de_partidas_va_primero_el_elo_mas_bajo(keyed_svc):
     _otp(db, "gold-1", AATROX, "GOLD", lp=10)
     worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
     assert worker._next_otp()["puuid"] == "gold-1"
+
+
+def test_la_cola_de_otps_se_reutiliza_y_no_repite_a_quien_ya_se_visito(keyed_svc, monkeypatch):
+    """Calcular la cola cuesta segundos con cientos de miles de jugadores: se reutiliza, y quien ya se visitó desde que
+    se leyó la base de datos no se elige otra vez hasta la siguiente lectura."""
+    monkeypatch.setattr(crawler_mod, "OTP_PLAN_TTL_S", 120)
+    monkeypatch.setattr(crawler_mod, "OTP_ROWS_FRESH_S", 60)
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["GOLD", "DIAMOND"], champions=[AATROX], roles=["TOP"]).validated()
+    db = keyed_svc.db
+    _otp(db, "gold-1", AATROX, "GOLD")
+    _otp(db, "dia-1", AATROX, "DIAMOND")
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    reads = []
+    real = crawler_mod.otp_rows
+    monkeypatch.setattr(crawler_mod, "otp_rows", lambda *a, **k: reads.append(1) or real(*a, **k))
+    first = worker._next_otp()
+    assert first["puuid"] == "gold-1"
+    worker._visited["gold-1"] = __import__("time").time()  # lo que hace _visit_otp al empezar
+    assert worker._next_otp()["puuid"] == "dia-1"
+    assert worker._next_otp() is None  # cola agotada: no se relee enseguida
+    assert len(reads) == 1

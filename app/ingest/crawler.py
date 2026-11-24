@@ -558,6 +558,9 @@ class Ingested:
     detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
+OTP_PLAN_TTL_S = 120  # la cola de OTPs se recalcula cada 2 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S)
+OTP_PLAN_EMPTY_S = 15
+OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto comparten la lectura de jugadores
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -573,6 +576,10 @@ class RegionWorker(threading.Thread):
         self._cooldown: dict[tuple[str, str], float] = {}
         self._wake = threading.Event()
         self._otp_fails: dict[str, tuple[int, float]] = {}  # puuid -> (fallos seguidos, descansa hasta)
+        self._plan: list = []  # cola de OTPs (``_next_otp``)
+        self._plan_at = 0.0
+        self._plan_rows_at = 0.0
+        self._visited: dict[str, float] = {}  # puuid -> cuándo empezó su última visita
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
         self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
@@ -927,7 +934,30 @@ class RegionWorker(threading.Thread):
         return otp_depth_start(self.config, getattr(getattr(self.svc, "dd", None), "version", None))
 
     def _next_otp(self):
-        """El OTP con más prioridad que tenga algo pendiente (o ``None``). **Variedad antes que cantidad**:
+        """El OTP con más prioridad que tenga algo pendiente (o ``None``), de la cola calculada con ``_plan_otps``.
+
+        Calcular la cola cuesta segundos con cientos de miles de jugadores revisados (5 s con 280.000 en un Mac): antes se
+        hacía antes de cada visita, en cada región, y las 4 regiones se esperaban entre ellas (Python usa un núcleo) en
+        vez de descargar; el cupo de Riot se quedaba a la mitad. Ahora la cola se reutiliza ``OTP_PLAN_TTL_S`` (los
+        jugadores de la base de datos se leen una vez para todas las regiones) y quien ya se visitó desde que se leyó no
+        se vuelve a elegir hasta la siguiente.
+        """
+        now_t = time.time()
+        if now_t - self._plan_at >= OTP_PLAN_TTL_S or (not self._plan and now_t - self._plan_at >= OTP_PLAN_EMPTY_S):
+            self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
+            self._plan.reverse()  # se sacan del final (pop) en orden de prioridad
+            self._plan_at = now_t
+        while self._plan:
+            _key, row = self._plan.pop()
+            if self._visited.get(row["puuid"], 0.0) >= self._plan_rows_at:
+                continue  # ya visitado con esta cola: su progreso ha cambiado, vuelve en la siguiente
+            if self._otp_fails.get(row["puuid"], (0, 0.0))[1] > time.time():
+                continue  # falló varias veces seguidas: descansa un rato
+            return row
+        return None
+
+    def _plan_otps(self) -> list:
+        """La cola de OTPs por prioridad: ``[(clave, fila)]``, la primera la más prioritaria. **Variedad antes que cantidad**:
 
         1. Recién encontrados (aún sin visitar). Con líneas enteras o «cualquiera que lo juegue»: primero la línea y el elo
            con menos partidas recogidas (para comparar elos hacen falta muchas de cada uno, sea el campeón que sea).
@@ -943,7 +973,8 @@ class RegionWorker(threading.Thread):
         depth_start, _ = self._depth()
         list_key, config_key = self._list_key(), otp_config_key(cfg)
         recrawl = int(cfg.recrawl_hours * 3600)
-        rows = otp_rows(self.svc.db, cfg, self.platforms, cfg.tiers, now)
+        rows, self._plan_rows_at = self.crawler.otp_rows_cached(cfg, now)
+        rows = [(row, top) for row, top in rows if row["platform"] in self.platforms]
         lacking = self._lacking_details([row["id"] for row, _ in rows]) if cfg.save_details else set()
         cap = self._games_cap()
         # Cobertura: OTPs ya visitados por campeón y por (campeón, elo), y partidas por campeón.
@@ -979,13 +1010,11 @@ class RegionWorker(threading.Thread):
                 key_lt = (lane_of(champ), tier)
                 lane_tier_games[key_lt] = lane_tier_games.get(key_lt, 0) + int(row["hits"] or 0)
         self.found_by_tier = found_by_tier  # la búsqueda en el ranking reparte por elos con esto
-        best = None
+        plan = []
         complete = 0
         for row, champ, state in info:
             if state in ("done", "share"):
                 complete += 1
-            if self._otp_fails.get(row["puuid"], (0, 0.0))[1] > time.time():
-                continue  # falló varias veces seguidas: descansa un rato
             tier = row["tier"] or ""
             rank = (-TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
             if state == "queued":
@@ -1012,10 +1041,10 @@ class RegionWorker(threading.Thread):
                 key = (3, champ_games.get(champ, 0), 0, 0, *rank)  # sin análisis minuto a minuto (de antes o que fallaron)
             else:
                 continue
-            if best is None or key < best[0]:
-                best = (key, row)
+            plan.append((key, row))
         self.state.update(otps_known=len(info), otps_complete=complete)
-        return best[1] if best else None
+        plan.sort(key=lambda kr: kr[0])
+        return plan
 
     def tier_order(self, platform: str, tiers: list[str]) -> list[str]:
         """Elos por revisar en el ranking: primero el que tiene menos OTPs encontrados (a igualdad, el más alto), para
@@ -1087,6 +1116,7 @@ class RegionWorker(threading.Thread):
         svc, cfg, db = self.svc, self.config, self.svc.db
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         platform, puuid = row["platform"], row["puuid"]
+        self._visited[puuid] = time.time()
         player = {"id": row["id"], "puuid": puuid, "tier": row["tier"]}
         queue = None if cfg.include_flex else QUEUE_SOLO
         list_key, config_key = self._list_key(), otp_config_key(cfg)
@@ -1593,6 +1623,8 @@ class Crawler:
         self._lock = threading.Lock()
         self._funnel_at = 0.0
         self._funnel_thread: threading.Thread | None = None
+        self._rows_lock = threading.Lock()
+        self._rows_cache: tuple | None = None  # (clave de la búsqueda, cuándo, filas de ``otp_rows``)
         saved = svc.db.meta_get("crawler_config")
         if saved:
             try:
@@ -1606,6 +1638,19 @@ class Crawler:
 
     def searching(self) -> bool:
         return any(w.searching() for w in self.workers.values())
+
+    def otp_rows_cached(self, cfg: CrawlerConfig, now: int | None = None) -> tuple[list, float]:
+        """``otp_rows`` de todas las plataformas de la búsqueda, leído una vez para todas las regiones cada
+        ``OTP_PLAN_TTL_S`` como mucho (con 280.000 jugadores revisados tarda ~3 s)."""
+        key = (otp_list_key(cfg), tuple(cfg.platforms), tuple(cfg.tiers), cfg.focus, cfg.min_mastery, cfg.min_share)
+        with self._rows_lock:
+            cached = self._rows_cache
+            if cached is not None and cached[0] == key and time.time() - cached[1] < OTP_ROWS_FRESH_S:
+                return cached[2], cached[1]
+            at = time.time()
+            rows = otp_rows(self.svc.db, cfg, cfg.platforms, cfg.tiers, now)
+            self._rows_cache = (key, at, rows)
+            return rows, at
 
     def write_funnel(self, force: bool = False) -> None:
         """Cada 5 min (lo llama cualquier región): el embudo de la búsqueda en ``data/otps/_busqueda.json``. En su propio
