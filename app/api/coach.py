@@ -106,7 +106,10 @@ def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
     for g in games:
         # Reglas que en ese rol ya no cuentan (partidas analizadas antes del cambio): fuera de errores y recuentos.
         if g.get("mistakes"):
-            gone = [m for m in g["mistakes"] if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role"))]
+            gone = [
+                m for m in g["mistakes"]
+                if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role")) or insights.excused({"kind": m[0], "tags": m[3]}, g.get("role"))
+            ]
             if gone:
                 g["mistakes"] = [m for m in g["mistakes"] if m not in gone]
                 issues = g["issues"] = dict(g.get("issues") or {})
@@ -399,6 +402,11 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"))]
+    for m in analysis["moments"]:
+        # Cambio igualado (caísteis los mismos en los dos bandos): se ve en la repetición, pero no es un error.
+        if m.get("severity") in ("high", "medium", "low") and insights.excused(m, analysis.get("role")):
+            m["severity"] = "info"
+            m["detail"] = ((m.get("detail") or "") + " Cambio igualado: no cuenta como error.").strip()
     # Rutas que rodean los muros (navgrid): sin ellas la vista 2D los atravesaba en línea recta (11 % del tiempo dentro
     # de un muro; con rutas, 1 %). Se calcula al abrir la partida (~0,2 s): no hace falta re-analizar nada.
     if analysis.get("replay") and not analysis["replay"].get("routed"):
@@ -435,6 +443,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
                 "scope": scope,
                 "tiers": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in insights.ELO_GROUPS if g in tiers},
                 "separates": (not sep["flat"]) if sep else None,
+                "rises": bool(sep and sep["rises"]),
             }
     return analysis
 

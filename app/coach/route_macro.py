@@ -23,6 +23,25 @@ ROAM_MIN_SAMPLES = 4  # 20 s seguidos fuera
 NEAR = 3_000  # «cerca» de una jugada
 RESPONSE_S = 15  # respuesta: kill o asistencia allí en los 15 s siguientes
 SUPPORT_FAR = 4_000
+# Visión (wards puestos: posición del que lo pone en ese momento, sale de su recorrido reconstruido).
+WARD_TYPES = ("YELLOW_TRINKET", "SIGHT_WARD", "CONTROL_WARD", "BLUE_TRINKET")
+OBJECTIVES = ("dragon", "elder", "grubs", "herald", "baron")
+OBJ_WARD_NEAR = 3_500  # ward «del objetivo»: a menos de esto del foso…
+OBJ_WARD_BEFORE_S = (120, 5)  # …puesto entre 2 min y 5 s antes de que lo maten
+WARD_SPLIT_MIN = 3  # wards antes del 14 para repartirlos por zonas
+ENEMY_JG_EARLY_S = 600
+
+
+def _place(p, team: int | None) -> str:
+    """Zona de un punto para roams y wards: otra línea, río, tu jungla, la jungla rival (o base)."""
+    z = geo.zone(p)
+    if z.startswith("base"):
+        return "base"
+    if geo.is_lane(z):
+        return "lane"
+    if z == "river":
+        return "river"
+    return "own_jg" if team and geo.is_jungle_of(z, team) else "enemy_jg"
 
 
 def _dead(dead: list[tuple[int, int]], t: int) -> bool:
@@ -45,8 +64,12 @@ def features(
     adc: int | None = None,
     cs: list | None = None,
     opp_cs: list | None = None,
+    team: int | None = None,
+    wards: list | None = None,
+    objectives: list | None = None,
 ) -> dict:
-    """Métricas de una partida. ``anchors`` en ms; ``kills``: [segundo, matador, víctima, x, y, asistentes]."""
+    """Métricas de una partida. ``anchors`` en ms; ``kills``: [segundo, matador, víctima, x, y, asistentes];
+    ``wards``: los tuyos, [segundo, tipo]; ``objectives``: [segundo, tipo, equipo, x, y]."""
     if len(anchors) < 5 or not role:
         return {}
     times = [a[0] for a in anchors]
@@ -84,6 +107,16 @@ def features(
             if cs and opp_cs and m1 < len(cs) and m1 < len(opp_cs) and None not in (cs[m0], cs[m1], opp_cs[m0], opp_cs[m1]):
                 cost += (opp_cs[m1] - opp_cs[m0]) - (cs[m1] - cs[m0])
         out["rm_roams"] = len(episodes)
+        # Adónde vas (el punto más lejos de tu línea): el support de Aspirante sale el doble que el de Platino, pero
+        # sobre todo a otras líneas (0,45 → 1,0) y al río (0,7 → 1,2); el mid de Aspirante va más a otras líneas
+        # (0,6 → 1,2) y menos al río (0,55 → 0,35).
+        dest = {"lane": 0, "river": 0, "own_jg": 0, "enemy_jg": 0}
+        for s0, e0 in episodes:
+            far = max(((p, geo.dist_polyline(p, points)) for t in range(s0, e0 + 1, STEP_MS) if (p := pos(t)) is not None),
+                      key=lambda x: x[1], default=None)
+            if far is not None and (d := _place(far[0], team)) in dest:
+                dest[d] += 1
+        out.update({f"rm_roam_{k}": v for k, v in dest.items()})
         if episodes:
             out["rm_roam_success_pct"] = round(100 * success / len(episodes), 1)
             out["rm_roam_died"] = died
@@ -107,11 +140,47 @@ def features(
         if fights:
             near = sum(1 for k in fights if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) <= NEAR)
             out["rm_mid_with_jg_pct"] = round(100 * near / len(fights), 1)
+    out.update(_vision(pos, team, wards, objectives))
     if role == "SUPPORT" and adc:
         deaths = [k for k in kills if k[0] * 1000 < EARLY_MS and k[2] == adc]
         out["rm_adc_alone_deaths"] = sum(
             1 for k in deaths if (p := pos(int(k[0] * 1000))) is not None and geo.dist(p, (k[3], k[4])) > SUPPORT_FAR
         )
+    return out
+
+
+def _vision(pos, team: int | None, wards: list | None, objectives: list | None) -> dict:
+    """Visión útil (medida con ~35.000 partidas, Platino → Aspirante): support con ward junto al objetivo antes de que
+    caiga 41 % → 53 %; pinks junto a dragón o barón, jungla 0,9 → 2,0 y support 2,2 → 3,4; wards en la jungla rival antes
+    del 10 (seguir al jungla rival), jungla 0,26 → 0,40 y support 0,10 → 0,25; el support pone menos wards en su línea
+    (56 % → 43 %) y más en total antes del 14 (8,7 → 12). En top, mid y ADC el ward del objetivo no cambia (~20 %)."""
+    if wards is None or not team:
+        return {}
+    placed = []
+    for w in wards:
+        if w[1] in WARD_TYPES and (p := pos(int(w[0] * 1000))) is not None:
+            placed.append((w[0], w[1], p, _place(p, team)))
+    out: dict = {}
+    early = [w for w in placed if w[0] * 1000 < EARLY_MS]
+    out["rm_wards_pre14"] = sum(1 for w in wards if w[1] in WARD_TYPES and w[0] * 1000 < EARLY_MS)
+    if len(early) >= WARD_SPLIT_MIN:
+        for zone in ("lane", "river", "enemy_jg"):
+            out[f"rm_ward_{zone}_pct"] = round(100 * sum(1 for w in early if w[3] == zone) / len(early), 1)
+    out["rm_ward_enemy_jg10"] = sum(1 for w in placed if w[0] < ENEMY_JG_EARLY_S and w[3] == "enemy_jg")
+    out["rm_pink_obj"] = sum(
+        1 for w in placed if w[1] == "CONTROL_WARD" and min(geo.dist(w[2], geo.PITS["dragon"]), geo.dist(w[2], geo.PITS["baron"])) <= OBJ_WARD_NEAR
+    )
+    seen, n, covered = set(), 0, 0
+    for o in objectives or []:
+        if o[1] not in OBJECTIVES or (o[1], int(o[0] // 60)) in seen:
+            continue
+        seen.add((o[1], int(o[0] // 60)))
+        n += 1
+        pit = (o[3], o[4]) if len(o) >= 5 and o[3] is not None else geo.PITS["dragon" if o[1] in ("dragon", "elder") else "baron"]
+        if any(o[0] - OBJ_WARD_BEFORE_S[0] <= w[0] <= o[0] - OBJ_WARD_BEFORE_S[1] and geo.dist(w[2], pit) <= OBJ_WARD_NEAR for w in placed):
+            covered += 1
+    if n:
+        out["rm_obj_ward_pct"] = round(100 * covered / n, 1)
     return out
 
 
@@ -127,7 +196,8 @@ def from_analysis(a: dict) -> dict:
     series = a.get("series") or {}
     return features(
         anchors, dead, replay.get("kills") or [], me=me, role=a.get("role"), ally_jungler=a.get("ally_jungler"),
-        enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=series.get("cs"), opp_cs=series.get("opp_cs"),
+        enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=series.get("cs"), opp_cs=series.get("opp_cs"), team=team,
+        wards=a.get("my_wards"), objectives=replay.get("objectives"),
     )
 
 
@@ -143,8 +213,13 @@ def from_dossier(d: dict) -> dict:
     opp = [f.get("cs") for f in d.get("opponent_frames") or []]
     return features(
         anchors, dead, (d.get("map_events") or {}).get("kills") or [], me=a.get("me"), role=d.get("role") or a.get("role"),
-        ally_jungler=a.get("ally_jungler"), enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=cs, opp_cs=opp,
+        ally_jungler=a.get("ally_jungler"), enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=cs, opp_cs=opp, team=team,
+        wards=(d.get("events") or {}).get("wards_placed"), objectives=(d.get("map_events") or {}).get("objectives"),
     )
 
 
-KEYS = ("rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct", "rm_adc_alone_deaths")
+KEYS = (
+    "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
+    "rm_adc_alone_deaths", "rm_roam_lane", "rm_roam_river", "rm_roam_own_jg", "rm_roam_enemy_jg", "rm_wards_pre14",
+    "rm_ward_lane_pct", "rm_ward_river_pct", "rm_ward_enemy_jg_pct", "rm_ward_enemy_jg10", "rm_pink_obj", "rm_obj_ward_pct",
+)

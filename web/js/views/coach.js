@@ -693,7 +693,9 @@ function recurringLine(r) {
           { style: { marginTop: "4px" } },
           "Partidas con este error en cada elo: ",
           tiers.map(([t, pct], i) => [i ? " · " : "", h("b", `${ELO_LABEL[t] || t} ${fmt.num(pct, 0)} %`)]),
-          r.separates === false ? h("span", " — lo cometen igual en todos los elos: cuenta, pero no es lo que te impide subir.") : r.separates ? h("span", " — los mejores lo hacen mucho menos.") : null,
+          r.rises
+            ? h("span", " — los mejores lo hacen más (juegan con más presión): no es lo que te impide subir.")
+            : r.separates === false ? h("span", " — lo cometen igual en todos los elos: cuenta, pero no es lo que te impide subir.") : r.separates ? h("span", " — los mejores lo hacen mucho menos.") : null,
         )
       : null,
   );
@@ -728,7 +730,9 @@ function movementCard(m) {
           m.rows.flatMap((r, i) => [
             r.group === "rules" && m.rows[i - 1]?.group !== "rules"
               ? h("tr.elo-subhead", h("td", { colSpan: 3 + tiers.length }, h("span.tiny.muted", "Reglas de las guías de macro que se pueden medir: visión, vueltas a base, roams y teletransporte")))
-              : null,
+              : r.group === "vision" && m.rows[i - 1]?.group !== "vision"
+                ? h("tr.elo-subhead", h("td", { colSpan: 3 + tiers.length }, h("span.tiny.muted", "Visión útil: para los objetivos y para seguir al jungla rival (dónde estabas al poner cada ward)")))
+                : null,
             h(
               "tr",
               h(
@@ -808,7 +812,7 @@ function eloErrorsCard(e) {
               rows.map((t) =>
                 h(
                   `tr${t.separates === false ? ".flat" : ""}`,
-                  h("td", t.title, t.separates === false ? h("div.tiny.faint", "No separa elos: lo cometen igual los mejores") : null),
+                  h("td", t.title, t.rises ? h("div.tiny.faint", "Los mejores lo hacen más: parte de jugar con presión") : t.separates === false ? h("div.tiny.faint", "No separa elos: lo cometen igual los mejores") : null),
                   h(`td.num${t.status === "worse" ? ".bad" : t.status === "better" ? ".good" : ""}`, `${fmt.num(t.mine_pct, 0)} %`),
                   tiers.map((g) => h("td.num.muted", `${fmt.num(t.tiers[g] ?? 0, 0)} %`)),
                   h("td", t.status && ELO_STATUS[t.status] ? h(`span.pill${ELO_STATUS[t.status][1] ? ".pill-" + ELO_STATUS[t.status][1] : ""}`, ELO_STATUS[t.status][0]) : null),

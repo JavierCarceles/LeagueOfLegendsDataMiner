@@ -583,10 +583,13 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "tip": "Antes de entrar al foso cuenta los vivos: si un aliado lleva un rato muerto y ellos están todos, cede el objetivo o cámbialo al otro lado (su jungla, una torre). Solo el ancestral y su alma merecen pelearse con uno menos."},
     {"id": "death_before_objective", "kind": "death", "need": ("before_objective",), "metric": "deaths_before_objective",
      "title": "Mueres justo antes de un objetivo rival"},
+    # ``unless``: con esas etiquetas no es error. Un cambio igualado (caéis los mismos en los dos bandos) no es morir
+    # adelantado ni que te ganqueen: lo era en el 20-30 % de esas muertes en top y mid y en el 40-50 % en bot, y más en
+    # Aspirante que en Platino (contaba como error justo lo que hacen los mejores). Medido el 24-11-2026, ~34.000 partidas.
     {"id": "death_gank_no_ward", "kind": "death", "need": ("gank", "no_ward"), "metric": "deaths_no_vision_pre14",
-     "title": "Te ganquean sin visión"},
+     "unless": ("fight_even",), "title": "Te ganquean sin visión"},
     {"id": "death_overextended", "kind": "death", "need": ("overextended",), "metric": "deaths_overextended",
-     "title": "Mueres adelantado en la línea"},
+     "unless": ("fight_even",), "title": "Mueres adelantado en la línea"},
     {"id": "death_duel_behind", "kind": "death", "need": ("duel_behind",), "metric": "deaths_duel_behind",
      "title": "Aceptas duelos con niveles u objetos de menos"},
     # Para el jungla, entrar en la jungla rival es su trabajo: los Aspirante mueren ahí más que los Platino (0,50 frente a
@@ -602,7 +605,8 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
     {"id": "death_isolated", "kind": "death", "need": ("isolated",), "metric": "deaths_isolated_late",
      "title": "Te cogen solo, lejos de tu equipo"},
     {"id": "death_solo", "kind": "death", "need": ("solo",), "metric": "deaths_solo", "title": "Pierdes duelos 1 contra 1"},
-    {"id": "death_gank", "kind": "death", "need": ("gank",), "metric": "deaths_ganked", "title": "Te ganquean"},
+    {"id": "death_gank", "kind": "death", "need": ("gank",), "metric": "deaths_ganked", "unless": ("fight_even",),
+     "title": "Te ganquean"},
     {"id": "objective_far", "kind": "objective", "need": ("far",), "metric": "obj_lost_far",
      "title": "El rival coge objetivos estando tú lejos y sin cambio"},
     {"id": "objective_late_recall", "kind": "objective", "need": ("late_recall",), "metric": None,
@@ -664,8 +668,20 @@ def mistake_type(kind: str, tags: set, role: str | None = None) -> dict | None:
     for mt in MISTAKE_TYPES:
         need = (mt.get("role_need") or {}).get(role or "", mt["need"])
         if mt["kind"] == kind and all(t in tags for t in need):
-            return None if role in mt.get("skip_roles", ()) else mt
+            return None if role in mt.get("skip_roles", ()) or tags & set(mt.get("unless", ())) else mt
     return None
+
+
+def excused(moment: dict, role: str | None) -> bool:
+    """¿Momento que el análisis marcó como error y no lo es (``unless``: un cambio igualado)? Se ve, pero no cuenta."""
+    tags = set(moment.get("tags") or [])
+    if tags & NOT_A_MISTAKE:
+        return False
+    for mt in MISTAKE_TYPES:
+        need = (mt.get("role_need") or {}).get(role or "", mt["need"])
+        if mt["kind"] == moment.get("kind") and all(t in tags for t in need):
+            return bool(tags & set(mt.get("unless", ())))
+    return False
 
 
 def dropped(moment: dict, role: str | None) -> bool:
@@ -686,6 +702,11 @@ ELO_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante
 # Un tipo de error «no separa elos» si el elo más alto con datos lo comete al menos el 85 % de veces que el más bajo.
 FLAT_RATIO = 0.85
 FLAT_WEIGHT = 0.5  # en «Errores que repites» pesa la mitad: es parte del juego, no lo que te impide subir
+# Y si el elo más alto lo comete claramente más (un 15 % o más), es parte de jugar con presión, no lo que te frena: pesa
+# un cuarto. Pasa con «te ganquean» y «adelantado» en las líneas (el support de Aspirante muere en ganks 0,39 veces por
+# partida, el de Platino 0,23: está más en el río, en otras líneas y en la jungla rival).
+RISE_RATIO = 1.15
+RISE_WEIGHT = 0.25
 MIN_ELO_GAMES = 5
 
 
@@ -709,7 +730,10 @@ def separation(tiers: dict, mistake_id: str) -> dict | None:
     low, top = present[0], present[-1]
     get = lambda g, k: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get(k, 0.0)  # noqa: E731
     lo, hi = get(low, "per_game"), get(top, "per_game")
-    return {"low": low, "top": top, "low_pct": get(low, "pct"), "top_pct": get(top, "pct"), "flat": lo <= 0 or hi >= FLAT_RATIO * lo}
+    return {
+        "low": low, "top": top, "low_pct": get(low, "pct"), "top_pct": get(top, "pct"),
+        "flat": lo <= 0 or hi >= FLAT_RATIO * lo, "rises": lo > 0 and hi >= RISE_RATIO * lo,
+    }
 
 
 def recurring_mistakes(games: list[dict], elo: dict | None = None) -> dict:
@@ -743,7 +767,7 @@ def recurring_mistakes(games: list[dict], elo: dict | None = None) -> dict:
         role = grp["roles"].most_common(1)[0][0]
         tiers = (elo or {}).get(role) or {}
         sep = separation(tiers, mt["id"]) if tiers else None
-        weight = FLAT_WEIGHT if sep and sep["flat"] else 1.0
+        weight = (RISE_WEIGHT if sep["rises"] else FLAT_WEIGHT if sep["flat"] else 1.0) if sep else 1.0
         out.append(
             {
                 "id": mt["id"],
@@ -758,6 +782,7 @@ def recurring_mistakes(games: list[dict], elo: dict | None = None) -> dict:
                 "score": round(weight * rate * grp["weight"] / grp["count"], 3),
                 "elo": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers} or None,
                 "separates": (not sep["flat"]) if sep else None,
+                "rises": bool(sep and sep["rises"]),
                 "examples": grp["examples"],
                 "learn": learn.for_mistake(mt["id"]),
             }
@@ -819,6 +844,7 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
                 "mine_per_game": round(count[mid] / n, 2),
                 "tiers": {g: ((tiers[g].get("types") or {}).get(mid) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers},
                 "separates": (not sep["flat"]) if sep else None,
+                "rises": bool(sep and sep["rises"]),
                 "status": status,
             }
         )
@@ -877,7 +903,20 @@ ROUTE_ROWS = [
     ("rm_counter_pct", "Respondes a lo que hace el jungla rival (kill o asistencia allí en 15 s)", ("JUNGLE",), "%"),
     ("rm_mid_with_jg_pct", "Con tu jungla en sus peleas del río o la jungla", ("MID",), "%"),
     ("rm_adc_alone_deaths", "Muertes de tu ADC estando tú lejos (antes del 14)", ("SUPPORT",), ""),
+    # Adónde vas cuando sales de tu línea (antes del 14): el roam «bueno» depende del rol.
+    ("rm_roam_lane", "Roams a otra línea", ("TOP", "MID", "ADC", "SUPPORT"), ""),
+    ("rm_roam_river", "Salidas al río (visión, cangrejo, ayudar a tu jungla)", ("MID", "SUPPORT"), ""),
+    ("rm_roam_own_jg", "Visitas a tu jungla (ayudar a tu jungla, wards)", ("MID", "SUPPORT"), ""),
+    ("rm_roam_enemy_jg", "Entradas en la jungla rival", ("SUPPORT",), ""),
+    # Visión útil: para los objetivos y para seguir al jungla rival.
+    ("rm_wards_pre14", "Wards antes del 14", ("JUNGLE", "SUPPORT"), ""),
+    ("rm_obj_ward_pct", "Objetivos con un ward tuyo cerca en los 2 min previos", ("SUPPORT",), "%"),
+    ("rm_pink_obj", "Pinks junto a dragón o barón", ("JUNGLE", "SUPPORT"), ""),
+    ("rm_ward_enemy_jg10", "Wards en la jungla rival antes del 10 (seguir al jungla rival)", ("JUNGLE", "SUPPORT"), ""),
+    ("rm_ward_enemy_jg_pct", "Wards en la jungla rival (antes del 14, de todos los tuyos)", ("TOP", "JUNGLE", "SUPPORT"), "%"),
+    ("rm_ward_lane_pct", "Wards en tu línea (antes del 14, de todos los tuyos)", ("SUPPORT",), "%"),
 ]
+VISION_KEYS = {"rm_wards_pre14", "rm_obj_ward_pct", "rm_pink_obj", "rm_ward_enemy_jg10", "rm_ward_enemy_jg_pct", "rm_ward_lane_pct"}
 
 
 def _move_value(mv: dict | None, phase: str, field: str) -> float | None:
@@ -929,7 +968,7 @@ def movement_summary(games: list[dict], profile: dict | None) -> dict | None:
             "key": key,
             "label": label,
             "unit": unit,
-            "group": "rules" if field == "rules" else "routes",
+            "group": "rules" if field == "rules" else "vision" if key in VISION_KEYS else "routes",
             "mine": round(sum(vals) / len(vals), 1 if unit == "%" else 2),
             "opp": None,
             "tiers": {g: tiers[g]["move"].get(key) for g in ELO_GROUPS if g in tiers and tiers[g]["move"].get(key) is not None} or None,

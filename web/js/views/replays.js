@@ -560,7 +560,9 @@ function eloLine(m) {
     "div.tiny.muted.elo-moment",
     h("span", `Partidas ${e.scope === "champ" ? "de los OTPs de tu campeón" : "de tu rol"} con este error: `),
     tiers.map(([t, pct], i) => [i ? " · " : "", h("b", `${ELO_NAMES[t] || t} ${Math.round(pct)} %`)]),
-    e.separates === false
+    e.rises
+      ? h("div", "Los mejores lo hacen más (juegan con más presión): no es lo que te separa de subir.")
+      : e.separates === false
       ? h("div", "Lo cometen igual en todos los elos: cuenta, pero no es lo que te separa de subir.")
       : e.separates
         ? h("div.bad", "Los mejores lo cometen mucho menos: es de lo que separa elos.")

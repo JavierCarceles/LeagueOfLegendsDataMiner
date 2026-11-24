@@ -1199,6 +1199,8 @@ def analyze_game(
     # Coherencia de la reconstrucción: tramos de jungla sin otros datos y cuántos no cuadraban con el CS (sin inventar).
     # Estadísticas de Riot para las reglas medibles de las guías (``rule_metrics``): pinks, visión, roams, TP.
     result["riot_rules"] = rule_metrics.raw_fields(me_raw)
+    # Tus wards (segundo y tipo) para la visión útil de ``route_macro`` (objetivos, jungla rival, pinks).
+    result["my_wards"] = [[round(t / 1000, 1), kind] for t, kind in g.ward_events.get(me) or []]
     result["reconstruction"] = {"camp_spans": getattr(g, "camp_minutes", 0), "camp_misses": getattr(g, "camp_misses", 0)}
     movement = _movement(g)
     if movement:

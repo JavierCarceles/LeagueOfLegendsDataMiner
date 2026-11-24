@@ -527,3 +527,51 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
   bruto (~400 KB por partida) dentro de la base de datos: ahora van a `data/raw_otp/<plataforma>/<id>.json.gz` (una vez
   por partida, fuera de GitHub) y en la base de datos solo el análisis. Reanalizar los lee de la base de datos (las de
   antes) o de su fichero.
+- **Subida de las 10:17 (65,8 partidas/min de media, 68,2 ahora):** el WAL seguía creciendo (1,25 → 1,6 → 2,1 GB en
+  15 min). El recorte cada 5 min competía con las escrituras del recolector (el candado estaba cogido más de la mitad del
+  tiempo: las búsquedas sumaban 3.156 s esperándolo en 9 min) y no ganaba nunca. Ahora el recorte coge el candado de la
+  app (las escrituras esperan unos segundos), espera hasta 10 s a las lecturas en curso, se hace también al arrancar (el
+  WAL que dejó la sesión anterior) y en cuanto pasa de 256 MB. El embudo enseña el último recorte (`db.wal_recorte`) y
+  el registro apunta cada recorte grande o fallido.
+
+## M) Revisión por rol y elo: roams, visión y errores (24-11-2026, 33.694 partidas con timeline)
+
+Platino agrupa Hierro → Platino (ya hay partidas de elos bajos) y Maestro incluye Gran Maestro.
+
+**Roams: no basta con contarlos, importa adónde vas** (`route_macro`: el punto más lejos de tu línea en cada salida de
+20 s o más antes del 14). El support de Aspirante sale el doble que el de Platino (1,4 → 2,9 por partida):
+
+| Support, Platino → Aspirante | Otra línea | Río | Tu jungla | Jungla rival |
+|---|---|---|---|---|
+| Salidas por partida | 0,42 → 1,00 | 0,70 → 1,24 | 0,21 → 0,47 | 0,03 → 0,15 |
+
+El mid de Aspirante va más a otras líneas (0,60 → 1,20) y **menos** al río (0,56 → 0,35); el ADC, más a otras líneas
+(0,19 → 0,55). En top cambia poco. «Mi progreso» enseña cada destino en el rol donde separa elos.
+
+**Visión útil** (dónde estabas al poner cada ward, con tu recorrido):
+
+| | Platino | Aspirante | Roles donde se enseña |
+|---|---|---|---|
+| Objetivos con ward tuyo cerca en los 2 min previos | 41 % | 52 % | support (top, mid, ADC y jungla: ~20 %, sin cambio) |
+| Pinks junto a dragón o barón | 0,9 / 1,9 | 2,0 / 3,4 | jungla / support |
+| Wards en la jungla rival antes del 10 (seguir al jungla) | 0,26 / 0,09 | 0,40 / 0,25 | jungla / support |
+| Wards en la jungla rival (antes del 14, % de los tuyos) | 10 % / 2,8 % / 1,6 % | 13 % / 6,7 % / 2,9 % | jungla / support / top |
+| Wards en tu línea (support, antes del 14) | 57 % | 43 % | support |
+| Wards antes del 14 | 3,6 / 8,6 | 4,4 / 12,0 | jungla / support |
+
+Tus partidas: los wards (segundo y tipo) se guardan en el análisis (`my_wards`); las de antes los sacan de la línea de
+tiempo al poner al día los resúmenes (`DIGEST_VERSION = 6`), sin volver a analizar.
+
+**Errores que no lo eran:**
+
+- **Cambios igualados.** Entre las muertes «adelantado en la línea» que contaban como error, en el 19-27 % (top), el
+  28-33 % (mid) y el 39-51 % (ADC y support) tu equipo mató a alguien allí mismo en los 12 s siguientes, y más cuanto
+  más alto el elo. Ahora una muerte adelantada o en un gank en la que caísteis los mismos en los dos bandos
+  (`fight_even`) no cuenta como error (`unless` en `MISTAKE_TYPES`): se ve en la repetición con «Cambio igualado».
+- **Lo que los mejores hacen más.** Aun sin los cambios igualados, «te ganquean» y «adelantado» suben con el elo en las
+  líneas (support en ganks 0,23 → 0,39 por partida; top adelantado 0,32 → 0,42): en elo alto se juega con más presión y
+  más fuera de la línea. Un error que el elo más alto comete un 15 % más o más (`RISE_RATIO`) pesa un cuarto en «Errores
+  que repites» (los que no separan, la mitad) y lo dice: «los mejores lo hacen más».
+- Siguen separando bien (bajan con el elo en todos los roles): morir aislado, perder duelos 1 contra 1, aceptar duelos
+  con niveles u objetos de menos, sin pinks, sin quitar wards y el ritmo de objetos (el orden de habilidades también,
+  salvo en support).

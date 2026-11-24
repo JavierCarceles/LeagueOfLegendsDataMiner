@@ -28,7 +28,7 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 4  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*)
+VERSION = 5  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
@@ -47,9 +47,7 @@ MIN_CHAMP_GAMES = 20
 COUNTED = ("high", "medium", "low")
 MOVE_KEYS = (
     "mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late",
-    "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
-    "rm_adc_alone_deaths",
-) + rule_metrics.KEYS
+) + route_macro.KEYS + rule_metrics.KEYS
 
 
 def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:

@@ -1952,6 +1952,7 @@ class Crawler:
             db = self.svc.db
             funnel["db"] = {
                 "wal_mb": db.wal_mb() if hasattr(db, "wal_mb") else None,
+                "wal_recorte": getattr(db, "wal_stats", None) or {},
                 "candado": {
                     k: {"esperando_s": round(v[0], 1), "cogido_s": round(v[1], 1), "escrituras": v[2]}
                     for k, v in sorted((getattr(db, "lock_stats", None) or {}).items(), key=lambda kv: -kv[1][0])

@@ -29,7 +29,12 @@ WAL_AUTOCHECKPOINT_PAGES = 0
 JOURNAL_SIZE_LIMIT = 64 * 1024 * 1024
 CHECKPOINT_EVERY_S = 30
 TRUNCATE_EVERY_ROUNDS = 10  # cada 5 min
-TRUNCATE_WAIT_MS = 2000
+# Recortar el WAL necesita un momento sin escrituras: con el recolector el candado está cogido más de la mitad del
+# tiempo y el recorte (que competía con ellas) no ganaba nunca: el WAL llegó a 2,1 GB (24-11-2026). Ahora el recorte coge
+# el candado de la app (las escrituras esperan unos segundos) y espera hasta esto a que acaben las lecturas en curso.
+TRUNCATE_WAIT_MS = 10000
+TRUNCATE_ABOVE_MB = 256  # por encima, se recorta en cuanto se pueda (no cada 5 min)
+TRUNCATE_RETRY_S = 120
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -397,6 +402,7 @@ class Database:
         # Por grupo de hilos: [s esperando el candado, s con él cogido, escrituras] (para ver quién frena a quién).
         self.lock_stats: dict[str, list] = {}
         self._checkpointer: threading.Thread | None = None
+        self.wal_stats: dict = {}
         self._init_schema()
 
     def conn(self) -> sqlite3.Connection:
@@ -417,6 +423,37 @@ class Database:
             self._local.conn = conn
         return conn
 
+    def checkpoint(self, mode: str = "PASSIVE", conn: sqlite3.Connection | None = None) -> bool:
+        """Vuelca el WAL; con ``TRUNCATE`` lo deja a 0 bytes cogiendo antes el candado de escritura de la app.
+
+        Devuelve si terminó. Lo que pasó queda en ``wal_stats`` (el embudo lo enseña y el registro lo apunta)."""
+        conn = conn or self.conn()
+        before = self.wal_mb()
+        t0 = time.monotonic()
+        try:
+            if mode == "TRUNCATE":
+                with self.write_lock:
+                    row = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            else:
+                row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
+            ok = row is not None and row[0] == 0
+        except sqlite3.Error:
+            ok = False
+        if mode == "TRUNCATE":
+            st = self.wal_stats
+            st["recortes"] = st.get("recortes", 0) + (1 if ok else 0)
+            st["fallos_seguidos"] = 0 if ok else st.get("fallos_seguidos", 0) + 1
+            st["ultimo"] = {"ok": ok, "s": round(time.monotonic() - t0, 1), "mb_antes": before, "mb_despues": self.wal_mb(),
+                            "at": int(time.time())}
+            if (before or 0) >= TRUNCATE_ABOVE_MB or not ok:
+                import logging
+
+                logging.getLogger("tempu.db").info(
+                    "WAL %s: %s MB → %s MB en %.1f s", "recortado" if ok else "sin recortar (lecturas largas en curso)",
+                    before, st["ultimo"]["mb_despues"], st["ultimo"]["s"],
+                )
+        return ok
+
     def start_checkpointer(self, stop: threading.Event | None = None) -> None:
         """Vuelca el WAL al fichero principal cada ``CHECKPOINT_EVERY_S`` en su propio hilo (no bloquea escrituras)."""
         if self._checkpointer is not None and self._checkpointer.is_alive():
@@ -425,16 +462,18 @@ class Database:
         def run() -> None:
             conn = self.conn()
             conn.execute(f"PRAGMA busy_timeout={TRUNCATE_WAIT_MS}")  # su propia conexión: no espera más que esto
-            rounds = 0
+            # Al arrancar: el WAL que dejó la sesión anterior (si se cerró sin volcarlo) se recorta ya.
+            self.checkpoint("TRUNCATE", conn)
+            rounds, last_try = 0, time.monotonic()
             while not (stop.wait(CHECKPOINT_EVERY_S) if stop is not None else time.sleep(CHECKPOINT_EVERY_S)):
                 rounds += 1
-                # Cada 5 min, además de copiar, recorta el WAL (si en 2 s no hay hueco, sigue como estaba). Copiar
-                # solo (PASSIVE) no lo reinicia mientras haya lecturas en marcha: llegó a 686 MB.
-                mode = "TRUNCATE" if rounds % TRUNCATE_EVERY_ROUNDS == 0 else "PASSIVE"
-                try:
-                    conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
-                except sqlite3.Error:
-                    pass
+                # Copiar solo (PASSIVE) no reinicia el WAL mientras haya lecturas en marcha: hay que recortarlo.
+                big = (self.wal_mb() or 0) >= TRUNCATE_ABOVE_MB and time.monotonic() - last_try >= TRUNCATE_RETRY_S
+                if rounds % TRUNCATE_EVERY_ROUNDS == 0 or big:
+                    last_try = time.monotonic()
+                    self.checkpoint("TRUNCATE", conn)
+                else:
+                    self.checkpoint("PASSIVE", conn)
 
         self._checkpointer = threading.Thread(target=run, name="db-checkpoint", daemon=True)
         self._checkpointer.start()

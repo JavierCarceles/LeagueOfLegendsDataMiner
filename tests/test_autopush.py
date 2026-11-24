@@ -254,6 +254,33 @@ def test_la_base_de_datos_cuenta_quien_espera_el_candado_y_vuelca_el_wal_aparte(
 
 
 
+def test_el_recorte_del_wal_espera_a_las_escrituras_y_lo_deja_a_cero(tmp_path):
+    """Con escrituras sin parar (el recolector) el recorte coge el candado de la app en vez de competir con ellas."""
+    import threading as th
+
+    from app.data.db import Database
+
+    db = Database(tmp_path / "t.db")
+    stop = th.Event()
+
+    def writer():
+        i = 0
+        while not stop.is_set():
+            with db.write() as conn:
+                conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)", (f"k{i % 50}", "x" * 2000))
+            i += 1
+
+    t = th.Thread(target=writer, daemon=True)
+    t.start()
+    try:
+        assert db.checkpoint("TRUNCATE")
+        assert db.wal_stats["ultimo"]["ok"] and db.wal_stats["recortes"] == 1
+    finally:
+        stop.set()
+        t.join()
+    db.close()
+
+
 def test_antes_de_subir_se_copia_el_final_del_registro_vivo(repos, monkeypatch):
     """La app escribe en app_vivo.log (abierto todo el rato, fuera de GitHub); se sube una copia de su final en app.log."""
     from app import logbus
