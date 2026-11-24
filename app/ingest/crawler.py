@@ -756,7 +756,23 @@ class RegionWorker(threading.Thread):
             checked += 1
         return checked
 
-    def _seed_from_leaderboards(self, platform: str) -> int:
+    def leaderboard_pending(self, platform: str) -> list[int]:
+        """Campeones cuya tabla de los mejores (OP.GG) de esa plataforma toca pedir (no se ha pedido en 24 h)."""
+        opgg = getattr(self.svc, "opgg", None)
+        if opgg is None or not getattr(opgg, "enabled", False) or not OPGG_REGION.get(platform):
+            return []
+        if not set(self.config.tiers) & LEADERBOARD_TIERS:
+            return []
+        fresh = {
+            int(r[0])
+            for r in self.svc.db.query(
+                "SELECT champ FROM otp_sources WHERE platform = ? AND source = 'opgg' GROUP BY champ HAVING MAX(fetched_at) >= ?",
+                (platform, now_s() - LEADERBOARD_TTL_S),
+            )
+        }
+        return [c for c in self.config.targets if c not in fresh]
+
+    def _seed_from_leaderboards(self, platform: str, champs: list[int] | None = None) -> int:
         """OTPs al instante: los mejores de cada campeón elegido en esa plataforma según OP.GG (una vez al día).
 
         Cada uno cuesta 1 llamada de account-v1 (su PUUID para tu key) y 1 de maestría, frente a revisar la maestría
@@ -771,7 +787,7 @@ class RegionWorker(threading.Thread):
             return 0  # la tabla solo trae Diamante alto, Maestro o más: con elos más bajos no aporta nadie
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         added = 0
-        for champ in self.config.targets:
+        for champ in self.config.targets if champs is None else champs:
             champ_added = 0
             if self.stop_event.is_set():
                 break
@@ -1505,7 +1521,12 @@ class OtpScout(threading.Thread):
         w = self.worker
         tiers = list(reversed(w.config.tiers))
         cooldown: dict[str, float] = {}
-        leaderboard_done = False
+        # Tablas de los mejores de OP.GG (Diamante o más) que faltan: se intercalan con la búsqueda en el ranking, una
+        # cada dos vueltas en que toca un elo de los que salen en ellas. Antes se pedían las de todos los campeones al
+        # arrancar (173 tablas y una llamada de account-v1 por jugador nuevo, del mismo cupo regional que las partidas):
+        # durante ese rato ni se buscaba en Platino ni Esmeralda ni se bajaban partidas a buen ritmo.
+        pending_boards: list[int] | None = None
+        board_turn = False
         while not w.stop_event.is_set():
             try:
                 if not w.svc.keys.get() or w.svc.keys.status == "invalid":
@@ -1517,12 +1538,16 @@ class OtpScout(threading.Thread):
                     w.stop_event.wait(5)
                     continue
                 self._set("running")
-                if not leaderboard_done:
-                    leaderboard_done = True
-                    w._seed_from_leaderboards(self.platform)
-                    continue
+                if pending_boards is None:
+                    pending = getattr(w, "leaderboard_pending", None)
+                    pending_boards = list(pending(self.platform)) if pending else []
                 now = time.time()
                 tier = next((t for t in w.tier_order(self.platform, tiers) if cooldown.get(t, 0) <= now), None)
+                if pending_boards and (tier is None or tier in LEADERBOARD_TIERS):
+                    board_turn = not board_turn
+                    if tier is None or board_turn:
+                        w._seed_from_leaderboards(self.platform, [pending_boards.pop(0)])
+                        continue
                 if tier is None:
                     self._set("idle")  # todo el ranking revisado: se vuelve a mirar al refrescarse las ligas
                     w.stop_event.wait(30)

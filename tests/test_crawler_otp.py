@@ -1300,3 +1300,34 @@ def test_stop_answers_at_once_even_if_the_search_report_is_slow(keyed_svc, monke
     keyed_svc.crawler.stop()
     assert _time.monotonic() - t0 < 0.5 and keyed_svc.crawler.stop_event.is_set()
     keyed_svc.crawler._funnel_thread.join(5)
+
+
+def test_las_tablas_de_opgg_se_intercalan_con_la_busqueda_por_elo(keyed_svc):
+    """Con muchos campeones, las tablas de los mejores (solo Diamante+) no pueden ir todas antes de buscar en Platino:
+    se intercalan, una cada dos vueltas en que toca un elo alto."""
+    from types import SimpleNamespace
+
+    calls = []
+    stop = __import__("threading").Event()
+    boards = [1, 2, 3, 4, 5, 6]
+    found = {}
+
+    def discover(platform, tier):
+        calls.append(tier)
+        found[(platform, tier)] = found.get((platform, tier), 0) + 1  # cada elo revisado encuentra uno
+        if len(calls) > 20:
+            stop.set()
+        return 1
+
+    worker = SimpleNamespace(
+        config=CrawlerConfig(tiers=["PLATINUM", "CHALLENGER"], champions=[AATROX]).validated(),
+        stop_event=stop, svc=keyed_svc, crawler=SimpleNamespace(paused_reason=lambda: None), state={"errors": 0},
+        scouts=[], wake=lambda: None, leaderboard_pending=lambda platform: list(boards),
+        _seed_from_leaderboards=lambda platform, champs: calls.append(("board", champs[0])) or 0,
+        _discover=discover, _refill_seeds=lambda platform, tier: 0, found_by_tier=found,
+    )
+    worker.tier_order = lambda platform, tiers: crawler_mod.RegionWorker.tier_order(worker, platform, tiers)
+    OtpScout(worker, "euw1").run()
+    first_plat = calls.index("PLATINUM")
+    assert sum(1 for c in calls[:first_plat] if isinstance(c, tuple)) <= 1  # Platino no espera a las 6 tablas
+    assert [c[1] for c in calls if isinstance(c, tuple)] == boards  # y todas se piden, en orden

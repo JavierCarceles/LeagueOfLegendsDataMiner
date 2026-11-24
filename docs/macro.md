@@ -456,3 +456,20 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
 - **Muros:** queda un 1,05 % del tiempo en celdas de muro, pero el 0,82 % es junto a posiciones reales de Riot que ya
   caen en celdas de muro (el 4,6 % de los frames: la rejilla de 128 × 128, ~115 unidades por celda, no es exacta en los
   bordes de los muros y los arbustos). Los tramos reconstruidos solo ponen un 0,23 % dentro de un muro.
+
+### Revisión de las subidas de las 00:39 y las 01:18 (24-11-2026)
+
+- **Ninguna partida perdida.** Había 497 partidas guardadas dos veces (la misma partida y rol en dos carpetas, de cuando
+  se reclasificaron los especialistas); ahora quedan 19 y el perfil por elo ya no las cuenta dos veces.
+- **474 partidas nuevas, todas de Diamante o más** (jungla Diamante, Maestro y Aspirante; ADC, mid y support Aspirante).
+  Ni una de Platino ni de Esmeralda: la búsqueda pedía al arrancar las tablas de los mejores de OP.GG de los 173
+  campeones (solo traen Diamante+), cada jugador nuevo con una llamada de account-v1 del mismo cupo regional que las
+  partidas, y hasta acabarlas no miraba el ranking. Esa sesión solo revisó la maestría de 335 jugadores. Ahora las
+  tablas se intercalan con la búsqueda por elo (una cada dos vueltas en que toca un elo de Diamante o más).
+- **ADC Aspirante (130 partidas) confirma las reglas medibles:** pink en el 7 % → 18 % de las vueltas, el doble de
+  torres antes del 14 y de kills en otras líneas, ventaja de visión 18 % → 32 %, wards destruidos 1,1 → 1,8 cada 10
+  min, «sin ninguna pink» 0,61 → 0,15 por partida, «sin quitar wards» 0,06 → 0,01.
+- **Orden de habilidades en ADC sale más en Aspirante** (0,14 frente a 0,05 por partida): son 2 jugadores (un OTP de
+  Tristana y uno de Twitch con su propio orden), no una tendencia del elo. Se deja; en mid no separa (0,06 en todos) y
+  el perfil ya le da la mitad de peso. En top, jungla y support sí separa (Esmeralda 0,17-0,27 → Aspirante 0,07-0,10).
+- Mid Aspirante (34 partidas) y Esmeralda (47) siguen siendo pocas para sacar conclusiones.
