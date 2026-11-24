@@ -32,7 +32,7 @@ from app.logbus import get_logger
 
 log = get_logger("autopush")
 
-DEFAULT_EVERY = 500
+DEFAULT_EVERY = 2000  # 2.000 partidas nuevas entre subidas (antes 500; con ~90 partidas/min, una cada ~20 min)
 STATE_FILE = ".autopush.json"
 COMMIT_MESSAGE = "datos"
 GIT_TIMEOUT_S = 600  # un push grande con una conexión lenta
@@ -264,7 +264,7 @@ class AutoPush:
 
     def check(self) -> dict:
         """Al arrancar: ¿git está instalado y esto es un repositorio con rama? Así un problema se ve en «Datos y API»
-        desde el primer momento, no a las 500 partidas. Si ya tocaba subir (la app se cerró antes), se sube."""
+        desde el primer momento, no a las 2.000 partidas. Si ya tocaba subir (la app se cerró antes), se sube."""
         try:
             if _git(self.repo, "rev-parse", "--is-inside-work-tree", check=False, timeout=30).stdout.strip() != "true":
                 raise GitError(f"{self.repo} no es un repositorio git (¿descargaste el proyecto como .zip en vez de clonarlo?)")

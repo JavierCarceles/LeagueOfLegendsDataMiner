@@ -67,7 +67,7 @@ Tests: `pip install -r tests/requirements.txt` y `python -m pytest`.
 - **Mientras juegas** (cliente de LoL abierto en este ordenador) se pausan la precarga y el recolector para no quitarte
   ancho de banda; en Windows la app corre además con prioridad baja de CPU. Al terminar la partida sigue sola.
 - **Recolector**: si lo dejas en marcha, se reanuda solo al volver a abrir la app.
-- **Subida a GitHub**: cada 500 partidas nuevas del recolector (`AUTO_PUSH_GAMES`) se hace solo `git add data`, un commit
+- **Subida a GitHub**: cada 2.000 partidas nuevas del recolector (`AUTO_PUSH_GAMES`) se hace solo `git add data`, un commit
   «datos» (solo `data/`: el código a medias nunca entra), `git pull --rebase` y `git push`, en segundo plano y esperando a que
   acabe tu partida. Nunca se fuerza: si algo choca, el commit queda en local y se reintenta a los 15 min (el aviso sale en
   *Datos y API*). Para subir ya lo que haya: `python -m app.autopush`.

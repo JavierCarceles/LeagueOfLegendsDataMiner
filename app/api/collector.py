@@ -304,7 +304,7 @@ def otps_live(svc=Depends(svc_from)):
 
 @router.post("/otps/push")
 def otps_push_now(svc=Depends(svc_from)):
-    """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 500 partidas."""
+    """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 2.000 partidas."""
     from app.autopush import AutoPush
 
     auto = AutoPush.of(svc)
