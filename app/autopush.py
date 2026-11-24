@@ -85,8 +85,10 @@ def push_data(repo: Path, data_dir: Path, locks=()) -> dict:
         raise GitError(f"la carpeta de datos ({data_dir}) no está dentro del repositorio") from exc
     if _git(repo, "rev-parse", "--verify", "--quiet", "REBASE_HEAD", check=False).returncode == 0:
         raise GitError("hay un rebase a medias en el repositorio: termínalo o abórtalo antes")
+    if _git(repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
+        raise GitError("hay un merge a medias en el repositorio: termínalo o abórtalo antes")
 
-    # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el rebase y
+    # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el merge y
     # el autostash nunca tiene que mezclar partidas a medio escribir.
     for lock in locks:
         lock.acquire()
@@ -105,11 +107,13 @@ def push_data(repo: Path, data_dir: Path, locks=()) -> dict:
         # delante, se avisa y se reintenta más tarde.
         code_dirty = _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}").stdout.strip()
         if not code_dirty:
-            pull = _git(repo, "pull", "--rebase", "--autostash", remote, remote_branch, check=False)
+            # Merge, no rebase: el rebase reescribía en disco los ficheros de data/ que la app tiene abiertos y en Windows
+            # fallaba («git pull --rebase falló»). El merge solo toca lo que cambió en GitHub.
+            pull = _git(repo, "pull", "--no-rebase", "--no-edit", "--autostash", remote, remote_branch, check=False)
             conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.strip()
             if pull.returncode != 0 or conflicts:
-                _git(repo, "rebase", "--abort", check=False)
-                raise GitError(f"git pull --rebase falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
+                _git(repo, "merge", "--abort", check=False)
+                raise GitError(f"git pull falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
     finally:
         for lock in reversed(locks):
             lock.release()
@@ -228,6 +232,27 @@ class AutoPush:
         except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
             log.debug("No se pudo poner al día el estado de la búsqueda antes de subir", exc_info=True)
 
+    def _snapshot_log(self) -> None:
+        """Copia el final del registro vivo (``app_vivo.log``, abierto por la app y fuera de GitHub) a ``app.log``."""
+        from app.logbus import LIVE_LOG, LOG_SNAPSHOT_BYTES
+
+        folder = self.data_dir / "registro"
+        live = folder / LIVE_LOG
+        try:
+            if not live.exists():
+                return
+            size = live.stat().st_size
+            with open(live, "rb") as fh:
+                fh.seek(max(0, size - LOG_SNAPSHOT_BYTES))
+                tail = fh.read()
+            if size > LOG_SNAPSHOT_BYTES:
+                tail = tail.split(b"\n", 1)[-1]  # desde una línea entera
+            tmp = folder / "app.log.tmp"
+            tmp.write_bytes(tail)
+            tmp.replace(folder / "app.log")
+        except OSError:
+            log.debug("No se pudo copiar el registro para GitHub", exc_info=True)
+
     def _write_log(self) -> None:
         """``data/otps/_registro.json``: lo último del registro de la app (avisos, errores con dónde fallaron) y qué está
         haciendo cada hilo ahora mismo. Así se ve desde GitHub por qué el recolector va lento o se ha quedado parado."""
@@ -271,6 +296,7 @@ class AutoPush:
         with self.lock:
             counted = int(self.state.get("pending") or 0)
         self._fresh_funnel()
+        self._snapshot_log()
         self._write_log()
         from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
 

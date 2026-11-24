@@ -116,11 +116,15 @@ def setup_logging() -> None:
     root._tempu_configured = True  # type: ignore[attr-defined]
 
 
-LOG_FILE_BYTES = 1_000_000  # ``data/registro/app.log`` y 2 anteriores (app.log.1, app.log.2): ~3 MB como mucho
+LOG_FILE_BYTES = 1_000_000  # ``data/registro/app_vivo.log`` y 2 anteriores: ~3 MB como mucho
+# La app escribe en ``app_vivo.log`` (fuera de GitHub: lo tiene abierto y en Windows git no puede reescribirlo); antes de
+# cada subida se copia su final a ``app.log``, que es el que se sube.
+LIVE_LOG = "app_vivo.log"
+LOG_SNAPSHOT_BYTES = 1_000_000
 
 
 def add_file_log(data_dir) -> None:
-    """Registro completo en ``data/registro/app.log`` (se sube a GitHub con los datos): todo lo que sale en la ventana
+    """Registro completo en ``data/registro/app_vivo.log`` (su final se sube a GitHub como ``app.log``): todo lo que sale en la ventana
     negra, con fecha y, en los errores, dónde fallaron. Así se puede revisar desde otro ordenador qué pasó entre dos
     subidas."""
     from logging.handlers import RotatingFileHandler
@@ -132,7 +136,7 @@ def add_file_log(data_dir) -> None:
     folder = Path(data_dir) / "registro"
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        handler = RotatingFileHandler(folder / "app.log", maxBytes=LOG_FILE_BYTES, backupCount=2, encoding="utf-8", delay=True)
+        handler = RotatingFileHandler(folder / LIVE_LOG, maxBytes=LOG_FILE_BYTES, backupCount=2, encoding="utf-8", delay=True)
     except OSError:
         return
     handler.setLevel(logging.INFO)

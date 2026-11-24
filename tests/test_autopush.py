@@ -61,8 +61,10 @@ def test_push_solo_datos_y_con_el_remoto_por_delante(repos):
     result = autopush.push_data(a, a / "data", [threading.RLock()])
 
     assert result == {"committed": True, "pushed": True, "branch": "main"}
-    assert git(repos.remote, "log", "--format=%s", "main").splitlines()[:2] == ["datos", "código"]
-    assert git(repos.remote, "show", "--name-only", "--format=", "main").splitlines() == ["data/otps/p.jsonl"]
+    # Se junta con un merge (no rebase: en Windows el rebase no podía reescribir ficheros de data/ abiertos).
+    log = git(repos.remote, "log", "--format=%s", "main").splitlines()
+    assert log[0].startswith("Merge") and {"datos", "código"} <= set(log[1:3])
+    assert git(repos.remote, "diff", "--name-only", "main~1", "main").splitlines() in (["codigo.py"], ["data/otps/p.jsonl"])
     assert (a / "codigo.py").read_text() == "x = 2\n"  # el código del otro ordenador ya está aquí
 
 
@@ -97,12 +99,12 @@ def test_conflicto_no_fuerza_y_deja_el_commit_en_local(repos):
     git(b, "push", "-q")
     (a / "data" / "a.json").write_text('{"a": 1}')
 
-    with pytest.raises(autopush.GitError, match="pull --rebase"):
+    with pytest.raises(autopush.GitError, match="git pull falló"):
         autopush.push_data(a, a / "data")
 
     assert git(a, "log", "-1", "--format=%s") == "datos"  # se queda en local para el siguiente intento
     assert git(repos.remote, "log", "-1", "--format=%s", "main") == "datos b"  # el remoto, intacto
-    assert git(a, "status", "--porcelain") == ""  # sin rebase a medias
+    assert git(a, "status", "--porcelain") == ""  # sin merge a medias
 
 
 def test_cuenta_partidas_y_sube_al_llegar(repos, monkeypatch):
@@ -224,7 +226,7 @@ def test_el_registro_completo_va_a_un_fichero_dentro_de_data(tmp_path):
         root.setLevel(logging.INFO)
         logbus.get_logger("crawler").info("Estado europe: 10 partidas nuevas")
         added[0].flush()
-        text = (tmp_path / "registro" / "app.log").read_text(encoding="utf-8")
+        text = (tmp_path / "registro" / "app_vivo.log").read_text(encoding="utf-8")
         assert "Estado europe: 10 partidas nuevas" in text
         root.setLevel(old_level)
     finally:
@@ -249,3 +251,20 @@ def test_la_base_de_datos_cuenta_quien_espera_el_candado_y_vuelca_el_wal_aparte(
     assert db.wal_mb() is not None
     stop.set()
     db.close()
+
+
+
+def test_antes_de_subir_se_copia_el_final_del_registro_vivo(repos, monkeypatch):
+    """La app escribe en app_vivo.log (abierto todo el rato, fuera de GitHub); se sube una copia de su final en app.log."""
+    from app import logbus
+
+    a = repos.a
+    monkeypatch.setattr(logbus, "LOG_SNAPSHOT_BYTES", 40)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event())
+    auto = autopush.AutoPush(svc, repo=a)
+    folder = a / "data" / "registro"
+    folder.mkdir(parents=True)
+    (folder / logbus.LIVE_LOG).write_text("linea vieja 1\nlinea vieja 2\nlinea nueva 3\nlinea nueva 4\n", encoding="utf-8")
+    auto._snapshot_log()
+    copy = (folder / "app.log").read_text(encoding="utf-8")
+    assert copy.endswith("linea nueva 4\n") and copy.startswith("linea") and "vieja 1" not in copy
