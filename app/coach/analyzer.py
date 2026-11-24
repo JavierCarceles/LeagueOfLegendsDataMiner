@@ -44,6 +44,7 @@ from collections import Counter
 
 from app.coach import clocks as clk
 from app.coach import geometry as geo
+from app.coach import navgrid
 from app.coach import rule_metrics
 from app.coach.items import Inventory, ItemCatalog, season
 from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
@@ -662,8 +663,11 @@ class _Game:
         for pid, camps in infer_camps(self, anchors).items():
             anchors[pid].extend(camps)
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
+        # Corregidos (vueltas a base, teletransportes) y andando por donde se puede: rodeando los muros salvo los
+        # campeones que los saltan (``navgrid``). Todo lo que usa posiciones (roams, contraganks, zonas) va por ahí.
         self.anchors = {
-            pid: _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"])) for pid, items in self.raw_anchors.items()
+            pid: _walk(_reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"])), self.players[pid].get("champ"))
+            for pid, items in self.raw_anchors.items()
         }
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
 
@@ -750,6 +754,11 @@ def interpolate(items: list[tuple[int, int, int, int]], t: int, times: list[int]
         return prev[1], prev[2]
     f = (t - prev[0]) / (nxt[0] - prev[0])
     return prev[1] + (nxt[1] - prev[1]) * f, prev[2] + (nxt[2] - prev[2]) * f
+
+
+def _walk(anchors: list[tuple[int, int, int, int]], champ: int | None) -> list[tuple[int, int, int, int]]:
+    """Los puntos de paso con las rutas que rodean muros entre cada dos (tipo 7; no en los tramos «quieto y salta»)."""
+    return [(int(a[0]), int(a[1]), int(a[2]), int(a[3])) for a in navgrid.route_track(anchors, champ)]
 
 
 def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, int] | None) -> list[tuple[int, int, int, int]]:
@@ -3096,6 +3105,7 @@ def _replay(g: _Game) -> dict:
     }
     return {
         "tracks": tracks,
+        "routed": True,  # ya rodean los muros (``_walk``): la vista 2D no tiene que calcularlas
         "frames": frames,
         "kills": [[round(k["t"] / 1000, 1), k["killer"], k["victim"], *(k["pos"] or (None, None)), k["assists"]] for k in g.kills],
         "objectives": [[round(o["t"] / 1000, 1), o["kind"], o["team"], int(o["pos"][0]), int(o["pos"][1])] for o in g.objectives],

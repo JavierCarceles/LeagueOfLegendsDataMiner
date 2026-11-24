@@ -428,3 +428,17 @@ top, mid y ADC sin pelea ni vuelta a base:
 
 Así que los roams y las rotaciones reconstruidas (`route_macro`) no se inventan salidas de línea que la experiencia
 contradiga. No se corrige nada más: con 1 caso de 1.385 no compensa añadir otra regla a la reconstrucción.
+
+### Los análisis también rodean muros (24-11-2026)
+
+Hasta ahora solo la repetición 2D rodeaba los muros; las posiciones que usan los análisis (roams, contraganks, tiempo en
+cada zona, agrupado o solo en una lateral) iban en línea recta entre dos puntos y pasaban el 11,2 % del tiempo dentro
+de un muro. Ahora el analizador anda por la rejilla de `navgrid` (A*, sin cortar esquinas en diagonal): 1,1 % (bordes
+de la rejilla). Los que saltan muros con una habilidad pasan de 9 a 35 campeones (Zeri, Kha'Zix, Tristana, Fizz,
+Camille, Elise, Riven, Ekko, Kassadin, Corki, Lucian, Jax, Katarina, Tryndamere, Gnar, Aatrox, Akali, Qiyana, Bel'Veth,
+LeBlanc, Zed, Jarvan IV, Kalista, Sylas, Rengar y Taliyah, además de los que ya estaban), con IDs comprobados en Data
+Dragon. Los demás solo cruzan un muro si no hay otro camino (Destello en un muro fino).
+
+La precisión no cambia (validación 1: mediana 1.130 frente a 1.142 unidades), pero ya no hay recorridos imposibles. El
+A* es ponderado (heurística octil ×1,3) para no frenar al recolector: analizar una partida pasa de 0,02 s a 0,13 s. Solo
+lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guardadas no se vuelven a analizar.
