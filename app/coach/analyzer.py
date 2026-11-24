@@ -40,6 +40,7 @@ desconexiones, objetos desconocidos…), se omite el veredicto.
 from __future__ import annotations
 
 import bisect
+import math
 from collections import Counter
 
 from app.coach import clocks as clk
@@ -662,6 +663,8 @@ class _Game:
                     add(pid, b["t"], b["pos"], 1)
         for pid, camps in infer_camps(self, anchors).items():
             anchors[pid].extend(camps)
+        for pid, spots in infer_lane_farm(self, anchors).items():
+            anchors[pid].extend(spots)
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
         # Corregidos (vueltas a base, teletransportes) y andando por donde se puede: rodeando los muros salvo los
         # campeones que los saltan (``navgrid``). Todo lo que usa posiciones (roams, contraganks, zonas) va por ahí.
@@ -797,12 +800,34 @@ CAMP_SPAWN_MS = 90_000
 CAMP_RESPAWN_MS = 150_000
 CAMP_CLEAR_MS = 9_000
 CAMP_SPEED = 0.40  # unidades por ms andando entre campamentos
+# Si así no da tiempo (pasa en partida avanzada: 18-23 CS de jungla en un minuto), con la velocidad real que da Riot en
+# esos frames (botas, objetos, misión de jungla) y limpiando como al final de partida. Sin esto, 9 de 821 tramos de tus
+# partidas no cuadraban con ningún camino.
+CAMP_FAST_CLEAR_MS = 3_500
+NEAR_CAMP_REST = 1_500  # «sigue en el campamento de antes» (los pocos CS que faltaban de él caen en el minuto siguiente)
+CAMP_MAX_SPEED = 0.60
 CAMP_CANDIDATES = 6  # los campamentos vivos más cerca del tramo (para no probar todas las combinaciones)
 CAMP_MAX = 4
 
 
 def _camp_sites() -> list[tuple[str, tuple[float, float]]]:
     return [(f"{team}_{name}", pos) for (team, name), pos in geo.CAMPS.items()]
+
+
+def _camp_paces(g, pid: int, a: int, b: int) -> list[tuple[int, float]]:
+    """(limpieza por campamento, velocidad máxima) que se prueban en orden: la del principio de partida y, si no da
+    tiempo, la velocidad real de esos frames con la limpieza rápida de partida avanzada."""
+    paces = [(CAMP_CLEAR_MS, CAMP_SPEED)]
+    speeds = []
+    frames = (getattr(g, "pf", None) or {}).get(pid) or []
+    for i in (a, b):
+        frame = frames[i] if i < len(frames) else None
+        v = _num(((frame or {}).get("championStats") or {}).get("movementSpeed"))
+        if v:
+            speeds.append(v / 1000)
+    fast = min(CAMP_MAX_SPEED, max([CAMP_SPEED, *speeds]))
+    paces.append((CAMP_FAST_CLEAR_MS, fast))
+    return paces
 
 
 def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) -> dict[int, list[tuple[int, int, int, int]]]:
@@ -845,6 +870,9 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
         if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known[pid]):
             continue
         g.camp_minutes += 1
+        last = (out.get(pid) or [None])[-1]
+        if c[-1] - c[0] < CAMP_CS and last and t0 - last[0] <= 2 * CAMP_CLEAR_MS and geo.dist(p0, last[1:3]) <= NEAR_CAMP_REST:
+            continue  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
         k = min(k, CAMP_MAX)
         alive = [
             (name, pos) for name, pos in sites
@@ -865,10 +893,16 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
             g.camp_misses += 1
             continue
         length, combo = best
-        walk = (t1 - t0) - len(combo) * CAMP_CLEAR_MS
-        if walk <= 0 or length / walk > CAMP_SPEED:
+        fits = None
+        for clear_ms, max_speed in _camp_paces(g, pid, a, b):
+            walk = (t1 - t0) - len(combo) * clear_ms
+            if walk > 0 and length / walk <= max_speed:
+                fits = clear_ms, walk
+                break
+        if fits is None:
             g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
             continue
+        clear_ms, walk = fits
         # Con minutos intermedios conocidos (su CS), cada campamento cae en el minuto en que subió el CS.
         due = []
         for j in range(1, len(c)):
@@ -878,13 +912,65 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
         for n, (name, pos) in enumerate(combo):
             t += geo.dist(here, pos) / speed if speed > 0 else 0
             t = max(t, CAMP_SPAWN_MS)
-            if n < len(due) and t + CAMP_CLEAR_MS > due[n]:
-                t = max(t0, due[n] - CAMP_CLEAR_MS)  # el CS dice que ya lo había hecho a esa hora
+            if n < len(due) and t + clear_ms > due[n]:
+                t = max(t0, due[n] - clear_ms)  # el CS dice que ya lo había hecho a esa hora
             out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
-            t += CAMP_CLEAR_MS
+            t += clear_ms
             out[pid].append((int(min(t, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
             killed[name] = int(t)
             here = pos
+    return out
+
+
+# ---------------------------------------------------------------- paso por la línea deducido del CS de súbditos
+ANCHOR_LANE = 8  # en una línea farmeando (deducido del CS de súbditos de ese minuto)
+LANE_FARM_CS = 6  # CS de súbditos en un minuto que exige haber pasado por una línea
+LANE_REACH = 1_600  # radio de experiencia de los súbditos
+LANE_FARM_SHARE = 0.25  # si el recorrido pasa menos de esto del minuto cerca de una línea, no cuadra con su CS
+
+
+def _closest_on(points: list, p) -> tuple[float, float]:
+    best, best_d = points[0], math.inf
+    for a, b in zip(points, points[1:]):
+        ax, ay, bx, by = a[0], a[1], b[0], b[1]
+        dx, dy = bx - ax, by - ay
+        f = 0.0 if dx == dy == 0 else max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy)))
+        q = (ax + dx * f, ay + dy * f)
+        if (d := geo.dist(p, q)) < best_d:
+            best, best_d = q, d
+    return best
+
+
+def infer_lane_farm(g, anchors: dict[int, list]) -> dict[int, list[tuple[int, int, int, int]]]:
+    """Minutos en que alguien hizo CS de súbditos lejos de toda línea en su frame de antes y en el de después (y sin
+    otros puntos entre medias): tuvo que ir a farmear. Se le coloca en el punto de la línea más cercano a su recorrido, a
+    mitad de minuto. En tus partidas, 2 de 1.385 minutos de laners: un top que se ve en el río al empezar y al acabar
+    el minuto con 6-9 CS de súbditos entre medias."""
+    out: dict[int, list] = {}
+    if not g.has_timeline:
+        return out
+    lanes = [pts for pts, _half in geo.LANES.values()]
+    for pid in g.players:
+        others = sorted(a[0] for a in anchors.get(pid) or [] if a[3] != 0)
+        for i in range(1, len(g.ts)):
+            t0, t1 = g.ts[i - 1], g.ts[i]
+            cs0, cs1 = g.fval(pid, i - 1, "minionsKilled"), g.fval(pid, i, "minionsKilled")
+            p0, p1 = g.frame_pos(pid, i - 1), g.frame_pos(pid, i)
+            if None in (cs0, cs1) or not p0 or not p1 or cs1 - cs0 < LANE_FARM_CS:
+                continue
+            if g.dead_overlap(pid, t0, t1):
+                continue
+            j = bisect.bisect_right(others, t0)
+            if j < len(others) and others[j] < t1:
+                continue  # hay otros puntos (kills, compras, campamentos): ya se sabe por dónde fue
+            path = navgrid.route(p0, p1, g.players[pid].get("champ"))  # por donde se anda (rodeando muros)
+            samples = [navgrid.along(path, f) for f in (0.1, 0.3, 0.5, 0.7, 0.9)]
+            near = sum(1 for q in samples if min(geo.dist_polyline(q, pts) for pts in lanes) <= LANE_REACH)
+            if near / len(samples) >= LANE_FARM_SHARE:
+                continue
+            mid = navgrid.along(path, 0.5)
+            spot = min((_closest_on(pts, mid) for pts in lanes), key=lambda q: geo.dist(q, mid))
+            out.setdefault(pid, []).append(((t0 + t1) // 2, int(spot[0]), int(spot[1]), ANCHOR_LANE))
     return out
 
 
