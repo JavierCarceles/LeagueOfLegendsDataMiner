@@ -50,6 +50,8 @@ MIN_ROLE_RATE = 0.08  # campeones que de verdad se juegan en ese rol (fracción 
 ESSENTIAL = P_CORE  # lo de prioridad <= P_CORE cuenta como «esencial» en el progreso
 
 
+WARM_GAP_WHILE_CRAWLING_S = 10.0  # pausa entre tareas de precarga mientras recoge el recolector
+
 class Lane:
     def __init__(self, name: str, workers: int) -> None:
         self.name = name
@@ -181,6 +183,17 @@ class Warmer:
                 lane.current = None
                 lane.recent.append(time.monotonic())
                 self._tick(plan_id, prio)
+            if lane.name != "demand" and self._crawler_running():
+                # Con el recolector en marcha la precarga cede el paso: sus escrituras (~3,5 por segundo entre todas las
+                # colas) competían por la base de datos con las partidas. Lo que pides desde la web («demand») no espera.
+                self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)
+
+    def _crawler_running(self) -> bool:
+        crawler = getattr(self.svc, "crawler", None)
+        try:
+            return bool(crawler is not None and crawler.running)
+        except Exception:  # noqa: BLE001
+            return False
 
     @staticmethod
     def _run_inline(fn):

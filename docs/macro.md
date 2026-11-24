@@ -517,3 +517,8 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
 - **Subida de las 03:56 (50,5 partidas/min con 2 por delante):** la descarga no mejoró: con un hilo cada llamada espera
   a la anterior (un timeline pesa 1-2 MB) y cada región se quedaba en ~28 llamadas por minuto. Ahora 2 hilos de descarga
   por región y 3 partidas por delante. Guardar sigue en 1,3-1,9 s (~0,3 s por escritura con el candado; WAL 289 MB).
+- **Subida de las 09:41 (61,4 partidas/min, 2 hilos de descarga):** guardar ~1,0-1,25 s, analizar ~0,75 s y esperando
+  la descarga ~1,7 s por partida; cada región, 45-69 llamadas de 100 cada 2 min. La precarga de OP.GG y Lolalytics
+  (refresco de la mañana) hizo ~1.470 escrituras y esperó ~850 s el candado. Ahora la precarga espera 10 s entre tareas
+  mientras recoge el recolector (lo que pides desde la web no), 3 hilos de descarga por región y 4 partidas por delante,
+  y cada 5 min se intenta recortar el WAL (686 MB) esperando como mucho 2 s.
