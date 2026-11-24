@@ -28,6 +28,8 @@ SCHEMA_VERSION = 1
 WAL_AUTOCHECKPOINT_PAGES = 0
 JOURNAL_SIZE_LIMIT = 64 * 1024 * 1024
 CHECKPOINT_EVERY_S = 30
+TRUNCATE_EVERY_ROUNDS = 10  # cada 5 min
+TRUNCATE_WAIT_MS = 2000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -421,9 +423,16 @@ class Database:
             return
 
         def run() -> None:
+            conn = self.conn()
+            conn.execute(f"PRAGMA busy_timeout={TRUNCATE_WAIT_MS}")  # su propia conexión: no espera más que esto
+            rounds = 0
             while not (stop.wait(CHECKPOINT_EVERY_S) if stop is not None else time.sleep(CHECKPOINT_EVERY_S)):
+                rounds += 1
+                # Cada 5 min, además de copiar, recorta el WAL (si en 2 s no hay hueco, sigue como estaba). Copiar
+                # solo (PASSIVE) no lo reinicia mientras haya lecturas en marcha: llegó a 686 MB.
+                mode = "TRUNCATE" if rounds % TRUNCATE_EVERY_ROUNDS == 0 else "PASSIVE"
                 try:
-                    self.conn().execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+                    conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
                 except sqlite3.Error:
                     pass
 
