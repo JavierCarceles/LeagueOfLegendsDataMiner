@@ -226,3 +226,24 @@ def test_cada_fila_de_movimiento_dice_hacia_donde_van_los_elos_altos():
     assert adc == {"trend": "down", "standing": "mid"}
     flat = insights._move_trend({"mine": 14.0, "tiers": {"PLATINUM": 14.2, "CHALLENGER": 14.8}})
     assert flat == {"trend": None, "standing": None}
+
+
+def test_paso_por_la_linea_deducido_del_cs_de_subditos():
+    """Un laner visto lejos de toda línea al empezar y al acabar el minuto, con 8 CS de súbditos entre medias: tuvo que
+    ir a farmear. Se le coloca en la línea más cercana a mitad de minuto; con 3 CS no se deduce nada."""
+    from types import SimpleNamespace
+
+    from app.coach import analyzer as A
+    from app.coach import geometry as geo
+
+    pos = {0: (3_500, 7_500), 1: (3_800, 8_200)}
+    cs = {0: 40, 1: 48}
+    g = SimpleNamespace(
+        players={1: {"team": 100, "role": "TOP", "champ": 86}}, has_timeline=True, ts=[600_000, 660_000],
+        frame_pos=lambda pid, i: pos[i], fval=lambda pid, i, key: cs[i], dead_overlap=lambda pid, a, b: 0,
+    )
+    spots = A.infer_lane_farm(g, {1: []})[1]
+    assert len(spots) == 1 and spots[0][0] == 630_000 and spots[0][3] == A.ANCHOR_LANE
+    assert min(geo.dist_polyline(spots[0][1:3], pts) for pts, _h in geo.LANES.values()) < 10
+    cs[1] = 43
+    assert A.infer_lane_farm(g, {1: []}) == {}

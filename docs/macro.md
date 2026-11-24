@@ -442,3 +442,17 @@ Dragon. Los demás solo cruzan un muro si no hay otro camino (Destello en un mur
 La precisión no cambia (validación 1: mediana 1.130 frente a 1.142 unidades), pero ya no hay recorridos imposibles. El
 A* es ponderado (heurística octil ×1,3) para no frenar al recolector: analizar una partida pasa de 0,02 s a 0,13 s. Solo
 lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guardadas no se vuelven a analizar.
+
+### Ningún tramo sin un camino posible (24-11-2026)
+
+- **Jungla:** los 12 tramos de 821 que no cuadraban con ningún camino de campamentos eran de partida avanzada (18-23 CS
+  de jungla en un minuto) y uno de final de partida. Si con el ritmo del principio (400 u/s, 9 s por campamento) no da
+  tiempo, se prueba con la velocidad real que da Riot en esos frames (hasta 600 u/s) y limpiando en 3,5 s; y los pocos
+  CS que faltaban de un campamento recién hecho (los krugs se dividen) cuentan como ese campamento. Ahora 0 de 821, y la
+  validación 2 mejora un poco: error medio 3.049 → 3.017 unidades, fallos grandes 28,9 % → 28,2 %.
+- **Líneas:** si alguien hace 6 o más CS de súbditos en un minuto y su camino entre los dos frames (rodeando muros) pasa
+  menos del 25 % cerca de una línea, se le coloca farmeando en el punto de la línea más cercano a mitad de minuto
+  (`infer_lane_farm`, punto de tipo 8; en la vista 2D sale como estimado). Validación 3: 2 minutos imposibles → 0.
+- **Muros:** queda un 1,05 % del tiempo en celdas de muro, pero el 0,82 % es junto a posiciones reales de Riot que ya
+  caen en celdas de muro (el 4,6 % de los frames: la rejilla de 128 × 128, ~115 unidades por celda, no es exacta en los
+  bordes de los muros y los arbustos). Los tramos reconstruidos solo ponen un 0,23 % dentro de un muro.
