@@ -549,7 +549,7 @@ function levelsLine(a, death, players) {
   );
 }
 
-const ELO_NAMES = { PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
+const ELO_NAMES = { BRONZE: "Hierro-Bronce", GOLD: "Plata-Oro", PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
 
 /** «Partidas con este error: Platino 60 % · … · Aspirante 47 %» y si es de lo que separa elos. */
 function eloLine(m) {

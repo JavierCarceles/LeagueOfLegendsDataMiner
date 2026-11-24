@@ -733,3 +733,69 @@ Lo que encontró con ~35.000 partidas:
   visita en curso, y manda el elo antes que el tipo de jugador. Con las cifras del 24-11-2026: Bronce 15,9 %, Oro y Plata
   14,1 %, Platino 13,3 %, Hierro 12,6 %, Esmeralda 10,5 %, Gran Maestro 8,2 %, Maestro 5,1 %, Aspirante 4,0 %,
   Diamante 2,2 %.
+
+## N) Revisión con Hierro → Aspirante por separado (24-11-2026, 42.594 partidas con timeline)
+
+Con el reparto por elo ya hay 280-500 partidas por rol de cada elo de Hierro a Platino. Cada métrica y cada error se ha
+mirado elo a elo (no con Hierro a Oro juntos en «Platino»).
+
+**Reconstrucción de posiciones:**
+
+- Validación otra vez con tus partidas (`python -m app.coach.track_check`): se quita la posición real de cada evento
+  (9.112) y se reconstruye con el resto. Error medio de 1.576 unidades y un 6,8 % a más de 4.000, frente a 1.881 y
+  11,9 % con línea recta. El jungla con su CS: 3.017 de error medio y 28 % de fallos grandes, frente a 3.550 y 39 % sin
+  campamentos. Ningún minuto de laner queda fuera de las líneas con el CS de súbditos que hizo.
+- **Igual de fiable en todos los elos:** entre el 15 y el 19 % del tiempo antes del 14 la posición está a más de 20 s de
+  un dato real, de Hierro a Aspirante (Hierro el que más, por tener menos eventos).
+- **Lo que sale del recorrido va con lo exacto de Riot:**
+
+  | Métrica del recorrido | Estadística de Riot | r |
+  |---|---|---|
+  | Roams a otra línea (mid) | `killsOnOtherLanesEarlyJungleAsLaner` | 0,42 |
+  | Roams a otra línea (top / support / ADC) | la misma | 0,24 / 0,24 / 0,14 |
+  | Tiempo en la jungla rival antes del 14 (jungla) | `enemyJungleMonsterKills` | 0,44 |
+
+  Las métricas de wards por zona siguen sin ir con Riot (r = 0,06-0,11; ya se sabía, sección M): por eso «Mi progreso»
+  usa las de Riot.
+
+**Errores por partida de cada grupo de elo** (perfil por elo; todos los roles bajan de Hierro-Bronce a Aspirante):
+
+| | Hierro-Bronce | Plata-Oro | Platino | Esmeralda | Diamante | Maestro | Aspirante |
+|---|---|---|---|---|---|---|---|
+| Top | 5,4 | 4,7 | 4,5 | 4,4 | 4,2 | 3,6 | 3,4 |
+| Jungla | 5,4 | 4,2 | 4,3 | 3,9 | 3,1 | 2,7 | 2,5 |
+| Mid | 5,4 | 4,5 | 4,6 | 4,0 | 3,9 | 3,5 | 2,9 |
+| ADC | 4,5 | 4,8 | 4,1 | 3,8 | 3,7 | 3,3 | 2,6 |
+| Support | 3,3 | 3,2 | 3,3 | 3,1 | 2,8 | 2,9 | 2,5 |
+
+Bajan de forma limpia, elo a elo:
+
+- morir solo en tu línea: mid 42 → 13 % de partidas; top 48 → 29 %;
+- perder duelos con niveles u objetos de menos: jungla 23 → 4 %;
+- acumular oro: ADC 17 → 1,5 %;
+- morir con oro sin gastar;
+- no convertir peleas ganadas;
+- morir aislado;
+- no defenderte del daño que recibes;
+- morir antes de un objetivo.
+
+**Corregido:**
+
+- **«Sin botas» con Yuumi:** no puede comprar botas (261 de sus 265 partidas sin ellas). Era el 84 % de los «sin
+  botas» de support en Oro y el 77 % en Diamante. Ahora no cuenta con Yuumi ni con Cassiopeia (`NO_BOOTS`,
+  `skip_champs`). Las partidas ya guardadas se corrigen al leerlas (`dropped` con el campeón).
+- **«Te vieron llegar con la lente sin usar»:** en el 28-47 % de esas muertes habías quitado un ward en los 90 s
+  anteriores, así que la lente seguramente estaba en recarga (90-60 s según el nivel). Ahora no cuenta
+  (`LENS_COOLDOWN_MS`, etiqueta `lens_cd`). Las partidas ya guardadas se corrigen al leerlas con los wards que quitaste
+  (`lens_on_cooldown`). Aun así sube con el elo en support (Hierro-Oro 3-8 % de partidas, Maestro-Aspirante 13-18 %):
+  los mejores juegan más cerca de los wards rivales. Sigue pesando un cuarto (`RISE_RATIO`).
+- **Grupos de elo:** Hierro-Bronce y Plata-Oro van aparte de Platino en «Mi progreso», en el perfil, en la auditoría y
+  en las medias del ranking. Antes Hierro a Oro contaban como «Platino». Lo sumado así en `_medias_ranking.json` se
+  guarda aparte (`hierro_a_platino_v1`) y no se usa. Un objetivo Plata u Oro se compara con Plata-Oro.
+
+**Lo que no separa y ya pesa menos (sin cambios):**
+
+- «El rival cogió un objetivo y no lo compensasteis»: en jungla sale en ~25 % de las partidas en todos los elos (hay
+  mucha muestra), así que pesa la mitad.
+- «Pinks rivales en tu jungla»: sube con el elo (en Maestro se ponen más pinks), así que pesa un cuarto.
+- «Te ganquean» y «adelantado»: suben con el elo, como ya se vio en la sección M.

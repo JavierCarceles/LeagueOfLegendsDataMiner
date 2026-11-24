@@ -118,6 +118,9 @@ WARD_KILL_MATCH = 2500  # quien quita un ward estaba a menos de esto de él (si 
 TRINKETS = {3340: "ward", 3363: "farsight", 3364: "lens"}
 SEEN_BY_WARD = 1100  # visión de un ward (~900) y algo de margen por la posición estimada
 SEEN_BEFORE_MS = 15_000  # te vio en los 15 s antes de morir
+# La lente se recarga 90-60 s según el nivel: si quitaste un ward en los 90 s anteriores, seguramente estaba en recarga y
+# no es «llevabas la lente sin usar» (pasaba en el 28-47 % de esas muertes, 24-11-2026).
+LENS_COOLDOWN_MS = 90_000
 ENEMY_PINK_LONG_MS = 180_000  # pink rival en tu jungla que vive 3 min o más…
 ENEMY_PINK_PASS = 1200  # …y pasaste a su lado (la pink se ve: no hace falta lente)…
 ENEMY_PINK_AFTER_MS = 60_000  # …y siguió viva 1 min o más después
@@ -133,7 +136,7 @@ CROSS_MAP_MS = 60_000
 CONTEXT_OK = ("fight_won", "traded", "game_end", "afk")  # muertes que no cuentan como error en las métricas
 R_LATE_S = 30
 NO_R_CHECK = {43, 60, 76, 77, 126, 910}  # Karma, Elise, Nidalee, Udyr, Jayce, Hwei: su R no sigue la regla 6/11/16
-NO_BOOTS = {69}  # Cassiopeia no puede comprar botas
+NO_BOOTS = {69, 350}  # Cassiopeia y Yuumi no pueden comprar botas (Yuumi: 261 de 265 partidas sin ellas, 24-11-2026)
 BUYS_ANYWHERE = {516}  # Ornn compra en cualquier sitio: sus compras no son vueltas a base
 LANE_PHASE_END_MS = 20 * 60_000  # hasta el 20, top, ADC y support no van a los objetivos del otro lado (salvo que cayera su torre exterior)
 
@@ -1396,7 +1399,8 @@ def _classify_death(g: _Game, k: dict) -> dict:
     if seen:
         tags.append("seen_ward")
         if _trinket(g, g.me["pid"], t) == "lens":
-            tags.append("lens_unused")
+            used = any(0 <= t - k <= LENS_COOLDOWN_MS for k in g.ward_kills.get(g.me["pid"]) or [])
+            tags.append("lens_cd" if used else "lens_unused")
     gold = _death_gold(g, t)
     if gold:
         tags.append("unspent_gold")

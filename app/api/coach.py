@@ -108,7 +108,8 @@ def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
         if g.get("mistakes"):
             gone = [
                 m for m in g["mistakes"]
-                if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role")) or insights.excused({"kind": m[0], "tags": m[3]}, g.get("role"))
+                if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role"), g.get("champ"))
+                or insights.excused({"kind": m[0], "tags": m[3]}, g.get("role"))
             ]
             if gone:
                 g["mistakes"] = [m for m in g["mistakes"] if m not in gone]
@@ -401,7 +402,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
             log.warning("Build de OP.GG de %s (%s): %s", analysis["champ"], analysis["role"], exc)
             ref = None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
-    analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"))]
+    analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"), analysis.get("champ"))]
     for m in analysis["moments"]:
         # Cambio igualado (caísteis los mismos en los dos bandos): se ve en la repetición, pero no es un error.
         if m.get("severity") in ("high", "medium", "low") and insights.excused(m, analysis.get("role")):

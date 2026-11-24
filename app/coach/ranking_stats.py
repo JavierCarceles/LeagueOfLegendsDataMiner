@@ -23,11 +23,25 @@ log = get_logger("ranking-stats")
 FILE = "_medias_ranking.json"
 FLUSH_EVERY_S = 60
 GROUP_OF = {
-    "IRON": "PLATINUM", "BRONZE": "PLATINUM", "SILVER": "PLATINUM", "GOLD": "PLATINUM", "PLATINUM": "PLATINUM",
+    "IRON": "BRONZE", "BRONZE": "BRONZE", "SILVER": "GOLD", "GOLD": "GOLD", "PLATINUM": "PLATINUM",
     "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER", "GRANDMASTER": "MASTER", "CHALLENGER": "CHALLENGER",
 }
 ROLE_OF = {"TOP": "TOP", "JUNGLE": "JUNGLE", "MIDDLE": "MID", "BOTTOM": "ADC", "UTILITY": "SUPPORT"}
-VERSION = 1
+# 2: Hierro-Bronce y Plata-Oro aparte de Platino. Lo sumado con la 1 en «PLATINUM» mezcla Hierro a Platino: se guarda
+# aparte (``MIXED_KEY``, no se borra) y no se usa.
+VERSION = 2
+MIXED_KEY = "hierro_a_platino_v1"
+
+
+def _upgrade(data: dict) -> dict:
+    if int(data.get("version") or 1) >= VERSION:
+        return data
+    mixed = data.setdefault(MIXED_KEY, {})
+    for role, groups in (data.get("roles") or {}).items():
+        if "PLATINUM" in groups:
+            mixed[role] = groups.pop("PLATINUM")
+    data["version"] = VERSION
+    return data
 
 
 def participant_metrics(match: dict) -> list[tuple[str, dict]]:
@@ -87,7 +101,7 @@ class RankingStats:
         if not pending:
             return
         try:
-            data = load(self.path.parent.parent) or {"version": VERSION, "games": 0, "roles": {}}
+            data = _upgrade(load(self.path.parent.parent) or {"version": VERSION, "games": 0, "roles": {}})
             data["games"] = int(data.get("games") or 0) + games
             for role, groups in pending.items():
                 for group, metrics in groups.items():
@@ -119,7 +133,7 @@ class RankingStats:
 def load(data_dir: Path) -> dict | None:
     path = Path(data_dir) / "otps" / FILE
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return _upgrade(json.loads(path.read_text(encoding="utf-8")))
     except (OSError, ValueError):
         return None
 

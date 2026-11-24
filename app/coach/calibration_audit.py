@@ -26,13 +26,13 @@ from pathlib import Path
 from app.coach import geometry as geo
 from app.coach import route_macro, rule_metrics
 from app.coach.elo_profile import MOVE_KEYS, game_mistakes
-from app.coach.insights import reliable
+from app.coach.insights import lens_on_cooldown, reliable
 
 GROUP_OF = {
-    "IRON": "PLATINUM", "BRONZE": "PLATINUM", "SILVER": "PLATINUM", "GOLD": "PLATINUM", "PLATINUM": "PLATINUM",
+    "IRON": "BRONZE", "BRONZE": "BRONZE", "SILVER": "GOLD", "GOLD": "GOLD", "PLATINUM": "PLATINUM",
     "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER", "GRANDMASTER": "MASTER", "CHALLENGER": "CHALLENGER",
 }
-GROUPS = ("PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
+GROUPS = ("BRONZE", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
 MIN_GAMES = 100  # partidas de un elo para compararlo
 SEPARATES_Z = 3.0
 SAME_Z = 1.5
@@ -127,8 +127,9 @@ def records(data_dir: Path):
                             pass
                         values["pinks_rio_mitad_rival_pct"] = _pinks_river_enemy_half(d)
                         # Errores con la certeza con la que se decidieron (``ev`` de cada momento; solo partidas nuevas).
+                        moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
                         sure_m, unsure_m, with_ev = set(), set(), False
-                        for mo in a.get("moments") or []:
+                        for mo in moments:
                             ev = mo.get("ev")
                             if ev is None or mo.get("severity") not in ("high", "medium", "low"):
                                 continue
@@ -142,7 +143,7 @@ def records(data_dir: Path):
                             "role": role, "group": group, "certainty": _certainty(d.get("track") or {}),
                             "with_ev": with_ev, "sure_mistakes": sure_m, "unsure_mistakes": unsure_m,
                             "values": {k: float(v) for k, v in values.items() if isinstance(v, (int, float)) and not isinstance(v, bool)},
-                            "mistakes": {m for m, _sev in game_mistakes(a.get("moments") or [], role)},
+                            "mistakes": {m for m, _sev in game_mistakes(moments, role, d.get("champ"))},
                             "official": {k: float(v) for k, v in (d.get("challenges") or {}).items() if isinstance(v, (int, float))},
                         }
             except (OSError, EOFError):

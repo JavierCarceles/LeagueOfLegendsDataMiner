@@ -646,7 +646,9 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
      "tip": "Entre jugada y jugada limpia campamentos u oleadas y vuelve a base en cuanto te llegue para una pieza grande: un minuto de retraso en el primer objeto es un minuto peleando más débil."},
     {"id": "r_late", "kind": "build", "need": ("skills",), "metric": "r_late", "title": "Subes la R tarde"},
     # En top no: los Aspirante lo hacen el doble que los Diamante (0,079 frente a 0,035 por partida; en jungla, igual).
-    {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "skip_roles": ("TOP", "JUNGLE"), "title": "Sin botas mejoradas al minuto 20",
+    # Ni Cassiopeia ni Yuumi pueden comprar botas: con Yuumi era el 77-84 % de los «sin botas» de support (24-11-2026).
+    {"id": "no_boots", "kind": "build", "need": ("boots",), "metric": None, "skip_roles": ("TOP", "JUNGLE"), "skip_champs": (69, 350),
+     "title": "Sin botas mejoradas al minuto 20",
      "tip": "Las botas de nivel 2 cuestan poco y dan mucha movilidad: cómpralas entre el primer y el segundo objeto salvo que tu campeón no las use."},
     {"id": "no_antiheal", "kind": "build", "need": ("anti_heal",), "metric": None, "title": "Sin Heridas graves contra curaciones",
      "tip": "Contra campeones que se curan mucho, compra un componente de Heridas graves (desde 800 de oro) en cuanto empiecen a pelear."},
@@ -667,6 +669,21 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
     {"id": "pink_unused", "kind": "vision", "need": ("pink",), "metric": None, "title": "Llevas pinks y no las usas en los objetivos",
      "tip": "Una pink en el inventario no da visión: ponla en el foso o en el arbusto de entrada un minuto antes de cada objetivo."},
 ]
+
+
+def lens_on_cooldown(moments: list[dict], wards_killed_s: list[float]) -> list[dict]:
+    """Partidas analizadas antes de mirar la recarga de la lente: una muerte «con la lente sin usar» en la que quitaste
+    un ward en los 90 s anteriores (``LENS_COOLDOWN_MS``) no lo es (la lente estaba en recarga). Devuelve copias."""
+    from app.coach.analyzer import LENS_COOLDOWN_MS
+
+    kills = [float(k) for k in wards_killed_s or []]
+    out = []
+    for m in moments or []:
+        tags = m.get("tags") or []
+        if "lens_unused" in tags and any(0 <= float(m.get("t") or 0) - k <= LENS_COOLDOWN_MS / 1000 for k in kills):
+            m = {**m, "tags": [("lens_cd" if x == "lens_unused" else x) for x in tags]}
+        out.append(m)
+    return out
 
 
 def mistake_type(kind: str, tags: set, role: str | None = None) -> dict | None:
@@ -694,12 +711,13 @@ def excused(moment: dict, role: str | None) -> bool:
     return False
 
 
-def dropped(moment: dict, role: str | None) -> bool:
-    """¿Momento de una regla que en ese rol ya no cuenta (``skip_roles``)? Para las partidas analizadas antes del cambio."""
+def dropped(moment: dict, role: str | None, champ: int | None = None) -> bool:
+    """¿Momento de una regla que en ese rol o con ese campeón ya no cuenta (``skip_roles``, ``skip_champs``)? Para las
+    partidas analizadas antes del cambio."""
     tags = set(moment.get("tags") or [])
     for mt in MISTAKE_TYPES:
         if mt["kind"] == moment.get("kind") and mt["need"] and all(t in tags for t in mt["need"]):
-            return role in mt.get("skip_roles", ())
+            return role in mt.get("skip_roles", ()) or (champ is not None and champ in mt.get("skip_champs", ()))
     return False
 
 
@@ -707,8 +725,8 @@ _mistake_type = mistake_type
 
 
 # ------------------------------------------------------------------ errores frente a cada elo
-ELO_GROUPS = ("PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
-ELO_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante", "MASTER": "Maestro", "CHALLENGER": "Aspirante"}
+ELO_GROUPS = ("BRONZE", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
+ELO_LABEL = {"BRONZE": "Hierro-Bronce", "GOLD": "Plata-Oro", "PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante", "MASTER": "Maestro", "CHALLENGER": "Aspirante"}
 # Un tipo de error «no separa elos» si el elo más alto con datos lo comete al menos el 85 % de veces que el más bajo.
 FLAT_RATIO = 0.85
 FLAT_WEIGHT = 0.5  # en «Errores que repites» pesa la mitad: es parte del juego, no lo que te impide subir
@@ -1344,7 +1362,7 @@ def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
     return out
 
 
-ELO_OF_TARGET = {"SILVER": "PLATINUM", "GOLD": "PLATINUM", "PLATINUM": "PLATINUM", "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER"}
+ELO_OF_TARGET = {"SILVER": "GOLD", "GOLD": "GOLD", "PLATINUM": "PLATINUM", "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER"}
 
 
 def errors_score(elo: dict | None, target_tier: str | None) -> dict | None:

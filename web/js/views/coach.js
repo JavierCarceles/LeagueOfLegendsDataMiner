@@ -754,7 +754,7 @@ function movementCard(m) {
   );
 }
 
-const ELO_LABEL = { PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
+const ELO_LABEL = { BRONZE: "Hierro-Bronce", GOLD: "Plata-Oro", PLATINUM: "Platino", EMERALD: "Esmeralda", DIAMOND: "Diamante", MASTER: "Maestro", CHALLENGER: "Aspirante" };
 const ELO_STATUS = { worse: ["Peor que los mejores", "bad"], even: ["Como los mejores", ""], better: ["Mejor que los mejores", "good"] };
 
 function eloSummary(e) {

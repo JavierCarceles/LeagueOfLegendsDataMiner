@@ -83,3 +83,30 @@ def test_los_errores_nuevos_por_elo_solo_cuentan_las_partidas_que_los_pueden_ten
         agg.add([("enemy_pink_ignored", "low")] if i % 3 == 0 else [], f"q{i}", {}, ("enemy_pink_ignored", "death_lens_unused"))
     types = agg.public()["types"]
     assert types["enemy_pink_ignored"]["pct"] == round(100 / 3, 1)
+
+
+def test_la_lente_recien_usada_no_cuenta_como_lente_sin_usar():
+    """En el 28-47 % de las muertes «con la lente sin usar» habías quitado un ward en los 90 s anteriores: la lente estaba
+    en recarga. Las partidas ya guardadas se corrigen al leerlas con los wards que quitaste."""
+    moments = [
+        {"t": 300.0, "kind": "death", "severity": "medium", "tags": ["gank", "seen_ward", "lens_unused"]},
+        {"t": 900.0, "kind": "death", "severity": "medium", "tags": ["gank", "seen_ward", "lens_unused"]},
+    ]
+    fixed = insights.lens_on_cooldown(moments, [250.0, 700.0])
+    assert fixed[0]["tags"] == ["gank", "seen_ward", "lens_cd"]  # quitó un ward 50 s antes
+    assert fixed[1]["tags"] == ["gank", "seen_ward", "lens_unused"]  # el último, 200 s antes
+    assert moments[0]["tags"][-1] == "lens_unused"  # copias: lo guardado no cambia
+    assert insights.mistake_type("death", set(fixed[0]["tags"]), "SUPPORT") is None or \
+        insights.mistake_type("death", set(fixed[0]["tags"]), "SUPPORT")["id"] != "death_lens_unused"
+    assert insights.mistake_type("death", set(fixed[1]["tags"]), "SUPPORT")["id"] == "death_lens_unused"
+
+
+def test_yuumi_y_cassiopeia_sin_botas_no_es_error():
+    """Ninguna de las dos puede comprar botas: Yuumi era el 77-84 % de los «sin botas» de support (24-11-2026)."""
+    from app.coach.elo_profile import game_mistakes
+
+    m = {"t": 1200.0, "kind": "build", "severity": "low", "tags": ["build", "boots"]}
+    assert 350 in an.NO_BOOTS and 69 in an.NO_BOOTS
+    assert insights.dropped(m, "SUPPORT", 350) and insights.dropped(m, "MID", 69)
+    assert not insights.dropped(m, "SUPPORT", 412)
+    assert game_mistakes([m], "SUPPORT", 350) == [] and game_mistakes([m], "SUPPORT", 412) == [("no_boots", "low")]

@@ -28,20 +28,21 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 6  # 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
+VERSION = 7  # 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
 # quitaba CPU. Cada 3 h basta (el perfil por elo apenas cambia con unas pocas partidas más).
 REBUILD_EVERY_S = 3 * 3600
 YIELD_EVERY = 25  # partidas leídas entre pausas cortas: cede la CPU al recolector y a la web
-# Grupos de elo que se comparan (de menos a más). Oro o menos cuenta con Platino; Gran Maestro, con Maestro.
-GROUPS = ("PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
+# Grupos de elo que se comparan (de menos a más). Hierro con Bronce, Plata con Oro y Gran Maestro con Maestro. Antes
+# Hierro a Oro contaban como «Platino» (pocas partidas); desde el 24-11-2026 hay 600-1.000 por rol de cada uno.
+GROUPS = ("BRONZE", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "CHALLENGER")
 GROUP_OF = {
-    "IRON": "PLATINUM", "BRONZE": "PLATINUM", "SILVER": "PLATINUM", "GOLD": "PLATINUM", "PLATINUM": "PLATINUM",
+    "IRON": "BRONZE", "BRONZE": "BRONZE", "SILVER": "GOLD", "GOLD": "GOLD", "PLATINUM": "PLATINUM",
     "EMERALD": "EMERALD", "DIAMOND": "DIAMOND", "MASTER": "MASTER", "GRANDMASTER": "MASTER", "CHALLENGER": "CHALLENGER",
 }
-GROUP_LABEL = {"PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante", "MASTER": "Maestro", "CHALLENGER": "Aspirante"}
+GROUP_LABEL = {"BRONZE": "Hierro-Bronce", "GOLD": "Plata-Oro", "PLATINUM": "Platino", "EMERALD": "Esmeralda", "DIAMOND": "Diamante", "MASTER": "Maestro", "CHALLENGER": "Aspirante"}
 MIN_GROUP_GAMES = 30  # partidas de un elo (en un rol o campeón) para enseñarlo
 MIN_CHAMP_GAMES = 20
 COUNTED = ("high", "medium", "low")
@@ -55,14 +56,16 @@ MOVE_KEYS = (
 LATER_TYPES = {"death_lens_unused": "deaths_seen_ward", "enemy_pink_ignored": "enemy_pinks_long"}
 
 
-def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:
+def game_mistakes(moments: list[dict], role: str | None, champ: int | None = None) -> list[tuple[str, str]]:
     """(tipo, gravedad) de cada error de una partida, con la misma regla que «Errores que repites»."""
-    from app.coach.insights import mistake_type  # aquí: evita un import circular
+    from app.coach.insights import dropped, mistake_type  # aquí: evita un import circular
 
     out = []
     for m in moments or []:
         if m.get("severity") not in COUNTED or m.get("kind") in ("trade", "afk"):
             continue
+        if champ is not None and dropped(m, role, champ):
+            continue  # regla que con ese campeón no cuenta (Yuumi sin botas)
         mt = mistake_type(m.get("kind"), set(m.get("tags") or []), role)
         if mt is not None:
             out.append((mt["id"], m["severity"]))
@@ -138,7 +141,7 @@ def signature(data_dir: Path) -> str:
 
 
 def _records(data_dir: Path, throttle: bool = False):
-    from app.coach.insights import reliable  # aquí: evita un import circular
+    from app.coach.insights import lens_on_cooldown, reliable  # aquí: evita un import circular
 
     read = 0
     for f in _files(data_dir):
@@ -157,7 +160,8 @@ def _records(data_dir: Path, throttle: bool = False):
                     skill_t = [s[0] for s in ((d.get("events") or {}).get("skills") or []) if len(s) >= 3 and s[2] == "NORMAL"]
                     rec = champ_checks.record_from_analysis(a, skill_t or None)
                     rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
-                    rec["mistakes"] = game_mistakes(a.get("moments") or [], rec["role"])
+                    moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
+                    rec["mistakes"] = game_mistakes(moments, rec["role"], rec.get("champ"))
                     read += 1
                     if throttle and read % YIELD_EVERY == 0:
                         time.sleep(0.005)
@@ -195,7 +199,7 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
         key = (r.get("champ"), r["role"])
         name = (champ_name(r["champ"]) if champ_name and r.get("champ") else None) or "tu campeón"
         extra = champ_checks.check(r, champ_refs.get(key), catalog, name)
-        mistakes = r["mistakes"] + game_mistakes(extra, r["role"])
+        mistakes = r["mistakes"] + game_mistakes(extra, r["role"], r.get("champ"))
         roles[r["role"]][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
         if r.get("champ"):
             champs[key][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
