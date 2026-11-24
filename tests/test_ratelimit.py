@@ -240,9 +240,9 @@ def test_low_priority_is_spread_over_the_window_so_your_searches_do_not_wait():
 
 
 def test_crawler_uses_almost_all_the_quota_while_nobody_uses_the_web():
-    """Sin usar la web la reserva baja al 5 %; en cuanto haces una búsqueda vuelve al 15 %."""
+    """Sin usar la web la reserva baja al 1 % (99 de 100 cada 2 min); en cuanto haces una búsqueda vuelve al 15 %."""
     limiter, clock = make_limiter()
-    for _ in range(95):
+    for _ in range(99):
         limiter._low_next.clear()
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
         clock.advance(0.2)

@@ -2746,6 +2746,12 @@ class Crawler:
         with self._rows_lock:
             return Counter(self._analyzed_noted)
 
+    def session_tiers(self) -> dict[str, int]:
+        """Partidas recogidas por elo desde que arrancó el recolector (la gráfica del recolector de «Datos y API»: no
+        vuelve a 0 al subir a GitHub)."""
+        with self._rows_lock:
+            return {t: n for t, n in self._session_tiers.items() if t}
+
     def session_load(self) -> dict[str, float]:
         """Partidas recogidas por elo en esta sesión más lo que se espera aún de las visitas en curso (las 4 regiones)."""
         with self._rows_lock:
@@ -3225,6 +3231,7 @@ class Crawler:
             if auto is None:
                 return None
             p = auto.public()
-            return {k: p.get(k) for k in ("enabled", "running", "step", "last_push_at", "last_error", "last_push_s")}
+            keep = ("enabled", "every", "pending", "running", "step", "last_push_at", "last_error", "last_push_s")
+            return {k: p.get(k) for k in keep}
         except Exception:  # noqa: BLE001
             return None

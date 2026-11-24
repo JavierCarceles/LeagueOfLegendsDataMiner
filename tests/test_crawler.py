@@ -189,3 +189,35 @@ def test_todo_el_ranking_reparte_por_las_partidas_analizadas_de_cada_elo(keyed_s
         crawler.note_session("europe", tier, 20)
     assert picks["GOLD"] > picks["IRON"] > picks["CHALLENGER"] > 0  # Aspirante, con 1.000, también recibe
     assert worker._ladder_pick([("euw1", "CHALLENGER")]) == ("euw1", "CHALLENGER")  # sin otros elos disponibles
+
+
+def test_la_grafica_del_recolector_acumula_desde_que_arranca_y_no_vuelve_a_0_al_subir(keyed_svc):
+    """La gráfica por elo del recolector contaba desde la última subida a GitHub y volvía a 0 cada 2.000 partidas: ahora
+    acumula desde que arrancó el recolector (/api/crawler/otps/live → ``session_tiers``)."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    crawler = keyed_svc.crawler
+    crawler.note_session("europe", "GOLD", 30)
+    crawler.note_analyzed("IRON", 5)
+    crawler.visit_started("asia", "BRONZE")  # una visita en curso no cuenta hasta que trae partidas
+    app = create_app(keyed_svc.settings, run_startup=False)
+    app.state.svc = keyed_svc
+    with TestClient(app) as client:
+        assert client.get("/api/crawler/otps/live").json()["session_tiers"] == {"GOLD": 30, "IRON": 5}
+    crawler._reset_session(CrawlerConfig().validated())  # al arrancar otra vez el recolector, de cero
+    assert crawler.session_tiers() == {}
+
+
+def test_el_numero_junto_al_boton_cuenta_las_nuevas_desde_la_ultima_subida(keyed_svc, monkeypatch):
+    """Junto a «Detener», las partidas nuevas desde la última subida a GitHub (vuelve a 0 cada 2.000): el estado del
+    recolector trae ``pending`` y ``every`` de la subida automática."""
+    from types import SimpleNamespace
+
+    from app import autopush
+
+    fake = SimpleNamespace(public=lambda: {"enabled": True, "every": 2000, "pending": 137, "running": False})
+    monkeypatch.setattr(autopush.AutoPush, "of", staticmethod(lambda svc: fake))
+    push = keyed_svc.crawler.status()["push"]
+    assert push["pending"] == 137 and push["every"] == 2000 and push["enabled"] is True

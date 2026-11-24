@@ -85,7 +85,7 @@ class RiotClient:
                 return None
             if status == 429:
                 throttles += 1
-                self._check_throttles(throttles, host, method)
+                self._check_throttles(throttles, host, method, response.headers)
                 continue
             if status >= 500:
                 failures += 1
@@ -115,11 +115,17 @@ class RiotClient:
         self._sleep(min(2**failures, 15), stop)
 
     @staticmethod
-    def _check_throttles(throttles: int, host: str, method: str) -> None:
-        """429: se reintenta (el limitador ya espera lo que indica Riot) salvo si ya van demasiados en esta petición."""
+    def _check_throttles(throttles: int, host: str, method: str, headers=None) -> None:
+        """429: se reintenta (el limitador ya espera lo que indica Riot) salvo si ya van demasiados en esta petición. El
+        aviso dice de quién es el límite (``application``: el cupo de la key, también si otra app la usa; ``method``: el
+        del endpoint; ``service``: Riot saturado, no gasta cupo) y cuánto pide esperar."""
         if throttles > 8:
             raise RiotAPIError(429, "Demasiados 429 seguidos")
-        log.warning("429 en %s (%s). Esperando lo que indica Riot…", host, method)
+        headers = headers or {}
+        kind = headers.get("X-Rate-Limit-Type") or "sin tipo"
+        retry = headers.get("Retry-After") or "-"
+        log.warning("429 en %s (%s, límite %s, Riot pide esperar %s s; cuenta %s). Esperando…", host, method, kind, retry,
+                    headers.get("X-App-Rate-Limit-Count") or "-")
 
     def _status_error(self, response, status: int, method: str, validate_on_403: bool) -> RiotAPIError:
         """Error de una respuesta que no se reintenta: 401 (marca la key como no válida), 403 y los demás códigos."""

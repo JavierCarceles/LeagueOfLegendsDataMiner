@@ -382,7 +382,11 @@ def _files_state(svc) -> dict:
 def otps_live(svc=Depends(svc_from)):
     """Lo que cambia cada segundo (partidas analizadas y subida a GitHub), aparte de la lista de OTPs, que tarda más."""
     cfg = svc.crawler.config
-    return otp_details.live_counts(svc.db) | {"enabled": bool(cfg and cfg.save_details)} | _files_state(svc)
+    return (
+        otp_details.live_counts(svc.db)
+        | {"enabled": bool(cfg and cfg.save_details), "session_tiers": svc.crawler.session_tiers()}
+        | _files_state(svc)
+    )
 
 
 @router.get("/otps/by-tier")

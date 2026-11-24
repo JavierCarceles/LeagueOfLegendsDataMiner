@@ -32,9 +32,11 @@ FOREIGN_WINDOW_S = 120
 DIAG_WINDOW_S = 300  # llamadas por minuto de los últimos 5 min (diagnóstico)
 # Si llevas un rato sin usar la web (ninguna petición de prioridad alta), el recolector puede usar casi todo el cupo:
 # la reserva para tus búsquedas baja de ``reserve_frac`` a ``IDLE_RESERVE``; vuelve en cuanto haces algo. 2 min (antes
-# 10): con el recolector en marcha casi nunca hay búsquedas, y cada llamada esperaba 1,41 s en vez de 1,26 s.
+# 10): con el recolector en marcha casi nunca hay búsquedas, y cada llamada esperaba 1,41 s en vez de 1,26 s. Un 1 %
+# (antes 5 %): con la key gratuita, 99 de 100 llamadas cada 2 min por región, unas 198/min con las 4 (antes 190; el
+# tope de la key son 200).
 IDLE_AFTER_S = 120
-IDLE_RESERVE = 0.05
+IDLE_RESERVE = 0.01
 
 
 class Priority:

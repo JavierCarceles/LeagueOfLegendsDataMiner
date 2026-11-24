@@ -356,7 +356,7 @@ function renderCrawler(c, key) {
     // Buscando por partidas, los campeones de la configuración salen de las ventanas: no se enseñan como elegidos.
     if (crawlerForm.patterns?.length) Object.assign(crawlerForm, { champions: [], champion_roles: {} });
   }
-  const sig = JSON.stringify([c.stored, c.rate_per_min, c.rate_recent, c.stopping, c.paused, c.autostart, key.configured]);
+  const sig = JSON.stringify([c.stored, c.push?.pending, c.rate_per_min, c.rate_recent, c.stopping, c.paused, c.autostart, key.configured]);
   if (crawlerFormFor !== mode) {
     crawlerFormFor = mode;
     runningSig = sig;
@@ -656,14 +656,18 @@ function startBlocked(cfg, key) {
 function runningControls(c) {
   const rateNow = c.rate_recent !== null && c.rate_recent !== undefined ? ` · ahora ${fmt.num(c.rate_recent, 1)}/min` : "";
   const rateAvg = c.rate_per_min ? ` · media ${fmt.num(c.rate_per_min, 1)}/min` : "";
+  // Las nuevas desde la última subida a GitHub: vuelve a 0 cada ``every`` (2.000). Sin subida automática, las de la sesión.
+  const push = c.push?.enabled ? c.push : null;
+  const fresh = push ? `${fmt.int(push.pending || 0)} de ${fmt.int(push.every)} partidas nuevas` : `${fmt.int(c.stored)} partidas nuevas`;
+  const freshHint = push ? "Partidas nuevas desde la última subida a GitHub: vuelve a 0 al subir. " : "";
   return h(
     "div.row-wrap",
     h("button.btn.btn-danger", { onclick: stop, disabled: c.stopping || null }, icon("stop"), c.stopping ? "Deteniendo…" : "Detener"),
     h("span.pill.pill-good.pill-dot", c.paused === "in_game" ? "En pausa mientras juegas" : "En marcha"),
     h(
       "span.small.muted",
-      { title: "«Ahora»: últimos 5 minutos. «Media»: desde que arrancó (arrastra el arranque, cuando aún busca jugadores)." },
-      `${fmt.int(c.stored)} partidas nuevas`,
+      { title: `${freshHint}«Ahora»: últimos 5 minutos. «Media»: desde que arrancó (arrastra el arranque, cuando aún busca jugadores).` },
+      fresh,
       rateNow,
       rateAvg,
     ),
@@ -1452,7 +1456,7 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
-    if (eloBox?.isConnected) updateEloChart(eloBox, details.autopush, resultsMode !== "ranking");
+    if (eloBox?.isConnected) updateEloChart(eloBox, details.session_tiers, resultsMode !== "ranking");
     if (sections?.eloTotal?.isConnected) {
       if (!totalBox?.isConnected) {
         totalBox = eloTotalCard();
@@ -1470,7 +1474,7 @@ async function loadLive() {
 }
 
 // ------------------------------------------------------------------ gráfica por elo
-/** Partidas por elo desde la última subida a GitHub (vuelve a 0 al subir): barras con el icono de cada elo y el eje Y
+/** Partidas por elo desde que arrancó el recolector (no vuelve a 0 al subir a GitHub): barras con el icono de cada elo y el eje Y
  *  con el máximo arriba y sus cuartos. Se construye una vez; cada refresco solo cambia alturas y números (se ve subir). */
 const ELO_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
 let eloBox = null;
@@ -1490,7 +1494,7 @@ function eloChartShell(stacked = false) {
   const segments = () => (stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null);
   return h(
     stacked ? "div.elo-chart.stacked" : "div.elo-chart",
-    h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"), legend),
+    h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde que arrancó el recolector"), legend),
     h(
       "div.elo-chart-body",
       h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q, style: { bottom: `${q * 25}%` } }, "0"))),
@@ -1526,8 +1530,10 @@ function setEloBar(col, pct, n) {
   label.textContent = n ? fmt.int(n) : "";
 }
 
-function updateEloChart(box, autopush, analyzed) {
-  const counts = autopush?.tiers?.[analyzed ? "analizadas" : "guardadas"] || {};
+/** Partidas recogidas por elo desde que arrancó el recolector (``session_tiers``: analizadas; con todo el ranking,
+ *  guardadas). Antes contaba desde la última subida a GitHub y volvía a 0 al subir. */
+function updateEloChart(box, sessionTiers, analyzed) {
+  const counts = sessionTiers || {};
   const sig = JSON.stringify([analyzed, counts]);
   if (sig === eloSig) return;
   eloSig = sig;
@@ -1536,7 +1542,7 @@ function updateEloChart(box, autopush, analyzed) {
   const title = box.querySelector(".elo-chart-title");
   if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}`;
   const sub = box.querySelector(".elo-chart-sub");
-  if (sub) sub.textContent = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
+  if (sub) sub.textContent = analyzed ? "desde que arrancó el recolector" : "todo el ranking: sin análisis minuto a minuto · desde que arrancó el recolector";
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });

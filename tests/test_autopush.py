@@ -414,7 +414,7 @@ def test_el_limitador_dice_cuanto_usa_y_por_que_espera():
         clock[0] += 1.5
     snap = lim.snapshot()["europe"]
     assert snap["llamadas_min_recolector"] == snap["llamadas_min"] and 30 <= snap["llamadas_min"] <= 41
-    assert snap["max_min_recolector"] == 47.5 and snap["reserva_pct"] == 5
+    assert snap["max_min_recolector"] == 49.5 and snap["reserva_pct"] == 1  # 99 de 100 cada 2 min: ~198/min con 4 regiones
 
 
 def test_la_grafica_por_elo_cuenta_hasta_la_subida(repos):
