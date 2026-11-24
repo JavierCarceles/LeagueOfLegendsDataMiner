@@ -87,6 +87,8 @@ class Services:
             log.exception("Fallo en las tareas de arranque")
         finally:
             self.startup_done.set()
+        # El registro de escrituras de SQLite se vuelca al fichero principal en segundo plano (no dentro de cada escritura).
+        self.db.start_checkpointer(getattr(self, "shutdown_event", None))
         # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
         self.tracker.start()
         # Draft en vivo: la selección de campeones del cliente de LoL, y al terminar, tu build al cliente.

@@ -1938,6 +1938,15 @@ class Crawler:
                 }
                 for r, w in self.workers.items()
             }
+            # Base de datos: quién espera el candado de escritura y quién lo tiene cogido (s en total) y tamaño del WAL.
+            db = self.svc.db
+            funnel["db"] = {
+                "wal_mb": db.wal_mb() if hasattr(db, "wal_mb") else None,
+                "candado": {
+                    k: {"esperando_s": round(v[0], 1), "cogido_s": round(v[1], 1), "escrituras": v[2]}
+                    for k, v in sorted((getattr(db, "lock_stats", None) or {}).items(), key=lambda kv: -kv[1][0])
+                },
+            }
             # Jugadores encontrados por elo (todas las plataformas): para ver si la búsqueda reparte entre elos.
             by_tier: dict[str, int] = {}
             for w in self.workers.values():

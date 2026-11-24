@@ -22,6 +22,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 SCHEMA_VERSION = 1
+WAL_AUTOCHECKPOINT_PAGES = 20_000  # ~80 MB: de reserva (el volcado normal va en segundo plano, ``start_checkpointer``)
+CHECKPOINT_EVERY_S = 30
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -386,6 +388,9 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
         self.write_lock = threading.RLock()
+        # Por grupo de hilos: [s esperando el candado, s con él cogido, escrituras] (para ver quién frena a quién).
+        self.lock_stats: dict[str, list] = {}
+        self._checkpointer: threading.Thread | None = None
         self._init_schema()
 
     def conn(self) -> sqlite3.Connection:
@@ -398,8 +403,33 @@ class Database:
             conn.execute("PRAGMA busy_timeout=30000")
             conn.execute("PRAGMA cache_size=-65536")
             conn.execute("PRAGMA temp_store=MEMORY")
+            # El volcado del registro de escrituras (WAL) al fichero principal lo hace sobre todo ``start_checkpointer``
+            # en segundo plano; aquí solo de reserva, cuando pasa de ~80 MB (por defecto, cada ~4 MB dentro de la
+            # escritura de turno: en Windows, con partidas de ~0,5 MB, esa escritura tardaba segundos).
+            conn.execute(f"PRAGMA wal_autocheckpoint={WAL_AUTOCHECKPOINT_PAGES}")
             self._local.conn = conn
         return conn
+
+    def start_checkpointer(self, stop: threading.Event | None = None) -> None:
+        """Vuelca el WAL al fichero principal cada ``CHECKPOINT_EVERY_S`` en su propio hilo (no bloquea escrituras)."""
+        if self._checkpointer is not None and self._checkpointer.is_alive():
+            return
+
+        def run() -> None:
+            while not (stop.wait(CHECKPOINT_EVERY_S) if stop is not None else time.sleep(CHECKPOINT_EVERY_S)):
+                try:
+                    self.conn().execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+                except sqlite3.Error:
+                    pass
+
+        self._checkpointer = threading.Thread(target=run, name="db-checkpoint", daemon=True)
+        self._checkpointer.start()
+
+    def wal_mb(self) -> float | None:
+        try:
+            return round(Path(f"{self.path}-wal").stat().st_size / 1e6, 1)
+        except OSError:
+            return None
 
     def _init_schema(self) -> None:
         with self.write_lock:
@@ -427,16 +457,26 @@ class Database:
     @contextmanager
     def write(self):
         """Transacción de escritura serializada (BEGIN IMMEDIATE)."""
+        t0 = time.monotonic()
         with self.write_lock:
-            conn = self.conn()
-            conn.execute("BEGIN IMMEDIATE")
+            t1 = time.monotonic()
             try:
-                yield conn
-            except BaseException:
-                conn.execute("ROLLBACK")
-                raise
-            else:
-                conn.execute("COMMIT")
+                conn = self.conn()
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    yield conn
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
+                else:
+                    conn.execute("COMMIT")
+            finally:
+                name = threading.current_thread().name
+                group = "busquedas" if name.endswith("-otps") else name.rsplit("_", 1)[0]
+                st = self.lock_stats.setdefault(group, [0.0, 0.0, 0])
+                st[0] += t1 - t0
+                st[1] += time.monotonic() - t1
+                st[2] += 1
 
     def query(self, sql: str, params: tuple | list = ()) -> list[sqlite3.Row]:
         return self.conn().execute(sql, params).fetchall()
