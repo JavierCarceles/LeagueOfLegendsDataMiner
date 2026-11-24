@@ -84,6 +84,9 @@ OTP_IDLE_WAIT_S = 30
 OTP_FAIL_COOLDOWN_S = 3600  # un OTP que falla 3 veces seguidas descansa una hora
 # Periodo de la búsqueda de OTPs: cuenta quien jugó el campeón en él y se bajan sus partidas de ese mismo periodo.
 OTP_DEPTHS = ("30", "90", "180", "season", "365", "all")
+STOP_REPORT_AFTER_S = 15  # si al detener sigue algún hilo pasado esto, el registro dice cuál y dónde…
+STOP_REPORT_EVERY_S = 30  # …y lo repite cada tanto
+STOP_GIVE_UP_S = 900
 FUNNEL_EVERY_S = 300  # cada cuánto se escribe data/otps/_busqueda.json
 LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
 LEADERBOARD_TIERS = {"DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"}  # elos que salen en esa tabla
@@ -1870,6 +1873,7 @@ class Crawler:
     def __init__(self, svc) -> None:
         self.svc = svc
         self.stop_event = threading.Event()
+        self._autostart: bool | None = None
         self.workers: dict[str, RegionWorker] = {}
         self.config: CrawlerConfig | None = None
         self.started_at: float | None = None
@@ -1998,6 +2002,8 @@ class Crawler:
 
     @property
     def autostart_enabled(self) -> bool:
+        if getattr(self, "_autostart", None) is not None:
+            return self._autostart  # pulsaste detener o arrancar en esta sesión (se guarda en segundo plano)
         return self.svc.db.meta_get("crawler_autostart") == "1"
 
     def autostart(self) -> bool:
@@ -2030,6 +2036,7 @@ class Crawler:
             if require_key and not self.svc.keys.get():
                 raise PermissionError("Configura primero la RIOT_API_KEY")
             if remember:
+                self._autostart = True
                 self.svc.db.meta_set("crawler_autostart", "1")
             self.stop_event = threading.Event()
             self.config = config
@@ -2054,14 +2061,56 @@ class Crawler:
     def stop(self) -> dict:
         """Parada pedida por el usuario: tampoco arrancará solo la próxima vez.
 
-        Lo primero, avisar a los hilos (antes se escribía el embudo de la búsqueda, que con decenas de miles de jugadores
-        revisados tarda segundos, y el botón parecía no responder); el embudo, después y en segundo plano."""
+        Responde al momento: avisa a los hilos y lo demás va en segundo plano. Antes apuntaba «no arrancar solo» en la
+        base de datos antes de responder, y esa escritura esperaba al candado que el recolector tiene cogido más de la
+        mitad del tiempo: el botón no hacía nada durante un buen rato (ni «Deteniendo…»)."""
         self.stop_event.set()
         for worker in list(self.workers.values()):
             worker.wake()
-        self.svc.db.meta_set("crawler_autostart", "0")
-        self.write_funnel(force=True)
+        self._autostart = False
+        threading.Thread(target=self._after_stop, args=(self.stop_event,), name="crawler-stop", daemon=True).start()
         return self.status()
+
+    def _after_stop(self, stop_event: threading.Event) -> None:
+        """Lo que no hace falta para responder al botón: guardar que no arranque solo, el embudo y, si tarda en parar,
+        qué hilos siguen y dónde están (en el registro que se sube a GitHub)."""
+        t0 = time.time()
+        try:
+            if self._autostart is False:
+                self.svc.db.meta_set("crawler_autostart", "0")
+        except Exception:  # noqa: BLE001
+            log.debug("No se pudo guardar que el recolector no arranque solo", exc_info=True)
+        self.write_funnel(force=True)
+        next_report = STOP_REPORT_AFTER_S
+        while self.running and stop_event is self.stop_event:
+            waited = time.time() - t0
+            if waited >= STOP_GIVE_UP_S:
+                return
+            if waited >= next_report:
+                next_report += STOP_REPORT_EVERY_S
+                log.info("Deteniendo el recolector (%d s): siguen %s", waited, self._alive_threads())
+            time.sleep(1)
+        if stop_event is self.stop_event:
+            log.info("Recolector detenido en %.0f s.", time.time() - t0)
+
+    def _alive_threads(self) -> str:
+        """Hilos del recolector que siguen vivos y la línea del proyecto en la que están."""
+        import sys
+        import traceback
+
+        frames = sys._current_frames()
+        out = []
+        for w in list(self.workers.values()):
+            for t in [w, *w.scouts]:
+                if not t.is_alive():
+                    continue
+                frame = frames.get(t.ident)
+                stack = traceback.extract_stack(frame) if frame is not None else []
+                mine = [f for f in stack if "/app/" in f.filename.replace("\\", "/")]
+                last = (mine or stack or [None])[-1]
+                where = f"{Path(last.filename).name}:{last.lineno} {last.name}" if last else "?"
+                out.append(f"{t.name} ({where})")
+        return ", ".join(out) or "ninguno"
 
     def shutdown(self) -> None:
         self.stop_event.set()

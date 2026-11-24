@@ -467,6 +467,8 @@ def save(
                 now_s(), kind,
             ),
         )
+    if is_new:
+        _note_live(db, dossier["tier"], kind, timeline is not None)
     if is_new and write_files:
         files = Files.of(svc, kind)
         if files is not None:
@@ -521,6 +523,53 @@ def load_raw(db, svc, match_id: str, puuid: str) -> tuple[dict | None, dict | No
         return data.get("match"), data.get("timeline")
     except (OSError, ValueError):
         return None, None
+
+
+# Contadores en vivo para «Datos y API» (se pintan cada 2,5 s): el recuento completo recorre toda la tabla (con el
+# recolector a tope, segundos en Windows) y antes iba en la petición de la lista de OTPs, que tarda más: el número
+# saltaba de 20 en 20 o de 80 en 80. Ahora se cuenta una vez, se suma cada partida nueva al guardarla y se recuenta
+# de verdad cada ``LIVE_RECOUNT_S`` (en un hilo aparte).
+LIVE_RECOUNT_S = 300
+_live: dict[int, dict] = {}  # por base de datos (id): {"data", "at", "counting"}
+_live_lock = threading.Lock()
+
+
+def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> None:
+    with _live_lock:
+        d = (_live.get(id(db)) or {}).get("data")
+        if d is None:
+            return
+        d["games"] += 1
+        d["timelines"] += int(has_timeline)
+        d["tiers"][tier or "?"] = d["tiers"].get(tier or "?", 0) + 1
+        if kind == "otp":
+            d["otp_games"] += 1
+
+
+def live_counts(db) -> dict:
+    """``counts`` al momento sin recorrer la tabla en cada petición (ver ``_note_live``)."""
+    with _live_lock:
+        st = _live.setdefault(id(db), {"data": None, "at": 0.0, "counting": False})
+        data, stale, busy = st["data"], time.time() - st["at"] >= LIVE_RECOUNT_S, st["counting"]
+        if data is not None and stale and not busy:
+            st["counting"] = True
+
+    def recount() -> None:
+        try:
+            fresh = counts(db)
+            with _live_lock:
+                st.update(data=fresh, at=time.time())
+        finally:
+            with _live_lock:
+                st["counting"] = False
+
+    if data is None:
+        recount()  # la primera vez, ya
+    elif stale and not busy:
+        threading.Thread(target=recount, name="otp-counts", daemon=True).start()
+    with _live_lock:
+        d = st["data"] or {}
+        return {**d, "tiers": dict(d.get("tiers") or {})}
 
 
 def counts(db) -> dict:

@@ -238,7 +238,7 @@ def otps(
         "matched": matched,
         "offset": offset,
         "players": page,
-        "details": otp_details.counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
+        "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
         "funnel": search_funnel(svc.db, cfg),
     }
 
@@ -253,6 +253,13 @@ def _files_state(svc) -> dict:
     if files is None:
         return {"path": None, "files": None, "players_path": None, "autopush": push}
     return {"path": str(files.base), "files": files.state, "players_path": str(players.base) if players is not None else None, "autopush": push}
+
+
+@router.get("/otps/live")
+def otps_live(svc=Depends(svc_from)):
+    """Lo que cambia cada segundo (partidas analizadas y subida a GitHub), aparte de la lista de OTPs, que tarda más."""
+    cfg = svc.crawler.config
+    return otp_details.live_counts(svc.db) | {"enabled": bool(cfg and cfg.save_details)} | _files_state(svc)
 
 
 @router.post("/otps/push")

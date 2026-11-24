@@ -1305,7 +1305,39 @@ def test_stop_answers_at_once_even_if_the_search_report_is_slow(keyed_svc, monke
     t0 = _time.monotonic()
     keyed_svc.crawler.stop()
     assert _time.monotonic() - t0 < 0.5 and keyed_svc.crawler.stop_event.is_set()
+    # El embudo y guardar que no arranque solo van después, en segundo plano.
+    deadline = _time.monotonic() + 5
+    while keyed_svc.crawler._funnel_thread is None and _time.monotonic() < deadline:
+        _time.sleep(0.05)
     keyed_svc.crawler._funnel_thread.join(5)
+    assert not keyed_svc.crawler.autostart_enabled
+
+
+def test_detener_responde_aunque_el_candado_de_escritura_este_ocupado(keyed_svc):
+    """Antes, «Detener» apuntaba en la base de datos que no arrancara solo antes de responder, y esperaba al candado de
+    escritura (cogido más de la mitad del tiempo por el recolector): el botón no hacía nada durante un buen rato."""
+    import threading as _th
+    import time as _time
+
+    db = keyed_svc.db
+    held = _th.Event()
+    release = _th.Event()
+
+    def hold():
+        with db.write():
+            held.set()
+            release.wait(5)
+
+    t = _th.Thread(target=hold)
+    t.start()
+    held.wait(5)
+    try:
+        t0 = _time.monotonic()
+        status = keyed_svc.crawler.stop()
+        assert _time.monotonic() - t0 < 0.5 and status["autostart"] is False
+    finally:
+        release.set()
+        t.join()
 
 
 def test_las_tablas_de_opgg_se_intercalan_con_la_busqueda_por_elo(keyed_svc):

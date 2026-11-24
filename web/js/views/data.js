@@ -126,6 +126,7 @@ async function refresh() {
     if (sources) renderSources(sources);
     renderLimits(status.ratelimit);
     loadOtps(status.crawler);
+    loadLive();
     renderDb(status);
     if (!busy(sections.model)) renderModel(status.model);
   } catch (err) {
@@ -912,13 +913,20 @@ async function start(btn) {
   }
 }
 
-async function stop() {
+async function stop(ev) {
+  // Al momento, sin esperar al servidor: los hilos acaban lo que tienen entre manos (una descarga, guardar una partida).
+  const btn = ev?.currentTarget;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Deteniendo…";
+  }
+  toast("Deteniendo el recolector: termina la partida que tiene entre manos…");
   try {
     await api.post("/api/crawler/stop");
-    toast("Deteniendo el recolector…");
     refresh();
   } catch (err) {
     toast(err.message, "error");
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1002,9 +1010,31 @@ async function loadOtps(c) {
           empty.length > 16 ? h("span", `+${empty.length - 16}`) : null,
         );
       })(),
-      otpFilesBar(data),
+      (filesBox = h("div", otpFilesBar(data))),
     ),
   );
+}
+
+/** Partidas analizadas y subida a GitHub cada 2,5 s con una petición ligera (la lista de OTPs tarda más y se pide cada
+ *  10 s: con ella el número avanzaba a saltos de 20-80). Una petición cada vez: si tarda, la siguiente espera. */
+let filesBox = null;
+let liveBusy = false;
+let liveSig = null;
+async function loadLive() {
+  if (!filesBox?.isConnected || liveBusy) return;
+  liveBusy = true;
+  try {
+    const details = await api.get("/api/crawler/otps/live");
+    const sig = JSON.stringify(details);
+    if (sig !== liveSig && filesBox?.isConnected) {
+      liveSig = sig;
+      mount(filesBox, otpFilesBar({ details }));
+    }
+  } catch {
+    // sin conexión un momento: el siguiente refresco lo intenta otra vez
+  } finally {
+    liveBusy = false;
+  }
 }
 
 /** Embudo de la búsqueda: de los jugadores revisados, cuántos pasan cada filtro (para ver por qué salen pocos OTPs). */
@@ -1085,7 +1115,15 @@ function autopushLine(p) {
   if (!p) return null;
   if (!p.enabled) return h("div.tiny.muted", { style: { marginTop: "4px" } }, h("b", "GitHub: "), "subida automática desactivada (AUTO_PUSH_GAMES=0).");
   const left = Math.max(0, p.every - (p.pending || 0));
-  const parts = [p.running ? "subiendo los datos ahora…" : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`];
+  const step = p.running ? p.step : null;
+  const parts = [
+    p.running
+      ? step
+        ? `subiendo · paso ${step.n} de ${step.of}: ${step.label}${step.detail ? ` (${step.detail})` : ""} · desde hace ${fmt.int(Math.max(0, Date.now() / 1000 - step.at))} s`
+        : "subiendo los datos ahora…"
+      : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`,
+  ];
+  if (!p.running && p.last_push_s) parts.push(`la última tardó ${fmt.int(p.last_push_s)} s`);
   if (p.last_push_at) parts.push(`última subida ${fmt.ago(p.last_push_at)}`);
   if (p.last_result === "nothing") parts.push("la última vez no había nada nuevo en data/ (sin campeones elegidos, las partidas solo van a la base de datos)");
   return h(

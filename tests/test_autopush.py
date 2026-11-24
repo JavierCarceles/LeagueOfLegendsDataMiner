@@ -295,3 +295,45 @@ def test_antes_de_subir_se_copia_el_final_del_registro_vivo(repos, monkeypatch):
     auto._snapshot_log()
     copy = (folder / "app.log").read_text(encoding="utf-8")
     assert copy.endswith("linea nueva 4\n") and copy.startswith("linea") and "vieja 1" not in copy
+
+
+def test_la_subida_dice_en_que_fase_va(repos):
+    """Antes solo decía «subiendo los datos ahora…»: ahora cada fase y el porcentaje del push."""
+    work = repos.a
+    (work / "data" / "otps").mkdir()
+    (work / "data" / "otps" / "nuevo.json").write_text("{}", encoding="utf-8")
+    seen = []
+    autopush.push_data(work, work / "data", progress=lambda step, detail=None: seen.append((step, detail)))
+    steps = [s for s, _ in seen]
+    assert steps[:4] == ["locks", "add", "commit", "pull"] and steps[4] == "push"
+    assert dict(seen)["commit"] == "1 ficheros"
+
+
+def test_la_fase_de_la_subida_se_ve_en_el_estado(repos, tmp_path):
+    from app.autopush import AutoPush
+
+    work = repos.a
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=work / "data"), crawler=None, tracker=None)
+    auto = AutoPush(svc, repo=work)
+    auto._step("pull")
+    st = auto.public()["step"]
+    assert st["n"] == 5 and st["of"] == 6 and "git pull" in st["label"]
+    at = st["at"]
+    auto._step("push", "enviando 40 % (2/5 objetos)")
+    auto._step("push", "enviando 80 % (4/5 objetos)")
+    st = auto.public()["step"]
+    assert st["detail"].startswith("enviando 80") and st["at"] >= at
+
+
+def test_las_partidas_analizadas_se_cuentan_al_momento_sin_recorrer_la_tabla(tmp_path):
+    from app.data.db import Database
+    from app.ingest import otp_details
+
+    db = Database(tmp_path / "t.db")
+    base = otp_details.live_counts(db)
+    assert base["games"] == 0
+    otp_details._note_live(db, "GOLD", "otp", True)
+    otp_details._note_live(db, "GOLD", "player", False)
+    now = otp_details.live_counts(db)
+    assert now["games"] == 2 and now["timelines"] == 1 and now["otp_games"] == 1 and now["tiers"]["GOLD"] == 2
+    db.close()

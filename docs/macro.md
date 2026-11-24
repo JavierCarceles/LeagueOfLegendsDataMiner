@@ -599,3 +599,15 @@ quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
 - **Visión de los súbditos** (que te vean llegar a una jugada por la oleada): no se puede medir. Riot no da dónde está
   cada oleada, y entre dos posiciones conocidas el camino lo pone la reconstrucción (el más corto que rodea muros): si
   entraste por la línea o por los arbustos no está en los datos.
+
+### «Datos y API»: contador, subida a GitHub y botón de detener (24-11-2026)
+
+- **Partidas analizadas a saltos de 20-80:** se pintaban con la petición de la lista de OTPs, que se pide cada 10 s y
+  con el recolector a tope tarda más (y una respuesta que llega tarde se descartaba). Ahora van en `/api/crawler/otps/live`,
+  ligera (contadores en memoria que suman cada partida nueva al guardarla y se recuentan de verdad cada 5 min en un hilo
+  aparte), cada 2,5 s y una petición cada vez.
+- **Subida a GitHub:** dice en qué fase va (paso N de 6: estado y registro, esperar a la partida a medio escribir,
+  `git add`, commit con cuántos ficheros, `git pull`, `git push` con su porcentaje y lo enviado) y cuánto tardó la última.
+- **Detener:** responde al momento («Deteniendo…» en cuanto pulsas). Antes apuntaba en la base de datos que no arrancara
+  solo antes de responder y esa escritura esperaba al candado del recolector. Si algún hilo tarda más de 15 s en parar,
+  el registro dice cuál y en qué línea está (cada 30 s), y «Recolector detenido en N s» al acabar.
