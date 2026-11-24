@@ -31,6 +31,7 @@ Diferencias con el sistema antiguo (OP.GG + Playwright + preload.json):
 from __future__ import annotations
 
 import calendar
+import contextlib
 import json
 from collections import deque
 import threading
@@ -581,6 +582,8 @@ class RegionWorker(threading.Thread):
         self._plan_at = 0.0
         self._plan_rows_at = 0.0
         self._visited: dict[str, float] = {}  # puuid -> cuándo empezó su última visita
+        # Segundos de esta sesión en cada fase (para ver dónde se va el tiempo si el cupo de Riot no se llena).
+        self.timing: dict[str, float] = {}
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
         self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
@@ -612,6 +615,14 @@ class RegionWorker(threading.Thread):
             "started_at": time.time(),
             "last_activity": time.time(),
         }
+
+    @contextlib.contextmanager
+    def timed(self, phase: str):
+        t0 = time.monotonic()
+        try:
+            yield
+        finally:
+            self.timing[phase] = self.timing.get(phase, 0.0) + time.monotonic() - t0
 
     def wake(self) -> None:
         self._wake.set()
@@ -704,10 +715,13 @@ class RegionWorker(threading.Thread):
                     target = self._next_otp()
                     if target is None:
                         self.state["status"] = "idle" if search_done else "searching"
-                        self._wake.wait(OTP_IDLE_WAIT_S)
+                        with self.timed("esperando"):
+                            self._wake.wait(OTP_IDLE_WAIT_S)
                         continue
                     self.state.update(status="running", platform=target["platform"], tier=target["tier"])
-                    self._visit_otp(target)
+                    with self.timed("visitas"):
+                        self._visit_otp(target)
+                    self.timing["n_visitas"] = self.timing.get("n_visitas", 0) + 1
                 except Cancelled:
                     break
                 except RiotKeyError as exc:
@@ -952,7 +966,8 @@ class RegionWorker(threading.Thread):
         """
         now_t = time.time()
         if now_t - self._plan_at >= OTP_PLAN_TTL_S or (not self._plan and now_t - self._plan_at >= OTP_PLAN_EMPTY_S):
-            self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
+            with self.timed("cola"):
+                self._plan = self._plan_otps()  # fija ``_plan_rows_at``: cuándo se leyeron los jugadores
             self._plan.reverse()  # se sacan del final (pop) en orden de prioridad
             self._plan_at = now_t
         while self._plan:
@@ -1094,11 +1109,12 @@ class RegionWorker(threading.Thread):
             return False
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         try:
-            if payload is None:
-                payload = svc.riot.match(match_id, **kw)
+            with self.timed("riot"):
                 if payload is None:
-                    return False
-            timeline = svc.riot.timeline(match_id, **kw)
+                    payload = svc.riot.match(match_id, **kw)
+                    if payload is None:
+                        return False
+                timeline = svc.riot.timeline(match_id, **kw)
         except RiotKeyError:
             raise
         except RiotAPIError as exc:
@@ -1111,13 +1127,18 @@ class RegionWorker(threading.Thread):
         elo = {"tier": info.get("tier") or player.get("tier"), "division": info.get("division"), "lp": info.get("lp")}
         try:
             # OTP o no lo decide ``classify`` (lo que juega, con sus partidas revisadas): ser candidato no basta.
-            saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
+            with self.timed("analizar_guardar"):
+                saved = otp_details.save(svc.db, svc, payload, timeline, player["puuid"], elo)
         except Exception:
             log.exception("No se pudo analizar la partida %s del jugador", match_id)
             return False
         if saved:
             self.state["details"] += 1
         return saved
+
+    def _list_ids(self, *args, **kwargs) -> list[str]:
+        with self.timed("riot_listas"):
+            return self.svc.riot.match_ids(*args, **kwargs)
 
     def _visit_otp(self, row) -> None:
         """Una visita a un OTP: sus partidas nuevas y, con lo que quede de presupuesto, su historial hacia atrás."""
@@ -1203,7 +1224,7 @@ class RegionWorker(threading.Thread):
             prog["fwd_more"] = 1  # hasta terminar esta pasada
             ids: list[str] = []
             for page in range(OTP_FORWARD_PAGES):
-                chunk = svc.riot.match_ids(
+                chunk = self._list_ids(
                     platform, puuid, queue=queue, ranked_only=cfg.include_flex, start_time=after,
                     start=page * OTP_PAGE, count=OTP_PAGE, **kw,
                 )
@@ -1244,7 +1265,7 @@ class RegionWorker(threading.Thread):
                 and cfg.share_ok(prog["seen"], prog["hits"])  # no es especialista: no se gastan más llamadas en él
             ):
                 base = prog["offset"]
-                ids = svc.riot.match_ids(
+                ids = self._list_ids(
                     platform, puuid, queue=queue, ranked_only=cfg.include_flex, start_time=depth_start or None,
                     end_time=prog["anchor"], start=base, count=OTP_PAGE, **kw,
                 )
@@ -1366,7 +1387,8 @@ class RegionWorker(threading.Thread):
         """Descarga una partida y la guarda (o la recuerda como descartada para no volver a pedirla)."""
         svc, cfg = self.svc, self.config
         try:
-            payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)
+            with self.timed("riot"):
+                payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)
         except RiotKeyError:
             raise
         except RiotAPIError as exc:
@@ -1688,8 +1710,11 @@ class Crawler:
             }
             funnel["workers"] = {
                 r: {
-                    **{k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error", "stored", "duplicates")},
+                    **{k: w.state.get(k) for k in ("status", "search", "mastery_checked", "targets_found", "errors", "last_error", "stored", "duplicates", "details", "fetched")},
                     "rate_recent": self.recent_rate(getattr(w, "stored_at", ())),
+                    # Segundos en cada fase («visitas» incluye riot, riot_listas y analizar_guardar; el resto es la base
+                    # de datos y la cola de cada visita).
+                    "timing": {k: round(v, 1) for k, v in (getattr(w, "timing", None) or {}).items()},
                 }
                 for r, w in self.workers.items()
             }
