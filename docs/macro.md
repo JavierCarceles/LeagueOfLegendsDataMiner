@@ -514,3 +514,6 @@ lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guard
 - **Subida de las 03:48 (53,2 partidas/min):** el WAL bajó de 504 a 67 MB y las búsquedas ya paran (384 escrituras en
   5 min frente a 2.577). Cada región usaba ~29 llamadas por minuto de las ~47 que permite el ritmo: el hilo de descarga
   iba solo una partida por delante y se paraba mientras la región guardaba y analizaba. Ahora va 2 por delante.
+- **Subida de las 03:56 (50,5 partidas/min con 2 por delante):** la descarga no mejoró: con un hilo cada llamada espera
+  a la anterior (un timeline pesa 1-2 MB) y cada región se quedaba en ~28 llamadas por minuto. Ahora 2 hilos de descarga
+  por región y 3 partidas por delante. Guardar sigue en 1,3-1,9 s (~0,3 s por escritura con el candado; WAL 289 MB).

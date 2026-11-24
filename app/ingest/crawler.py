@@ -623,7 +623,10 @@ SAVE_IN_BACKGROUND = False
 PREFETCH = True  # descargar la siguiente partida mientras se analiza la actual (solo llamadas a Riot, ver _Prefetch)
 # Partidas por delante: con 1, el hilo de descarga se quedaba parado mientras la región guardaba y analizaba (~2,2 s) y
 # cada región usaba ~29 llamadas por minuto de las ~47 que permite el ritmo. Al cortar una visita se tiran como mucho estas.
-PREFETCH_AHEAD = 2
+PREFETCH_AHEAD = 3
+# Hilos de descarga por región: con uno, cada llamada esperaba a que llegara la anterior (un timeline pesa 1-2 MB) y la
+# región usaba ~28 llamadas por minuto aunque el ritmo permite ~47. Con dos se solapan (el turno de Riot se respeta igual).
+PREFETCH_THREADS = 2
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
@@ -643,7 +646,7 @@ class _Prefetch:
         if not PREFETCH or not match_id or match_id in self.futures:
             return
         if self.pool is None:
-            self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"crawler-dl-{self.w.region}")
+            self.pool = ThreadPoolExecutor(max_workers=PREFETCH_THREADS, thread_name_prefix=f"crawler-dl-{self.w.region}")
         self.futures[match_id] = self.pool.submit(self._fetch, match_id, puuid)
 
     def _fetch(self, match_id: str, puuid: str):
