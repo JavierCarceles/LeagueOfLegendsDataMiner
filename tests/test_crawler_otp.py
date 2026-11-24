@@ -821,7 +821,10 @@ def test_otp_games_get_their_micro_and_macro(keyed_svc):
     assert {c[1] for c in fake.calls_to("timeline")} == wanted  # solo se gasta la llamada en las que interesan
     row = saved[ids[1]]
     assert row["puuid"] == "otp-a" and row["champ"] == AATROX and row["role"] == "TOP" and row["has_timeline"] == 1
-    assert unpack(row["match_raw"])["metadata"]["matchId"] == ids[1] and unpack(row["timeline_raw"])["info"]["frames"]
+    # La partida y el timeline en bruto van a su fichero (data/raw_otp), no a la base de datos (llenaban el WAL).
+    assert row["match_raw"] is None and row["timeline_raw"] is None
+    match, timeline = otp_details.load_raw(keyed_svc.db, keyed_svc, ids[1], "otp-a")
+    assert match["metadata"]["matchId"] == ids[1] and timeline["info"]["frames"]
     d = unpack(row["dossier"])
     assert d["analysis"]["has_timeline"] and d["analysis"]["metrics"]["cs_min"] > 0 and "replay" not in d["analysis"]
     assert len(d["frames"]) == 31 and d["frames"][5]["zone"] and d["opponent_frames"]
@@ -1387,3 +1390,23 @@ def test_el_umbral_para_dejar_de_buscar_cabe_en_la_cola():
     """La cola solo carga PLAN_UNVISITED_PER_TIER sin visitar por plataforma y elo: si el umbral fuera mayor, el contador
     nunca llegaría y las búsquedas no pararían nunca."""
     assert crawler_mod.SCOUT_BACKLOG < crawler_mod.PLAN_UNVISITED_PER_TIER
+
+
+def test_reanalizar_lee_la_partida_en_bruto_de_la_base_de_datos_o_de_su_fichero(keyed_svc):
+    """Las partidas guardadas antes tienen el bruto en la base de datos; las nuevas, en data/raw_otp."""
+    from app.coach.store import pack
+
+    db = keyed_svc.db
+    match, timeline = {"metadata": {"matchId": "EUW1_1"}}, {"info": {"frames": [1]}}
+    with db.write() as conn:
+        conn.execute(
+            "INSERT INTO otp_games (match_id, puuid, champ, win, version, fetched_at, match_raw, timeline_raw) "
+            "VALUES ('EUW1_0', 'p', 1, 1, 1, 1, ?, ?)",
+            (pack({"metadata": {"matchId": "EUW1_0"}}), pack(timeline)),
+        )
+        conn.execute("INSERT INTO otp_games (match_id, puuid, champ, win, version, fetched_at) VALUES ('EUW1_1', 'p', 1, 1, 1, 1)")
+    assert otp_details.save_raw(keyed_svc, "EUW1_1", match, timeline)
+    assert otp_details.raw_path(keyed_svc, "EUW1_1").exists()
+    assert otp_details.load_raw(db, keyed_svc, "EUW1_0", "p")[0]["metadata"]["matchId"] == "EUW1_0"
+    assert otp_details.load_raw(db, keyed_svc, "EUW1_1", "p") == (match, timeline)
+    assert otp_details.load_raw(db, keyed_svc, "EUW1_9", "p") == (None, None)
