@@ -35,7 +35,7 @@ class LogBus:
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
 
-    def publish(self, message: str, kind: str = "info", source: str = "app") -> None:
+    def publish(self, message: str, kind: str = "info", source: str = "app", trace: str | None = None) -> None:
         entry = {
             "id": next(self._ids),
             "ts": time.time(),
@@ -43,6 +43,8 @@ class LogBus:
             "source": source,
             "message": message,
         }
+        if trace:
+            entry["trace"] = trace  # dónde falló (los errores con excepción): lo sube «Subir ahora» en _registro.json
         with self._lock:
             self._buffer.append(entry)
             subscribers = list(self._subscribers)
@@ -88,7 +90,12 @@ class BusHandler(logging.Handler):
         try:
             kind = getattr(record, "kind", None) or LEVEL_TO_KIND.get(record.levelno, "info")
             source = record.name.split(".", 1)[-1] if "." in record.name else record.name
-            self.bus.publish(record.getMessage(), kind=kind, source=source)
+            trace = None
+            if record.exc_info:
+                import traceback
+
+                trace = "".join(traceback.format_exception(*record.exc_info))[-2000:]
+            self.bus.publish(record.getMessage(), kind=kind, source=source, trace=trace)
         except Exception:  # noqa: BLE001  (patrón de logging.Handler: un log nunca rompe nada)
             self.handleError(record)
 

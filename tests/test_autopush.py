@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import json
 import threading
 from pathlib import Path
 from types import SimpleNamespace
@@ -178,3 +179,30 @@ def test_antes_de_subir_se_pone_al_dia_el_estado_de_la_busqueda(repos, monkeypat
     auto.start()
     auto.thread.join(30)
     assert calls == [True] and git(repos.remote, "log", "-1", "--format=%s", "main") == "datos"
+
+
+def test_cada_subida_lleva_el_registro_y_lo_que_hace_cada_hilo(repos, monkeypatch):
+    import logging
+
+    from app.logbus import BusHandler, bus
+
+    a = repos.a
+    monkeypatch.setattr(autopush, "every", lambda: 500)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event())
+    auto = autopush.AutoPush(svc, repo=a)
+    try:
+        raise ValueError("fallo de prueba")
+    except ValueError:
+        import sys
+
+        record = logging.LogRecord("tempu.crawler", logging.ERROR, __file__, 1, "Error inesperado en el recolector europe", None, sys.exc_info())
+        BusHandler(bus).emit(record)
+    (a / "data" / "y.json").write_text("{}")
+    auto.note_game()
+    auto.start()
+    auto.thread.join(30)
+    out = json.loads((a / "data" / "otps" / "_registro.json").read_text(encoding="utf-8"))
+    entry = next(e for e in out["registro"] if "Error inesperado" in e["message"])
+    assert "fallo de prueba" in entry["trace"] and entry["hora"]
+    assert any("autopush" in name for name in out["hilos"])
+    assert git(repos.remote, "show", "--stat", "main").count("_registro.json") == 1

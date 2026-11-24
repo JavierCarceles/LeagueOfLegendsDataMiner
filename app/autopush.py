@@ -228,6 +228,35 @@ class AutoPush:
         except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
             log.debug("No se pudo poner al día el estado de la búsqueda antes de subir", exc_info=True)
 
+    def _write_log(self) -> None:
+        """``data/otps/_registro.json``: lo último del registro de la app (avisos, errores con dónde fallaron) y qué está
+        haciendo cada hilo ahora mismo. Así se ve desde GitHub por qué el recolector va lento o se ha quedado parado."""
+        import traceback
+
+        from app.logbus import bus
+
+        try:
+            # Solo acompaña a datos nuevos: por sí solo no es motivo para subir nada.
+            if not _git(self.repo, "status", "--porcelain", "--", "data", check=False, timeout=120).stdout.strip():
+                return
+            names = {t.ident: t.name for t in threading.enumerate()}
+            threads = {}
+            for ident, frame in sys._current_frames().items():
+                name = names.get(ident, str(ident))
+                stack = traceback.format_stack(frame)[-6:]
+                threads[name] = [line.strip().replace("\n", " | ") for line in stack]
+            entries = [
+                {**e, "hora": time.strftime("%H:%M:%S", time.localtime(e.get("ts", 0)))} for e in bus.recent(300)
+            ]
+            out = {"at": int(time.time()), "registro": entries, "hilos": threads}
+            folder = self.data_dir / "otps"
+            folder.mkdir(parents=True, exist_ok=True)
+            tmp = folder / "_registro.json.tmp"
+            tmp.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(folder / "_registro.json")
+        except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
+            log.debug("No se pudo escribir el registro para GitHub", exc_info=True)
+
     def _in_game(self) -> bool:
         tracker = getattr(self.svc, "tracker", None)
         return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
@@ -242,6 +271,7 @@ class AutoPush:
         with self.lock:
             counted = int(self.state.get("pending") or 0)
         self._fresh_funnel()
+        self._write_log()
         from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
 
         locks = [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
