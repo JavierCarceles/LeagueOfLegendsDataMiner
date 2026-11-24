@@ -711,3 +711,10 @@ Lo que encontró con ~35.000 partidas:
   en el orden de cuando se calculó, sin enterarse de las visitas de las otras regiones. Ahora cada jugador se elige
   sobre esa cola con el reparto de ese momento (`_next_otp`, milisegundos). En los tests la caché de la cola va a 0 y no
   lo cazaban: hay uno con la cola guardada.
+- **Más lento al repartir por elo (subida de las 13:27: ~65/min, key al 70 %):** los recolectores pasaban el 30-34 % del
+  tiempo esperando el candado de la base de datos y guardar o analizar cada partida tardaba más del doble. Lo que les
+  quitaba CPU: la cola de jugadores (hasta 52 s, parando a la región que la pedía), los resúmenes de los 173 campeones
+  cada 30 min (~6 por minuto) y la lista de OTPs de la web. Ahora la cola caducada se rehace en otro hilo (las regiones
+  siguen con la anterior), los resúmenes van cada hora cediendo el procesador y la lista de la web se reutiliza 5 min.
+- **Detener sube lo recogido:** con todo parado, se vuelcan las medias del ranking y el embudo y se lanza la subida a
+  GitHub en segundo plano (solo si al arrancar se comprobó git). «Datos y API» enseña el paso en que va.

@@ -68,6 +68,7 @@ export async function render(container) {
     warmer: h("div"),
     crawlerForm: h("div"),
     crawlerStatus: h("div"),
+    push: h("div"),
     otps: h("div"),
     results: h("div"),
     sources: h("div"),
@@ -88,6 +89,7 @@ export async function render(container) {
       { style: { marginTop: "16px" } },
       h("h3.card-title", icon("database"), "Recolector de partidas"),
       h("div.grid.crawler-grid", sections.crawlerForm, sections.crawlerStatus),
+      sections.push,
       sections.results,
     ),
     h(
@@ -332,6 +334,7 @@ function renderCrawler(c, key) {
     mount(sections.crawlerForm, crawlerPanel(c, key));
   }
   renderCrawlerStatus(c, key);
+  renderPush(c.push, running);
   // Resultados: solo con el recolector en marcha (al cargar o parado no se enseña nada viejo). La gráfica por elo, siempre;
   // la búsqueda (servidores, jugadores encontrados, GitHub), solo buscando por campeones o líneas.
   const resultsFor = running ? (hasTargets(c.config) ? c.config.focus : "ranking") : null;
@@ -354,6 +357,26 @@ function renderCrawler(c, key) {
         : null,
     );
   }
+}
+
+/** Subida a GitHub en marcha (al detener se sube lo recogido): se ve aunque el recolector esté parado. */
+let pushSig = null;
+function renderPush(p, running) {
+  const show = p && p.running && !running; // en marcha, ya lo dice la línea de GitHub de los resultados
+  const sig = JSON.stringify(show ? [p.step?.key, p.step?.detail] : null);
+  if (sig === pushSig) return;
+  pushSig = sig;
+  if (!show) return mount(sections.push, null);
+  const step = p.step;
+  mount(
+    sections.push,
+    h(
+      "div.notice.tiny",
+      { style: { marginTop: "10px" } },
+      icon("upload"),
+      h("span", `Subiendo a GitHub lo recogido${step ? `: paso ${step.n} de ${step.of}, ${step.label}${step.detail ? ` (${step.detail})` : ""}` : "…"}`),
+    ),
+  );
 }
 
 const MASTERY_STEPS = [10_000, 20_000, 50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
@@ -960,7 +983,7 @@ async function stop(ev) {
     btn.disabled = true;
     btn.textContent = "Deteniendo…";
   }
-  toast("Deteniendo el recolector: termina la partida que tiene entre manos…");
+  toast("Deteniendo el recolector: termina la partida que tiene entre manos y después sube lo recogido a GitHub…");
   try {
     await api.post("/api/crawler/stop");
     refresh();

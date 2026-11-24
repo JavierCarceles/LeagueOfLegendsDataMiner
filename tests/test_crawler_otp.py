@@ -1533,3 +1533,29 @@ def test_reanalizar_lee_la_partida_en_bruto_de_la_base_de_datos_o_de_su_fichero(
     assert otp_details.load_raw(db, keyed_svc, "EUW1_0", "p")[0]["metadata"]["matchId"] == "EUW1_0"
     assert otp_details.load_raw(db, keyed_svc, "EUW1_1", "p") == (match, timeline)
     assert otp_details.load_raw(db, keyed_svc, "EUW1_9", "p") == (None, None)
+
+
+def test_al_detener_se_sube_lo_recogido_cuando_todo_esta_parado(keyed_svc, monkeypatch):
+    """«Detener» sube a GitHub en segundo plano lo último recogido (antes había que hacer push a mano), pero solo con
+    todo parado y si al arrancar se comprobó que git funciona."""
+    from app import autopush
+
+    class FakePush:
+        def __init__(self, git_ok):
+            self.state = {"git_ok": git_ok}
+            self.started = []
+
+        def public(self):
+            return {"enabled": True}
+
+        def start(self):
+            self.started.append(keyed_svc.crawler.running)  # ¿seguía algún hilo del recolector?
+            return True
+
+    for git_ok, expected in ((True, [False]), (None, [])):
+        fake = FakePush(git_ok)
+        monkeypatch.setattr(autopush.AutoPush, "of", classmethod(lambda cls, svc, f=fake: f))
+        ids, payloads = history("otp-a", 2, prefix="1")
+        fake_riot = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+        run_history(keyed_svc, fake_riot, champions=[AATROX])
+        assert fake.started == expected

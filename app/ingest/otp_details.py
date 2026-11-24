@@ -67,7 +67,10 @@ HEAVY_HEAL = {
 # El resumen de un campeón se rehace como mucho cada 30 min mientras entran partidas (al parar el recolector, ya). Cada
 # uno relee todas sus partidas analizadas: con 173 campeones y ~30.000 partidas, cada 5 min se comía la CPU que
 # necesitan las descargas y el análisis.
-SUMMARY_EVERY_S = 1800
+# Resumen de cada campeón como mucho cada hora: con los 173 campeones elegidos, cada 30 min eran ~6 por minuto, cada uno
+# descomprimiendo todas sus partidas; esa CPU la perdían los hilos que guardan (con el candado cogido más rato, 24-11-2026).
+SUMMARY_EVERY_S = 3600
+SUMMARY_YIELD_EVERY = 50  # al leer las partidas de un campeón, cede el procesador cada 50 (el recolector va antes)
 TIER_ORDER = ("CHALLENGER", "GRANDMASTER", "MASTER", "DIAMOND", "EMERALD", "PLATINUM", "GOLD", "SILVER", "BRONZE", "IRON")
 
 
@@ -1268,7 +1271,9 @@ class Files:
         self.dirty.discard(champ)
         self.last_summary[champ] = time.time()
         dossiers = []
-        for r in self.svc.db.query("SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ?", (champ, self.kind)):
+        for i, r in enumerate(self.svc.db.query("SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ?", (champ, self.kind))):
+            if i % SUMMARY_YIELD_EVERY == SUMMARY_YIELD_EVERY - 1:
+                time.sleep(0.005)
             d = unpack(r["dossier"])
             if d:
                 d["puuid"] = r["puuid"]

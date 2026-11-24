@@ -28,7 +28,7 @@ from app.riot.routing import TIER_INDEX
 # La lista de OTPs de «Datos y API» lanzaba en cada petición la lista de jugadores (hasta 18 s en Windows) y el embudo
 # (hasta 22 s): CPU que le faltaba al recolector y lecturas tan largas que el WAL no se podía recortar. Ahora se reutilizan
 # un rato (el embudo, el que escribe el recolector cada 5 min).
-ROWS_TTL_S = 60
+ROWS_TTL_S = 300
 FUNNEL_TTL_S = 360
 _heavy_lock = threading.Lock()
 

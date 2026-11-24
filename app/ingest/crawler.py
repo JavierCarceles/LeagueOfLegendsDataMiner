@@ -617,6 +617,7 @@ class Ingested:
     detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
+ROWS_REFRESH_IN_BACKGROUND = True  # la lista caducada se rehace en otro hilo y mientras se sigue con la anterior
 OTP_PLAN_TTL_S = 300  # la cola de OTPs se recalcula cada 5 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S); ~10 s en Windows
 OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
@@ -1950,6 +1951,7 @@ class Crawler:
         self._funnel_thread: threading.Thread | None = None
         self._rows_lock = threading.Lock()
         self._rows_cache: tuple | None = None  # (clave de la búsqueda, cuándo, filas de ``otp_rows``)
+        self._rows_refresh: threading.Thread | None = None
         self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (reparto por elo)
         self._tier_shares: dict[str, tuple[dict, dict]] = {}  # región -> (parte de cada elo, partidas analizadas)
         saved = svc.db.meta_get("crawler_config")
@@ -2005,12 +2007,28 @@ class Crawler:
         key = (otp_list_key(cfg), tuple(cfg.platforms), tuple(cfg.tiers), cfg.focus, cfg.min_mastery, cfg.min_share)
         with self._rows_lock:
             cached = self._rows_cache
-            if cached is not None and cached[0] == key and time.time() - cached[1] < OTP_ROWS_FRESH_S:
+            if cached is not None and cached[0] == key and (ROWS_REFRESH_IN_BACKGROUND or time.time() - cached[1] < OTP_ROWS_FRESH_S):
+                if time.time() - cached[1] < OTP_ROWS_FRESH_S:
+                    return cached[2], cached[1]
+                # Caducada: se rehace en segundo plano y mientras tanto se sigue con la anterior. Con muchos jugadores
+                # encontrados de elos bajos la consulta llegó a 52 s y la región que la pedía se quedaba parada.
+                if self._rows_refresh is None or not self._rows_refresh.is_alive():
+                    self._rows_refresh = threading.Thread(target=self._refresh_rows, args=(cfg, key), name="crawler-rows", daemon=True)
+                    self._rows_refresh.start()
                 return cached[2], cached[1]
             at = time.time()
             rows = otp_rows_for_plan(self.svc.db, cfg, now)
             self._rows_cache = (key, at, rows)
             return rows, at
+
+    def _refresh_rows(self, cfg: CrawlerConfig, key: tuple) -> None:
+        try:
+            at = time.time()
+            rows = otp_rows_for_plan(self.svc.db, cfg)
+            with self._rows_lock:
+                self._rows_cache = (key, at, rows)
+        except Exception:  # noqa: BLE001  (se reintenta en la siguiente; mientras, la anterior)
+            log.debug("No se pudo rehacer la lista de jugadores", exc_info=True)
 
     def write_funnel(self, force: bool = False) -> None:
         """Cada 5 min (lo llama cualquier región): el embudo de la búsqueda en ``data/otps/_busqueda.json``. En su propio
@@ -2238,6 +2256,29 @@ class Crawler:
             time.sleep(1)
         if stop_event is self.stop_event:
             log.info("Recolector detenido en %.0f s.", time.time() - t0)
+            self._push_after_stop()
+
+    def _push_after_stop(self) -> None:
+        """Con todo parado, lo último a GitHub en segundo plano (como «Subir ahora»): así no hace falta subirlo a mano.
+        Solo si al arrancar se comprobó que git funciona (``git_ok``) y la subida automática está activada."""
+        try:
+            from app import autopush
+            from app.coach import ranking_stats
+
+            stats = ranking_stats.of(self.svc)
+            if stats is not None:
+                stats.flush()  # lo que sumaron las últimas partidas
+            self.write_funnel(force=True)  # el embudo con las cifras finales
+            thread = getattr(self, "_funnel_thread", None)
+            if thread is not None:
+                thread.join(60)
+            auto = autopush.AutoPush.of(self.svc)
+            if auto is None or not auto.public().get("enabled") or auto.state.get("git_ok") is not True:
+                return
+            if auto.start():
+                log.info("Recolector detenido: subiendo a GitHub lo recogido en segundo plano.")
+        except Exception:  # noqa: BLE001  (subir es un extra: detener ya está hecho)
+            log.exception("No se pudo subir a GitHub al detener el recolector")
 
     def _alive_threads(self) -> str:
         """Hilos del recolector que siguen vivos y la línea del proyecto en la que están."""
@@ -2299,4 +2340,18 @@ class Crawler:
             "rate_per_min": round(self.total_stored / (elapsed / 60), 1) if elapsed and elapsed > 30 else None,
             "rate_recent": self.recent_rate(self._all_stored_at()),
             "workers": workers,
+            "push": self._push_status(),
         }
+
+    def _push_status(self) -> dict | None:
+        """La subida a GitHub (para verla también con el recolector parado: al detener se sube lo recogido)."""
+        try:
+            from app import autopush
+
+            auto = autopush.AutoPush.of(self.svc)
+            if auto is None:
+                return None
+            p = auto.public()
+            return {k: p.get(k) for k in ("enabled", "running", "step", "last_push_at", "last_error", "last_push_s")}
+        except Exception:  # noqa: BLE001
+            return None
