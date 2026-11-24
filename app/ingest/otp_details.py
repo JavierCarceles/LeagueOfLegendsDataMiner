@@ -647,7 +647,39 @@ def live_counts(db) -> dict:
         threading.Thread(target=recount, name="otp-counts", daemon=True).start()
     with _live_lock:
         d = st["data"] or {}
-        return {**d, **{k: dict(d.get(k) or {}) for k in ("tiers", "tiers_otp", "tiers_player")}}
+        return {**d, **{k: dict(d.get(k) or {}) for k in ("tiers", "tiers_otp", "tiers_player", "top_champs")}}
+
+
+def champ_tier_counts(db, champ: int) -> dict:
+    """Partidas analizadas de un campeón por elo: todas, de OTPs y de otros jugadores (el buscador de la gráfica del
+    total por elo de «Datos y API»; las sin clasificar cuentan solo en ``tiers``)."""
+    out: dict[str, dict[str, int]] = {"tiers": {}, "tiers_otp": {}, "tiers_player": {}}
+    for r in db.query("SELECT tier, kind, COUNT(*) AS n FROM otp_games WHERE champ = ? GROUP BY tier, kind", (int(champ),)):
+        tier, n = r["tier"] or "?", int(r["n"])
+        out["tiers"][tier] = out["tiers"].get(tier, 0) + n
+        if r["kind"] in ("otp", "player"):
+            out[f"tiers_{r['kind']}"][tier] = n
+    return out
+
+
+def _tier_breakdown(db) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+    """Para la gráfica del total por elo de «Datos y API»: de cada elo, las partidas de OTPs y de otros jugadores (las
+    aún sin clasificar se reparten con el % de su elo) y sus campeones con más partidas: de todas (``all``) y de OTPs
+    (``otp``)."""
+    by_kind: dict[str, dict[str, int]] = {"otp": {}, "player": {}}
+    per_champ: dict[str, dict[str, dict[int, int]]] = {"all": {}, "otp": {}}
+    for r in db.query("SELECT tier, champ, kind, COUNT(*) AS n FROM otp_games GROUP BY tier, champ, kind"):
+        tier, champ, n = r["tier"] or "?", int(r["champ"]), int(r["n"])
+        if r["kind"] in by_kind:
+            by_kind[r["kind"]][tier] = by_kind[r["kind"]].get(tier, 0) + n
+        for key in ("all", "otp") if r["kind"] == "otp" else ("all",):
+            champs = per_champ[key].setdefault(tier, {})
+            champs[champ] = champs.get(champ, 0) + n
+    top: dict[str, dict[str, int]] = {}
+    for key, tiers in per_champ.items():
+        for tier, champs in tiers.items():
+            top.setdefault(tier, {})[key] = max(champs, key=lambda c: (champs[c], -c))  # a igualdad, el de id más bajo
+    return by_kind, top
 
 
 def counts(db) -> dict:
@@ -657,11 +689,7 @@ def counts(db) -> dict:
         for r in db.query("SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier")
     }
     otp = db.one("SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'")
-    # De cada elo, las de OTPs y las de otros jugadores (la gráfica del total por elo de «Datos y API»; las que aún no
-    # están clasificadas se reparten con el % de su elo).
-    by_kind: dict[str, dict[str, int]] = {"otp": {}, "player": {}}
-    for r in db.query("SELECT tier, kind, COUNT(*) AS n FROM otp_games WHERE kind IN ('otp', 'player') GROUP BY tier, kind"):
-        by_kind[r["kind"]][r["tier"] or "?"] = int(r["n"])
+    by_kind, top = _tier_breakdown(db)
     return {
         "games": int(row["games"] or 0),
         "players": int(row["players"] or 0),
@@ -669,6 +697,7 @@ def counts(db) -> dict:
         "tiers": {t: tiers[t] for t in sorted(tiers, key=lambda t: TIER_ORDER.index(t) if t in TIER_ORDER else 99)},
         "tiers_otp": by_kind["otp"],
         "tiers_player": by_kind["player"],
+        "top_champs": top,
         # De ellas, de OTPs (data/otps); el resto, de otros jugadores (data/partidas_campeon).
         "otp_games": int(otp["games"] or 0),
         "otp_players": int(otp["players"] or 0),

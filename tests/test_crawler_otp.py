@@ -1757,3 +1757,29 @@ def test_la_busqueda_en_el_ranking_va_primero_al_elo_con_menos_datos(keyed_svc):
     assert worker.tier_order("euw1", list(lines.tiers)) == ["BRONZE", "GOLD", "PLATINUM"]
     worker._plan_totals = {"BRONZE": 100, "GOLD": 100, "PLATINUM": 100}  # a igualdad: menos jugadores encontrados
     assert worker.tier_order("euw1", list(lines.tiers)) == ["GOLD", "PLATINUM", "BRONZE"]
+
+
+def test_el_buscador_de_la_grafica_del_total_cuenta_las_partidas_de_un_campeon_por_elo(keyed_svc):
+    """«Partidas por elo (total)» con un campeón elegido: sus partidas analizadas por elo, de OTPs y de otros jugadores."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    rows = [("m1", AATROX, "GOLD", "otp"), ("m2", AATROX, "GOLD", "player"), ("m3", AATROX, "GOLD", None),
+            ("m4", AATROX, "DIAMOND", "otp"), ("m5", GAREN, "GOLD", "otp")]
+    with keyed_svc.db.write() as conn:
+        for mid, champ, tier, kind in rows:
+            conn.execute("INSERT INTO otp_games (match_id, puuid, champ, win, tier, kind, version, fetched_at) VALUES (?, 'p', ?, 1, ?, ?, 1, 1)",
+                         (mid, champ, tier, kind))
+    app = create_app(keyed_svc.settings, run_startup=False)
+    app.state.svc = keyed_svc
+    with TestClient(app) as client:
+        res = client.get(f"/api/crawler/otps/by-tier?champ={AATROX}")
+    assert res.status_code == 200, res.text
+    assert res.json() == {"champ": AATROX, "tiers": {"GOLD": 3, "DIAMOND": 1}, "tiers_otp": {"GOLD": 1, "DIAMOND": 1}, "tiers_player": {"GOLD": 1}}
+    # Bajo cada elo del total: el campeón con más partidas (todas) y el que más tiene de OTPs. En Oro, Aatrox tiene 3
+    # (1 de OTP) y Garen 2, las dos de OTP.
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO otp_games (match_id, puuid, champ, win, tier, kind, version, fetched_at) VALUES ('m6', 'q', ?, 1, 'GOLD', 'otp', 1, 1)", (GAREN,))
+    top = otp_details.counts(keyed_svc.db)["top_champs"]
+    assert top == {"GOLD": {"all": AATROX, "otp": GAREN}, "DIAMOND": {"all": AATROX, "otp": AATROX}}

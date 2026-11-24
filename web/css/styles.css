@@ -1173,14 +1173,15 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .elo-chart-box { margin-bottom: 14px; }
 .elo-chart { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 10px; }
 .elo-chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-.elo-chart-body { display: grid; grid-template-columns: 52px 1fr; height: 190px; }
-.elo-chart-y { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 8px;
-  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateY(-0.5em); }
-.elo-chart-y span { line-height: 1; }
+/* Las barras miden exactamente su % del eje Y (el número va flotando encima, sin quitarles sitio) y cada valor del eje,
+   centrado en su línea. Arriba queda hueco para el número de la barra más alta. */
+.elo-chart-body { display: grid; grid-template-columns: 52px 1fr; height: 190px; padding-top: 18px; }
+.elo-chart-y { position: relative; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.elo-chart-y span { position: absolute; right: 8px; line-height: 1; transform: translateY(50%); }
 .elo-chart-plot { position: relative; border-left: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
 .elo-chart-grid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
 .elo-chart-bars { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
-.elo-chart-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.elo-chart-col { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
 .elo-chart-bar { width: 100%; max-width: 46px; background: linear-gradient(180deg, var(--gold-2), var(--gold)); border-radius: 4px 4px 0 0;
   transition: height 0.6s ease; min-height: 0; opacity: 0.85; }
 .elo-chart-col.top .elo-chart-bar { opacity: 1; box-shadow: 0 0 12px var(--gold-soft); }
@@ -1193,13 +1194,24 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .elo-chart-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .elo-chart-sw.otp { background: var(--gold); }
 .elo-chart-sw.rest { background: var(--blue); margin-left: 8px; }
-.elo-chart-n { font-size: 11px; color: var(--text-2); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+/* Bajo cada elo del total: el campeón con más partidas (azul) y el que más tiene de OTPs (dorado). */
+.elo-chart.stacked .elo-chart-logo { flex-direction: column; align-items: center; gap: 5px; }
+.elo-chart-champs { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-height: 28px; }
+img.elo-chart-champ { width: 28px; height: 28px; border-radius: 7px; border: 2px solid transparent; object-fit: cover; }
+img.elo-chart-champ.top-all { border-color: var(--blue); }
+img.elo-chart-champ.top-otp { border-color: var(--gold); }
+.elo-chart-sw.ring { background: none; border: 2px solid var(--blue); border-radius: 3px; margin-left: 8px; }
+.elo-chart-sw.ring.otp { border-color: var(--gold); }
+.elo-chart-n { position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; line-height: 1; font-size: 11px; color: var(--text-2);
+  font-variant-numeric: tabular-nums; transition: bottom 0.6s ease; }
 .elo-chart-x { display: grid; grid-template-columns: 52px 1fr; margin-top: 6px; }
 .elo-chart-logos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
 .elo-chart-logo { display: flex; justify-content: center; }
 .elo-chart-img { width: 34px; height: 34px; object-fit: contain; }
 @media (max-width: 640px) {
   .elo-chart-img { width: 22px; height: 22px; }
+  img.elo-chart-champ { width: 20px; height: 20px; }
+  .elo-chart-champs { min-height: 20px; }
   .elo-chart-bars, .elo-chart-logos { gap: 3px; padding: 0 2px; }
   .elo-chart-body { grid-template-columns: 40px 1fr; }
   .elo-chart-x { grid-template-columns: 40px 1fr; }

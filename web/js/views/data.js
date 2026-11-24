@@ -1455,11 +1455,12 @@ async function loadLive() {
     if (eloBox?.isConnected) updateEloChart(eloBox, details.autopush, resultsMode !== "ranking");
     if (sections?.eloTotal?.isConnected) {
       if (!totalBox?.isConnected) {
-        totalBox = h("div.elo-chart-box", eloChartShell(true));
+        totalBox = eloTotalCard();
         totalSig = null;
         mount(sections.eloTotal, totalBox);
       }
-      updateEloTotal(totalBox, details);
+      totalAll = details;
+      void paintEloTotal();
     }
   } catch {
     // sin conexión un momento: el siguiente refresco lo intenta otra vez
@@ -1477,7 +1478,13 @@ let eloSig = null;
 
 /** ``stacked``: cada barra partida en OTPs (abajo) y el resto, con leyenda (la del total por elo). */
 function eloChartShell(stacked = false) {
-  const legend = stacked ? h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto") : null;
+  const legend = stacked
+    ? h(
+        "span.tiny.elo-chart-legend",
+        h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto",
+        h("span.elo-chart-sw.ring"), "Campeón con más partidas", h("span.elo-chart-sw.ring.otp"), "Más de OTPs",
+      )
+    : null;
   // Unos segmentos nuevos por columna: un mismo nodo solo puede estar en un sitio (compartidos, acababan todos en la
   // última columna y la primera fallaba al pintarse).
   const segments = () => (stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null);
@@ -1486,20 +1493,37 @@ function eloChartShell(stacked = false) {
     h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"), legend),
     h(
       "div.elo-chart-body",
-      h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q }, "0"))),
+      h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q, style: { bottom: `${q * 25}%` } }, "0"))),
       h(
         "div.elo-chart-plot",
         [4, 3, 2, 1].map((q) => h("div.elo-chart-grid", { style: { bottom: `${q * 25}%` } })),
         h(
           "div.elo-chart-bars",
           ELO_ORDER.map((t) =>
-            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } }, segments())),
+            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n"), h("div.elo-chart-bar", { style: { height: "0%" } }, segments())),
           ),
         ),
       ),
     ),
-    h("div.elo-chart-x", h("span"), h("div.elo-chart-logos", ELO_ORDER.map((t) => h("div.elo-chart-logo", { title: TIER_LABEL[t] || t }, rankImg(t, "elo-chart-img"))))),
+    h(
+      "div.elo-chart-x",
+      h("span"),
+      h(
+        "div.elo-chart-logos",
+        ELO_ORDER.map((t) =>
+          h("div.elo-chart-logo", h("span", { title: TIER_LABEL[t] || t }, rankImg(t, "elo-chart-img")), stacked ? h("div.elo-chart-champs", { "data-tier": t }) : null),
+        ),
+      ),
+    ),
   );
+}
+
+/** Alto de una barra (``pct`` del eje Y) y su número justo encima. */
+function setEloBar(col, pct, n) {
+  col.querySelector(".elo-chart-bar").style.height = `${pct}%`;
+  const label = col.querySelector(".elo-chart-n");
+  label.style.bottom = `calc(${pct}% + 3px)`;
+  label.textContent = n ? fmt.int(n) : "";
 }
 
 function updateEloChart(box, autopush, analyzed) {
@@ -1518,8 +1542,7 @@ function updateEloChart(box, autopush, analyzed) {
   });
   box.querySelectorAll(".elo-chart-col").forEach((col) => {
     const n = counts[col.dataset.tier] || 0;
-    col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
-    col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
+    setEloBar(col, max ? (100 * n) / max : 0, n);
     col.classList.toggle("top", !!max && n === max);
   });
 }
@@ -1529,6 +1552,57 @@ function updateEloChart(box, autopush, analyzed) {
  *  partida se clasifica al guardarse; las que aún no lo están (de antes) se reparten con el % de OTPs de su elo. */
 let totalBox = null;
 let totalSig = null;
+let totalAll = null; // recuento de todos los campeones (el de /api/crawler/otps/live)
+let totalChamp = null; // campeón del buscador (null: todos)
+let totalChampData = null; // {champ, at, counts}: sus partidas por elo
+let totalChampBusy = false;
+const CHAMP_TOTAL_REFRESH_MS = 10000;
+
+/** Buscador de campeón («Todos» vuelve al total) y la gráfica. */
+function eloTotalCard() {
+  const picker = champPicker({ value: totalChamp, compact: true, placeholder: "Todos los campeones", onChange: (id) => selectTotalChamp(id) });
+  const all = h("button.btn.btn-ghost.btn-sm.elo-total-all", { type: "button", title: "Ver todos los campeones", onclick: () => { picker.setValue(null); selectTotalChamp(null); } }, icon("close"), "Todos");
+  all.style.display = totalChamp ? "" : "none";
+  return h(
+    "div.elo-chart-box",
+    h("div.row-wrap", { style: { gap: "8px", marginBottom: "10px", alignItems: "center" } }, h("div", { style: { width: "240px", maxWidth: "100%" } }, picker), all),
+    eloChartShell(true),
+  );
+}
+
+function selectTotalChamp(id) {
+  totalChamp = id || null;
+  totalChampData = null;
+  totalSig = null;
+  const all = totalBox?.querySelector(".elo-total-all");
+  if (all) all.style.display = totalChamp ? "" : "none";
+  void paintEloTotal();
+}
+
+/** Pinta el total (de todos o del campeón elegido: sus partidas se piden aparte, cada ``CHAMP_TOTAL_REFRESH_MS``). */
+async function paintEloTotal() {
+  if (!totalBox?.isConnected) return;
+  const champ = totalChamp;
+  if (!champ) {
+    if (totalAll) updateEloTotal(totalBox, totalAll, null);
+    return;
+  }
+  const mine = totalChampData?.champ === champ ? totalChampData : null;
+  if (mine) updateEloTotal(totalBox, mine.counts, champ);
+  else totalBox.querySelector(".elo-chart-title").textContent = `Contando las partidas de ${dd.name(champ)}…`;
+  if ((mine && Date.now() - mine.at < CHAMP_TOTAL_REFRESH_MS) || totalChampBusy) return;
+  totalChampBusy = true;
+  try {
+    const counts = await api.get(`/api/crawler/otps/by-tier?champ=${champ}`);
+    if (totalChamp !== champ) return;
+    totalChampData = { champ, at: Date.now(), counts };
+    if (totalBox?.isConnected) updateEloTotal(totalBox, counts, champ);
+  } catch {
+    // sin conexión un momento: el siguiente refresco lo intenta otra vez
+  } finally {
+    totalChampBusy = false;
+  }
+}
 
 function eloTotalSplit(d) {
   const all = d?.tiers || {};
@@ -1551,31 +1625,48 @@ function eloTotalSplit(d) {
   return { byTier, estimated };
 }
 
-function updateEloTotal(box, details) {
+function updateEloTotal(box, details, champ = null) {
   const { byTier, estimated } = eloTotalSplit(details);
-  const sig = JSON.stringify([byTier, estimated]);
+  const top = champ ? {} : details?.top_champs || {};
+  const sig = JSON.stringify([champ, byTier, estimated, top]);
   if (sig === totalSig) return;
   totalSig = sig;
   const max = Math.max(0, ...ELO_ORDER.map((t) => byTier[t].n));
   const total = ELO_ORDER.reduce((n, t) => n + byTier[t].n, 0);
   const otpTotal = ELO_ORDER.reduce((n, t) => n + byTier[t].otp, 0);
   const approx = estimated ? "~" : "";
-  box.querySelector(".elo-chart-title").textContent = `${fmt.int(total)} partidas analizadas · ${approx}${fmt.int(otpTotal)} de OTPs`;
-  box.querySelector(".elo-chart-sub").textContent = estimated
-    ? "todas las guardadas · las aún sin clasificar se reparten con el % de OTPs de su elo"
-    : "todas las guardadas (data/otps y data/partidas_campeon)";
+  const who = champ ? `${dd.name(champ)}: ` : "";
+  box.querySelector(".elo-chart-title").textContent = `${who}${fmt.int(total)} partidas analizadas · ${approx}${fmt.int(otpTotal)} de OTPs`;
+  let sub = champ ? "sus partidas guardadas, de OTPs y de otros jugadores" : "todas las guardadas (data/otps y data/partidas_campeon)";
+  if (estimated) sub += " · las aún sin clasificar se reparten con el % de OTPs de su elo";
+  box.querySelector(".elo-chart-sub").textContent = sub;
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });
   box.querySelectorAll(".elo-chart-col").forEach((col) => {
     const t = col.dataset.tier;
     const { n, otp } = byTier[t];
-    col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
+    setEloBar(col, max ? (100 * n) / max : 0, n);
     col.querySelector(".elo-chart-seg.otp").style.height = n ? `${(100 * otp) / n}%` : "0%";
-    col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
     const label = TIER_LABEL[t] || t;
     col.title = n ? `${label}: ${fmt.int(n)} · OTPs ${approx}${fmt.int(otp)} · resto ${approx}${fmt.int(n - otp)}` : label;
   });
+  box.querySelectorAll(".elo-chart-champs").forEach((slot) => paintTopChamps(slot, top[slot.dataset.tier] || {}));
+}
+
+/** Bajo cada elo: el campeón con más partidas (borde azul) y el que más tiene de OTPs (borde dorado). Con un campeón
+ *  elegido en el buscador no salen (serían él mismo). */
+function paintTopChamps(slot, top) {
+  const label = TIER_LABEL[slot.dataset.tier] || slot.dataset.tier;
+  const pic = (id, cls, what) => {
+    const img = champImg(id);
+    img.classList.add("elo-chart-champ", cls);
+    img.title = `${what} en ${label}: ${dd.name(id)}`;
+    return img;
+  };
+  slot.replaceChildren(
+    ...[top.all ? pic(top.all, "top-all", "Más partidas") : null, top.otp ? pic(top.otp, "top-otp", "Más partidas de OTPs") : null].filter(Boolean),
+  );
 }
 
 /** Embudo de la búsqueda: de los jugadores revisados, cuántos pasan cada filtro (para ver por qué salen pocos OTPs). */

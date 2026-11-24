@@ -385,6 +385,12 @@ def otps_live(svc=Depends(svc_from)):
     return otp_details.live_counts(svc.db) | {"enabled": bool(cfg and cfg.save_details)} | _files_state(svc)
 
 
+@router.get("/otps/by-tier")
+def otps_by_tier(champ: int = Query(..., description="Id del campeón"), svc=Depends(svc_from)):
+    """Partidas analizadas de un campeón por elo (OTPs y resto), para el buscador de la gráfica del total por elo."""
+    return {"champ": champ, **otp_details.champ_tier_counts(svc.db, champ)}
+
+
 @router.post("/otps/push", responses={409: {"description": "La subida automática está desactivada o git no puede subir"}})
 def otps_push_now(svc=Depends(svc_from)):
     """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 2.000 partidas."""
