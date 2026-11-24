@@ -1,236 +1,135 @@
 {
- "at": 1795551834,
+ "at": 1795552499,
  "diagnostico": {
-  "busquedas": {
-   "muestras": 8070,
-   "en": {
-    "esperando turno de la key de Riot": 82,
-    "esperando a la red (Riot, OP.GG, GitHub)": 17
-   },
-   "lineas": {
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 82,
-    "riot/client.py:72 request → ssl.py:read": 17,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
-    "ingest/crawler.py:1319 _check_mastery → db.py:write": 0,
-    "ingest/crawler.py:1143 _discover → db.py:query": 0,
-    "riot/client.py:72 request → response.py:decompress": 0
-   }
-  },
-  "crawler-dl-europe": {
-   "muestras": 1614,
-   "en": {
-    "esperando turno de la key de Riot": 84,
-    "otro": 11,
-    "esperando a la red (Riot, OP.GG, GitHub)": 5
-   },
-   "lineas": {
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 84,
-    "thread.py _worker": 11,
-    "riot/client.py:72 request → ssl.py:read": 4,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
-   }
-  },
-  "crawler-dl-sea": {
-   "muestras": 1614,
-   "en": {
-    "esperando turno de la key de Riot": 65,
-    "otro": 20,
-    "esperando a la red (Riot, OP.GG, GitHub)": 14
-   },
-   "lineas": {
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 65,
-    "thread.py _worker": 20,
-    "riot/client.py:72 request → ssl.py:read": 14,
-    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 0,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
-   }
-  },
-  "crawler-dl-americas": {
-   "muestras": 1614,
-   "en": {
-    "esperando turno de la key de Riot": 78,
-    "esperando a la red (Riot, OP.GG, GitHub)": 11,
-    "otro": 11
-   },
-   "lineas": {
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 78,
-    "riot/client.py:72 request → ssl.py:read": 11,
-    "thread.py _worker": 11,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0,
-    "riot/client.py:72 request → response.py:decompress": 0
-   }
-  },
-  "crawler-dl-asia": {
-   "muestras": 1614,
-   "en": {
-    "esperando turno de la key de Riot": 82,
-    "esperando a la red (Riot, OP.GG, GitHub)": 13,
-    "otro": 5
-   },
-   "lineas": {
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 82,
-    "riot/client.py:72 request → ssl.py:read": 13,
-    "thread.py _worker": 5,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0,
-    "riot/client.py:72 request → response.py:decompress": 0
-   }
-  },
   "db-checkpoint": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
-    "esperando un candado (base de datos, ficheros)": 100
+    "esperando un candado (base de datos, ficheros)": 98,
+    "consultando o escribiendo la base de datos": 2
    },
    "lineas": {
-    "data/db.py:499 run → threading.py:wait": 100
+    "data/db.py:499 run → threading.py:wait": 98,
+    "data/db.py:469 _run_checkpoint": 1,
+    "data/db.py:467 _run_checkpoint": 1
    }
   },
   "MainThread": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "otro": 100
    },
    "lineas": {
     "windows_events.py _poll": 100,
-    "windows_events.py finish_socket_func": 0
+    "budget.py:105 send_wrapper → windows_events.py:send": 0,
+    "windows_events.py send": 0
    }
   },
   "crawler-sea": {
-   "muestras": 538,
+   "muestras": 585,
    "en": {
-    "parado esperando trabajo": 72,
-    "consultando o escribiendo la base de datos": 10,
-    "esperando a la red (Riot, OP.GG, GitHub)": 8,
-    "esperando turno de la key de Riot": 7,
-    "comprimiendo o escribiendo ficheros": 1,
-    "otro": 1
+    "esperando turno de la key de Riot": 56,
+    "esperando a la red (Riot, OP.GG, GitHub)": 42,
+    "consultando o escribiendo la base de datos": 1,
+    "esperando un candado (base de datos, ficheros)": 1
    },
    "lineas": {
-    "ingest/crawler.py:856 take → threading.py:wait": 72,
-    "ingest/crawler.py:1584 _lacking_details → db.py:query": 9,
-    "riot/client.py:72 request → ssl.py:read": 8,
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 7,
-    "coach/items.py:257 <genexpr>": 0,
-    "ingest/otp_details.py:569 save_raw → encoder.py:_iterencode_dict": 0
-   }
-  },
-  "crawler-americas": {
-   "muestras": 538,
-   "en": {
-    "parado esperando trabajo": 88,
-    "consultando o escribiendo la base de datos": 7,
-    "esperando turno de la key de Riot": 2,
-    "analizando partidas": 1,
-    "comprimiendo o escribiendo ficheros": 1,
-    "esperando a la red (Riot, OP.GG, GitHub)": 1
-   },
-   "lineas": {
-    "ingest/crawler.py:856 take → threading.py:wait": 88,
-    "ingest/crawler.py:1584 _lacking_details → db.py:query": 7,
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 2,
-    "riot/client.py:72 request → ssl.py:read": 1,
-    "coach/navgrid.py:206 _expand": 0,
-    "coach/geometry.py:82 _dist_segment": 0
-   }
-  },
-  "crawler-europe": {
-   "muestras": 538,
-   "en": {
-    "parado esperando trabajo": 88,
-    "consultando o escribiendo la base de datos": 5,
-    "esperando turno de la key de Riot": 4,
-    "comprimiendo o escribiendo ficheros": 1,
-    "analizando partidas": 1,
-    "otro": 1
-   },
-   "lineas": {
-    "ingest/crawler.py:856 take → threading.py:wait": 88,
-    "ingest/crawler.py:1584 _lacking_details → db.py:query": 5,
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 4,
-    "ingest/otp_details.py:569 save_raw → gzip.py:_write_raw": 1,
-    "riot/client.py:72 request → ssl.py:read": 0,
-    "ingest/otp_details.py:570 save_raw": 0
-   }
-  },
-  "otp-summaries": {
-   "muestras": 54,
-   "en": {
-    "otro": 61,
-    "comprimiendo o escribiendo ficheros": 28,
-    "consultando o escribiendo la base de datos": 11
-   },
-   "lineas": {
-    "coach/store.py:25 unpack": 39,
-    "coach/store.py:25 unpack → decoder.py:decode": 20,
-    "ingest/otp_details.py:1449 write_summary → db.py:query": 11,
-    "ingest/otp_details.py:1451 write_summary": 6,
-    "coach/store.py:25 unpack → decoder.py:raw_decode": 4,
-    "ingest/otp_details.py:924 _numeric_block": 4
-   }
-  },
-  "web": {
-   "muestras": 1150,
-   "en": {
-    "parado esperando trabajo": 97,
-    "consultando o escribiendo la base de datos": 3
-   },
-   "lineas": {
-    "threading.py wait": 97,
-    "api/system.py:34 _db_counts → db.py:one": 2,
-    "api/system.py:35 _db_counts → db.py:one": 0,
-    "config.py:23 _env_values → main.py:_get_stream": 0,
-    "api/system.py:33 _db_counts → db.py:one": 0,
-    "analytics/draft.py:62 get_alpha → db.py:one": 0
+    "riot/ratelimit.py:213 acquire → threading.py:wait": 56,
+    "riot/client.py:72 request → ssl.py:read": 41,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "data/repository.py:270 store_match → db.py:write": 1,
+    "data/repository.py:319 _aggregate": 0,
+    "data/repository.py:91 estimate_match_tier": 0
    }
   },
   "crawler-asia": {
-   "muestras": 538,
+   "muestras": 585,
    "en": {
-    "parado esperando trabajo": 93,
-    "consultando o escribiendo la base de datos": 4,
-    "esperando turno de la key de Riot": 1,
+    "esperando turno de la key de Riot": 71,
+    "esperando a la red (Riot, OP.GG, GitHub)": 28,
+    "consultando o escribiendo la base de datos": 1,
+    "esperando un candado (base de datos, ficheros)": 1
+   },
+   "lineas": {
+    "riot/ratelimit.py:213 acquire → threading.py:wait": 71,
+    "riot/client.py:72 request → ssl.py:read": 27,
+    "data/repository.py:270 store_match → db.py:write": 1,
+    "data/repository.py:318 _aggregate": 0,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 0,
+    "autopush.py:262 _save → __init__.py:replace": 0
+   }
+  },
+  "crawler-europe": {
+   "muestras": 585,
+   "en": {
+    "esperando turno de la key de Riot": 86,
+    "esperando a la red (Riot, OP.GG, GitHub)": 12,
+    "consultando o escribiendo la base de datos": 1,
     "comprimiendo o escribiendo ficheros": 1
    },
    "lineas": {
-    "ingest/crawler.py:856 take → threading.py:wait": 93,
-    "ingest/crawler.py:1584 _lacking_details → db.py:query": 3,
-    "riot/ratelimit.py:213 acquire → threading.py:wait": 1,
-    "riot/client.py:72 request → ssl.py:read": 0,
-    "ingest/otp_details.py:569 save_raw → encoder.py:_iterencode_dict": 0,
-    "coach/analyzer.py:884 interpolate": 0
+    "riot/ratelimit.py:213 acquire → threading.py:wait": 86,
+    "riot/client.py:72 request → ssl.py:read": 12,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "config.py:22 _env_values → __init__.py:exists": 1,
+    "data/repository.py:270 store_match → db.py:write": 0,
+    "data/repository.py:190 known_match_ids → db.py:query": 0
    }
   },
-  "crawler-rows": {
-   "muestras": 18,
+  "crawler-americas": {
+   "muestras": 585,
    "en": {
-    "consultando o escribiendo la base de datos": 94,
-    "otro": 6
+    "esperando turno de la key de Riot": 74,
+    "esperando a la red (Riot, OP.GG, GitHub)": 24,
+    "consultando o escribiendo la base de datos": 2
    },
    "lineas": {
-    "ingest/crawler.py:629 otp_rows_for_plan → db.py:query": 56,
-    "ingest/crawler.py:626 otp_rows_for_plan → db.py:query": 39,
-    "ingest/crawler.py:333 targets": 6
+    "riot/ratelimit.py:213 acquire → threading.py:wait": 74,
+    "riot/client.py:72 request → ssl.py:read": 23,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "data/repository.py:270 store_match → db.py:write": 1,
+    "data/repository.py:272 store_match": 1,
+    "data/repository.py:319 _aggregate": 0
+   }
+  },
+  "web": {
+   "muestras": 1110,
+   "en": {
+    "parado esperando trabajo": 96,
+    "consultando o escribiendo la base de datos": 4
+   },
+   "lineas": {
+    "threading.py wait": 96,
+    "api/system.py:34 _db_counts → db.py:one": 2,
+    "api/otps.py:34 _entries → db.py:query": 1,
+    "api/system.py:35 _db_counts → db.py:one": 0,
+    "api/system.py:33 _db_counts → db.py:one": 0,
+    "api/system.py:32 _db_counts → db.py:one": 0
+   }
+  },
+  "draft-live": {
+   "muestras": 587,
+   "en": {
+    "parado esperando trabajo": 98,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "draft_live.py:447 _run → threading.py:wait": 98,
+    "draft_live.py:89 get_prefs → db.py:one": 1,
+    "lcu.py:127 _request → ssl.py:__new__": 1,
+    "lcu.py:127 _request → ssl.py:do_handshake": 1,
+    "lcu.py:93 _lockfile → __init__.py:open": 0,
+    "lcu.py:127 _request → ssl.py:load_default_certs": 0
    }
   },
   "otp-counts": {
-   "muestras": 4,
+   "muestras": 8,
    "en": {
     "consultando o escribiendo la base de datos": 100
    },
    "lineas": {
-    "ingest/otp_details.py:656 counts → db.py:one": 100
-   }
-  },
-  "draft-live": {
-   "muestras": 575,
-   "en": {
-    "parado esperando trabajo": 99,
-    "esperando a la red (Riot, OP.GG, GitHub)": 1
-   },
-   "lineas": {
-    "draft_live.py:447 _run → threading.py:wait": 99,
-    "lcu.py:127 _request → ssl.py:__new__": 0,
-    "lcu.py:127 _request → connection.py:create_connection": 0,
-    "lcu.py:127 _request → ssl.py:_create": 0
+    "ingest/otp_details.py:656 counts → db.py:one": 88,
+    "ingest/otp_details.py:654 counts → db.py:query": 12
    }
   },
   "crawler-stop": {
@@ -242,26 +141,28 @@
     "ingest/crawler.py:3080 _after_stop": 100
    }
   },
-  "Thread-8 (": {
-   "muestras": 1,
+  "lol-client-watch": {
+   "muestras": 587,
    "en": {
-    "otro": 100
+    "parado esperando trabajo": 100
    },
    "lineas": {
-    "subprocess.py _readerthread": 100
+    "coach/tracker.py:492 _watch_loop → threading.py:wait": 100,
+    "lcu.py:127 _request → ssl.py:do_handshake": 0
    }
   },
-  "Thread-7 (": {
-   "muestras": 1,
+  "game-tracker": {
+   "muestras": 587,
    "en": {
-    "otro": 100
+    "parado esperando trabajo": 100
    },
    "lineas": {
-    "subprocess.py _readerthread": 100
+    "coach/tracker.py:396 _sleep → threading.py:wait": 100,
+    "riot/client.py:72 request → ssl.py:read": 0
    }
   },
   "rofl": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -270,7 +171,7 @@
    }
   },
   "mis-partidas": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -279,7 +180,7 @@
    }
   },
   "tier-calibrator": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -288,7 +189,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -297,7 +198,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1725,
+   "muestras": 1761,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -306,7 +207,7 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -315,1929 +216,34 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 575,
+   "muestras": 587,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 96,
-    "warmer.py:177 _work → threading.py:wait": 4
+    "warmer.py:200 _work → threading.py:wait": 100
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 1150,
+   "muestras": 1174,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 96,
-    "warmer.py:177 _work → threading.py:wait": 4
+    "warmer.py:200 _work → threading.py:wait": 100
    }
   },
   "warm-opgg-web": {
-   "muestras": 1150,
+   "muestras": 1174,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 96,
-    "warmer.py:177 _work → threading.py:wait": 4
-   }
-  },
-  "lol-client-watch": {
-   "muestras": 575,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:492 _watch_loop → threading.py:wait": 100
-   }
-  },
-  "game-tracker": {
-   "muestras": 575,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:396 _sleep → threading.py:wait": 100
-   }
-  },
-  "autopush": {
-   "muestras": 35,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "ingest/otp_details.py:1584 wait_summaries → threading.py:join": 97,
-    "autopush.py:60 _git → threading.py:join": 3
+    "warmer.py:200 _work → threading.py:wait": 100
    }
   }
  },
  "registro": [
-  {
-   "id": 5,
-   "ts": 1795550161.1273403,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
-   "hora": "20:56:01"
-  },
-  {
-   "id": 6,
-   "ts": 1795550161.2714756,
-   "kind": "info",
-   "source": "precarga",
-   "message": "Precarga completa: 2854 tareas al día.",
-   "hora": "20:56:01"
-  },
-  {
-   "id": 7,
-   "ts": 1795550161.4497452,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: POST /api/draft/suggest-batch tardó 3.3 s",
-   "hora": "20:56:01"
-  },
-  {
-   "id": 8,
-   "ts": 1795550202.38764,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector americas por campeones (jugadores con mucha maestría) iniciado (NA, BR, LAN, LAS): periodo season.",
-   "hora": "20:56:42"
-  },
-  {
-   "id": 9,
-   "ts": 1795550202.3881233,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector europe por campeones (jugadores con mucha maestría) iniciado (EUW, EUNE, TR, RU, ME): periodo season.",
-   "hora": "20:56:42"
-  },
-  {
-   "id": 10,
-   "ts": 1795550202.3897908,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector asia por campeones (jugadores con mucha maestría) iniciado (KR, JP): periodo season.",
-   "hora": "20:56:42"
-  },
-  {
-   "id": 11,
-   "ts": 1795550202.390088,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector sea por campeones (jugadores con mucha maestría) iniciado (OCE, SEA, TW, VN): periodo season.",
-   "hora": "20:56:42"
-  },
-  {
-   "id": 12,
-   "ts": 1795550202.7819378,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector en marcha en 4 regiones en paralelo.",
-   "hora": "20:56:42"
-  },
-  {
-   "id": 13,
-   "ts": 1795550203.078774,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:43"
-  },
-  {
-   "id": 14,
-   "ts": 1795550203.3416526,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:43"
-  },
-  {
-   "id": 15,
-   "ts": 1795550203.8016458,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:43"
-  },
-  {
-   "id": 16,
-   "ts": 1795550204.1649773,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:44"
-  },
-  {
-   "id": 17,
-   "ts": 1795550205.7655268,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps/live tardó 2.9 s",
-   "hora": "20:56:45"
-  },
-  {
-   "id": 18,
-   "ts": 1795550206.7365577,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:46"
-  },
-  {
-   "id": 19,
-   "ts": 1795550210.4684305,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): europe 0.0 de 47.5 (reserva 5 %)",
-   "hora": "20:56:50"
-  },
-  {
-   "id": 20,
-   "ts": 1795550212.4435835,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 9.5 s",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 21,
-   "ts": 1795550212.4759774,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 62 %, esperando a la red (Riot, OP.GG, GitHub) 25 %, consultando o escribiendo la base de datos 10 %, esperando un candado (base de datos, ficheros) 3 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:499 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | elo-profile: comprimiendo o escribiendo ficheros 80 %, otro 20 % (más en coach/elo_profile.py:176 _folder_dossiers → gzip.py:read) | web: parado esperando trabajo 90 %, esperando un candado (base de datos, ficheros) 6 %, consultando o escribiendo la base de datos 4 % (más en threading.py wait) | crawler-sea: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2747 otp_rows_cached) | crawler-asia: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2747 otp_rows_cached) | crawler-europe: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2747 otp_rows_cached) | crawler-americas: consultando o escribiendo la base de datos 95 %, esperando un candado (base de datos, ficheros) 5 % (más en ingest/crawler.py:626 otp_rows_for_plan → db.py:query) | crawler-funnel: consultando o escribiendo la base de datos 74 %, esperando un candado (base de datos, ficheros) 21 %, otro 5 % (más en ingest/crawler.py:510 search_funnel → db.py:query) | startup: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:432 play_share → db.py:one) | game-tracker: parado esperando trabajo 93 %, esperando turno de la key de Riot 6 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:396 _sleep → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:61 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:311 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | draft-live: parado esperando trabajo 100 % (más en draft_live.py:447 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:492 _watch_loop → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait)",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 22,
-   "ts": 1795550212.4778013,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:510 search_funnel · SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_ch — 1 veces, 6.7 s en total, la peor 6.7 s",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 23,
-   "ts": 1795550212.4782794,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:626 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 1 veces, 5.5 s en total, la peor 5.5 s",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 24,
-   "ts": 1795550212.48006,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:629 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 1 veces, 3.9 s en total, la peor 3.9 s",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 25,
-   "ts": 1795550212.4804232,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado americas: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 26,
-   "ts": 1795550212.4820137,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 27,
-   "ts": 1795550212.4839072,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado asia: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 28,
-   "ts": 1795550212.4846168,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "20:56:52"
-  },
-  {
-   "id": 29,
-   "ts": 1795550218.6191492,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:58"
-  },
-  {
-   "id": 30,
-   "ts": 1795550219.5943434,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:56:59"
-  },
-  {
-   "id": 31,
-   "ts": 1795550222.6423407,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:02"
-  },
-  {
-   "id": 32,
-   "ts": 1795550224.6108866,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +111 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:04"
-  },
-  {
-   "id": 33,
-   "ts": 1795550225.9781876,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:05"
-  },
-  {
-   "id": 34,
-   "ts": 1795550227.2639039,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +78 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:07"
-  },
-  {
-   "id": 35,
-   "ts": 1795550227.5048923,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:07"
-  },
-  {
-   "id": 36,
-   "ts": 1795550227.7647552,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:07"
-  },
-  {
-   "id": 37,
-   "ts": 1795550227.8918128,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:07"
-  },
-  {
-   "id": 38,
-   "ts": 1795550229.8921978,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:09"
-  },
-  {
-   "id": 39,
-   "ts": 1795550241.462093,
-   "kind": "info",
-   "source": "elo-profile",
-   "message": "Perfil de errores por elo: 45798 partidas en 71.7 s.",
-   "hora": "20:57:21"
-  },
-  {
-   "id": 40,
-   "ts": 1795550263.8001072,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking NA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:57:43"
-  },
-  {
-   "id": 41,
-   "ts": 1795550275.7280724,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "20:57:55"
-  },
-  {
-   "id": 42,
-   "ts": 1795550317.752697,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAS · SILVER · jugador: 1 partidas nuevas, 0 analizadas en 1.4 min (historial: 67 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "20:58:37"
-  },
-  {
-   "id": 43,
-   "ts": 1795550318.3519065,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAS IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:58:38"
-  },
-  {
-   "id": 44,
-   "ts": 1795550334.8510532,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "20:58:54"
-  },
-  {
-   "id": 45,
-   "ts": 1795550337.7819457,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking VN IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:58:57"
-  },
-  {
-   "id": 46,
-   "ts": 1795550346.1646974,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · IRON · jugador: 15 partidas nuevas, 15 analizadas en 1.9 min (historial: 74 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "20:59:06"
-  },
-  {
-   "id": 47,
-   "ts": 1795550353.5985496,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · IRON · jugador: 13 partidas nuevas, 13 analizadas en 2.2 min (historial: 88 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "20:59:13"
-  },
-  {
-   "id": 48,
-   "ts": 1795550355.1774585,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:59:15"
-  },
-  {
-   "id": 49,
-   "ts": 1795550356.7678916,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:59:16"
-  },
-  {
-   "id": 50,
-   "ts": 1795550361.5637846,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking BR SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:59:21"
-  },
-  {
-   "id": 51,
-   "ts": 1795550376.6443508,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:59:36"
-  },
-  {
-   "id": 52,
-   "ts": 1795550378.6040194,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUW · EMERALD · jugador: 22 partidas nuevas, 0 analizadas en 2.4 min (historial: 100 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado EMERALD.",
-   "hora": "20:59:38"
-  },
-  {
-   "id": 53,
-   "ts": 1795550393.5311968,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking KR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "20:59:53"
-  },
-  {
-   "id": 54,
-   "ts": 1795550398.6301894,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
-   "hora": "20:59:58"
-  },
-  {
-   "id": 55,
-   "ts": 1795550408.3240614,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUNE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:00:08"
-  },
-  {
-   "id": 56,
-   "ts": 1795550421.1619947,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:00:21"
-  },
-  {
-   "id": 57,
-   "ts": 1795550429.405755,
-   "kind": "info",
-   "source": "crawler",
-   "message": "SEA · SILVER · jugador: 3 partidas nuevas, 3 analizadas en 1.0 min (historial: 44 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:00:29"
-  },
-  {
-   "id": 58,
-   "ts": 1795550433.1265006,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · GOLD · jugador: 21 partidas nuevas, 20 analizadas en 1.1 min (historial: 30 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado GOLD.",
-   "hora": "21:00:33"
-  },
-  {
-   "id": 59,
-   "ts": 1795550453.5089154,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.timeline). Esperando lo que indica Riot…",
-   "hora": "21:00:53"
-  },
-  {
-   "id": 60,
-   "ts": 1795550454.7849197,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:00:54"
-  },
-  {
-   "id": 61,
-   "ts": 1795550469.3884041,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking SEA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:09"
-  },
-  {
-   "id": 62,
-   "ts": 1795550469.5119438,
-   "kind": "info",
-   "source": "crawler",
-   "message": "NA · SILVER · jugador: 5 partidas nuevas, 4 analizadas en 2.2 min (historial: 96 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:01:09"
-  },
-  {
-   "id": 63,
-   "ts": 1795550469.5451865,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
-   "hora": "21:01:09"
-  },
-  {
-   "id": 64,
-   "ts": 1795550476.1056845,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · SILVER · jugador: 2 partidas nuevas, 0 analizadas en 0.4 min (historial: 18 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:01:16"
-  },
-  {
-   "id": 65,
-   "ts": 1795550477.023533,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:17"
-  },
-  {
-   "id": 66,
-   "ts": 1795550481.040767,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · EMERALD · jugador: 26 partidas nuevas, 20 analizadas en 1.4 min (historial: 31 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado EMERALD.",
-   "hora": "21:01:21"
-  },
-  {
-   "id": 67,
-   "ts": 1795550482.6768785,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:22"
-  },
-  {
-   "id": 68,
-   "ts": 1795550486.1987333,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAN SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:26"
-  },
-  {
-   "id": 69,
-   "ts": 1795550506.623025,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:46"
-  },
-  {
-   "id": 70,
-   "ts": 1795550510.113962,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:01:50"
-  },
-  {
-   "id": 71,
-   "ts": 1795550518.0715475,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking NA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:01:58"
-  },
-  {
-   "id": 72,
-   "ts": 1795550567.6028914,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:02:47"
-  },
-  {
-   "id": 73,
-   "ts": 1795550574.102414,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · PLATINUM · jugador: 2 partidas nuevas, 1 analizadas en 2.1 min (historial: 99 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado PLATINUM.",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 74,
-   "ts": 1795550574.114192,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 40.8 de 47.5 (reserva 5 %), asia 44.4 de 47.5 (reserva 5 %), europe 34.8 de 47.5 (reserva 5 %), sea 40.6 de 47.5 (reserva 5 %)",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 75,
-   "ts": 1795550574.1162977,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 14.6%/14.0%/2505, BRONZE 17.8%/17.1%/2341, SILVER 16.0%/14.8%/2427, GOLD 16.6%/16.2%/2398, PLATINUM 14.9%/13.6%/2487, EMERALD 10.8%/10.7%/2782, DIAMOND 0.0%/1.6%/17487, MASTER 1.7%/3.2%/5210, GRANDMASTER 6.8%/6.2%/3261, CHALLENGER 0.7%/2.6%/7007",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 76,
-   "ts": 1795550574.1166964,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 2·28·14.0·2.0·50%, SILVER 4·7·1.8·1.3·75%, GOLD 1·20·20.0·1.1·0%, PLATINUM 1·1·1.0·2.1·0%, EMERALD 2·20·10.0·1.9·0%",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 77,
-   "ts": 1795550574.1172602,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 454/2/0/0, BRONZE 606/0/0/0, SILVER 625/1/0/0, GOLD 713/0/0/0, PLATINUM 768/0/0/0, EMERALD 870/1/1/0, DIAMOND 5291/0/0/0, MASTER 4739/0/0/0, GRANDMASTER 1424/7/0/0, CHALLENGER 980/104/0/0",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 78,
-   "ts": 1795550574.1281383,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 79 %, esperando a la red (Riot, OP.GG, GitHub) 18 %, esperando un candado (base de datos, ficheros) 2 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 79 %, otro 16 %, esperando a la red (Riot, OP.GG, GitHub) 5 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 67 %, otro 19 %, esperando a la red (Riot, OP.GG, GitHub) 13 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 73 %, otro 18 %, esperando a la red (Riot, OP.GG, GitHub) 9 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 78 %, esperando a la red (Riot, OP.GG, GitHub) 12 %, otro 10 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 98 %, consultando o escribiendo la base de datos 2 % (más en data/db.py:499 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-europe: parado esperando trabajo 78 %, consultando o escribiendo la base de datos 15 %, esperando turno de la key de Riot 2 %, esperando un candado (base de datos, ficheros) 2 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-sea: parado esperando trabajo 80 %, consultando o escribiendo la base de datos 15 %, esperando un candado (base de datos, ficheros) 2 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-americas: parado esperando trabajo 84 %, consultando o escribiendo la base de datos 13 %, esperando un candado (base de datos, ficheros) 2 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-asia: parado esperando trabajo 87 %, consultando o escribiendo la base de datos 9 %, esperando un candado (base de datos, ficheros) 1 %, analizando partidas 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | web: parado esperando trabajo 94 %, consultando o escribiendo la base de datos 6 % (más en threading.py wait) | crawler-rows: consultando o escribiendo la base de datos 93 %, otro 7 % (más en ingest/crawler.py:629 otp_rows_for_plan → db.py:query) | otp-summaries: otro 53 %, comprimiendo o escribiendo ficheros 29 %, consultando o escribiendo la base de datos 18 % (más en coach/store.py:25 unpack) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:656 counts → db.py:one) | draft-live: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en draft_live.py:447 _run → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:396 _sleep → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:311 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:492 _watch_loop → threading.py:wait)",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 79,
-   "ts": 1795550574.1290085,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:1584 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 120 veces, 213.0 s en total, la peor 4.3 s",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 80,
-   "ts": 1795550574.1293268,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:629 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 3 veces, 11.7 s en total, la peor 4.0 s",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 81,
-   "ts": 1795550574.129649,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:626 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 3 veces, 11.2 s en total, la peor 5.5 s",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 82,
-   "ts": 1795550574.1304188,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado americas: 12 partidas nuevas (2.4/min ahora) · 9 analizadas · errores 0 · tiempo: cola 66, riot_listas 4, esperando_descarga 290, partidas 300, guardar_partida 0, visitas 221, riot 0, analizar_guardar 2",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 83,
-   "ts": 1795550574.1308875,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 55 partidas nuevas (9.4/min ahora) · 25 analizadas · errores 0 · tiempo: cola 72, riot_listas 9, esperando_descarga 263, partidas 277, guardar_partida 6, visitas 229, riot 0, analizar_guardar 6",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 84,
-   "ts": 1795550574.1313357,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado asia: 36 partidas nuevas (6.6/min ahora) · 34 analizadas · errores 0 · tiempo: cola 44, riot_listas 5, esperando_descarga 310, guardar_partida 1, riot 0, analizar_guardar 7, partidas 322, visitas 327",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 85,
-   "ts": 1795550574.1317563,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 28 partidas nuevas (4.6/min ahora) · 26 analizadas · errores 0 · tiempo: cola 71, riot_listas 7, esperando_descarga 276, partidas 292, guardar_partida 1, riot 0, analizar_guardar 6, visitas 203",
-   "hora": "21:02:54"
-  },
-  {
-   "id": 86,
-   "ts": 1795550577.5653353,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 5.0 s",
-   "hora": "21:02:57"
-  },
-  {
-   "id": 87,
-   "ts": 1795550579.1641753,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAS IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:02:59"
-  },
-  {
-   "id": 88,
-   "ts": 1795550590.9380548,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking VN IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:03:10"
-  },
-  {
-   "id": 89,
-   "ts": 1795550605.8117669,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · SILVER · jugador: 8 partidas nuevas, 8 analizadas en 2.2 min (historial: 92 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:03:25"
-  },
-  {
-   "id": 90,
-   "ts": 1795550612.5341878,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking BR SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:03:32"
-  },
-  {
-   "id": 91,
-   "ts": 1795550612.572833,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:03:32"
-  },
-  {
-   "id": 92,
-   "ts": 1795550613.9197097,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:03:33"
-  },
-  {
-   "id": 93,
-   "ts": 1795550626.2500677,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · BRONZE · jugador: 10 partidas nuevas, 9 analizadas en 2.3 min (historial: 91 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:03:46"
-  },
-  {
-   "id": 94,
-   "ts": 1795550628.4184096,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:03:48"
-  },
-  {
-   "id": 95,
-   "ts": 1795550638.9904392,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:03:58"
-  },
-  {
-   "id": 96,
-   "ts": 1795550655.8747723,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking KR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:04:15"
-  },
-  {
-   "id": 97,
-   "ts": 1795550657.5016344,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · PLATINUM · jugador: 20 partidas nuevas, 20 analizadas en 1.2 min (historial: 31 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado PLATINUM.",
-   "hora": "21:04:17"
-  },
-  {
-   "id": 98,
-   "ts": 1795550661.9629374,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUNE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:04:21"
-  },
-  {
-   "id": 99,
-   "ts": 1795550664.6176107,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · BRONZE · jugador: 0 partidas nuevas, 0 analizadas en 0.4 min (historial: 14 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:04:24"
-  },
-  {
-   "id": 100,
-   "ts": 1795550680.4115813,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · SILVER · jugador: 17 partidas nuevas, 13 analizadas en 2.9 min (historial: 87 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:04:40"
-  },
-  {
-   "id": 101,
-   "ts": 1795550681.0951355,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:04:41"
-  },
-  {
-   "id": 102,
-   "ts": 1795550699.6057374,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
-   "hora": "21:04:59"
-  },
-  {
-   "id": 103,
-   "ts": 1795550720.412135,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:05:20"
-  },
-  {
-   "id": 104,
-   "ts": 1795550724.6430013,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking SEA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:05:24"
-  },
-  {
-   "id": 105,
-   "ts": 1795550734.719434,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · IRON · jugador: 5 partidas nuevas, 1 analizadas en 1.8 min (historial: 84 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:05:34"
-  },
-  {
-   "id": 106,
-   "ts": 1795550738.6122997,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:05:38"
-  },
-  {
-   "id": 107,
-   "ts": 1795550747.4345589,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAN SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:05:47"
-  },
-  {
-   "id": 108,
-   "ts": 1795550752.2847283,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:05:52"
-  },
-  {
-   "id": 109,
-   "ts": 1795550766.3078806,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:06:06"
-  },
-  {
-   "id": 110,
-   "ts": 1795550771.5161936,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
-   "hora": "21:06:11"
-  },
-  {
-   "id": 111,
-   "ts": 1795550775.502436,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking NA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:06:15"
-  },
-  {
-   "id": 112,
-   "ts": 1795550799.239441,
-   "kind": "info",
-   "source": "crawler",
-   "message": "NA · GOLD · jugador: 11 partidas nuevas, 11 analizadas en 2.2 min (historial: 89 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GOLD.",
-   "hora": "21:06:39"
-  },
-  {
-   "id": 113,
-   "ts": 1795550800.7840962,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · SILVER · jugador: 22 partidas nuevas, 20 analizadas en 1.7 min (historial: 31 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:06:40"
-  },
-  {
-   "id": 114,
-   "ts": 1795550802.9874158,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · BRONZE · jugador: 16 partidas nuevas, 2 analizadas en 2.2 min (historial: 98 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:06:42"
-  },
-  {
-   "id": 115,
-   "ts": 1795550806.253542,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · IRON · jugador: 5 partidas nuevas, 1 analizadas en 0.9 min (historial: 39 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:06:46"
-  },
-  {
-   "id": 116,
-   "ts": 1795550836.2782855,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAS IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:07:16"
-  },
-  {
-   "id": 117,
-   "ts": 1795550844.3811607,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking VN IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:07:24"
-  },
-  {
-   "id": 118,
-   "ts": 1795550849.710613,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · IRON · jugador: 0 partidas nuevas, 0 analizadas en 0.5 min (historial: 24 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:07:29"
-  },
-  {
-   "id": 119,
-   "ts": 1795550861.9232183,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:07:41"
-  },
-  {
-   "id": 120,
-   "ts": 1795550867.4434826,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:07:47"
-  },
-  {
-   "id": 121,
-   "ts": 1795550873.6354406,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking BR SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:07:53"
-  },
-  {
-   "id": 122,
-   "ts": 1795550874.4712236,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:07:54"
-  },
-  {
-   "id": 123,
-   "ts": 1795550875.3055458,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · BRONZE · jugador: 0 partidas nuevas, 0 analizadas en 0.8 min (historial: 36 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 124,
-   "ts": 1795550875.3203816,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 40.7 de 47.5 (reserva 5 %), asia 43.4 de 47.5 (reserva 5 %), europe 34.4 de 47.5 (reserva 5 %), sea 36.9 de 47.5 (reserva 5 %)",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 125,
-   "ts": 1795550875.3229496,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 14.8%/13.8%/2507, BRONZE 17.8%/16.9%/2352, SILVER 15.5%/15.7%/2470, GOLD 16.6%/16.2%/2409, PLATINUM 14.8%/14.1%/2508, EMERALD 10.9%/10.7%/2787, DIAMOND 0.0%/1.6%/17487, MASTER 1.8%/2.5%/5210, GRANDMASTER 6.9%/5.9%/3261, CHALLENGER 0.7%/2.6%/7007",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 126,
-   "ts": 1795550875.3233418,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 5·30·6.0·1.5·80%, BRONZE 4·11·2.8·1.4·50%, SILVER 7·48·6.9·1.7·43%, GOLD 2·31·15.5·1.7·0%, PLATINUM 2·21·10.5·1.7·0%, EMERALD 2·20·10.0·1.9·0%",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 127,
-   "ts": 1795550875.323923,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 455/1/1/0, BRONZE 605/1/1/0, SILVER 627/1/3/0, GOLD 712/1/0/0, PLATINUM 766/0/1/0, EMERALD 870/0/1/0, DIAMOND 5291/0/0/0, MASTER 4739/0/0/0, GRANDMASTER 1424/7/0/0, CHALLENGER 980/104/0/0",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 128,
-   "ts": 1795550875.3342152,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 81 %, esperando a la red (Riot, OP.GG, GitHub) 18 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 72 %, otro 23 %, esperando a la red (Riot, OP.GG, GitHub) 5 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 61 %, otro 27 %, esperando a la red (Riot, OP.GG, GitHub) 12 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 71 %, otro 19 %, esperando a la red (Riot, OP.GG, GitHub) 10 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 74 %, otro 15 %, esperando a la red (Riot, OP.GG, GitHub) 11 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:499 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-europe: parado esperando trabajo 71 %, consultando o escribiendo la base de datos 19 %, esperando turno de la key de Riot 8 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-sea: parado esperando trabajo 73 %, consultando o escribiendo la base de datos 23 %, comprimiendo o escribiendo ficheros 1 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-americas: parado esperando trabajo 80 %, consultando o escribiendo la base de datos 15 %, esperando turno de la key de Riot 2 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-asia: parado esperando trabajo 85 %, consultando o escribiendo la base de datos 10 %, esperando turno de la key de Riot 2 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | web: parado esperando trabajo 95 %, consultando o escribiendo la base de datos 5 % (más en threading.py wait) | crawler-rows: consultando o escribiendo la base de datos 95 %, otro 5 % (más en ingest/crawler.py:629 otp_rows_for_plan → db.py:query) | otp-summaries: otro 75 %, consultando o escribiendo la base de datos 21 %, comprimiendo o escribiendo ficheros 4 % (más en coach/store.py:25 unpack) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:656 counts → db.py:one) | draft-live: parado esperando trabajo 98 %, esperando a la red (Riot, OP.GG, GitHub) 1 %, consultando o escribiendo la base de datos 1 % (más en draft_live.py:447 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 99 % (más en coach/tracker.py:492 _watch_loop → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:311 _plan_loop → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:396 _sleep → threading.py:wait)",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 129,
-   "ts": 1795550875.3349652,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:1584 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 219 veces, 415.0 s en total, la peor 4.4 s",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 130,
-   "ts": 1795550875.3352928,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:629 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 6 veces, 25.1 s en total, la peor 4.9 s",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 131,
-   "ts": 1795550875.3360066,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:626 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 6 veces, 18.6 s en total, la peor 5.5 s",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 132,
-   "ts": 1795550875.33629,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado americas: 27 partidas nuevas (3.0/min ahora) · 24 analizadas · errores 0 · tiempo: cola 110, riot_listas 14, esperando_descarga 534, partidas 548, guardar_partida 0, visitas 562, riot 0, analizar_guardar 6",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 133,
-   "ts": 1795550875.3368878,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 89 partidas nuevas (6.8/min ahora) · 57 analizadas · errores 0 · tiempo: cola 126, riot_listas 16, esperando_descarga 488, partidas 510, guardar_partida 6, visitas 507, riot 18, analizar_guardar 15",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 134,
-   "ts": 1795550875.337446,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado asia: 73 partidas nuevas (7.4/min ahora) · 57 analizadas · errores 0 · tiempo: cola 82, riot_listas 12, esperando_descarga 548, guardar_partida 1, riot 0, analizar_guardar 12, partidas 566, visitas 565",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 135,
-   "ts": 1795550875.3378925,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 51 partidas nuevas (4.6/min ahora) · 41 analizadas · errores 0 · tiempo: cola 139, riot_listas 12, esperando_descarga 498, partidas 519, guardar_partida 1, riot 0, analizar_guardar 10, visitas 495",
-   "hora": "21:07:55"
-  },
-  {
-   "id": 136,
-   "ts": 1795550893.3788936,
-   "kind": "info",
-   "source": "crawler",
-   "message": "SEA · GOLD · jugador: 20 partidas nuevas, 20 analizadas en 0.9 min (historial: 22 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado GOLD.",
-   "hora": "21:08:13"
-  },
-  {
-   "id": 137,
-   "ts": 1795550893.5678983,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:08:13"
-  },
-  {
-   "id": 138,
-   "ts": 1795550907.1552556,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking KR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:08:27"
-  },
-  {
-   "id": 139,
-   "ts": 1795550917.7753885,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUNE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:08:37"
-  },
-  {
-   "id": 140,
-   "ts": 1795550935.663345,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:08:55"
-  },
-  {
-   "id": 141,
-   "ts": 1795550937.2256317,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:08:57"
-  },
-  {
-   "id": 142,
-   "ts": 1795550943.8025098,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · IRON · jugador: 6 partidas nuevas, 5 analizadas en 1.6 min (historial: 66 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:09:03"
-  },
-  {
-   "id": 143,
-   "ts": 1795550967.7131693,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
-   "hora": "21:09:27"
-  },
-  {
-   "id": 144,
-   "ts": 1795550979.2891169,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking SEA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:09:39"
-  },
-  {
-   "id": 145,
-   "ts": 1795550980.249768,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUW · PLATINUM · jugador: 3 partidas nuevas, 2 analizadas en 2.4 min (historial: 98 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado PLATINUM.",
-   "hora": "21:09:40"
-  },
-  {
-   "id": 146,
-   "ts": 1795550982.7224472,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:09:42"
-  },
-  {
-   "id": 147,
-   "ts": 1795550989.5261228,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:09:49"
-  },
-  {
-   "id": 148,
-   "ts": 1795550997.5802095,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:09:57"
-  },
-  {
-   "id": 149,
-   "ts": 1795551002.1462548,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAN SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:10:02"
-  },
-  {
-   "id": 150,
-   "ts": 1795551010.7290378,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · BRONZE · jugador: 9 partidas nuevas, 9 analizadas en 2.0 min (historial: 82 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:10:10"
-  },
-  {
-   "id": 151,
-   "ts": 1795551020.9852602,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:10:20"
-  },
-  {
-   "id": 152,
-   "ts": 1795551033.881675,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking NA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:10:33"
-  },
-  {
-   "id": 153,
-   "ts": 1795551041.2856517,
-   "kind": "info",
-   "source": "crawler",
-   "message": "VN · GRANDMASTER · jugador: 90 partidas nuevas, 1 analizadas en 2.2 min (historial: 135 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GRANDMASTER.",
-   "hora": "21:10:41"
-  },
-  {
-   "id": 154,
-   "ts": 1795551056.10691,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:10:56"
-  },
-  {
-   "id": 155,
-   "ts": 1795551076.4670293,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · IRON · jugador: 4 partidas nuevas, 1 analizadas en 2.1 min (historial: 99 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:11:16"
-  },
-  {
-   "id": 156,
-   "ts": 1795551093.3693948,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAS IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:11:33"
-  },
-  {
-   "id": 157,
-   "ts": 1795551101.5274825,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking VN IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:11:41"
-  },
-  {
-   "id": 158,
-   "ts": 1795551110.9043274,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
-   "hora": "21:11:50"
-  },
-  {
-   "id": 159,
-   "ts": 1795551119.0795975,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:11:59"
-  },
-  {
-   "id": 160,
-   "ts": 1795551120.3547804,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.timeline). Esperando lo que indica Riot…",
-   "hora": "21:12:00"
-  },
-  {
-   "id": 161,
-   "ts": 1795551121.6952538,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:01"
-  },
-  {
-   "id": 162,
-   "ts": 1795551123.3275962,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:03"
-  },
-  {
-   "id": 163,
-   "ts": 1795551130.5488276,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking BR SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:10"
-  },
-  {
-   "id": 164,
-   "ts": 1795551140.088476,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUW · PLATINUM · jugador: 6 partidas nuevas, 2 analizadas en 2.5 min (historial: 98 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado PLATINUM.",
-   "hora": "21:12:20"
-  },
-  {
-   "id": 165,
-   "ts": 1795551145.5648048,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:25"
-  },
-  {
-   "id": 166,
-   "ts": 1795551152.0570514,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · BRONZE · jugador: 15 partidas nuevas, 13 analizadas en 2.2 min (historial: 88 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:12:32"
-  },
-  {
-   "id": 167,
-   "ts": 1795551162.7301075,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking KR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:42"
-  },
-  {
-   "id": 168,
-   "ts": 1795551167.390355,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUNE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:12:47"
-  },
-  {
-   "id": 169,
-   "ts": 1795551179.7612,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.timeline). Esperando lo que indica Riot…",
-   "hora": "21:12:59"
-  },
-  {
-   "id": 170,
-   "ts": 1795551181.0330758,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:13:01"
-  },
-  {
-   "id": 171,
-   "ts": 1795551191.5028737,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:13:11"
-  },
-  {
-   "id": 172,
-   "ts": 1795551191.9874513,
-   "kind": "info",
-   "source": "crawler",
-   "message": "VN · GRANDMASTER · jugador: 66 partidas nuevas, 20 analizadas en 2.4 min (historial: 93 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado GRANDMASTER.",
-   "hora": "21:13:11"
-  },
-  {
-   "id": 173,
-   "ts": 1795551191.9997437,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 44.5 de 47.5 (reserva 5 %), asia 46.5 de 47.5 (reserva 5 %), europe 40.9 de 47.5 (reserva 5 %), sea 44.1 de 47.5 (reserva 5 %)",
-   "hora": "21:13:11"
-  },
-  {
-   "id": 174,
-   "ts": 1795551192.001872,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 14.8%/14.0%/2519, BRONZE 17.7%/17.6%/2369, SILVER 15.7%/15.6%/2470, GOLD 16.4%/16.0%/2429, PLATINUM 14.9%/14.4%/2511, EMERALD 11.0%/10.7%/2787, DIAMOND 0.0%/1.6%/17487, MASTER 1.8%/1.7%/5210, GRANDMASTER 6.9%/5.9%/3271, CHALLENGER 0.7%/2.6%/7007",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 175,
-   "ts": 1795551192.0025299,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 7·36·5.1·1.6·71%, BRONZE 6·33·5.5·1.6·50%, SILVER 7·48·6.9·1.7·43%, GOLD 3·51·17.0·1.4·0%, PLATINUM 4·25·6.2·2.1·0%, EMERALD 2·20·10.0·1.9·0%, GRANDMASTER 2·21·10.5·2.3·0%",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 176,
-   "ts": 1795551192.002813,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 456/1/1/0, BRONZE 605/1/2/0, SILVER 630/0/3/0, GOLD 712/0/1/0, PLATINUM 764/1/2/0, EMERALD 870/0/1/0, DIAMOND 5291/0/0/0, MASTER 4739/0/0/0, GRANDMASTER 1424/8/0/0, CHALLENGER 980/104/0/0",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 177,
-   "ts": 1795551192.0138857,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 83 %, esperando a la red (Riot, OP.GG, GitHub) 17 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 83 %, otro 12 %, esperando a la red (Riot, OP.GG, GitHub) 5 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 73 %, esperando a la red (Riot, OP.GG, GitHub) 15 %, otro 12 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 78 %, otro 13 %, esperando a la red (Riot, OP.GG, GitHub) 9 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 80 %, esperando a la red (Riot, OP.GG, GitHub) 12 %, otro 8 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:499 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-sea: parado esperando trabajo 87 %, esperando turno de la key de Riot 5 %, consultando o escribiendo la base de datos 4 %, esperando a la red (Riot, OP.GG, GitHub) 3 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-americas: parado esperando trabajo 90 %, consultando o escribiendo la base de datos 8 %, analizando partidas 1 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-europe: parado esperando trabajo 90 %, consultando o escribiendo la base de datos 8 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-asia: parado esperando trabajo 95 %, consultando o escribiendo la base de datos 3 %, esperando a la red (Riot, OP.GG, GitHub) 1 %, esperando turno de la key de Riot 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-rows: consultando o escribiendo la base de datos 94 %, otro 6 % (más en ingest/crawler.py:629 otp_rows_for_plan → db.py:query) | web: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en threading.py wait) | otp-summaries: otro 70 %, consultando o escribiendo la base de datos 20 %, comprimiendo o escribiendo ficheros 10 % (más en coach/store.py:25 unpack) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:656 counts → db.py:one) | draft-live: parado esperando trabajo 100 % (más en draft_live.py:447 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:492 _watch_loop → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:396 _sleep → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:311 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait)",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 178,
-   "ts": 1795551192.0143402,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:1584 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 312 veces, 504.2 s en total, la peor 4.4 s",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 179,
-   "ts": 1795551192.0147033,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:629 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 8 veces, 30.0 s en total, la peor 4.9 s",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 180,
-   "ts": 1795551192.0150125,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:626 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 8 veces, 21.3 s en total, la peor 5.5 s",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 181,
-   "ts": 1795551192.0153964,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado americas: 65 partidas nuevas (7.6/min ahora) · 47 analizadas · errores 0 · tiempo: cola 146, riot_listas 18, esperando_descarga 803, partidas 822, guardar_partida 1, visitas 814, riot 0, analizar_guardar 10",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 182,
-   "ts": 1795551192.0156262,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 105 partidas nuevas (3.2/min ahora) · 68 analizadas · errores 0 · tiempo: cola 145, riot_listas 19, esperando_descarga 776, partidas 800, guardar_partida 7, visitas 802, riot 18, analizar_guardar 16",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 183,
-   "ts": 1795551192.0160096,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado asia: 101 partidas nuevas (4.8/min ahora) · 79 analizadas · errores 0 · tiempo: cola 89, riot_listas 15, esperando_descarga 858, guardar_partida 2, riot 0, analizar_guardar 15, partidas 879, visitas 788",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 184,
-   "ts": 1795551192.016334,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 214 partidas nuevas (31.6/min ahora) · 73 analizadas · errores 0 · tiempo: cola 166, riot_listas 17, esperando_descarga 761, partidas 789, guardar_partida 3, riot 17, analizar_guardar 15, visitas 823",
-   "hora": "21:13:12"
-  },
-  {
-   "id": 185,
-   "ts": 1795551205.2716663,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 500 de 2000 partidas nuevas.",
-   "hora": "21:13:25"
-  },
-  {
-   "id": 186,
-   "ts": 1795551213.4077504,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · IRON · jugador: 22 partidas nuevas, 19 analizadas en 2.2 min (historial: 81 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:13:33"
-  },
-  {
-   "id": 187,
-   "ts": 1795551225.41403,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUW · PLATINUM · jugador: 20 partidas nuevas, 20 analizadas en 1.3 min (historial: 27 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado PLATINUM.",
-   "hora": "21:13:45"
-  },
-  {
-   "id": 188,
-   "ts": 1795551235.7739258,
-   "kind": "info",
-   "source": "crawler",
-   "message": "SEA · GOLD · jugador: 11 partidas nuevas, 11 analizadas en 0.6 min (historial: 15 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado GOLD.",
-   "hora": "21:13:55"
-  },
-  {
-   "id": 189,
-   "ts": 1795551238.7129383,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:13:58"
-  },
-  {
-   "id": 190,
-   "ts": 1795551239.0739112,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:13:59"
-  },
-  {
-   "id": 191,
-   "ts": 1795551239.1962414,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking SEA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:13:59"
-  },
-  {
-   "id": 192,
-   "ts": 1795551247.974176,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:14:07"
-  },
-  {
-   "id": 193,
-   "ts": 1795551257.913216,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAN SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:14:17"
-  },
-  {
-   "id": 194,
-   "ts": 1795551269.2028599,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking ME SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:14:29"
-  },
-  {
-   "id": 195,
-   "ts": 1795551287.318784,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking NA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:14:47"
-  },
-  {
-   "id": 196,
-   "ts": 1795551289.9903448,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 600 de 2000 partidas nuevas.",
-   "hora": "21:14:49"
-  },
-  {
-   "id": 197,
-   "ts": 1795551292.4306421,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · GRANDMASTER · jugador: 83 partidas nuevas, 1 analizadas en 2.2 min (historial: 114 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GRANDMASTER.",
-   "hora": "21:14:52"
-  },
-  {
-   "id": 198,
-   "ts": 1795551300.3581161,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:15:00"
-  },
-  {
-   "id": 199,
-   "ts": 1795551343.0509717,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAS IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:15:43"
-  },
-  {
-   "id": 200,
-   "ts": 1795551346.4895685,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · IRON · jugador: 1 partidas nuevas, 1 analizadas en 2.1 min (historial: 99 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:15:46"
-  },
-  {
-   "id": 201,
-   "ts": 1795551353.4801035,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · EMERALD · jugador: 20 partidas nuevas, 3 analizadas en 2.0 min (historial: 88 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado EMERALD.",
-   "hora": "21:15:53"
-  },
-  {
-   "id": 202,
-   "ts": 1795551358.0957031,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:15:58"
-  },
-  {
-   "id": 203,
-   "ts": 1795551363.8998477,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking VN IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:03"
-  },
-  {
-   "id": 204,
-   "ts": 1795551375.2155333,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:15"
-  },
-  {
-   "id": 205,
-   "ts": 1795551376.2535625,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:16"
-  },
-  {
-   "id": 206,
-   "ts": 1795551380.2777293,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · SILVER · jugador: 27 partidas nuevas, 8 analizadas en 2.4 min (historial: 92 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:16:20"
-  },
-  {
-   "id": 207,
-   "ts": 1795551386.7340882,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking BR SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:26"
-  },
-  {
-   "id": 208,
-   "ts": 1795551398.8472521,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 700 de 2000 partidas nuevas.",
-   "hora": "21:16:38"
-  },
-  {
-   "id": 209,
-   "ts": 1795551399.243891,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking RU IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:39"
-  },
-  {
-   "id": 210,
-   "ts": 1795551408.4476907,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking KR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:48"
-  },
-  {
-   "id": 211,
-   "ts": 1795551412.8217046,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · IRON · jugador: 20 partidas nuevas, 20 analizadas en 1.0 min (historial: 22 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado IRON.",
-   "hora": "21:16:52"
-  },
-  {
-   "id": 212,
-   "ts": 1795551418.976951,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:16:58"
-  },
-  {
-   "id": 213,
-   "ts": 1795551419.5025098,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUNE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:16:59"
-  },
-  {
-   "id": 214,
-   "ts": 1795551438.5491962,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking EUW IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:17:18"
-  },
-  {
-   "id": 215,
-   "ts": 1795551438.5974722,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · GRANDMASTER · jugador: 85 partidas nuevas, 4 analizadas en 2.2 min (historial: 121 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GRANDMASTER.",
-   "hora": "21:17:18"
-  },
-  {
-   "id": 216,
-   "ts": 1795551444.4586442,
-   "kind": "info",
-   "source": "crawler",
-   "message": "TW · BRONZE · jugador: 20 partidas nuevas, 20 analizadas en 1.3 min (historial: 40 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado BRONZE.",
-   "hora": "21:17:24"
-  },
-  {
-   "id": 217,
-   "ts": 1795551456.6176884,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · SILVER · jugador: 3 partidas nuevas, 3 analizadas en 0.7 min (historial: 26 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado SILVER.",
-   "hora": "21:17:36"
-  },
-  {
-   "id": 218,
-   "ts": 1795551463.0501444,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 800 de 2000 partidas nuevas.",
-   "hora": "21:17:43"
-  },
-  {
-   "id": 219,
-   "ts": 1795551479.0193222,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.timeline). Esperando lo que indica Riot…",
-   "hora": "21:17:59"
-  },
-  {
-   "id": 220,
-   "ts": 1795551480.2886417,
-   "kind": "warning",
-   "source": "riot",
-   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
-   "hora": "21:18:00"
-  },
-  {
-   "id": 221,
-   "ts": 1795551486.1205149,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking SEA IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:18:06"
-  },
-  {
-   "id": 222,
-   "ts": 1795551494.5568376,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking TR IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:18:14"
-  },
-  {
-   "id": 223,
-   "ts": 1795551494.8220892,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking OCE IRON: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:18:14"
-  },
-  {
-   "id": 224,
-   "ts": 1795551515.2407427,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking LAN SILVER: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "21:18:35"
-  },
-  {
-   "id": 225,
-   "ts": 1795551530.204733,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAS · EMERALD · jugador: 20 partidas nuevas, 20 analizadas en 1.4 min (historial: 32 revisadas) · fin: tope por jugador · elegido: nuevo, elo más atrasado EMERALD.",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 226,
-   "ts": 1795551530.21566,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 43.5 de 47.5 (reserva 5 %), asia 46.2 de 47.5 (reserva 5 %), europe 42.5 de 47.5 (reserva 5 %), sea 45.3 de 47.5 (reserva 5 %)",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 227,
-   "ts": 1795551530.2171576,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 14.5%/14.3%/2550, BRONZE 17.6%/17.1%/2387, SILVER 15.8%/15.4%/2479, GOLD 16.5%/16.3%/2440, PLATINUM 14.8%/13.8%/2532, EMERALD 11.2%/11.0%/2790, DIAMOND 0.0%/1.6%/17487, MASTER 1.8%/1.7%/5210, GRANDMASTER 6.9%/6.2%/3293, CHALLENGER 0.8%/2.6%/7007",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 228,
-   "ts": 1795551530.2173967,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 10·76·7.6·1.6·50%, BRONZE 7·53·7.6·1.6·43%, SILVER 9·59·6.6·1.7·44%, GOLD 4·62·15.5·1.2·25%, PLATINUM 5·45·9.0·1.9·0%, EMERALD 4·43·10.8·1.8·25%, GRANDMASTER 4·26·6.5·2.2·0%",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 229,
-   "ts": 1795551530.2176282,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 443/1/4/0, BRONZE 605/1/3/0, SILVER 630/1/3/0, GOLD 711/0/1/0, PLATINUM 764/0/3/0, EMERALD 870/0/1/0, DIAMOND 5291/0/0/0, MASTER 4739/0/0/0, GRANDMASTER 1422/8/2/0, CHALLENGER 980/104/0/0",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 230,
-   "ts": 1795551530.2263012,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 80 %, esperando a la red (Riot, OP.GG, GitHub) 20 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 88 %, otro 8 %, esperando a la red (Riot, OP.GG, GitHub) 4 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 76 %, esperando a la red (Riot, OP.GG, GitHub) 16 %, otro 8 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 76 %, otro 14 %, esperando a la red (Riot, OP.GG, GitHub) 10 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 80 %, esperando a la red (Riot, OP.GG, GitHub) 13 %, otro 7 % (más en riot/ratelimit.py:213 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:499 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-americas: parado esperando trabajo 87 %, consultando o escribiendo la base de datos 10 %, esperando turno de la key de Riot 1 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-sea: parado esperando trabajo 90 %, consultando o escribiendo la base de datos 8 %, comprimiendo o escribiendo ficheros 1 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | web: parado esperando trabajo 96 %, consultando o escribiendo la base de datos 4 % (más en threading.py wait) | crawler-asia: parado esperando trabajo 92 %, consultando o escribiendo la base de datos 5 %, esperando turno de la key de Riot 2 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-europe: parado esperando trabajo 93 %, consultando o escribiendo la base de datos 5 %, esperando turno de la key de Riot 1 %, comprimiendo o escribiendo ficheros 1 % (más en ingest/crawler.py:856 take → threading.py:wait) | crawler-rows: consultando o escribiendo la base de datos 94 %, otro 6 % (más en ingest/crawler.py:629 otp_rows_for_plan → db.py:query) | draft-live: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en draft_live.py:447 _run → threading.py:wait) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:656 counts → db.py:one) | otp-summaries: consultando o escribiendo la base de datos 50 %, comprimiendo o escribiendo ficheros 50 % (más en ingest/otp_details.py:1449 write_summary → db.py:conn) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:492 _watch_loop → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:311 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:177 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:200 _work → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:396 _sleep → threading.py:wait)",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 231,
-   "ts": 1795551530.226805,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:1584 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 408 veces, 593.3 s en total, la peor 4.4 s",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 232,
-   "ts": 1795551530.2269223,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:629 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 11 veces, 38.9 s en total, la peor 4.9 s",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 233,
-   "ts": 1795551530.2273579,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:626 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 11 veces, 28.1 s en total, la peor 5.5 s",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 234,
-   "ts": 1795551530.2276654,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado americas: 239 partidas nuevas (29.4/min ahora) · 71 analizadas · errores 0 · tiempo: cola 171, riot_listas 23, esperando_descarga 1107, partidas 1133, guardar_partida 3, visitas 1156, riot 0, analizar_guardar 13",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 235,
-   "ts": 1795551530.22801,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 222 partidas nuevas (21.2/min ahora) · 96 analizadas · errores 0 · tiempo: cola 166, riot_listas 23, esperando_descarga 1087, partidas 1117, guardar_partida 8, visitas 1022, riot 18, analizar_guardar 20",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 236,
-   "ts": 1795551530.2283044,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado asia: 136 partidas nuevas (6.4/min ahora) · 113 analizadas · errores 0 · tiempo: cola 105, riot_listas 23, esperando_descarga 1171, guardar_partida 2, riot 0, analizar_guardar 20, partidas 1198, visitas 1148",
-   "hora": "21:18:50"
-  },
-  {
-   "id": 237,
-   "ts": 1795551530.2287126,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 301 partidas nuevas (16.2/min ahora) · 124 analizadas · errores 0 · tiempo: cola 194, riot_listas 23, esperando_descarga 1052, partidas 1088, guardar_partida 4, riot 17, analizar_guardar 22, visitas 1057",
-   "hora": "21:18:50"
-  },
   {
    "id": 238,
    "ts": 1795551530.2982802,
@@ -2773,6 +779,1870 @@
    "source": "precarga",
    "message": "Precarga completa: 2854 tareas al día.",
    "hora": "21:23:42"
+  },
+  {
+   "id": 305,
+   "ts": 1795551851.913427,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (1098 partidas nuevas, rama main).",
+   "hora": "21:24:11"
+  },
+  {
+   "id": 306,
+   "ts": 1795551886.3096743,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector americas iniciado (NA, BR, LAN, LAS).",
+   "hora": "21:24:46"
+  },
+  {
+   "id": 307,
+   "ts": 1795551886.3099606,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector europe iniciado (EUW, EUNE, TR, RU, ME).",
+   "hora": "21:24:46"
+  },
+  {
+   "id": 308,
+   "ts": 1795551886.3105366,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector asia iniciado (KR, JP).",
+   "hora": "21:24:46"
+  },
+  {
+   "id": 309,
+   "ts": 1795551886.3108582,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector sea iniciado (OCE, SEA, TW, VN).",
+   "hora": "21:24:46"
+  },
+  {
+   "id": 310,
+   "ts": 1795551886.3113198,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector en marcha en 4 regiones en paralelo.",
+   "hora": "21:24:46"
+  },
+  {
+   "id": 311,
+   "ts": 1795551889.3175032,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · CHALLENGER: 2 partidas nuevas de 10 (total región: 2).",
+   "hora": "21:24:49"
+  },
+  {
+   "id": 312,
+   "ts": 1795551895.5344043,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · CHALLENGER: 7 partidas nuevas de 10 (total región: 7).",
+   "hora": "21:24:55"
+  },
+  {
+   "id": 313,
+   "ts": 1795551896.5635085,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:24:56"
+  },
+  {
+   "id": 314,
+   "ts": 1795551896.791175,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · CHALLENGER: 8 partidas nuevas de 10 (total región: 8).",
+   "hora": "21:24:56"
+  },
+  {
+   "id": 315,
+   "ts": 1795551897.1490166,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · CHALLENGER: 8 partidas nuevas de 10 (total región: 8).",
+   "hora": "21:24:57"
+  },
+  {
+   "id": 316,
+   "ts": 1795551903.1866837,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · CHALLENGER: 4 partidas nuevas de 10 (total región: 12).",
+   "hora": "21:25:03"
+  },
+  {
+   "id": 317,
+   "ts": 1795551903.3006063,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · CHALLENGER: 5 partidas nuevas de 10 (total región: 12).",
+   "hora": "21:25:03"
+  },
+  {
+   "id": 318,
+   "ts": 1795551909.5698025,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GRANDMASTER: 4 partidas nuevas de 10 (total región: 16).",
+   "hora": "21:25:09"
+  },
+  {
+   "id": 319,
+   "ts": 1795551911.1672113,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · CHALLENGER: 10 partidas nuevas de 10 (total región: 18).",
+   "hora": "21:25:11"
+  },
+  {
+   "id": 320,
+   "ts": 1795551911.3015835,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · CHALLENGER: 10 partidas nuevas de 10 (total región: 12).",
+   "hora": "21:25:11"
+  },
+  {
+   "id": 321,
+   "ts": 1795551914.609649,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · CHALLENGER: 8 partidas nuevas de 10 (total región: 20).",
+   "hora": "21:25:14"
+  },
+  {
+   "id": 322,
+   "ts": 1795551917.571189,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · CHALLENGER: 4 partidas nuevas de 10 (total región: 22).",
+   "hora": "21:25:17"
+  },
+  {
+   "id": 323,
+   "ts": 1795551917.6766622,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · CHALLENGER: 4 partidas nuevas de 10 (total región: 16).",
+   "hora": "21:25:17"
+  },
+  {
+   "id": 324,
+   "ts": 1795551919.7999585,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GRANDMASTER: 7 partidas nuevas de 10 (total región: 23).",
+   "hora": "21:25:19"
+  },
+  {
+   "id": 325,
+   "ts": 1795551923.8989804,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · CHALLENGER: 4 partidas nuevas de 10 (total región: 26).",
+   "hora": "21:25:23"
+  },
+  {
+   "id": 326,
+   "ts": 1795551925.2632327,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
+   "hora": "21:25:25"
+  },
+  {
+   "id": 327,
+   "ts": 1795551926.1187494,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · CHALLENGER: 8 partidas nuevas de 10 (total región: 28).",
+   "hora": "21:25:26"
+  },
+  {
+   "id": 328,
+   "ts": 1795551930.3684456,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · CHALLENGER: 9 partidas nuevas de 10 (total región: 25).",
+   "hora": "21:25:30"
+  },
+  {
+   "id": 329,
+   "ts": 1795551931.1867416,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER: 8 partidas nuevas de 10 (total región: 31).",
+   "hora": "21:25:31"
+  },
+  {
+   "id": 330,
+   "ts": 1795551932.8112822,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · GRANDMASTER: 6 partidas nuevas de 10 (total región: 32).",
+   "hora": "21:25:32"
+  },
+  {
+   "id": 331,
+   "ts": 1795551937.5042636,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · GRANDMASTER: 8 partidas nuevas de 10 (total región: 36).",
+   "hora": "21:25:37"
+  },
+  {
+   "id": 332,
+   "ts": 1795551937.5419512,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · MASTER: 4 partidas nuevas de 10 (total región: 35).",
+   "hora": "21:25:37"
+  },
+  {
+   "id": 333,
+   "ts": 1795551939.1517491,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · GRANDMASTER: 4 partidas nuevas de 10 (total región: 36).",
+   "hora": "21:25:39"
+  },
+  {
+   "id": 334,
+   "ts": 1795551943.053187,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · CHALLENGER: 8 partidas nuevas de 10 (total región: 33).",
+   "hora": "21:25:43"
+  },
+  {
+   "id": 335,
+   "ts": 1795551947.7265522,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · GRANDMASTER: 7 partidas nuevas de 10 (total región: 43).",
+   "hora": "21:25:47"
+  },
+  {
+   "id": 336,
+   "ts": 1795551951.553933,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · DIAMOND: 10 partidas nuevas de 10 (total región: 45).",
+   "hora": "21:25:51"
+  },
+  {
+   "id": 337,
+   "ts": 1795551951.6481795,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · GRANDMASTER: 9 partidas nuevas de 10 (total región: 45).",
+   "hora": "21:25:51"
+  },
+  {
+   "id": 338,
+   "ts": 1795551952.0389502,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · GRANDMASTER: 6 partidas nuevas de 10 (total región: 39).",
+   "hora": "21:25:52"
+  },
+  {
+   "id": 339,
+   "ts": 1795551953.1797457,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
+   "hora": "21:25:53"
+  },
+  {
+   "id": 340,
+   "ts": 1795551959.2274306,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · GRANDMASTER: 8 partidas nuevas de 10 (total región: 51).",
+   "hora": "21:25:59"
+  },
+  {
+   "id": 341,
+   "ts": 1795551959.22969,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · DIAMOND: 4 partidas nuevas de 10 (total región: 49).",
+   "hora": "21:25:59"
+  },
+  {
+   "id": 342,
+   "ts": 1795551964.3139474,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GRANDMASTER: 9 partidas nuevas de 10 (total región: 54).",
+   "hora": "21:26:04"
+  },
+  {
+   "id": 343,
+   "ts": 1795551965.6232715,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
+   "hora": "21:26:05"
+  },
+  {
+   "id": 344,
+   "ts": 1795551972.100597,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · EMERALD: 8 partidas nuevas de 10 (total región: 57).",
+   "hora": "21:26:12"
+  },
+  {
+   "id": 345,
+   "ts": 1795551973.2895858,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · GRANDMASTER: 10 partidas nuevas de 10 (total región: 61).",
+   "hora": "21:26:13"
+  },
+  {
+   "id": 346,
+   "ts": 1795551977.330697,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · GRANDMASTER: 10 partidas nuevas de 10 (total región: 49).",
+   "hora": "21:26:17"
+  },
+  {
+   "id": 347,
+   "ts": 1795551977.3372827,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · MASTER: 8 partidas nuevas de 10 (total región: 62).",
+   "hora": "21:26:17"
+  },
+  {
+   "id": 348,
+   "ts": 1795551985.9921393,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · EMERALD: 10 partidas nuevas de 10 (total región: 67).",
+   "hora": "21:26:25"
+  },
+  {
+   "id": 349,
+   "ts": 1795551987.2436163,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · MASTER: 10 partidas nuevas de 10 (total región: 71).",
+   "hora": "21:26:27"
+  },
+  {
+   "id": 350,
+   "ts": 1795551991.02742,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · MASTER: 9 partidas nuevas de 10 (total región: 71).",
+   "hora": "21:26:31"
+  },
+  {
+   "id": 351,
+   "ts": 1795551991.2999442,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · GRANDMASTER: 10 partidas nuevas de 10 (total región: 59).",
+   "hora": "21:26:31"
+  },
+  {
+   "id": 352,
+   "ts": 1795551998.6430557,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · MASTER: 8 partidas nuevas de 10 (total región: 79).",
+   "hora": "21:26:38"
+  },
+  {
+   "id": 353,
+   "ts": 1795551999.9725707,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM: 10 partidas nuevas de 10 (total región: 77).",
+   "hora": "21:26:39"
+  },
+  {
+   "id": 354,
+   "ts": 1795552002.4626868,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
+   "hora": "21:26:42"
+  },
+  {
+   "id": 355,
+   "ts": 1795552002.7247877,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · GRANDMASTER: 7 partidas nuevas de 10 (total región: 66).",
+   "hora": "21:26:42"
+  },
+  {
+   "id": 356,
+   "ts": 1795552004.069811,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · MASTER: 8 partidas nuevas de 10 (total región: 79).",
+   "hora": "21:26:44"
+  },
+  {
+   "id": 357,
+   "ts": 1795552009.042314,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · MASTER: 7 partidas nuevas de 10 (total región: 86).",
+   "hora": "21:26:49"
+  },
+  {
+   "id": 358,
+   "ts": 1795552013.9837139,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · PLATINUM: 10 partidas nuevas de 10 (total región: 87).",
+   "hora": "21:26:53"
+  },
+  {
+   "id": 359,
+   "ts": 1795552014.1837895,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · GRANDMASTER: 8 partidas nuevas de 10 (total región: 74).",
+   "hora": "21:26:54"
+  },
+  {
+   "id": 360,
+   "ts": 1795552015.3629203,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
+   "hora": "21:26:55"
+  },
+  {
+   "id": 361,
+   "ts": 1795552018.0235696,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · MASTER: 10 partidas nuevas de 10 (total región: 89).",
+   "hora": "21:26:58"
+  },
+  {
+   "id": 362,
+   "ts": 1795552021.4601693,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · MASTER: 9 partidas nuevas de 10 (total región: 95).",
+   "hora": "21:27:01"
+  },
+  {
+   "id": 363,
+   "ts": 1795552025.5596936,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · DIAMOND: 5 partidas nuevas de 10 (total región: 94).",
+   "hora": "21:27:05"
+  },
+  {
+   "id": 364,
+   "ts": 1795552027.9452126,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GOLD: 10 partidas nuevas de 10 (total región: 97).",
+   "hora": "21:27:07"
+  },
+  {
+   "id": 365,
+   "ts": 1795552034.174211,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · DIAMOND: 8 partidas nuevas de 10 (total región: 103).",
+   "hora": "21:27:14"
+  },
+  {
+   "id": 366,
+   "ts": 1795552034.9806767,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · MASTER: 7 partidas nuevas de 10 (total región: 81).",
+   "hora": "21:27:14"
+  },
+  {
+   "id": 367,
+   "ts": 1795552037.2118998,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · DIAMOND: 8 partidas nuevas de 10 (total región: 102).",
+   "hora": "21:27:17"
+  },
+  {
+   "id": 368,
+   "ts": 1795552040.755309,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
+   "hora": "21:27:20"
+  },
+  {
+   "id": 369,
+   "ts": 1795552041.9309042,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GOLD: 10 partidas nuevas de 10 (total región: 107).",
+   "hora": "21:27:21"
+  },
+  {
+   "id": 370,
+   "ts": 1795552047.6981907,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · MASTER: 9 partidas nuevas de 10 (total región: 90).",
+   "hora": "21:27:27"
+  },
+  {
+   "id": 371,
+   "ts": 1795552048.2612443,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · DIAMOND: 10 partidas nuevas de 10 (total región: 113).",
+   "hora": "21:27:28"
+  },
+  {
+   "id": 372,
+   "ts": 1795552048.601853,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · DIAMOND: 7 partidas nuevas de 10 (total región: 109).",
+   "hora": "21:27:28"
+  },
+  {
+   "id": 373,
+   "ts": 1795552055.9178355,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · SILVER: 10 partidas nuevas de 10 (total región: 117).",
+   "hora": "21:27:35"
+  },
+  {
+   "id": 374,
+   "ts": 1795552060.4198422,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · MASTER: 8 partidas nuevas de 10 (total región: 98).",
+   "hora": "21:27:40"
+  },
+  {
+   "id": 375,
+   "ts": 1795552062.239462,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · DIAMOND: 9 partidas nuevas de 10 (total región: 122).",
+   "hora": "21:27:42"
+  },
+  {
+   "id": 376,
+   "ts": 1795552062.4323323,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · DIAMOND: 10 partidas nuevas de 10 (total región: 119).",
+   "hora": "21:27:42"
+  },
+  {
+   "id": 377,
+   "ts": 1795552069.9544127,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · SILVER: 10 partidas nuevas de 10 (total región: 127).",
+   "hora": "21:27:49"
+  },
+  {
+   "id": 378,
+   "ts": 1795552073.0170696,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:27:53"
+  },
+  {
+   "id": 379,
+   "ts": 1795552076.1900778,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · DIAMOND: 10 partidas nuevas de 10 (total región: 132).",
+   "hora": "21:27:56"
+  },
+  {
+   "id": 380,
+   "ts": 1795552076.4710424,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · EMERALD: 10 partidas nuevas de 10 (total región: 129).",
+   "hora": "21:27:56"
+  },
+  {
+   "id": 381,
+   "ts": 1795552078.8263633,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 500 de 2000 partidas nuevas.",
+   "hora": "21:27:58"
+  },
+  {
+   "id": 382,
+   "ts": 1795552084.1594012,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · BRONZE: 9 partidas nuevas de 10 (total región: 136).",
+   "hora": "21:28:04"
+  },
+  {
+   "id": 383,
+   "ts": 1795552085.77567,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · MASTER: 9 partidas nuevas de 10 (total región: 107).",
+   "hora": "21:28:05"
+  },
+  {
+   "id": 384,
+   "ts": 1795552090.2056546,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · EMERALD: 9 partidas nuevas de 10 (total región: 141).",
+   "hora": "21:28:10"
+  },
+  {
+   "id": 385,
+   "ts": 1795552090.603616,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · EMERALD: 9 partidas nuevas de 10 (total región: 138).",
+   "hora": "21:28:10"
+  },
+  {
+   "id": 386,
+   "ts": 1795552093.3036695,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · MASTER: 4 partidas nuevas de 10 (total región: 111).",
+   "hora": "21:28:13"
+  },
+  {
+   "id": 387,
+   "ts": 1795552097.9286475,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · BRONZE: 10 partidas nuevas de 10 (total región: 146).",
+   "hora": "21:28:17"
+  },
+  {
+   "id": 388,
+   "ts": 1795552104.268714,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · EMERALD: 9 partidas nuevas de 10 (total región: 150).",
+   "hora": "21:28:24"
+  },
+  {
+   "id": 389,
+   "ts": 1795552104.8115895,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · EMERALD: 10 partidas nuevas de 10 (total región: 148).",
+   "hora": "21:28:24"
+  },
+  {
+   "id": 390,
+   "ts": 1795552106.0408626,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · DIAMOND: 9 partidas nuevas de 10 (total región: 120).",
+   "hora": "21:28:26"
+  },
+  {
+   "id": 391,
+   "ts": 1795552111.8846164,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · IRON: 10 partidas nuevas de 10 (total región: 156).",
+   "hora": "21:28:31"
+  },
+  {
+   "id": 392,
+   "ts": 1795552116.9993427,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 600 de 2000 partidas nuevas.",
+   "hora": "21:28:36"
+  },
+  {
+   "id": 393,
+   "ts": 1795552118.2071023,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · EMERALD: 9 partidas nuevas de 10 (total región: 159).",
+   "hora": "21:28:38"
+  },
+  {
+   "id": 394,
+   "ts": 1795552118.335204,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · EMERALD: 9 partidas nuevas de 10 (total región: 157).",
+   "hora": "21:28:38"
+  },
+  {
+   "id": 395,
+   "ts": 1795552120.0193217,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · DIAMOND: 10 partidas nuevas de 10 (total región: 130).",
+   "hora": "21:28:40"
+  },
+  {
+   "id": 396,
+   "ts": 1795552125.9000325,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · IRON: 8 partidas nuevas de 10 (total región: 164).",
+   "hora": "21:28:45"
+  },
+  {
+   "id": 397,
+   "ts": 1795552130.9593925,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · CHALLENGER: 3 partidas nuevas de 10 (total región: 167).",
+   "hora": "21:28:50"
+  },
+  {
+   "id": 398,
+   "ts": 1795552132.2015398,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · EMERALD: 9 partidas nuevas de 10 (total región: 168).",
+   "hora": "21:28:52"
+  },
+  {
+   "id": 399,
+   "ts": 1795552132.64594,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · PLATINUM: 10 partidas nuevas de 10 (total región: 167).",
+   "hora": "21:28:52"
+  },
+  {
+   "id": 400,
+   "ts": 1795552133.5020385,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · CHALLENGER: 1 partidas nuevas de 10 (total región: 168).",
+   "hora": "21:28:53"
+  },
+  {
+   "id": 401,
+   "ts": 1795552133.9372911,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:28:53"
+  },
+  {
+   "id": 402,
+   "ts": 1795552138.5733209,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GRANDMASTER: 3 partidas nuevas de 10 (total región: 171).",
+   "hora": "21:28:58"
+  },
+  {
+   "id": 403,
+   "ts": 1795552144.3385139,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · DIAMOND: 9 partidas nuevas de 10 (total región: 139).",
+   "hora": "21:29:04"
+  },
+  {
+   "id": 404,
+   "ts": 1795552145.1368177,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GRANDMASTER: 4 partidas nuevas de 10 (total región: 175).",
+   "hora": "21:29:05"
+  },
+  {
+   "id": 405,
+   "ts": 1795552146.294185,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · PLATINUM: 10 partidas nuevas de 10 (total región: 178).",
+   "hora": "21:29:06"
+  },
+  {
+   "id": 406,
+   "ts": 1795552146.3032043,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · PLATINUM: 10 partidas nuevas de 10 (total región: 177).",
+   "hora": "21:29:06"
+  },
+  {
+   "id": 407,
+   "ts": 1795552150.0072212,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER: 3 partidas nuevas de 10 (total región: 178).",
+   "hora": "21:29:10"
+  },
+  {
+   "id": 408,
+   "ts": 1795552157.750865,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 700 de 2000 partidas nuevas.",
+   "hora": "21:29:17"
+  },
+  {
+   "id": 409,
+   "ts": 1795552158.3778021,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · DIAMOND: 10 partidas nuevas de 10 (total región: 149).",
+   "hora": "21:29:18"
+  },
+  {
+   "id": 410,
+   "ts": 1795552158.926427,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · MASTER: 6 partidas nuevas de 10 (total región: 184).",
+   "hora": "21:29:18"
+  },
+  {
+   "id": 411,
+   "ts": 1795552160.3444297,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · PLATINUM: 10 partidas nuevas de 10 (total región: 187).",
+   "hora": "21:29:20"
+  },
+  {
+   "id": 412,
+   "ts": 1795552160.359286,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · PLATINUM: 9 partidas nuevas de 10 (total región: 187).",
+   "hora": "21:29:20"
+  },
+  {
+   "id": 413,
+   "ts": 1795552172.3922994,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · DIAMOND: 10 partidas nuevas de 10 (total región: 159).",
+   "hora": "21:29:32"
+  },
+  {
+   "id": 414,
+   "ts": 1795552172.9146945,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · DIAMOND: 10 partidas nuevas de 10 (total región: 194).",
+   "hora": "21:29:32"
+  },
+  {
+   "id": 415,
+   "ts": 1795552174.256776,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · PLATINUM: 9 partidas nuevas de 10 (total región: 196).",
+   "hora": "21:29:34"
+  },
+  {
+   "id": 416,
+   "ts": 1795552174.2848697,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · PLATINUM: 10 partidas nuevas de 10 (total región: 197).",
+   "hora": "21:29:34"
+  },
+  {
+   "id": 417,
+   "ts": 1795552180.559705,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · DIAMOND: 5 partidas nuevas de 10 (total región: 199).",
+   "hora": "21:29:40"
+  },
+  {
+   "id": 418,
+   "ts": 1795552186.2845685,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · EMERALD: 10 partidas nuevas de 10 (total región: 169).",
+   "hora": "21:29:46"
+  },
+  {
+   "id": 419,
+   "ts": 1795552188.2320373,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · PLATINUM: 10 partidas nuevas de 10 (total región: 206).",
+   "hora": "21:29:48"
+  },
+  {
+   "id": 420,
+   "ts": 1795552188.3284698,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · GOLD: 10 partidas nuevas de 10 (total región: 207).",
+   "hora": "21:29:48"
+  },
+  {
+   "id": 421,
+   "ts": 1795552190.5372696,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 289.8 MB → 0.0 MB en 1.5 s",
+   "hora": "21:29:50"
+  },
+  {
+   "id": 422,
+   "ts": 1795552193.8204439,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:29:53"
+  },
+  {
+   "id": 423,
+   "ts": 1795552194.6670473,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 800 de 2000 partidas nuevas.",
+   "hora": "21:29:54"
+  },
+  {
+   "id": 424,
+   "ts": 1795552194.7231824,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · EMERALD: 9 partidas nuevas de 10 (total región: 208).",
+   "hora": "21:29:54"
+  },
+  {
+   "id": 425,
+   "ts": 1795552202.2549322,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · GOLD: 10 partidas nuevas de 10 (total región: 216).",
+   "hora": "21:30:02"
+  },
+  {
+   "id": 426,
+   "ts": 1795552202.3616915,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · GOLD: 9 partidas nuevas de 10 (total región: 216).",
+   "hora": "21:30:02"
+  },
+  {
+   "id": 427,
+   "ts": 1795552208.6999319,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · EMERALD: 10 partidas nuevas de 10 (total región: 218).",
+   "hora": "21:30:08"
+  },
+  {
+   "id": 428,
+   "ts": 1795552210.6565998,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · EMERALD: 10 partidas nuevas de 10 (total región: 179).",
+   "hora": "21:30:10"
+  },
+  {
+   "id": 429,
+   "ts": 1795552216.3512218,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · GOLD: 9 partidas nuevas de 10 (total región: 225).",
+   "hora": "21:30:16"
+  },
+  {
+   "id": 430,
+   "ts": 1795552216.3624194,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · GOLD: 10 partidas nuevas de 10 (total región: 226).",
+   "hora": "21:30:16"
+  },
+  {
+   "id": 431,
+   "ts": 1795552222.6616526,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM: 9 partidas nuevas de 10 (total región: 227).",
+   "hora": "21:30:22"
+  },
+  {
+   "id": 432,
+   "ts": 1795552224.579912,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · EMERALD: 10 partidas nuevas de 10 (total región: 189).",
+   "hora": "21:30:24"
+  },
+  {
+   "id": 433,
+   "ts": 1795552230.329647,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GOLD: 9 partidas nuevas de 10 (total región: 235).",
+   "hora": "21:30:30"
+  },
+  {
+   "id": 434,
+   "ts": 1795552230.4960215,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · GOLD: 10 partidas nuevas de 10 (total región: 235).",
+   "hora": "21:30:30"
+  },
+  {
+   "id": 435,
+   "ts": 1795552232.8673983,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · PLATINUM: 7 partidas nuevas de 10 (total región: 234).",
+   "hora": "21:30:32"
+  },
+  {
+   "id": 436,
+   "ts": 1795552232.9043498,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 900 de 2000 partidas nuevas.",
+   "hora": "21:30:32"
+  },
+  {
+   "id": 437,
+   "ts": 1795552238.5741205,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · EMERALD: 10 partidas nuevas de 10 (total región: 199).",
+   "hora": "21:30:38"
+  },
+  {
+   "id": 438,
+   "ts": 1795552244.2258484,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · GOLD: 8 partidas nuevas de 10 (total región: 243).",
+   "hora": "21:30:44"
+  },
+  {
+   "id": 439,
+   "ts": 1795552244.3104599,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · SILVER: 10 partidas nuevas de 10 (total región: 245).",
+   "hora": "21:30:44"
+  },
+  {
+   "id": 440,
+   "ts": 1795552246.8188272,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GOLD: 10 partidas nuevas de 10 (total región: 244).",
+   "hora": "21:30:46"
+  },
+  {
+   "id": 441,
+   "ts": 1795552249.8956912,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:30:49"
+  },
+  {
+   "id": 442,
+   "ts": 1795552255.7438722,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GOLD: 6 partidas nuevas de 6 (total región: 250).",
+   "hora": "21:30:55"
+  },
+  {
+   "id": 443,
+   "ts": 1795552258.225643,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · SILVER: 9 partidas nuevas de 10 (total región: 252).",
+   "hora": "21:30:58"
+  },
+  {
+   "id": 444,
+   "ts": 1795552258.5359805,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · SILVER: 8 partidas nuevas de 10 (total región: 253).",
+   "hora": "21:30:58"
+  },
+  {
+   "id": 445,
+   "ts": 1795552267.090695,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · EMERALD: 10 partidas nuevas de 10 (total región: 209).",
+   "hora": "21:31:07"
+  },
+  {
+   "id": 446,
+   "ts": 1795552269.6719637,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · SILVER: 8 partidas nuevas de 10 (total región: 258).",
+   "hora": "21:31:09"
+  },
+  {
+   "id": 447,
+   "ts": 1795552272.2314112,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · SILVER: 10 partidas nuevas de 10 (total región: 262).",
+   "hora": "21:31:12"
+  },
+  {
+   "id": 448,
+   "ts": 1795552272.29091,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · SILVER: 10 partidas nuevas de 10 (total región: 263).",
+   "hora": "21:31:12"
+  },
+  {
+   "id": 449,
+   "ts": 1795552274.7310774,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1000 de 2000 partidas nuevas.",
+   "hora": "21:31:14"
+  },
+  {
+   "id": 450,
+   "ts": 1795552280.8694196,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · PLATINUM: 10 partidas nuevas de 10 (total región: 219).",
+   "hora": "21:31:20"
+  },
+  {
+   "id": 451,
+   "ts": 1795552283.7071636,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · SILVER: 10 partidas nuevas de 10 (total región: 268).",
+   "hora": "21:31:23"
+  },
+  {
+   "id": 452,
+   "ts": 1795552286.1999166,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · SILVER: 9 partidas nuevas de 10 (total región: 271).",
+   "hora": "21:31:26"
+  },
+  {
+   "id": 453,
+   "ts": 1795552286.2754798,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · SILVER: 9 partidas nuevas de 10 (total región: 272).",
+   "hora": "21:31:26"
+  },
+  {
+   "id": 454,
+   "ts": 1795552294.9672086,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · PLATINUM: 10 partidas nuevas de 10 (total región: 229).",
+   "hora": "21:31:34"
+  },
+  {
+   "id": 455,
+   "ts": 1795552297.6557357,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · BRONZE: 10 partidas nuevas de 10 (total región: 278).",
+   "hora": "21:31:37"
+  },
+  {
+   "id": 456,
+   "ts": 1795552298.4043157,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/otps/library tardó 3.8 s",
+   "hora": "21:31:38"
+  },
+  {
+   "id": 457,
+   "ts": 1795552300.168355,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · SILVER: 9 partidas nuevas de 10 (total región: 280).",
+   "hora": "21:31:40"
+  },
+  {
+   "id": 458,
+   "ts": 1795552300.475531,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · BRONZE: 10 partidas nuevas de 10 (total región: 282).",
+   "hora": "21:31:40"
+  },
+  {
+   "id": 459,
+   "ts": 1795552302.3270562,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/otps/players tardó 3.9 s",
+   "hora": "21:31:42"
+  },
+  {
+   "id": 460,
+   "ts": 1795552308.8635907,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · PLATINUM: 10 partidas nuevas de 10 (total región: 239).",
+   "hora": "21:31:48"
+  },
+  {
+   "id": 461,
+   "ts": 1795552309.999786,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
+   "hora": "21:31:49"
+  },
+  {
+   "id": 462,
+   "ts": 1795552310.412573,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1100 de 2000 partidas nuevas.",
+   "hora": "21:31:50"
+  },
+  {
+   "id": 463,
+   "ts": 1795552311.6306634,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · BRONZE: 10 partidas nuevas de 10 (total región: 288).",
+   "hora": "21:31:51"
+  },
+  {
+   "id": 464,
+   "ts": 1795552314.236131,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · BRONZE: 10 partidas nuevas de 10 (total región: 290).",
+   "hora": "21:31:54"
+  },
+  {
+   "id": 465,
+   "ts": 1795552314.2862313,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · BRONZE: 10 partidas nuevas de 10 (total región: 292).",
+   "hora": "21:31:54"
+  },
+  {
+   "id": 466,
+   "ts": 1795552325.6795666,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · IRON: 9 partidas nuevas de 10 (total región: 297).",
+   "hora": "21:32:05"
+  },
+  {
+   "id": 467,
+   "ts": 1795552326.8567488,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · BRONZE: 7 partidas nuevas de 9 (total región: 297).",
+   "hora": "21:32:06"
+  },
+  {
+   "id": 468,
+   "ts": 1795552328.0299659,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · BRONZE: 0 partidas nuevas de 10 (total región: 297).",
+   "hora": "21:32:08"
+  },
+  {
+   "id": 469,
+   "ts": 1795552328.2058263,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · BRONZE: 10 partidas nuevas de 10 (total región: 302).",
+   "hora": "21:32:08"
+  },
+  {
+   "id": 470,
+   "ts": 1795552337.2145967,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · PLATINUM: 10 partidas nuevas de 10 (total región: 249).",
+   "hora": "21:32:17"
+  },
+  {
+   "id": 471,
+   "ts": 1795552338.6133723,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · IRON: 8 partidas nuevas de 10 (total región: 305).",
+   "hora": "21:32:18"
+  },
+  {
+   "id": 472,
+   "ts": 1795552342.1027641,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · BRONZE: 10 partidas nuevas de 10 (total región: 307).",
+   "hora": "21:32:22"
+  },
+  {
+   "id": 473,
+   "ts": 1795552342.1969697,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · BRONZE: 10 partidas nuevas de 10 (total región: 312).",
+   "hora": "21:32:22"
+  },
+  {
+   "id": 474,
+   "ts": 1795552345.961916,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · CHALLENGER: 5 partidas nuevas de 10 (total región: 310).",
+   "hora": "21:32:25"
+  },
+  {
+   "id": 475,
+   "ts": 1795552351.0434556,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1200 de 2000 partidas nuevas.",
+   "hora": "21:32:31"
+  },
+  {
+   "id": 476,
+   "ts": 1795552351.1164997,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · PLATINUM: 10 partidas nuevas de 10 (total región: 259).",
+   "hora": "21:32:31"
+  },
+  {
+   "id": 477,
+   "ts": 1795552353.6232371,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · CHALLENGER: 5 partidas nuevas de 10 (total región: 315).",
+   "hora": "21:32:33"
+  },
+  {
+   "id": 478,
+   "ts": 1795552354.906216,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · IRON: 9 partidas nuevas de 10 (total región: 321).",
+   "hora": "21:32:34"
+  },
+  {
+   "id": 479,
+   "ts": 1795552356.0612135,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · IRON: 10 partidas nuevas de 10 (total región: 317).",
+   "hora": "21:32:36"
+  },
+  {
+   "id": 480,
+   "ts": 1795552361.2304165,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GRANDMASTER: 5 partidas nuevas de 10 (total región: 320).",
+   "hora": "21:32:41"
+  },
+  {
+   "id": 481,
+   "ts": 1795552365.1288607,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · GOLD: 10 partidas nuevas de 10 (total región: 269).",
+   "hora": "21:32:45"
+  },
+  {
+   "id": 482,
+   "ts": 1795552366.5013196,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · IRON: 7 partidas nuevas de 8 (total región: 328).",
+   "hora": "21:32:46"
+  },
+  {
+   "id": 483,
+   "ts": 1795552367.538368,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GRANDMASTER: 3 partidas nuevas de 10 (total región: 323).",
+   "hora": "21:32:47"
+  },
+  {
+   "id": 484,
+   "ts": 1795552368.808167,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · IRON: 8 partidas nuevas de 9 (total región: 325).",
+   "hora": "21:32:48"
+  },
+  {
+   "id": 485,
+   "ts": 1795552373.9020312,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:32:53"
+  },
+  {
+   "id": 486,
+   "ts": 1795552374.470874,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · IRON: 5 partidas nuevas de 5 (total región: 333).",
+   "hora": "21:32:54"
+  },
+  {
+   "id": 487,
+   "ts": 1795552380.6072423,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER: 9 partidas nuevas de 10 (total región: 332).",
+   "hora": "21:33:00"
+  },
+  {
+   "id": 488,
+   "ts": 1795552382.7845993,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · IRON: 8 partidas nuevas de 10 (total región: 333).",
+   "hora": "21:33:02"
+  },
+  {
+   "id": 489,
+   "ts": 1795552382.944543,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · IRON: 5 partidas nuevas de 6 (total región: 338).",
+   "hora": "21:33:02"
+  },
+  {
+   "id": 490,
+   "ts": 1795552385.3719056,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · MASTER: 3 partidas nuevas de 10 (total región: 335).",
+   "hora": "21:33:05"
+  },
+  {
+   "id": 491,
+   "ts": 1795552389.3980858,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · GOLD: 10 partidas nuevas de 10 (total región: 279).",
+   "hora": "21:33:09"
+  },
+  {
+   "id": 492,
+   "ts": 1795552390.684244,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · CHALLENGER: 5 partidas nuevas de 10 (total región: 343).",
+   "hora": "21:33:10"
+  },
+  {
+   "id": 493,
+   "ts": 1795552391.9011075,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1300 de 2000 partidas nuevas.",
+   "hora": "21:33:11"
+  },
+  {
+   "id": 494,
+   "ts": 1795552396.7963555,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · IRON: 8 partidas nuevas de 10 (total región: 341).",
+   "hora": "21:33:16"
+  },
+  {
+   "id": 495,
+   "ts": 1795552399.368918,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · DIAMOND: 10 partidas nuevas de 10 (total región: 345).",
+   "hora": "21:33:19"
+  },
+  {
+   "id": 496,
+   "ts": 1795552401.946078,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · CHALLENGER: 8 partidas nuevas de 10 (total región: 351).",
+   "hora": "21:33:21"
+  },
+  {
+   "id": 497,
+   "ts": 1795552403.3387866,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · GOLD: 10 partidas nuevas de 10 (total región: 289).",
+   "hora": "21:33:23"
+  },
+  {
+   "id": 498,
+   "ts": 1795552410.7257574,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · CHALLENGER: 10 partidas nuevas de 10 (total región: 351).",
+   "hora": "21:33:30"
+  },
+  {
+   "id": 499,
+   "ts": 1795552412.1278365,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · DIAMOND: 8 partidas nuevas de 10 (total región: 353).",
+   "hora": "21:33:32"
+  },
+  {
+   "id": 500,
+   "ts": 1795552412.3124804,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · CHALLENGER: 7 partidas nuevas de 10 (total región: 358).",
+   "hora": "21:33:32"
+  },
+  {
+   "id": 501,
+   "ts": 1795552417.391322,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · GOLD: 10 partidas nuevas de 10 (total región: 299).",
+   "hora": "21:33:37"
+  },
+  {
+   "id": 502,
+   "ts": 1795552418.3163261,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · CHALLENGER: 5 partidas nuevas de 10 (total región: 356).",
+   "hora": "21:33:38"
+  },
+  {
+   "id": 503,
+   "ts": 1795552418.5744784,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · CHALLENGER: 4 partidas nuevas de 10 (total región: 362).",
+   "hora": "21:33:38"
+  },
+  {
+   "id": 504,
+   "ts": 1795552426.10697,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · EMERALD: 10 partidas nuevas de 10 (total región: 363).",
+   "hora": "21:33:46"
+  },
+  {
+   "id": 505,
+   "ts": 1795552428.4843585,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1400 de 2000 partidas nuevas.",
+   "hora": "21:33:48"
+  },
+  {
+   "id": 506,
+   "ts": 1795552428.4855487,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · CHALLENGER: 7 partidas nuevas de 10 (total región: 363).",
+   "hora": "21:33:48"
+  },
+  {
+   "id": 507,
+   "ts": 1795552428.7627077,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · GRANDMASTER: 7 partidas nuevas de 10 (total región: 369).",
+   "hora": "21:33:48"
+  },
+  {
+   "id": 508,
+   "ts": 1795552431.3348227,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · GOLD: 10 partidas nuevas de 10 (total región: 309).",
+   "hora": "21:33:51"
+  },
+  {
+   "id": 509,
+   "ts": 1795552436.29299,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "21:33:56"
+  },
+  {
+   "id": 510,
+   "ts": 1795552438.7734244,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · EMERALD: 9 partidas nuevas de 10 (total región: 372).",
+   "hora": "21:33:58"
+  },
+  {
+   "id": 511,
+   "ts": 1795552440.1977925,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · GRANDMASTER: 8 partidas nuevas de 10 (total región: 377).",
+   "hora": "21:34:00"
+  },
+  {
+   "id": 512,
+   "ts": 1795552442.458509,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · CHALLENGER: 10 partidas nuevas de 10 (total región: 373).",
+   "hora": "21:34:02"
+  },
+  {
+   "id": 513,
+   "ts": 1795552452.6398022,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · GRANDMASTER: 7 partidas nuevas de 10 (total región: 380).",
+   "hora": "21:34:12"
+  },
+  {
+   "id": 514,
+   "ts": 1795552452.7770724,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM: 10 partidas nuevas de 10 (total región: 382).",
+   "hora": "21:34:12"
+  },
+  {
+   "id": 515,
+   "ts": 1795552453.684552,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · SILVER: 10 partidas nuevas de 10 (total región: 319).",
+   "hora": "21:34:13"
+  },
+  {
+   "id": 516,
+   "ts": 1795552454.236238,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · GRANDMASTER: 10 partidas nuevas de 10 (total región: 387).",
+   "hora": "21:34:14"
+  },
+  {
+   "id": 517,
+   "ts": 1795552465.3623238,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · GRANDMASTER: 9 partidas nuevas de 10 (total región: 389).",
+   "hora": "21:34:25"
+  },
+  {
+   "id": 518,
+   "ts": 1795552466.2465808,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 294.8 MB → 0.0 MB en 0.6 s",
+   "hora": "21:34:26"
+  },
+  {
+   "id": 519,
+   "ts": 1795552466.257105,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1500 de 2000 partidas nuevas.",
+   "hora": "21:34:26"
+  },
+  {
+   "id": 520,
+   "ts": 1795552466.807104,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · PLATINUM: 10 partidas nuevas de 10 (total región: 392).",
+   "hora": "21:34:26"
+  },
+  {
+   "id": 521,
+   "ts": 1795552467.6593735,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · SILVER: 8 partidas nuevas de 10 (total región: 327).",
+   "hora": "21:34:27"
+  },
+  {
+   "id": 522,
+   "ts": 1795552467.8820138,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GRANDMASTER: 10 partidas nuevas de 10 (total región: 397).",
+   "hora": "21:34:27"
+  },
+  {
+   "id": 523,
+   "ts": 1795552479.3252509,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · MASTER: 8 partidas nuevas de 10 (total región: 405).",
+   "hora": "21:34:39"
+  },
+  {
+   "id": 524,
+   "ts": 1795552479.346789,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · GRANDMASTER: 9 partidas nuevas de 10 (total región: 398).",
+   "hora": "21:34:39"
+  },
+  {
+   "id": 525,
+   "ts": 1795552480.80369,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GOLD: 8 partidas nuevas de 10 (total región: 400).",
+   "hora": "21:34:40"
+  },
+  {
+   "id": 526,
+   "ts": 1795552481.5753021,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · SILVER: 10 partidas nuevas de 10 (total región: 337).",
+   "hora": "21:34:41"
+  },
+  {
+   "id": 527,
+   "ts": 1795552493.3489397,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · GRANDMASTER: 9 partidas nuevas de 10 (total región: 407).",
+   "hora": "21:34:53"
+  },
+  {
+   "id": 528,
+   "ts": 1795552493.6281407,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · MASTER: 9 partidas nuevas de 10 (total región: 414).",
+   "hora": "21:34:53"
+  },
+  {
+   "id": 529,
+   "ts": 1795552494.7619662,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GOLD: 10 partidas nuevas de 10 (total región: 410).",
+   "hora": "21:34:54"
+  },
+  {
+   "id": 530,
+   "ts": 1795552495.6586459,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · SILVER: 9 partidas nuevas de 10 (total región: 346).",
+   "hora": "21:34:55"
+  },
+  {
+   "id": 531,
+   "ts": 1795552496.758225,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.ids). Esperando lo que indica Riot…",
+   "hora": "21:34:56"
+  },
+  {
+   "id": 532,
+   "ts": 1795552498.73632,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector americas detenido. Guardadas 410 partidas.",
+   "hora": "21:34:58"
+  },
+  {
+   "id": 533,
+   "ts": 1795552498.7375255,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector europe detenido. Guardadas 346 partidas.",
+   "hora": "21:34:58"
+  },
+  {
+   "id": 534,
+   "ts": 1795552498.7388842,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector sea detenido. Guardadas 417 partidas.",
+   "hora": "21:34:58"
+  },
+  {
+   "id": 535,
+   "ts": 1795552498.79711,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector asia detenido. Guardadas 412 partidas.",
+   "hora": "21:34:58"
+  },
+  {
+   "id": 536,
+   "ts": 1795552499.6579561,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector detenido en 1 s.",
+   "hora": "21:34:59"
+  },
+  {
+   "id": 537,
+   "ts": 1795552499.670014,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).",
+   "hora": "21:34:59"
   }
  ],
  "hilos": {
@@ -2791,7 +2661,7 @@
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
-  "AnyIO worker thread #29516": [
+  "AnyIO worker thread #26984": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
@@ -2866,40 +2736,40 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 177, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 200, in _work |     self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-mcp-1": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 177, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 200, in _work |     self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-mcp-0": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 177, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 200, in _work |     self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-web-1": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 177, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 200, in _work |     self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-web-0": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 177, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 200, in _work |     self.stop_event.wait(WARM_GAP_WHILE_CRAWLING_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "draft-live": [
