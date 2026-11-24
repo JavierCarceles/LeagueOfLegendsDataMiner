@@ -85,6 +85,8 @@ def shutdown_fetches() -> None:
         executor.shutdown(wait=False, cancel_futures=True)
 
 
+SUMMARY_TTL_S = 30  # resumen de la caché para «Datos y API»
+
 class _Flight:
     __slots__ = ("done", "value")
 
@@ -304,8 +306,15 @@ class CachedSource:
 
     # ------------------------------------------------------------- resumen
     def cache_summary(self, kinds: tuple[str, ...] | None = None) -> dict:
-        rows = self.db.query("SELECT source, COUNT(*) AS n, MAX(fetched_at) AS latest FROM ext_cache GROUP BY source")
-        out = {r["source"]: {"entries": r["n"], "latest": r["latest"]} for r in rows}
+        # «Datos y API» lo pide cada 2,5 s y recorre toda la caché (~0,75 s en Windows con el recolector a tope): se
+        # reutiliza ``SUMMARY_TTL_S``.
+        cached = getattr(self, "_summary_cache", None)
+        if cached is not None and time.time() - cached[0] < SUMMARY_TTL_S:
+            out = cached[1]
+        else:
+            rows = self.db.query("SELECT source, COUNT(*) AS n, MAX(fetched_at) AS latest FROM ext_cache GROUP BY source")
+            out = {r["source"]: {"entries": r["n"], "latest": r["latest"]} for r in rows}
+            self._summary_cache = (time.time(), out)
         return {k: v for k, v in out.items() if kinds is None or k in kinds}
 
     def cached_entries(self, kind: str):

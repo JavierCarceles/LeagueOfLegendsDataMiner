@@ -637,3 +637,9 @@ quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
   el embudo es el que escribe el recolector cada 5 min.
 - **Errores de visión rival por elo:** 758 partidas analizadas ya con ellos, todas de Esmeralda o menos (la búsqueda va
   ahora por los elos bajos): aún no se puede comparar con Diamante → Aspirante.
+- **Subida de las 11:39 (6,5 min):** ~75 partidas/min en total (Europa 20,0, SEA 19,6, Americas 18,6, Asia 16,6 por
+  minuto), lo mejor hasta ahora. La key va al 84-93 % de su ritmo (39-44 de 47,5 llamadas/min), todas las esperas son por
+  el ritmo (ningún 429) y salen ~2,1 llamadas por partida: casi nada se desperdicia. Lo que faltaba: los hilos de descarga
+  parados el 15-25 % del tiempo porque, mientras la región esperaba 1-3 s el candado para guardar, las 4 partidas por
+  delante ya estaban bajadas. Ahora van 8 (`PREFETCH_AHEAD`). El resumen de la caché de OP.GG («Datos y API», cada 2,5 s,
+  ~0,75 s) se reutiliza 30 s. Errores de visión rival: 1.212 partidas con ellos, solo 18 de Diamante o más.

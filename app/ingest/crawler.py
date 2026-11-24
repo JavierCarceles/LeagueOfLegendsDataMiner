@@ -626,7 +626,9 @@ SAVE_IN_BACKGROUND = False
 PREFETCH = True  # descargar la siguiente partida mientras se analiza la actual (solo llamadas a Riot, ver _Prefetch)
 # Partidas por delante: con 1, el hilo de descarga se quedaba parado mientras la región guardaba y analizaba (~2,2 s) y
 # cada región usaba ~29 llamadas por minuto de las ~47 que permite el ritmo. Al cortar una visita se tiran como mucho estas.
-PREFETCH_AHEAD = 4
+# Con 4, mientras la región esperaba 1-3 s el candado para guardar, las 4 ya estaban bajadas y los hilos de descarga se
+# quedaban parados el 15-25 % del tiempo (84-93 % del ritmo de la key, 24-11-2026 11:39). Con 8 cubren esas esperas.
+PREFETCH_AHEAD = 8
 # Hilos de descarga por región: con uno, cada llamada esperaba a que llegara la anterior (un timeline pesa 1-2 MB) y la
 # región usaba ~28 llamadas por minuto aunque el ritmo permite ~47; con dos, 45-69 de 100 cada 2 min. Se solapan (el turno
 # de Riot se respeta igual).
