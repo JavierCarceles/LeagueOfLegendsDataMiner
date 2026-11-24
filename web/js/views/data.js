@@ -65,6 +65,7 @@ export async function render(container) {
     otps: h("div"),
     patterns: h("div"),
     results: h("div"),
+    eloTotal: h("div"),
     sources: h("div"),
     limits: h("div"),
     db: h("div"),
@@ -86,6 +87,7 @@ export async function render(container) {
       sections.push,
       sections.results,
     ),
+    h("section.card", { style: { marginTop: "16px" } }, h("h3.card-title", icon("chart"), "Partidas por elo (total)"), sections.eloTotal),
     h(
       "div.stack",
       { style: { marginTop: "16px" } },
@@ -1438,7 +1440,7 @@ let filesBox = null;
 let liveBusy = false;
 let liveSig = null;
 async function loadLive() {
-  if ((!filesBox?.isConnected && !eloBox?.isConnected) || liveBusy) return;
+  if ((!filesBox?.isConnected && !eloBox?.isConnected && !sections?.eloTotal?.isConnected) || liveBusy) return;
   liveBusy = true;
   try {
     const details = await api.get("/api/crawler/otps/live");
@@ -1447,7 +1449,15 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
-    if (eloBox?.isConnected) updateEloChart(eloBox, details, resultsMode !== "ranking");
+    if (eloBox?.isConnected) updateEloChart(eloBox, details.autopush, resultsMode !== "ranking");
+    if (sections?.eloTotal?.isConnected) {
+      if (!totalBox?.isConnected) {
+        totalBox = h("div.elo-chart-box", eloChartShell(true));
+        totalSig = null;
+        mount(sections.eloTotal, totalBox);
+      }
+      updateEloTotal(totalBox, details);
+    }
   } catch {
     // sin conexión un momento: el siguiente refresco lo intenta otra vez
   } finally {
@@ -1457,21 +1467,18 @@ async function loadLive() {
 
 // ------------------------------------------------------------------ gráfica por elo
 /** Partidas por elo desde la última subida a GitHub (vuelve a 0 al subir): barras con el icono de cada elo y el eje Y
- *  con el máximo arriba y sus cuartos; cada barra, partida en OTPs (abajo) y el resto. Se construye una vez; cada
- *  refresco solo cambia alturas y números (se ve subir). */
+ *  con el máximo arriba y sus cuartos. Se construye una vez; cada refresco solo cambia alturas y números (se ve subir). */
 const ELO_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
 let eloBox = null;
 let eloSig = null;
 
-function eloChartShell() {
+/** ``stacked``: cada barra partida en OTPs (abajo) y el resto, con leyenda (la del total por elo). */
+function eloChartShell(stacked = false) {
+  const legend = stacked ? h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto") : null;
+  const segments = stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null;
   return h(
-    "div.elo-chart",
-    h(
-      "div.elo-chart-head",
-      h("b.elo-chart-title", "Partidas analizadas por elo"),
-      h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"),
-      h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto"),
-    ),
+    stacked ? "div.elo-chart.stacked" : "div.elo-chart",
+    h("div.elo-chart-head", h("b.elo-chart-title", "Partidas analizadas por elo"), h("span.tiny.muted.elo-chart-sub", "desde la última subida a GitHub"), legend),
     h(
       "div.elo-chart-body",
       h("div.elo-chart-y", [4, 3, 2, 1, 0].map((q) => h("span", { "data-q": q }, "0"))),
@@ -1481,12 +1488,7 @@ function eloChartShell() {
         h(
           "div.elo-chart-bars",
           ELO_ORDER.map((t) =>
-            h(
-              "div.elo-chart-col",
-              { "data-tier": t, title: TIER_LABEL[t] || t },
-              h("span.elo-chart-n", "0"),
-              h("div.elo-chart-bar", { style: { height: "0%" } }, h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })),
-            ),
+            h("div.elo-chart-col", { "data-tier": t, title: TIER_LABEL[t] || t }, h("span.elo-chart-n", "0"), h("div.elo-chart-bar", { style: { height: "0%" } }, segments)),
           ),
         ),
       ),
@@ -1495,42 +1497,68 @@ function eloChartShell() {
   );
 }
 
-/** Partidas de OTPs en cada barra: las que se clasificaron al guardarse y, de las que no (sin análisis minuto a minuto),
- *  la parte que da el % de OTPs de ese elo en todas las partidas analizadas (sin datos del elo, el de todos). */
-function eloOtpSplit(details, kind) {
-  const push = details?.autopush || {};
-  const total = push.tiers?.[kind] || {};
-  const known = push.tiers_known?.[kind] || {};
-  const otp = push.tiers_otp?.[kind] || {};
-  const all = details?.tiers || {};
-  const allOtp = details?.tiers_otp || {};
+function updateEloChart(box, autopush, analyzed) {
+  const counts = autopush?.tiers?.[analyzed ? "analizadas" : "guardadas"] || {};
+  const sig = JSON.stringify([analyzed, counts]);
+  if (sig === eloSig) return;
+  eloSig = sig;
+  const max = Math.max(0, ...ELO_ORDER.map((t) => counts[t] || 0));
+  const total = ELO_ORDER.reduce((n, t) => n + (counts[t] || 0), 0);
+  const title = box.querySelector(".elo-chart-title");
+  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}`;
+  const sub = box.querySelector(".elo-chart-sub");
+  if (sub) sub.textContent = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
+  box.querySelectorAll(".elo-chart-y span").forEach((el) => {
+    el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
+  });
+  box.querySelectorAll(".elo-chart-col").forEach((col) => {
+    const n = counts[col.dataset.tier] || 0;
+    col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
+    col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
+    col.classList.toggle("top", !!max && n === max);
+  });
+}
+
+// ------------------------------------------------------------------ total por elo
+/** Todas las partidas analizadas por elo (las de data/otps y data/partidas_campeon), partidas en OTPs y resto. Cada
+ *  partida se clasifica al guardarse; las que aún no lo están (de antes) se reparten con el % de OTPs de su elo. */
+let totalBox = null;
+let totalSig = null;
+
+function eloTotalSplit(d) {
+  const all = d?.tiers || {};
+  const otp = d?.tiers_otp || {};
+  const player = d?.tiers_player || {};
   const sum = (o) => Object.values(o).reduce((a, b) => a + (b || 0), 0);
-  const overall = sum(all) ? sum(allOtp) / sum(all) : 0;
+  const known = sum(otp) + sum(player);
+  const overall = known ? sum(otp) / known : 0;
   const byTier = {};
   let estimated = false;
   for (const t of ELO_ORDER) {
-    const n = total[t] || 0;
-    const unknown = Math.max(0, n - (known[t] || 0));
-    const ratio = all[t] ? (allOtp[t] || 0) / all[t] : overall;
+    const n = all[t] || 0;
+    const o = otp[t] || 0;
+    const p = player[t] || 0;
+    const unknown = Math.max(0, n - o - p);
     if (unknown) estimated = true;
-    byTier[t] = { n, otp: Math.min(n, Math.round((otp[t] || 0) + unknown * ratio)) };
+    const ratio = o + p ? o / (o + p) : overall;
+    byTier[t] = { n, otp: Math.min(n, Math.round(o + unknown * ratio)) };
   }
   return { byTier, estimated };
 }
 
-function updateEloChart(box, details, analyzed) {
-  const { byTier, estimated } = eloOtpSplit(details, analyzed ? "analizadas" : "guardadas");
-  const sig = JSON.stringify([analyzed, byTier, estimated]);
-  if (sig === eloSig) return;
-  eloSig = sig;
+function updateEloTotal(box, details) {
+  const { byTier, estimated } = eloTotalSplit(details);
+  const sig = JSON.stringify([byTier, estimated]);
+  if (sig === totalSig) return;
+  totalSig = sig;
   const max = Math.max(0, ...ELO_ORDER.map((t) => byTier[t].n));
   const total = ELO_ORDER.reduce((n, t) => n + byTier[t].n, 0);
   const otpTotal = ELO_ORDER.reduce((n, t) => n + byTier[t].otp, 0);
-  const title = box.querySelector(".elo-chart-title");
-  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}` + (total ? ` (${fmt.int(otpTotal)} de OTPs)` : "");
-  const sub = box.querySelector(".elo-chart-sub");
-  const when = analyzed ? "desde la última subida a GitHub (vuelve a 0 al subir)" : "todo el ranking: sin análisis minuto a minuto · desde la última subida a GitHub";
-  if (sub) sub.textContent = estimated ? `${when} · OTPs estimados con el % de OTPs de cada elo en las partidas analizadas` : when;
+  const approx = estimated ? "~" : "";
+  box.querySelector(".elo-chart-title").textContent = `${fmt.int(total)} partidas analizadas · ${approx}${fmt.int(otpTotal)} de OTPs`;
+  box.querySelector(".elo-chart-sub").textContent = estimated
+    ? "todas las guardadas · las aún sin clasificar se reparten con el % de OTPs de su elo"
+    : "todas las guardadas (data/otps y data/partidas_campeon)";
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });
@@ -1540,9 +1568,8 @@ function updateEloChart(box, details, analyzed) {
     col.querySelector(".elo-chart-bar").style.height = max ? `${(100 * n) / max}%` : "0%";
     col.querySelector(".elo-chart-seg.otp").style.height = n ? `${(100 * otp) / n}%` : "0%";
     col.querySelector(".elo-chart-n").textContent = n ? fmt.int(n) : "";
-    const approx = estimated ? "~" : "";
-    col.title = n ? `${TIER_LABEL[t] || t}: ${fmt.int(n)} · OTPs ${approx}${fmt.int(otp)} · resto ${approx}${fmt.int(n - otp)}` : TIER_LABEL[t] || t;
-    col.classList.toggle("top", !!max && n === max);
+    const label = TIER_LABEL[t] || t;
+    col.title = n ? `${label}: ${fmt.int(n)} · OTPs ${approx}${fmt.int(otp)} · resto ${approx}${fmt.int(n - otp)}` : label;
   });
 }
 

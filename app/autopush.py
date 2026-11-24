@@ -38,8 +38,6 @@ COMMIT_MESSAGE = "datos"
 GIT_TIMEOUT_S = 600  # un push grande con una conexión lenta
 RETRY_AFTER_S = 15 * 60  # tras un fallo (sin red, rebase con conflictos…), no se reintenta antes
 IN_GAME_WAIT_S = 30
-# Gráfica por elo desde la última subida: partidas por elo, cuántas se sabe si son de OTP o no y cuántas de OTP.
-TIER_FIELDS = ("tiers", "tiers_known", "tiers_otp")
 
 
 def every() -> int:
@@ -269,18 +267,15 @@ class AutoPush:
         n = every()
         return {"enabled": n > 0, "every": n, "running": bool(self.thread and self.thread.is_alive()), **self.state}
 
-    def note_game(self, tier: str | None = None, analyzed: bool = False, otp: bool | None = None) -> None:
+    def note_game(self, tier: str | None = None, analyzed: bool = False) -> None:
         """Una partida nueva guardada por el recolector (``tier``: el elo, para la gráfica de «Datos y API»; vuelve a
-        0 con cada subida a GitHub). ``otp``: si es de un OTP (``None``: no se sabe; la gráfica lo estima)."""
+        0 con cada subida a GitHub)."""
         n = every()
         with self.lock:
             kind = "analizadas" if analyzed else "guardadas"
+            tiers = self.state.setdefault("tiers", {}).setdefault(kind, {})
             key = (tier or "?").upper()
-            self._bump("tiers", kind, key)
-            if otp is not None:
-                self._bump("tiers_known", kind, key)  # clasificadas: OTP o no
-                if otp:
-                    self._bump("tiers_otp", kind, key)
+            tiers[key] = int(tiers.get(key) or 0) + 1
             if n <= 0:
                 return
             self.state["pending"] = pending = int(self.state.get("pending") or 0) + 1
@@ -290,10 +285,6 @@ class AutoPush:
             log.info("Subida a GitHub: %d de %d partidas nuevas.", pending, n)
         if due:
             self.start()
-
-    def _bump(self, field: str, kind: str, tier: str) -> None:
-        counts = self.state.setdefault(field, {}).setdefault(kind, {})
-        counts[tier] = int(counts.get(tier) or 0) + 1
 
     def check(self) -> dict:
         """Al arrancar: ¿git está instalado y esto es un repositorio con rama? Así un problema se ve en «Datos y API»
@@ -473,24 +464,21 @@ class AutoPush:
 
     def _discount_tiers(self, counted_tiers: dict) -> None:
         """La gráfica por elo vuelve a 0 (lo que llegó mientras se subía, cuenta para la siguiente)."""
-        for field, by_kind in counted_tiers.items():
-            for kind, done in by_kind.items():
-                now = self.state.setdefault(field, {}).setdefault(kind, {})
-                for tier, n_done in done.items():
-                    left = int(now.get(tier) or 0) - int(n_done)
-                    if left > 0:
-                        now[tier] = left
-                    else:
-                        now.pop(tier, None)
+        for kind, done in counted_tiers.items():
+            now = self.state.setdefault("tiers", {}).setdefault(kind, {})
+            for tier, n_done in done.items():
+                left = int(now.get(tier) or 0) - int(n_done)
+                if left > 0:
+                    now[tier] = left
+                else:
+                    now.pop(tier, None)
 
     def _run_steps(self, stop, t0: float) -> None:
         if not self._wait_game_end(stop):
             return
         with self.lock:
             counted = int(self.state.get("pending") or 0)
-            counted_tiers = {
-                field: {k: dict(v) for k, v in (self.state.get(field) or {}).items()} for field in TIER_FIELDS
-            }
+            counted_tiers = {k: dict(v) for k, v in (self.state.get("tiers") or {}).items()}
         self._prepare_report()
         result = self._push_now()
         if result is None:
@@ -516,13 +504,13 @@ class AutoPush:
 _warned = False
 
 
-def note_game(svc, tier: str | None = None, analyzed: bool = False, otp: bool | None = None) -> None:
+def note_game(svc, tier: str | None = None, analyzed: bool = False) -> None:
     """Para el recolector: cuenta una partida nueva (no falla nunca: subir datos no puede parar la recogida)."""
     global _warned
     try:
         auto = AutoPush.of(svc)
         if auto is not None:
-            auto.note_game(tier, analyzed, otp)
+            auto.note_game(tier, analyzed)
     except Exception:
         if not _warned:
             _warned = True

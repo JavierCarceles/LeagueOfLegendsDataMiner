@@ -336,7 +336,8 @@ def test_las_partidas_analizadas_se_cuentan_al_momento_sin_recorrer_la_tabla(tmp
     otp_details._note_live(db, "GOLD", "player", False)
     now = otp_details.live_counts(db)
     assert now["games"] == 2 and now["timelines"] == 1 and now["otp_games"] == 1 and now["tiers"]["GOLD"] == 2
-    assert now["tiers_otp"] == {"GOLD": 1}  # para partir cada barra de la gráfica por elo en OTPs y resto
+    assert now["tiers_otp"] == {"GOLD": 1} and now["tiers_player"] == {"GOLD": 1}  # gráfica del total: OTPs y resto
+    assert otp_details.counts(db)["tiers_otp"] == {}  # el recuento de la tabla (aquí vacía) da lo mismo por elo
     db.close()
 
 
@@ -421,18 +422,14 @@ def test_la_grafica_por_elo_cuenta_hasta_la_subida(repos):
     a = repos.a
     svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event(), crawler=None)
     auto = autopush.AutoPush(svc, repo=a)
-    auto.note_game("GOLD", analyzed=True, otp=True)
-    auto.note_game("gold", analyzed=True, otp=False)
-    auto.note_game("DIAMOND", analyzed=False)  # sin análisis no se sabe si es de OTP (la gráfica lo estima)
-    pub = auto.public()
-    assert pub["tiers"] == {"analizadas": {"GOLD": 2}, "guardadas": {"DIAMOND": 1}}
-    assert pub["tiers_known"] == {"analizadas": {"GOLD": 2}} and pub["tiers_otp"] == {"analizadas": {"GOLD": 1}}
+    auto.note_game("GOLD", analyzed=True)
+    auto.note_game("gold", analyzed=True)
+    auto.note_game("DIAMOND", analyzed=False)
+    assert auto.public()["tiers"] == {"analizadas": {"GOLD": 2}, "guardadas": {"DIAMOND": 1}}
     (a / "data" / "otps").mkdir(exist_ok=True)
     (a / "data" / "otps" / "x.json").write_text("{}", encoding="utf-8")
     auto._run()
-    pub = auto.public()
-    assert pub["tiers"] == {"analizadas": {}, "guardadas": {}}
-    assert pub["tiers_known"] == {"analizadas": {}} and pub["tiers_otp"] == {"analizadas": {}}
+    assert auto.public()["tiers"] == {"analizadas": {}, "guardadas": {}}
 
 
 def test_al_detener_la_subida_espera_a_los_resumenes(repos, monkeypatch):

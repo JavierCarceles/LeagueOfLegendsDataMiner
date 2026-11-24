@@ -1677,7 +1677,7 @@ class RegionWorker(threading.Thread):
             self.crawler.note_analyzed(item.get("tier") or "", region=self.region)
             from app import autopush
 
-            autopush.note_game(svc, item.get("tier"), analyzed=True, otp=False)  # partida entera de una ventana: no es de OTP
+            autopush.note_game(svc, item.get("tier"), analyzed=True)
 
     def _detail(self, match_id: str, payload: dict | None, player) -> bool:
         """Baja el timeline (y la partida si no se tiene) y guarda el micro/macro de ese OTP. ``True`` si se guardó."""
@@ -2190,17 +2190,6 @@ class RegionWorker(threading.Thread):
             return bool(found) and self._pattern_detail(match_id, payload, _field(player, "tier"), found)
         return bool(cfg.targets) and got.mine_target and self._detail(match_id, payload, player)
 
-    def _otp_game(self, payload: dict, player, got: Ingested) -> bool | None:
-        """¿Partida de un OTP? Las analizadas lo dicen (``otp_games.kind``); las de la búsqueda por partidas no lo son.
-        Sin análisis no se sabe (``None``: la gráfica por elo lo estima con el % de OTPs de cada elo)."""
-        if not got.detailed:
-            return None
-        if self.config.patterns:
-            return False
-        match_id = (payload.get("metadata") or {}).get("matchId")
-        kind = self.svc.db.scalar("SELECT kind FROM otp_games WHERE match_id = ? AND puuid = ?", (match_id, _field(player, "puuid")))
-        return None if kind is None else kind == "otp"
-
     def _count_stored(self, payload: dict, player, got: Ingested) -> None:
         """Contadores, subida a GitHub y medias del ranking de una partida ya guardada (o repetida)."""
         svc, cfg = self.svc, self.config
@@ -2211,7 +2200,7 @@ class RegionWorker(threading.Thread):
         if got.detailed or (got.result == "stored" and not cfg.patterns):
             from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
 
-            autopush.note_game(svc, _field(player, "tier"), analyzed=bool(got.detailed), otp=self._otp_game(payload, player, got))
+            autopush.note_game(svc, _field(player, "tier"), analyzed=bool(got.detailed))
         if got.result != "stored":
             key = {"duplicate": "duplicates", "remake": "remakes"}.get(got.result, "ignored")
             self.state[key] += 1
