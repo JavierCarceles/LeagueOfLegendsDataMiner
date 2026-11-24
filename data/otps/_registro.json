@@ -1,73 +1,71 @@
 {
- "at": 1795539874,
+ "at": 1795540562,
  "diagnostico": {
   "crawler-sea": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
-    "esperando turno de la key de Riot": 52,
+    "esperando turno de la key de Riot": 51,
     "esperando a la red (Riot, OP.GG, GitHub)": 47,
-    "esperando un candado (base de datos, ficheros)": 1
-   },
-   "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 52,
-    "riot/client.py:74 request → ssl.py:read": 46,
-    "data/repository.py:270 store_match → db.py:write": 1,
-    "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
-    "data/repository.py:295 store_match": 0,
-    "riot/client.py:74 request → adapters.py:cert_verify": 0
-   }
-  },
-  "crawler-asia": {
-   "muestras": 538,
-   "en": {
-    "esperando turno de la key de Riot": 52,
-    "esperando a la red (Riot, OP.GG, GitHub)": 46,
     "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 52,
-    "riot/client.py:74 request → ssl.py:read": 45,
-    "data/repository.py:270 store_match → db.py:write": 1,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 51,
+    "riot/client.py:74 request → ssl.py:read": 46,
     "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
-    "riot/client.py:74 request → response.py:decompress": 0,
-    "data/repository.py:320 _aggregate": 0
+    "data/repository.py:295 store_match": 0,
+    "data/repository.py:270 store_match → db.py:write": 0,
+    "autopush.py:262 _save → __init__.py:replace": 0
+   }
+  },
+  "crawler-asia": {
+   "muestras": 475,
+   "en": {
+    "esperando turno de la key de Riot": 55,
+    "esperando a la red (Riot, OP.GG, GitHub)": 44,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 55,
+    "riot/client.py:74 request → ssl.py:read": 43,
+    "data/repository.py:270 store_match → db.py:write": 1,
+    "riot/client.py:74 request → utils.py:get_netrc_auth": 0,
+    "data/repository.py:319 _aggregate": 0,
+    "autopush.py:262 _save → __init__.py:replace": 0
    }
   },
   "crawler-europe": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
-    "esperando turno de la key de Riot": 83,
-    "esperando a la red (Riot, OP.GG, GitHub)": 16,
-    "esperando un candado (base de datos, ficheros)": 1,
-    "otro": 1
+    "esperando turno de la key de Riot": 86,
+    "esperando a la red (Riot, OP.GG, GitHub)": 13
    },
    "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 83,
-    "riot/client.py:74 request → ssl.py:read": 15,
-    "data/repository.py:270 store_match → db.py:write": 1,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 86,
+    "riot/client.py:74 request → ssl.py:read": 12,
     "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
-    "config.py:23 _env_values → main.py:_get_stream": 0,
-    "config.py:23 _env_values → parser.py:__init__": 0
+    "data/repository.py:270 store_match → db.py:write": 1,
+    "config.py:23 _env_values → parser.py:__init__": 0,
+    "data/repository.py:318 _aggregate": 0
    }
   },
   "crawler-americas": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
-    "esperando turno de la key de Riot": 74,
-    "esperando a la red (Riot, OP.GG, GitHub)": 23,
-    "consultando o escribiendo la base de datos": 2
+    "esperando turno de la key de Riot": 73,
+    "esperando a la red (Riot, OP.GG, GitHub)": 26,
+    "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 74,
-    "riot/client.py:74 request → ssl.py:read": 23,
-    "data/repository.py:270 store_match → db.py:write": 1,
-    "data/repository.py:272 store_match": 1,
-    "data/repository.py:320 _aggregate": 0,
-    "data/repository.py:91 estimate_match_tier": 0
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 73,
+    "riot/client.py:74 request → ssl.py:read": 25,
+    "riot/client.py:74 request → utils.py:get_netrc_auth": 0,
+    "data/repository.py:270 store_match → db.py:write": 0,
+    "data/repository.py:272 store_match": 0,
+    "data/repository.py:106 upsert_match_players": 0
    }
   },
   "db-checkpoint": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "esperando un candado (base de datos, ficheros)": 98,
     "consultando o escribiendo la base de datos": 2
@@ -79,7 +77,7 @@
    }
   },
   "MainThread": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "otro": 100
    },
@@ -88,85 +86,96 @@
    }
   },
   "web": {
-   "muestras": 1095,
+   "muestras": 950,
    "en": {
-    "parado esperando trabajo": 95,
+    "parado esperando trabajo": 96,
     "consultando o escribiendo la base de datos": 4
    },
    "lineas": {
-    "threading.py wait": 95,
+    "threading.py wait": 96,
     "api/system.py:34 _db_counts → db.py:one": 3,
     "api/system.py:35 _db_counts → db.py:one": 1,
-    "api/system.py:32 _db_counts → db.py:one": 0,
-    "proactor_events.py _write_to_self": 0,
-    "draft_live.py:89 get_prefs → db.py:one": 0
+    "api/system.py:36 _db_counts → db.py:one": 0
    }
   },
   "draft-live": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
-    "parado esperando trabajo": 98,
+    "parado esperando trabajo": 97,
     "consultando o escribiendo la base de datos": 1,
     "esperando a la red (Riot, OP.GG, GitHub)": 1
    },
    "lineas": {
-    "draft_live.py:447 _run → threading.py:wait": 98,
+    "draft_live.py:447 _run → threading.py:wait": 97,
     "draft_live.py:89 get_prefs → db.py:one": 1,
-    "lcu.py:127 _request → ssl.py:load_default_certs": 0,
-    "lcu.py:127 _request → ssl.py:do_handshake": 0,
     "lcu.py:127 _request → ssl.py:__new__": 0,
+    "lcu.py:127 _request → ssl.py:do_handshake": 0,
+    "lcu.py:127 _request → ssl.py:load_default_certs": 0,
     "lcu.py:127 _request → ssl.py:read": 0
    }
   },
   "otp-counts": {
-   "muestras": 8,
+   "muestras": 9,
    "en": {
     "consultando o escribiendo la base de datos": 100
    },
    "lineas": {
-    "ingest/otp_details.py:597 counts → db.py:one": 88,
-    "ingest/otp_details.py:595 counts → db.py:query": 12
+    "ingest/otp_details.py:597 counts → db.py:one": 89,
+    "ingest/otp_details.py:592 counts → db.py:one": 11
+   }
+  },
+  "lol-client-watch": {
+   "muestras": 475,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:402 _watch_loop → threading.py:wait": 100,
+    "lcu.py:93 _lockfile → __init__.py:open": 0,
+    "lcu.py:127 _request → ssl.py:__new__": 0
    }
   },
   "game-tracker": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "coach/tracker.py:321 _sleep → threading.py:wait": 100,
-    "coach/store.py:52 get_profile → db.py:one": 0
-   }
-  },
-  "Thread-31 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-30 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
+    "coach/store.py:52 get_profile → db.py:one": 0,
+    "coach/store.py:435 peers_missing → db.py:query": 0
    }
   },
   "rofl": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "replays_local.py:277 _run → threading.py:wait": 100
+    "replays_local.py:277 _run → threading.py:wait": 100,
+    "lcu.py:127 _request → ssl.py:__new__": 0
+   }
+  },
+  "Thread-54 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-53 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
    }
   },
   "mis-partidas": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -175,7 +184,7 @@
    }
   },
   "tier-calibrator": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -184,7 +193,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -193,7 +202,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1614,
+   "muestras": 1425,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -202,17 +211,16 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:166 _work → threading.py:wait": 96,
-    "warmer.py:189 _work → threading.py:wait": 4
+    "warmer.py:166 _work → threading.py:wait": 100
    }
   },
   "warm-lolalytics": {
-   "muestras": 538,
+   "muestras": 475,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -221,7 +229,7 @@
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 1076,
+   "muestras": 950,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -230,21 +238,12 @@
    }
   },
   "warm-opgg-web": {
-   "muestras": 1076,
+   "muestras": 950,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "warmer.py:189 _work → threading.py:wait": 100
-   }
-  },
-  "lol-client-watch": {
-   "muestras": 538,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:402 _watch_loop → threading.py:wait": 100
    }
   },
   "autopush": {
@@ -258,342 +257,6 @@
   }
  },
  "registro": [
-  {
-   "id": 1,
-   "ts": 1795538481.3488395,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Reparto por elo: se sigue con las últimas 3000 partidas analizadas de la sesión anterior (IRON 392, BRONZE 525, SILVER 448, GOLD 496, PLATINUM 429, EMERALD 300, DIAMOND 47, MASTER 100, GRANDMASTER 185, CHALLENGER 78).",
-   "hora": "17:41:21"
-  },
-  {
-   "id": 2,
-   "ts": 1795538481.3839607,
-   "kind": "info",
-   "source": "app",
-   "message": "Tempu Drafter 2.0.0 arrancando…",
-   "hora": "17:41:21"
-  },
-  {
-   "id": 3,
-   "ts": 1795538481.5359118,
-   "kind": "info",
-   "source": "ddragon",
-   "message": "Data Dragon 16.23.1 cargado (173 campeones).",
-   "hora": "17:41:21"
-  },
-  {
-   "id": 4,
-   "ts": 1795538482.5389514,
-   "kind": "info",
-   "source": "precarga",
-   "message": "Precarga en marcha: 2854 tareas (347 esenciales). Las vistas se abren al instante con lo que ya hay.",
-   "hora": "17:41:22"
-  },
-  {
-   "id": 5,
-   "ts": 1795538482.8120348,
-   "kind": "info",
-   "source": "precarga",
-   "message": "Precarga completa: 2854 tareas al día.",
-   "hora": "17:41:22"
-  },
-  {
-   "id": 6,
-   "ts": 1795538486.5715709,
-   "kind": "info",
-   "source": "otp-details",
-   "message": "Reclasificados por lo que juegan de verdad: 17 jugador-campeón (13 dejan de contar como OTP).",
-   "hora": "17:41:26"
-  },
-  {
-   "id": 7,
-   "ts": 1795538487.1154652,
-   "kind": "info",
-   "source": "otp-details",
-   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 19.",
-   "hora": "17:41:27"
-  },
-  {
-   "id": 8,
-   "ts": 1795538510.446504,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector americas iniciado (NA, BR, LAN, LAS).",
-   "hora": "17:41:50"
-  },
-  {
-   "id": 9,
-   "ts": 1795538510.4471796,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector europe iniciado (EUW, EUNE, TR, RU, ME).",
-   "hora": "17:41:50"
-  },
-  {
-   "id": 10,
-   "ts": 1795538510.447658,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector asia iniciado (KR, JP).",
-   "hora": "17:41:50"
-  },
-  {
-   "id": 11,
-   "ts": 1795538510.44805,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector sea iniciado (OCE, SEA, TW, VN).",
-   "hora": "17:41:50"
-  },
-  {
-   "id": 12,
-   "ts": 1795538510.448502,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Recolector en marcha en 4 regiones en paralelo.",
-   "hora": "17:41:50"
-  },
-  {
-   "id": 13,
-   "ts": 1795538512.8128836,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps/live tardó 2.2 s",
-   "hora": "17:41:52"
-  },
-  {
-   "id": 14,
-   "ts": 1795538522.1669934,
-   "kind": "info",
-   "source": "crawler",
-   "message": "NA · CHALLENGER: 9 partidas nuevas de 30 (total región: 9).",
-   "hora": "17:42:02"
-  },
-  {
-   "id": 15,
-   "ts": 1795538523.3701942,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUW · CHALLENGER: 10 partidas nuevas de 30 (total región: 10).",
-   "hora": "17:42:03"
-  },
-  {
-   "id": 16,
-   "ts": 1795538528.9025886,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · CHALLENGER: 14 partidas nuevas de 30 (total región: 14).",
-   "hora": "17:42:08"
-  },
-  {
-   "id": 17,
-   "ts": 1795538537.4159408,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · CHALLENGER: 11 partidas nuevas de 30 (total región: 20).",
-   "hora": "17:42:17"
-  },
-  {
-   "id": 18,
-   "ts": 1795538544.0943637,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
-   "hora": "17:42:24"
-  },
-  {
-   "id": 19,
-   "ts": 1795538546.642694,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · CHALLENGER: 28 partidas nuevas de 30 (total región: 28).",
-   "hora": "17:42:26"
-  },
-  {
-   "id": 20,
-   "ts": 1795538547.917326,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · CHALLENGER: 14 partidas nuevas de 30 (total región: 28).",
-   "hora": "17:42:27"
-  },
-  {
-   "id": 21,
-   "ts": 1795538555.2546525,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · CHALLENGER: 12 partidas nuevas de 30 (total región: 32).",
-   "hora": "17:42:35"
-  },
-  {
-   "id": 22,
-   "ts": 1795538560.2440321,
-   "kind": "info",
-   "source": "crawler",
-   "message": "EUNE · CHALLENGER: 28 partidas nuevas de 30 (total región: 38).",
-   "hora": "17:42:40"
-  },
-  {
-   "id": 23,
-   "ts": 1795538577.1237237,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · GRANDMASTER: 22 partidas nuevas de 30 (total región: 50).",
-   "hora": "17:42:57"
-  },
-  {
-   "id": 24,
-   "ts": 1795538578.1440246,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAS · CHALLENGER: 16 partidas nuevas de 30 (total región: 48).",
-   "hora": "17:42:58"
-  },
-  {
-   "id": 25,
-   "ts": 1795538578.4194167,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
-   "hora": "17:42:58"
-  },
-  {
-   "id": 26,
-   "ts": 1795538578.420192,
-   "kind": "info",
-   "source": "crawler",
-   "message": "SEA · CHALLENGER: 24 partidas nuevas de 30 (total región: 52).",
-   "hora": "17:42:58"
-  },
-  {
-   "id": 27,
-   "ts": 1795538593.7199795,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · GRANDMASTER: 11 partidas nuevas de 30 (total región: 61).",
-   "hora": "17:43:13"
-  },
-  {
-   "id": 28,
-   "ts": 1795538594.579424,
-   "kind": "info",
-   "source": "crawler",
-   "message": "TR · CHALLENGER: 25 partidas nuevas de 30 (total región: 63).",
-   "hora": "17:43:14"
-  },
-  {
-   "id": 29,
-   "ts": 1795538603.9242032,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · MASTER: 7 partidas nuevas de 30 (total región: 68).",
-   "hora": "17:43:23"
-  },
-  {
-   "id": 30,
-   "ts": 1795538610.0390456,
-   "kind": "info",
-   "source": "crawler",
-   "message": "NA · GRANDMASTER: 24 partidas nuevas de 30 (total región: 72).",
-   "hora": "17:43:30"
-  },
-  {
-   "id": 31,
-   "ts": 1795538612.6396616,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
-   "hora": "17:43:32"
-  },
-  {
-   "id": 32,
-   "ts": 1795538614.1237411,
-   "kind": "info",
-   "source": "crawler",
-   "message": "TW · CHALLENGER: 27 partidas nuevas de 30 (total región: 79).",
-   "hora": "17:43:34"
-  },
-  {
-   "id": 33,
-   "ts": 1795538616.196064,
-   "kind": "info",
-   "source": "crawler",
-   "message": "RU · CHALLENGER: 15 partidas nuevas de 30 (total región: 78).",
-   "hora": "17:43:36"
-  },
-  {
-   "id": 34,
-   "ts": 1795538630.2605004,
-   "kind": "info",
-   "source": "crawler",
-   "message": "BR · GRANDMASTER: 15 partidas nuevas de 30 (total región: 87).",
-   "hora": "17:43:50"
-  },
-  {
-   "id": 35,
-   "ts": 1795538631.870941,
-   "kind": "info",
-   "source": "crawler",
-   "message": "JP · MASTER: 21 partidas nuevas de 30 (total región: 89).",
-   "hora": "17:43:51"
-  },
-  {
-   "id": 36,
-   "ts": 1795538633.1987746,
-   "kind": "info",
-   "source": "crawler",
-   "message": "VN · CHALLENGER: 13 partidas nuevas de 30 (total región: 92).",
-   "hora": "17:43:53"
-  },
-  {
-   "id": 37,
-   "ts": 1795538646.8141062,
-   "kind": "info",
-   "source": "autopush",
-   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
-   "hora": "17:44:06"
-  },
-  {
-   "id": 38,
-   "ts": 1795538650.5043976,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · CHALLENGER: 26 partidas nuevas de 30 (total región: 104).",
-   "hora": "17:44:10"
-  },
-  {
-   "id": 39,
-   "ts": 1795538659.5069556,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · GRANDMASTER: 22 partidas nuevas de 30 (total región: 109).",
-   "hora": "17:44:19"
-  },
-  {
-   "id": 40,
-   "ts": 1795538664.8637695,
-   "kind": "info",
-   "source": "db",
-   "message": "WAL recortado: 259.3 MB → 0.0 MB en 0.9 s",
-   "hora": "17:44:24"
-  },
-  {
-   "id": 41,
-   "ts": 1795538668.745039,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · DIAMOND: 28 partidas nuevas de 30 (total región: 117).",
-   "hora": "17:44:28"
-  },
-  {
-   "id": 42,
-   "ts": 1795538670.3253863,
-   "kind": "info",
-   "source": "crawler",
-   "message": "OCE · GRANDMASTER: 28 partidas nuevas de 30 (total región: 120).",
-   "hora": "17:44:30"
-  },
   {
    "id": 43,
    "ts": 1795538680.069387,
@@ -2097,6 +1760,902 @@
    "source": "crawler",
    "message": "RU · SILVER: 9 partidas nuevas de 9 (total región: 974).",
    "hora": "18:04:30"
+  },
+  {
+   "id": 231,
+   "ts": 1795539874.7304113,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · CHALLENGER: 25 partidas nuevas de 30 (total región: 1010).",
+   "hora": "18:04:34"
+  },
+  {
+   "id": 232,
+   "ts": 1795539881.6184385,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · IRON: 28 partidas nuevas de 30 (total región: 1013).",
+   "hora": "18:04:41"
+  },
+  {
+   "id": 233,
+   "ts": 1795539884.392366,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (2000 partidas nuevas, rama main).",
+   "hora": "18:04:44"
+  },
+  {
+   "id": 234,
+   "ts": 1795539888.7334082,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · SILVER: 12 partidas nuevas de 13 (total región: 986).",
+   "hora": "18:04:48"
+  },
+  {
+   "id": 235,
+   "ts": 1795539896.8748612,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER: 25 partidas nuevas de 30 (total región: 1027).",
+   "hora": "18:04:56"
+  },
+  {
+   "id": 236,
+   "ts": 1795539897.4917593,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "18:04:57"
+  },
+  {
+   "id": 237,
+   "ts": 1795539897.5797029,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · CHALLENGER: 16 partidas nuevas de 30 (total región: 1026).",
+   "hora": "18:04:57"
+  },
+  {
+   "id": 238,
+   "ts": 1795539910.384341,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
+   "hora": "18:05:10"
+  },
+  {
+   "id": 239,
+   "ts": 1795539910.5893397,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · BRONZE: 11 partidas nuevas de 12 (total región: 997).",
+   "hora": "18:05:10"
+  },
+  {
+   "id": 240,
+   "ts": 1795539910.8629813,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · CHALLENGER: 22 partidas nuevas de 30 (total región: 1035).",
+   "hora": "18:05:10"
+  },
+  {
+   "id": 241,
+   "ts": 1795539931.885807,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · GRANDMASTER: 25 partidas nuevas de 30 (total región: 1051).",
+   "hora": "18:05:31"
+  },
+  {
+   "id": 242,
+   "ts": 1795539933.659766,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · MASTER: 28 partidas nuevas de 30 (total región: 1055).",
+   "hora": "18:05:33"
+  },
+  {
+   "id": 243,
+   "ts": 1795539941.1839848,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · CHALLENGER: 23 partidas nuevas de 30 (total región: 1058).",
+   "hora": "18:05:41"
+  },
+  {
+   "id": 244,
+   "ts": 1795539944.5675485,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
+   "hora": "18:05:44"
+  },
+  {
+   "id": 245,
+   "ts": 1795539950.0123498,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · BRONZE: 27 partidas nuevas de 30 (total región: 1024).",
+   "hora": "18:05:50"
+  },
+  {
+   "id": 246,
+   "ts": 1795539956.1839085,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "18:05:56"
+  },
+  {
+   "id": 247,
+   "ts": 1795539967.5737808,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · GRANDMASTER: 24 partidas nuevas de 30 (total región: 1075).",
+   "hora": "18:06:07"
+  },
+  {
+   "id": 248,
+   "ts": 1795539973.0848603,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · DIAMOND: 30 partidas nuevas de 30 (total región: 1085).",
+   "hora": "18:06:13"
+  },
+  {
+   "id": 249,
+   "ts": 1795539976.612297,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · CHALLENGER: 26 partidas nuevas de 30 (total región: 1084).",
+   "hora": "18:06:16"
+  },
+  {
+   "id": 250,
+   "ts": 1795539980.7119784,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
+   "hora": "18:06:20"
+  },
+  {
+   "id": 251,
+   "ts": 1795539992.814635,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · GRANDMASTER: 18 partidas nuevas de 30 (total región: 1093).",
+   "hora": "18:06:32"
+  },
+  {
+   "id": 252,
+   "ts": 1795539995.6666043,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · BRONZE: 28 partidas nuevas de 30 (total región: 1052).",
+   "hora": "18:06:35"
+  },
+  {
+   "id": 253,
+   "ts": 1795540008.6231897,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · DIAMOND: 27 partidas nuevas de 30 (total región: 1112).",
+   "hora": "18:06:48"
+  },
+  {
+   "id": 254,
+   "ts": 1795540009.9651926,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 257.9 MB → 0.0 MB en 0.7 s",
+   "hora": "18:06:49"
+  },
+  {
+   "id": 255,
+   "ts": 1795540009.9827402,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · CHALLENGER: 25 partidas nuevas de 30 (total región: 1109).",
+   "hora": "18:06:49"
+  },
+  {
+   "id": 256,
+   "ts": 1795540014.7703772,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
+   "hora": "18:06:54"
+  },
+  {
+   "id": 257,
+   "ts": 1795540017.0775208,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "18:06:57"
+  },
+  {
+   "id": 258,
+   "ts": 1795540027.1214855,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · GRANDMASTER: 26 partidas nuevas de 30 (total región: 1119).",
+   "hora": "18:07:07"
+  },
+  {
+   "id": 259,
+   "ts": 1795540035.3200896,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · BRONZE: 24 partidas nuevas de 27 (total región: 1076).",
+   "hora": "18:07:15"
+  },
+  {
+   "id": 260,
+   "ts": 1795540037.5249054,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · GRANDMASTER: 21 partidas nuevas de 30 (total región: 1130).",
+   "hora": "18:07:17"
+  },
+  {
+   "id": 261,
+   "ts": 1795540042.850661,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · BRONZE: 5 partidas nuevas de 6 (total región: 1081).",
+   "hora": "18:07:22"
+  },
+  {
+   "id": 262,
+   "ts": 1795540048.0205781,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · EMERALD: 29 partidas nuevas de 30 (total región: 1141).",
+   "hora": "18:07:28"
+  },
+  {
+   "id": 263,
+   "ts": 1795540050.4781964,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 500 de 2000 partidas nuevas.",
+   "hora": "18:07:30"
+  },
+  {
+   "id": 264,
+   "ts": 1795540065.2361975,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · MASTER: 28 partidas nuevas de 30 (total región: 1147).",
+   "hora": "18:07:45"
+  },
+  {
+   "id": 265,
+   "ts": 1795540068.3223221,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · IRON: 18 partidas nuevas de 19 (total región: 1099).",
+   "hora": "18:07:48"
+  },
+  {
+   "id": 266,
+   "ts": 1795540072.0133893,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · GRANDMASTER: 26 partidas nuevas de 30 (total región: 1156).",
+   "hora": "18:07:52"
+  },
+  {
+   "id": 267,
+   "ts": 1795540080.84699,
+   "kind": "warning",
+   "source": "riot",
+   "message": "429 en europe (match-v5.match). Esperando lo que indica Riot…",
+   "hora": "18:08:00"
+  },
+  {
+   "id": 268,
+   "ts": 1795540084.83242,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 600 de 2000 partidas nuevas.",
+   "hora": "18:08:04"
+  },
+  {
+   "id": 269,
+   "ts": 1795540087.4000833,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · EMERALD: 30 partidas nuevas de 30 (total región: 1171).",
+   "hora": "18:08:07"
+  },
+  {
+   "id": 270,
+   "ts": 1795540098.2337034,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · MASTER: 23 partidas nuevas de 30 (total región: 1170).",
+   "hora": "18:08:18"
+  },
+  {
+   "id": 271,
+   "ts": 1795540108.8947315,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · GRANDMASTER: 27 partidas nuevas de 30 (total región: 1183).",
+   "hora": "18:08:28"
+  },
+  {
+   "id": 272,
+   "ts": 1795540108.9441812,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · IRON: 26 partidas nuevas de 30 (total región: 1125).",
+   "hora": "18:08:28"
+  },
+  {
+   "id": 273,
+   "ts": 1795540119.183233,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 700 de 2000 partidas nuevas.",
+   "hora": "18:08:39"
+  },
+  {
+   "id": 274,
+   "ts": 1795540126.779267,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM: 29 partidas nuevas de 30 (total región: 1200).",
+   "hora": "18:08:46"
+  },
+  {
+   "id": 275,
+   "ts": 1795540130.0395265,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · MASTER: 24 partidas nuevas de 30 (total región: 1194).",
+   "hora": "18:08:50"
+  },
+  {
+   "id": 276,
+   "ts": 1795540137.8739727,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GRANDMASTER: 21 partidas nuevas de 30 (total región: 1204).",
+   "hora": "18:08:57"
+  },
+  {
+   "id": 277,
+   "ts": 1795540149.0247638,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · IRON: 30 partidas nuevas de 30 (total región: 1155).",
+   "hora": "18:09:09"
+  },
+  {
+   "id": 278,
+   "ts": 1795540153.2196183,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 800 de 2000 partidas nuevas.",
+   "hora": "18:09:13"
+  },
+  {
+   "id": 279,
+   "ts": 1795540162.4907758,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 270.4 MB → 0.0 MB en 0.7 s",
+   "hora": "18:09:22"
+  },
+  {
+   "id": 280,
+   "ts": 1795540165.5878038,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · MASTER: 25 partidas nuevas de 30 (total región: 1219).",
+   "hora": "18:09:25"
+  },
+  {
+   "id": 281,
+   "ts": 1795540166.156922,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · PLATINUM: 30 partidas nuevas de 30 (total región: 1230).",
+   "hora": "18:09:26"
+  },
+  {
+   "id": 282,
+   "ts": 1795540168.49878,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · MASTER: 23 partidas nuevas de 30 (total región: 1227).",
+   "hora": "18:09:28"
+  },
+  {
+   "id": 283,
+   "ts": 1795540187.2535107,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 900 de 2000 partidas nuevas.",
+   "hora": "18:09:47"
+  },
+  {
+   "id": 284,
+   "ts": 1795540188.4384432,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · IRON: 27 partidas nuevas de 30 (total región: 1182).",
+   "hora": "18:09:48"
+  },
+  {
+   "id": 285,
+   "ts": 1795540188.9818294,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GOLD: 16 partidas nuevas de 18 (total región: 1246).",
+   "hora": "18:09:48"
+  },
+  {
+   "id": 286,
+   "ts": 1795540203.6822262,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · DIAMOND: 29 partidas nuevas de 30 (total región: 1248).",
+   "hora": "18:10:03"
+  },
+  {
+   "id": 287,
+   "ts": 1795540206.8186064,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · MASTER: 29 partidas nuevas de 30 (total región: 1256).",
+   "hora": "18:10:06"
+  },
+  {
+   "id": 288,
+   "ts": 1795540221.4820497,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1000 de 2000 partidas nuevas.",
+   "hora": "18:10:21"
+  },
+  {
+   "id": 289,
+   "ts": 1795540222.749841,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · IRON: 25 partidas nuevas de 30 (total región: 1207).",
+   "hora": "18:10:22"
+  },
+  {
+   "id": 290,
+   "ts": 1795540228.3647156,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GOLD: 28 partidas nuevas de 30 (total región: 1274).",
+   "hora": "18:10:28"
+  },
+  {
+   "id": 291,
+   "ts": 1795540235.4123497,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · CHALLENGER: 9 partidas nuevas de 30 (total región: 1216).",
+   "hora": "18:10:35"
+  },
+  {
+   "id": 292,
+   "ts": 1795540243.1309838,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · DIAMOND: 30 partidas nuevas de 30 (total región: 1278).",
+   "hora": "18:10:43"
+  },
+  {
+   "id": 293,
+   "ts": 1795540246.1842177,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · MASTER: 30 partidas nuevas de 30 (total región: 1286).",
+   "hora": "18:10:46"
+  },
+  {
+   "id": 294,
+   "ts": 1795540254.7125547,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1100 de 2000 partidas nuevas.",
+   "hora": "18:10:54"
+  },
+  {
+   "id": 295,
+   "ts": 1795540267.7915509,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · SILVER: 30 partidas nuevas de 30 (total región: 1304).",
+   "hora": "18:11:07"
+  },
+  {
+   "id": 296,
+   "ts": 1795540268.6042082,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · CHALLENGER: 25 partidas nuevas de 30 (total región: 1241).",
+   "hora": "18:11:08"
+  },
+  {
+   "id": 297,
+   "ts": 1795540281.683414,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · MASTER: 27 partidas nuevas de 30 (total región: 1313).",
+   "hora": "18:11:21"
+  },
+  {
+   "id": 298,
+   "ts": 1795540282.4853513,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · DIAMOND: 29 partidas nuevas de 30 (total región: 1307).",
+   "hora": "18:11:22"
+  },
+  {
+   "id": 299,
+   "ts": 1795540288.1862657,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1200 de 2000 partidas nuevas.",
+   "hora": "18:11:28"
+  },
+  {
+   "id": 300,
+   "ts": 1795540300.9343116,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · CHALLENGER: 24 partidas nuevas de 30 (total región: 1265).",
+   "hora": "18:11:40"
+  },
+  {
+   "id": 301,
+   "ts": 1795540307.1870694,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · SILVER: 29 partidas nuevas de 30 (total región: 1333).",
+   "hora": "18:11:47"
+  },
+  {
+   "id": 302,
+   "ts": 1795540315.6057134,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 272.2 MB → 0.0 MB en 1.3 s",
+   "hora": "18:11:55"
+  },
+  {
+   "id": 303,
+   "ts": 1795540317.5419781,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · DIAMOND: 27 partidas nuevas de 30 (total región: 1340).",
+   "hora": "18:11:57"
+  },
+  {
+   "id": 304,
+   "ts": 1795540321.336707,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1300 de 2000 partidas nuevas.",
+   "hora": "18:12:01"
+  },
+  {
+   "id": 305,
+   "ts": 1795540321.8943262,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · DIAMOND: 29 partidas nuevas de 30 (total región: 1336).",
+   "hora": "18:12:01"
+  },
+  {
+   "id": 306,
+   "ts": 1795540322.5885432,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · BRONZE: 11 partidas nuevas de 11 (total región: 1344).",
+   "hora": "18:12:02"
+  },
+  {
+   "id": 307,
+   "ts": 1795540335.2839825,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · CHALLENGER: 25 partidas nuevas de 30 (total región: 1290).",
+   "hora": "18:12:15"
+  },
+  {
+   "id": 308,
+   "ts": 1795540354.3524106,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · DIAMOND: 28 partidas nuevas de 30 (total región: 1368).",
+   "hora": "18:12:34"
+  },
+  {
+   "id": 309,
+   "ts": 1795540356.8897293,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1400 de 2000 partidas nuevas.",
+   "hora": "18:12:36"
+  },
+  {
+   "id": 310,
+   "ts": 1795540358.1488264,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · CHALLENGER: 15 partidas nuevas de 30 (total región: 1305).",
+   "hora": "18:12:38"
+  },
+  {
+   "id": 311,
+   "ts": 1795540361.2456684,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · EMERALD: 28 partidas nuevas de 30 (total región: 1364).",
+   "hora": "18:12:41"
+  },
+  {
+   "id": 312,
+   "ts": 1795540361.918523,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · BRONZE: 29 partidas nuevas de 30 (total región: 1373).",
+   "hora": "18:12:41"
+  },
+  {
+   "id": 313,
+   "ts": 1795540373.1603265,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · IRON: 7 partidas nuevas de 8 (total región: 1380).",
+   "hora": "18:12:53"
+  },
+  {
+   "id": 314,
+   "ts": 1795540388.6548846,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · DIAMOND: 26 partidas nuevas de 30 (total región: 1394).",
+   "hora": "18:13:08"
+  },
+  {
+   "id": 315,
+   "ts": 1795540390.508447,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1500 de 2000 partidas nuevas.",
+   "hora": "18:13:10"
+  },
+  {
+   "id": 316,
+   "ts": 1795540393.6656134,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · GRANDMASTER: 27 partidas nuevas de 30 (total región: 1332).",
+   "hora": "18:13:13"
+  },
+  {
+   "id": 317,
+   "ts": 1795540400.6027234,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · EMERALD: 28 partidas nuevas de 30 (total región: 1392).",
+   "hora": "18:13:20"
+  },
+  {
+   "id": 318,
+   "ts": 1795540412.7888286,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · IRON: 30 partidas nuevas de 30 (total región: 1410).",
+   "hora": "18:13:32"
+  },
+  {
+   "id": 319,
+   "ts": 1795540422.9290326,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · CHALLENGER: 7 partidas nuevas de 30 (total región: 1417).",
+   "hora": "18:13:42"
+  },
+  {
+   "id": 320,
+   "ts": 1795540424.2087262,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1600 de 2000 partidas nuevas.",
+   "hora": "18:13:44"
+  },
+  {
+   "id": 321,
+   "ts": 1795540428.06722,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · DIAMOND: 30 partidas nuevas de 30 (total región: 1424).",
+   "hora": "18:13:48"
+  },
+  {
+   "id": 322,
+   "ts": 1795540429.345425,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · GRANDMASTER: 27 partidas nuevas de 30 (total región: 1359).",
+   "hora": "18:13:49"
+  },
+  {
+   "id": 323,
+   "ts": 1795540440.0461252,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · EMERALD: 28 partidas nuevas de 30 (total región: 1420).",
+   "hora": "18:14:00"
+  },
+  {
+   "id": 324,
+   "ts": 1795540447.5090404,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · CHALLENGER: 17 partidas nuevas de 30 (total región: 1434).",
+   "hora": "18:14:07"
+  },
+  {
+   "id": 325,
+   "ts": 1795540459.0795524,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1700 de 2000 partidas nuevas.",
+   "hora": "18:14:19"
+  },
+  {
+   "id": 326,
+   "ts": 1795540465.5921004,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · GRANDMASTER: 26 partidas nuevas de 30 (total región: 1385).",
+   "hora": "18:14:25"
+  },
+  {
+   "id": 327,
+   "ts": 1795540468.1765058,
+   "kind": "info",
+   "source": "db",
+   "message": "WAL recortado: 269.6 MB → 0.0 MB en 1.2 s",
+   "hora": "18:14:28"
+  },
+  {
+   "id": 328,
+   "ts": 1795540468.193362,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · EMERALD: 28 partidas nuevas de 30 (total región: 1452).",
+   "hora": "18:14:28"
+  },
+  {
+   "id": 329,
+   "ts": 1795540471.6435852,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · GRANDMASTER: 18 partidas nuevas de 30 (total región: 1452).",
+   "hora": "18:14:31"
+  },
+  {
+   "id": 330,
+   "ts": 1795540479.4535372,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAS · EMERALD: 28 partidas nuevas de 30 (total región: 1448).",
+   "hora": "18:14:39"
+  },
+  {
+   "id": 331,
+   "ts": 1795540492.9865184,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1800 de 2000 partidas nuevas.",
+   "hora": "18:14:52"
+  },
+  {
+   "id": 332,
+   "ts": 1795540493.284309,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · GRANDMASTER: 16 partidas nuevas de 30 (total región: 1468).",
+   "hora": "18:14:53"
+  },
+  {
+   "id": 333,
+   "ts": 1795540494.824155,
+   "kind": "info",
+   "source": "crawler",
+   "message": "RU · GRANDMASTER: 22 partidas nuevas de 30 (total región: 1407).",
+   "hora": "18:14:54"
+  },
+  {
+   "id": 334,
+   "ts": 1795540506.9894712,
+   "kind": "info",
+   "source": "crawler",
+   "message": "SEA · EMERALD: 30 partidas nuevas de 30 (total región: 1482).",
+   "hora": "18:15:06"
+  },
+  {
+   "id": 335,
+   "ts": 1795540518.9278772,
+   "kind": "info",
+   "source": "crawler",
+   "message": "ME · GRANDMASTER: 17 partidas nuevas de 30 (total región: 1424).",
+   "hora": "18:15:18"
+  },
+  {
+   "id": 336,
+   "ts": 1795540518.9459057,
+   "kind": "info",
+   "source": "crawler",
+   "message": "NA · PLATINUM: 29 partidas nuevas de 30 (total región: 1477).",
+   "hora": "18:15:18"
+  },
+  {
+   "id": 337,
+   "ts": 1795540522.4672441,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER: 20 partidas nuevas de 30 (total región: 1488).",
+   "hora": "18:15:22"
+  },
+  {
+   "id": 338,
+   "ts": 1795540527.8174062,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 1900 de 2000 partidas nuevas.",
+   "hora": "18:15:27"
+  },
+  {
+   "id": 339,
+   "ts": 1795540546.1859355,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TW · EMERALD: 29 partidas nuevas de 30 (total región: 1511).",
+   "hora": "18:15:46"
+  },
+  {
+   "id": 340,
+   "ts": 1795540554.2312853,
+   "kind": "info",
+   "source": "crawler",
+   "message": "JP · MASTER: 24 partidas nuevas de 30 (total región: 1512).",
+   "hora": "18:15:54"
+  },
+  {
+   "id": 341,
+   "ts": 1795540558.3072891,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · MASTER: 30 partidas nuevas de 30 (total región: 1454).",
+   "hora": "18:15:58"
+  },
+  {
+   "id": 342,
+   "ts": 1795540558.4231746,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · PLATINUM: 30 partidas nuevas de 30 (total región: 1507).",
+   "hora": "18:15:58"
   }
  ],
  "hilos": {
@@ -2123,12 +2682,12 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
   "crawler-sea": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1976, in _ingest |     payload, failed = self._download_match(match_id)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1894, in _download_match |     payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 230, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 71, in request |     if not self.limiter.acquire(host, method, priority, stop):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 226, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "crawler-asia": [
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1976, in _ingest |     payload, failed = self._download_match(match_id)",
@@ -2139,12 +2698,12 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "crawler-europe": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1976, in _ingest |     payload, failed = self._download_match(match_id)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1894, in _download_match |     payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 230, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 71, in request |     if not self.limiter.acquire(host, method, priority, stop):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 226, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1284, in stream |     yield from self.read_chunked(amt, decode_content=decode_content)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1459, in read_chunked |     self._update_chunk_length()",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1367, in _update_chunk_length |     line = self._fp.fp.readline(_MAX_CHUNK_LINE_LENGTH + 1)  # type: ignore[union-attr]",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "crawler-americas": [
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1976, in _ingest |     payload, failed = self._download_match(match_id)",
