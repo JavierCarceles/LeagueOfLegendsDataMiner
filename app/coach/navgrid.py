@@ -54,15 +54,43 @@ _BITS = base64.b64decode("".join(_PACKED))
 WALK = [[bool(_BITS[(y * N + x) // 8] & (1 << (7 - (y * N + x) % 8))) for x in range(N)] for y in range(N)]
 # Saltan o atraviesan muros con una habilidad básica: cruzar un muro les cuesta poco más que rodearlo.
 WALL_HOPPERS = {
+    # Cruzan muros a voluntad con una habilidad de enfriamiento corto (o los recorren): casi como andar.
     141: 1.5,  # Kayn (E: atraviesa muros)
+    221: 1.5,  # Zeri (E: salta muros y cornisas)
     154: 2.0,  # Zac (E)
     91: 2.0,  # Talon (E: escala muros)
+    163: 2.0,  # Taliyah (R: cabalga el muro; W/E no)
+    121: 2.0,  # Kha'Zix (E)
     76: 2.5,  # Nidalee (W)
     203: 2.5,  # Kindred (Q)
+    18: 2.5,  # Tristana (W)
+    105: 2.5,  # Fizz (Q a un objetivo, E)
+    164: 2.5,  # Camille (E: se engancha al muro)
+    60: 2.5,  # Elise (E araña: rappel)
+    # Saltan muros finos con un desplazamiento (o con un ward/objetivo al otro lado).
     64: 3.0,  # Lee Sin (W a un ward)
     81: 3.0,  # Ezreal (E)
     35: 3.0,  # Shaco (Q)
     104: 3.0,  # Graves (E)
+    92: 3.0,  # Riven (Q3 y E)
+    245: 3.0,  # Ekko (E)
+    38: 3.0,  # Kassadin (R)
+    42: 3.0,  # Corki (W)
+    236: 3.0,  # Lucian (E)
+    24: 3.0,  # Jax (Q a un ward)
+    55: 3.0,  # Katarina (E a una daga o ward)
+    23: 3.0,  # Tryndamere (E)
+    150: 3.0,  # Gnar (E)
+    266: 3.0,  # Aatrox (E)
+    84: 3.0,  # Akali (E)
+    246: 3.0,  # Qiyana (W al terreno)
+    200: 3.0,  # Bel'Veth (Q)
+    7: 3.0,  # LeBlanc (W)
+    238: 3.0,  # Zed (W: sombra)
+    59: 3.0,  # Jarvan IV (E + Q)
+    429: 3.0,  # Kalista (Q + salto del pasivo)
+    517: 3.0,  # Sylas (E)
+    107: 3.0,  # Rengar (salto desde un arbusto)
 }
 WALL_COST = 50.0  # resto de campeones: solo si no hay otra (Destello en un muro fino)
 
@@ -110,44 +138,64 @@ def _nearest_walkable(c: tuple[int, int]) -> tuple[int, int]:
     return c
 
 
-@lru_cache(maxsize=20_000)
+_FREE = [WALK[i // N][i % N] for i in range(N * N)]
+_STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0), (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414))
+# A* ponderado: la heurística (octil) pesa un 30 % más. Explora unas 5 veces menos celdas y las rutas salen como mucho
+# un 30 % más largas que la óptima (en la práctica, casi iguales tras el suavizado). Con ~6.500 tramos por partida, el
+# análisis pasaba de 0,02 a 0,24 s; así no frena al recolector.
+HEURISTIC_WEIGHT = 1.3
+
+
+@lru_cache(maxsize=50_000)
 def _route(a: tuple[int, int], b: tuple[int, int], wall: float) -> tuple[tuple[int, int], ...]:
     """Celdas de a a b (A*), suavizadas. wall: coste de pisar un muro (alto = rodearlo)."""
     a, b = _nearest_walkable(a), _nearest_walkable(b)
     if a == b or _line_clear(a, b):
         return (a, b)
-    openq = [(0.0, 0.0, a)]
-    came: dict[tuple[int, int], tuple[int, int]] = {}
-    cost = {a: 0.0}
+    bx, by = b
+    start, goal = a[1] * N + a[0], by * N + bx
+    w = HEURISTIC_WEIGHT
+
+    def h(x: int, y: int) -> float:
+        dx, dy = abs(bx - x), abs(by - y)
+        return w * (max(dx, dy) + 0.414 * min(dx, dy))
+
+    openq = [(h(*a), 0.0, start)]
+    came: dict[int, int] = {}
+    cost = {start: 0.0}
+    free, push, pop, inf = _FREE, heapq.heappush, heapq.heappop, math.inf
     while openq:
-        _f, g, cur = heapq.heappop(openq)
-        if cur == b:
+        _f, g, cur = pop(openq)
+        if cur == goal:
             break
-        if g > cost.get(cur, math.inf):
+        if g > cost.get(cur, inf):
             continue
-        for dx, dy, step in ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0), (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414)):
-            nx, ny = cur[0] + dx, cur[1] + dy
+        cy, cx = divmod(cur, N)
+        for dx, dy, step in _STEPS:
+            nx, ny = cx + dx, cy + dy
             if not (0 <= nx < N and 0 <= ny < N):
                 continue
-            ng = g + step * (1.0 if WALK[ny][nx] else wall)
-            if ng < cost.get((nx, ny), math.inf):
-                cost[(nx, ny)] = ng
-                came[(nx, ny)] = cur
-                h = math.hypot(b[0] - nx, b[1] - ny)
-                heapq.heappush(openq, (ng + h, ng, (nx, ny)))
-    if b not in came:
+            nxt = ny * N + nx
+            # En diagonal no se cortan esquinas: las dos celdas de al lado también tienen que ser suelo.
+            ok = free[nxt] and (dx == 0 or dy == 0 or (free[cy * N + nx] and free[ny * N + cx]))
+            ng = g + (step if ok else step * wall)
+            if ng < cost.get(nxt, inf):
+                cost[nxt] = ng
+                came[nxt] = cur
+                push(openq, (ng + h(nx, ny), ng, nxt))
+    if goal not in came:
         return (a, b)
-    path = [b]
-    while path[-1] != a:
-        path.append(came[path[-1]])
-    path.reverse()
-    # Suavizado: de cada punto, al más lejano que se ve en línea recta.
+    idx = [goal]
+    while idx[-1] != start:
+        idx.append(came[idx[-1]])
+    path = [(i % N, i // N) for i in reversed(idx)]
+    # Suavizado: de cada punto, avanza mientras el siguiente se vea en línea recta.
     out = [path[0]]
     i = 0
     while i < len(path) - 1:
-        j = len(path) - 1
-        while j > i + 1 and not _line_clear(path[i], path[j]):
-            j -= 1
+        j = i + 1
+        while j + 1 < len(path) and _line_clear(path[i], path[j + 1]):
+            j += 1
         out.append(path[j])
         i = j
     return tuple(out)

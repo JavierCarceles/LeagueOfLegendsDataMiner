@@ -27,7 +27,7 @@ SEVERITY_ORDER = {"high": 3, "medium": 2, "low": 1}
 # Métricas de la partida que usan las comprobaciones (también van en el resumen ligero de tus partidas).
 METRIC_KEYS = (
     "first_item_min", "second_item_min", "gold_diff10", "gold_diff15", "cs10", "kp", "kills", "assists", "minutes",
-    "control_wards", "wards_pre14", "jungle_cs10", "ganks_pre10",
+    "control_wards", "wards_pre14", "jungle_cs10", "ganks_pre10", "wards_killed",
 )
 # Despeje lento (jungla): CS de jungla a los 10 por debajo del 10 % más bajo de los OTPs Diamante+ de tu campeón, sin
 # haberlo cambiado por ganks (1 como mucho). Platino 11 %, Esmeralda 12 %, Diamante 4 %, Aspirante 2 % de partidas.
@@ -42,6 +42,10 @@ LOW_KP = 40
 LOW_KP_TEAM_KILLS = 10  # con menos kills en la partida, el porcentaje no dice nada
 FEW_WARDS = 1
 FEW_WARDS_ROLES = ("TOP", "JUNGLE", "MID", "ADC")
+# Ningún ward rival destruido en una partida de 25 min o más (guías: «usa la lente y quita visión antes de los
+# objetivos»). Con ~16.000 partidas de 25+ min: jungla 14 % (Platino) → 4 % (Aspirante), top 24 % (Esmeralda) → 12 %.
+NO_SWEEP_MIN = 25
+NO_SWEEP_ROLES = ("TOP", "JUNGLE", "MID", "ADC")
 SECOND_LATE_MARGIN = 1.5
 SECOND_LATE_BEHIND = -500
 
@@ -226,6 +230,14 @@ def _game_checks(rec: dict) -> list[dict]:
             "Casi sin visión en la fase de líneas: el abalorio se recarga solo, úsalo cada vez que esté listo (río, entrada de tu "
             "jungla, el campamento que el rival suele hacer). En Aspirante solo el 2 % de los junglas pone tan pocos.",
             ["vision", "few_wards"], kind="vision",
+        ))
+    if role in NO_SWEEP_ROLES and minutes >= NO_SWEEP_MIN and _num(rec.get("wards_killed")) == 0:
+        out.append(_moment(
+            NO_SWEEP_MIN * 60, "low", "No quitaste ningún ward rival",
+            f"{round(minutes)} minutos sin destruir un solo ward. Cambia al abalorio de lente (o usa la pink) antes de cada "
+            "objetivo y al entrar en la jungla rival: sin quitarles visión, te ven llegar. En Aspirante pasa en 1 de cada 25 "
+            "partidas de jungla y 1 de cada 8 de top (en Platino y Esmeralda, el doble o más).",
+            ["vision", "no_sweep"], kind="vision",
         ))
     kp, kills, assists = _num(rec.get("kp")), _num(rec.get("kills")) or 0, _num(rec.get("assists")) or 0
     if role == "JUNGLE" and kp is not None and kp < LOW_KP and kp > 0:

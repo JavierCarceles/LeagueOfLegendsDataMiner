@@ -357,3 +357,88 @@ con el support lejos): se miden igual y la comparación aparecerá con partidas 
 
 No separan elos (no se usan): ganks fallidos largos (≥ 30 s en una línea sin kill ni asistencia: 0,18-0,20 por partida
 en todos los elos) y campamentos robados antes del 10 (0,6-0,7).
+
+### Revisión del 24-11-2026 (28.860 partidas; primeras de Esmeralda en top, mid y support)
+
+- Jungla, Platino → Aspirante (todos los campeones): objeto tarde 0,19 → 0,05 por partida, despeje lento 0,10 → 0,03,
+  pocos wards 0,36 → 0,10, sin pinks 0,45 → 0,17, KP baja 0,14 → 0,09, muertes antes de un objetivo 1,04 → 0,83 y
+  peleas ganadas sin convertir 0,08 → 0,04. Con todos los campeones mezclados, aislado y orden de habilidades no
+  separan (sí con el mismo campeón: por eso se compara por campeón cuando hay varios elos).
+- Morir adelantado en la línea no separa elos en ninguna línea (top: Diamante 0,76, Aspirante 0,81; Esmeralda, 0,29):
+  pesa la mitad en *Errores que repites*. No se toca la regla hasta tener más Esmeralda y Platino.
+- Top, Diamante → Aspirante: roams con kill o asistencia 57 % → 64 % y CS perdido por roamear 2,8 → 0,4.
+- «Solo en una línea lateral» pasado el 14 depende de la línea: en ADC es de elos bajos (Diamante 11 %, Aspirante 7 %),
+  en top de elos altos (Esmeralda 31 %, Aspirante 36 %: más split). La tabla de movimiento marca en cada fila hacia
+  dónde van los elos altos (↑/↓) y dónde quedas tú.
+- Mid y support con menos de 50 partidas de Esmeralda: sin conclusiones todavía.
+
+## L) Reglas nuevas de las guías de 2026 y cómo las tienen en cuenta los análisis (24-11-2026)
+
+Búsqueda en internet de guías de macro de todos los roles: Dodge.gg (jungla, mid, ADC y support, 2026), MetaBot (vueltas a
+base y objetivos, 2026), Dignitas (seguir al jungla rival, contrajungla, macro por rol, vueltas a base, medio y final de
+partida, top), WeCoach y Boostroom (top) y las notas de los parches 26.1 y 26.2 de Riot. Mobalytics, Nerfplz y Sheep
+Esports bloquean las descargas (403). Se añadieron 20 reglas generales (39-58) y 63 por rol (top 16-25, jungla 19-34,
+mid 16-27, ADC 17-28, support 18-30); las fuentes están al final de `macro/macro_por_rol.txt`.
+
+Cada regla nueva se midió con las ~28.000 partidas de OTPs (retos y estadísticas de Riot de cada jugador, sin volver a
+analizar nada) para ver si separa elos antes de juzgarla:
+
+| Regla (fichero y número) | Cómo se tiene en cuenta | Datos (elo bajo → Aspirante) |
+|---|---|---|
+| Quitar visión antes de objetivos (general 46, jungla 31, ADC 26) | **Error nuevo** `no_sweep`: partida de 25+ min sin destruir ningún ward (top, jungla, mid y ADC), en «Errores que repites» y en las repeticiones | Jungla 12 % → 2,4 % de las partidas; top 19 % → 6 % |
+| Pink en cada vuelta (general 45, jungla 32, ADC 26, support 22) | Fila «Vueltas a base en las que compras una pink» de *Cómo te mueves por el mapa* (`rule_metrics`) | Top 3 % → 14 %, jungla 14 % → 31 %, ADC 7 % → 23 % |
+| Wards destruidos (las mismas) | Fila «Wards rivales que destruyes cada 10 min» | Top 0,5 → 0,85, jungla 0,8 → 1,6, ADC 1,1 → 2,2 |
+| Visión frente a tu rival (support 21, mid 22) | Fila «Ventaja de visión sobre tu rival directo» | Top 7 % → 15 %, jungla −8 % → 19 %, ADC 18 % → 43 % |
+| Roams y Teleports con kill (top 24, mid 19, support 19) | Fila «Kills en otras líneas al principio» | Top 0,04 → 0,14 por partida |
+| Placas y primera torre antes del 14 (general 40, 41, 57; top 23) | Fila «Torres antes del 14 en las que participas» | Top 0,15 → 0,28, jungla 0,01 → 0,05, ADC 0,18 → 0,42 |
+| Teleport (top 19-21) | Fila «Teletransportes usados» (top y mid que lo llevan) | Top 3,5 → 3,9 |
+| No volver sin oro para algo útil (general 42) | Fila «Vueltas a base antes del 20 sin oro para nada útil», sin flecha: **no separa** | 6-10 % de las vueltas en todos los elos de top y jungla |
+
+Las filas nuevas salen en *Mi progreso → Cómo te mueves por el mapa*, bajo «Reglas de las guías de macro que se pueden
+medir», con la misma flecha (hacia dónde van los elos altos) y el mismo color que el resto. Para recuentos pequeños
+(0,04 → 0,14 por partida) la flecha ya no exige una diferencia de 1 unidad: basta con 0,05 y un 10 %.
+
+**Sin volver a analizar:** las partidas nuevas guardan `riot_rules` (retos de Riot del jugador) en su análisis; las que
+ya tenías los sacan de la partida de Riot guardada al poner al día los resúmenes (`DIGEST_VERSION = 5`), y los OTPs, de
+su dossier. `ANALYSIS_VERSION` sigue en 14.
+
+**Ya cubiertas por detecciones anteriores:** vuelta tarde antes de un objetivo y visión 60 s antes (general 47; ADC 21;
+mid 24 → `late_recall`, `late`, `pink`), pelear con menos (general 51, 55, 56 → `fight_outnumbered`), barón y pelea
+ganada sin aprovechar (general 48, 52 → `baron_wasted`, `unconverted`), duelo con menos nivel u objetos (top 18, support
+25 → `duel_behind`), ritmo del primer objeto (ADC 23 → `item_tempo`), despeje lento (jungla 19, 23 → `slow_clear`),
+seguir al jungla rival y contraganks (jungla 24-26 → `tracking`, `rm_counter_*`), roams de mid con su jungla (mid 21 →
+`rm_mid_with_jg_pct`) y support que deja solo al ADC (support 20 → `rm_adc_alone_deaths`).
+
+**No medibles con los datos de Riot:** estados de la oleada, congelar y el reloj del cañón (general 39, 43, 44; top
+16-17, 21-22; mid 16-17; ADC 18-20), Castigo (jungla 22), dónde se pone cada ward (jungla 28-29; mid 22; support 21-22,
+24), avisos y pings (jungla 21; mid 20), intenciones en las peleas (support 27-28; general 49) y lo que se cede a
+propósito (general 53-54; support 26).
+
+### Recorridos frente a la experiencia y el CS de cada minuto (24-11-2026)
+
+La experiencia de los súbditos solo se gana a menos de ~1.600 unidades de donde mueren, y el CS de súbditos exige estar
+en una línea. Riot da los dos cada minuto, así que sirven para comprobar los tramos que se reconstruyen sin posición
+(validación 3 de `python -m app.coach.track_check`, con las 55 partidas de `data/mis_partidas`). En 1.385 minutos de
+top, mid y ADC sin pelea ni vuelta a base:
+
+- Minutos imposibles (fuera de todas las líneas el 75 % o más del minuto con 6 o más CS de súbditos): 1 con el
+  reconstruido y 2 con la línea recta de antes.
+- Cuanto más tiempo pone el recorrido a alguien en su línea, más CS y experiencia tiene ese minuto: 0-25 % del minuto,
+  5,6 CS y 349 de experiencia; 75-100 %, 8,7 CS y 535 de experiencia.
+
+Así que los roams y las rotaciones reconstruidas (`route_macro`) no se inventan salidas de línea que la experiencia
+contradiga. No se corrige nada más: con 1 caso de 1.385 no compensa añadir otra regla a la reconstrucción.
+
+### Los análisis también rodean muros (24-11-2026)
+
+Hasta ahora solo la repetición 2D rodeaba los muros; las posiciones que usan los análisis (roams, contraganks, tiempo en
+cada zona, agrupado o solo en una lateral) iban en línea recta entre dos puntos y pasaban el 11,2 % del tiempo dentro
+de un muro. Ahora el analizador anda por la rejilla de `navgrid` (A*, sin cortar esquinas en diagonal): 1,1 % (bordes
+de la rejilla). Los que saltan muros con una habilidad pasan de 9 a 35 campeones (Zeri, Kha'Zix, Tristana, Fizz,
+Camille, Elise, Riven, Ekko, Kassadin, Corki, Lucian, Jax, Katarina, Tryndamere, Gnar, Aatrox, Akali, Qiyana, Bel'Veth,
+LeBlanc, Zed, Jarvan IV, Kalista, Sylas, Rengar y Taliyah, además de los que ya estaban), con IDs comprobados en Data
+Dragon. Los demás solo cruzan un muro si no hay otro camino (Destello en un muro fino).
+
+La precisión no cambia (validación 1: mediana 1.130 frente a 1.142 unidades), pero ya no hay recorridos imposibles. El
+A* es ponderado (heurística octil ×1,3) para no frenar al recolector: analizar una partida pasa de 0,02 s a 0,13 s. Solo
+lo usan las partidas que se analicen a partir de ahora; las de los OTPs ya guardadas no se vuelven a analizar.

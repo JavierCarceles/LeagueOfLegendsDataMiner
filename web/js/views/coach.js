@@ -699,7 +699,7 @@ function recurringLine(r) {
   );
 }
 
-const moveVal = (r, v) => (r.unit === "%" ? `${fmt.num(v, 0)} %` : fmt.num(v, 1));
+const moveVal = (r, v) => (r.unit === "%" ? `${fmt.num(v, 0)} %` : fmt.num(v, v !== 0 && Math.abs(v) < 1 ? 2 : 1));
 
 function movementSummary(m) {
   const g = m.rows.find((r) => r.key === "grouped_late");
@@ -725,19 +725,28 @@ function movementCard(m) {
         h("thead", h("tr", h("th", "Qué"), h("th.num", "Tú"), h("th.num", m.role === "JUNGLE" ? "Su jungla" : "Tu rival"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)))),
         h(
           "tbody",
-          m.rows.map((r) =>
+          m.rows.flatMap((r, i) => [
+            r.group === "rules" && m.rows[i - 1]?.group !== "rules"
+              ? h("tr.elo-subhead", h("td", { colSpan: 3 + tiers.length }, h("span.tiny.muted", "Reglas de las guías de macro que se pueden medir: visión, vueltas a base, roams y teletransporte")))
+              : null,
             h(
               "tr",
-              h("td", r.label),
-              h("td.num", h("b", moveVal(r, r.mine))),
+              h(
+                "td",
+                r.label,
+                r.trend ? h("span.tiny.muted", { title: r.trend === "up" ? "Los elos altos tienen más" : "Los elos altos tienen menos" }, r.trend === "up" ? " ↑" : " ↓") : null,
+              ),
+              h(`td.num${r.standing === "low" ? ".bad" : r.standing === "top" ? ".good" : ""}`, { title: r.standing === "low" ? "Como el elo más bajo con datos (o peor)" : r.standing === "top" ? "Como el elo más alto con datos (o mejor)" : "" }, h("b", moveVal(r, r.mine))),
               h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : moveVal(r, r.opp)),
               tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : moveVal(r, r.tiers[t]))),
             ),
-          ),
+          ]),
         ),
       ),
     ),
-    m.elo ? null : h("p.tiny.muted", { style: { margin: 0 } }, "La comparación con cada elo aparecerá cuando las partidas de OTPs se re-analicen con el movimiento (lo hace la app sola en segundo plano y las sube con los datos)."),
+    m.elo
+      ? h("p.tiny.muted", { style: { margin: 0 } }, "↑ / ↓: hacia dónde van los elos altos en esa medida (solo si la diferencia es clara). Tu valor en verde si estás como el elo más alto o mejor; en rojo, como el más bajo o peor. No son errores sueltos: son tendencias de cómo juega cada elo.")
+      : h("p.tiny.muted", { style: { margin: 0 } }, "La comparación con cada elo aparecerá cuando haya partidas de OTPs de tu línea en varios elos (el recolector las sube con los datos)."),
   );
 }
 
@@ -1248,6 +1257,7 @@ export const FLAG_CHIP = {
   slow_clear: "despeje lento",
   no_pinks: "sin pinks",
   few_wards: "pocos wards",
+  no_sweep: "sin quitar wards",
   low_kp: "KP baja",
 };
 

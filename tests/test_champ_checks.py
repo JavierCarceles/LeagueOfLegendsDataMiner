@@ -215,3 +215,14 @@ def test_campamentos_deducidos_del_cs_de_jungla():
     pos.update({0: (500, 500), 1: (14_000, 14_000)})
     cs[1] = 30
     assert A.infer_camps(g, {1: []}) == {} and g.camp_misses == 1
+
+
+def test_cada_fila_de_movimiento_dice_hacia_donde_van_los_elos_altos():
+    up = insights._move_trend({"mine": 15.0, "tiers": {"PLATINUM": 16.4, "DIAMOND": 18.8, "CHALLENGER": 20.8}})
+    assert up == {"trend": "up", "standing": "low"}  # respondes menos que Platino
+    split = insights._move_trend({"mine": 37.0, "tiers": {"EMERALD": 30.5, "CHALLENGER": 35.9}})
+    assert split == {"trend": "up", "standing": "top"}  # en top, hacer split es de elos altos
+    adc = insights._move_trend({"mine": 9.0, "tiers": {"DIAMOND": 11.2, "CHALLENGER": 7.0}})
+    assert adc == {"trend": "down", "standing": "mid"}
+    flat = insights._move_trend({"mine": 14.0, "tiers": {"PLATINUM": 14.2, "CHALLENGER": 14.8}})
+    assert flat == {"trend": None, "standing": None}

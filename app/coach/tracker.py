@@ -49,7 +49,8 @@ class ProfileNotFound(ValueError):
     pass
 
 
-DIGEST_VERSION = 4  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y contraganks
+DIGEST_VERSION = 5  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y
+# contraganks; 5: reglas medibles de las guías (``rule_metrics``: pinks por vuelta, visión, roams, TP)
 
 
 def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
@@ -71,6 +72,16 @@ def _route_macro(analysis: dict) -> dict | None:
         return route_macro.from_analysis(analysis) or None
     except Exception:  # noqa: BLE001  (un análisis raro no puede romper el resumen)
         log.debug("Sin roams ni contraganks para %s", analysis.get("match_id"), exc_info=True)
+        return None
+
+
+def _rules(analysis: dict) -> dict | None:
+    from app.coach import rule_metrics
+
+    try:
+        return rule_metrics.from_analysis(analysis) or None
+    except Exception:  # noqa: BLE001  (un análisis raro no puede romper el resumen)
+        log.debug("Sin reglas medibles para %s", analysis.get("match_id"), exc_info=True)
         return None
 
 
@@ -116,6 +127,7 @@ def digest(analysis: dict, skill_t: list[float] | None = None) -> dict:
         ],
         "cc": checks_digest(analysis, skill_t),
         "rm": _route_macro(analysis),
+        "rl": _rules(analysis),
         # Movimiento (posiciones reconstruidas cada 5 s): el tuyo y el de tu rival directo (de jungla, el otro jungla).
         "mv": {
             "me": (analysis.get("movement") or {}).get(str(analysis.get("me"))),
@@ -136,7 +148,8 @@ def refresh_digests(db) -> int:
     """Pone al día los resúmenes ligeros de un formato anterior (sin volver a analizar: sale del análisis guardado)."""
     try:
         rows = db.query(
-            "SELECT match_id, pid, analysis, timeline_raw IS NOT NULL AS has_tl FROM my_games WHERE analysis IS NOT NULL "
+            "SELECT match_id, pid, analysis, timeline_raw IS NOT NULL AS has_tl, match_raw IS NOT NULL AS has_match FROM my_games "
+            "WHERE analysis IS NOT NULL "
             "AND (CASE WHEN json_valid(digest) THEN json_extract(digest, '$.dv') END) IS NOT ?",
             (DIGEST_VERSION,),
         )
@@ -154,11 +167,23 @@ def refresh_digests(db) -> int:
         skill_t = None
         if not (analysis.get("build") or {}).get("skill_t") and r["has_tl"]:
             skill_t = skill_times(store.raw_timeline(db, r["match_id"]), r["pid"] or analysis.get("me"))
+        if "riot_rules" not in analysis and r["has_match"]:
+            # Analizada antes de guardar ``riot_rules``: se sacan del participante de Riot (sin volver a analizar).
+            analysis["riot_rules"] = _riot_rules(store.raw_game(db, r["match_id"])[0], r["pid"] or analysis.get("me"))
         store.update_digest(db, r["match_id"], digest(analysis, skill_t))
         done += 1
     if done:
         log.info("Resúmenes de %d partidas puestos al día.", done)
     return done
+
+
+def _riot_rules(match: dict | None, pid: int | None) -> dict | None:
+    from app.coach import rule_metrics
+
+    for p in ((match or {}).get("info") or {}).get("participants") or []:
+        if p.get("participantId") == pid:
+            return rule_metrics.raw_fields(p)
+    return None
 
 
 def analysis_version(analysis: dict) -> int:
