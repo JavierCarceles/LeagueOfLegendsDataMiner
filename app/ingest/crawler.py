@@ -820,13 +820,24 @@ class RegionWorker(threading.Thread):
         # luego los nunca revisados y, a igualdad, los de más LP.
         champs = self.config.targets or [0]
         marks = ",".join("?" * len(champs))
-        rows = self.svc.db.query(
-            "SELECT p.puuid FROM players p LEFT JOIN mastery_checks m ON m.puuid = p.puuid "
-            "WHERE p.is_seed = 1 AND p.platform = ? AND p.tier = ? AND (m.puuid IS NULL OR m.checked_at < ?) "
-            f"ORDER BY (SELECT COUNT(*) FROM participants pa WHERE pa.player_id = p.id AND pa.champ IN ({marks})) DESC, "
-            "(m.puuid IS NOT NULL), p.lp DESC LIMIT ?",
-            (platform, tier, now_s() - MASTERY_TTL_S, *champs, MASTERY_BATCH),
-        )
+        if self.config.focus == "games" or self.config.roles:
+            # Líneas enteras o «cualquiera que lo juegue»: casi todos valen, así que se ahorra la cuenta de partidas
+            # guardadas de cada jugador del elo (con 140.000 en Diamante, cada búsqueda tardaba mucho y las 15 a la vez
+            # ocupaban la base de datos justo al arrancar).
+            rows = self.svc.db.query(
+                "SELECT p.puuid FROM players p LEFT JOIN mastery_checks m ON m.puuid = p.puuid "
+                "WHERE p.is_seed = 1 AND p.platform = ? AND p.tier = ? AND (m.puuid IS NULL OR m.checked_at < ?) "
+                "ORDER BY (m.puuid IS NOT NULL), p.lp DESC LIMIT ?",
+                (platform, tier, now_s() - MASTERY_TTL_S, MASTERY_BATCH),
+            )
+        else:
+            rows = self.svc.db.query(
+                "SELECT p.puuid FROM players p LEFT JOIN mastery_checks m ON m.puuid = p.puuid "
+                "WHERE p.is_seed = 1 AND p.platform = ? AND p.tier = ? AND (m.puuid IS NULL OR m.checked_at < ?) "
+                f"ORDER BY (SELECT COUNT(*) FROM participants pa WHERE pa.player_id = p.id AND pa.champ IN ({marks})) DESC, "
+                "(m.puuid IS NOT NULL), p.lp DESC LIMIT ?",
+                (platform, tier, now_s() - MASTERY_TTL_S, *champs, MASTERY_BATCH),
+            )
         checked = 0
         for row in rows:
             if self.stop_event.is_set() or self.crawler.paused_reason():
