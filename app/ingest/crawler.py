@@ -1393,7 +1393,8 @@ class RegionWorker(threading.Thread):
 
         def ingest(match_id: str) -> Ingested:
             nonlocal budget, ingested, newest
-            got = self._ingest(match_id, player)
+            with self.timed("partidas"):  # todo lo de cada partida (lo no desglosado: base de datos, progreso…)
+                got = self._ingest(match_id, player)
             budget -= 1 + got.detailed
             ingested += 1
             newest = max(newest, got.game_start)
@@ -1630,7 +1631,8 @@ class RegionWorker(threading.Thread):
                 self.state["other_champ_skipped"] += 1
                 got.result = "other"
                 return got
-        got.result = store_match(svc.db, record, seed_tier=player["tier"], stats_queues=svc.settings.stats_queues)
+        with self.timed("guardar_partida"):
+            got.result = store_match(svc.db, record, seed_tier=player["tier"], stats_queues=svc.settings.stats_queues)
         if cfg.targets and cfg.save_details and got.mine_target and got.result in ("stored", "duplicate"):
             got.detailed = self._detail(match_id, payload, player)
         if got.result == "stored" or got.detailed:
@@ -1951,6 +1953,14 @@ class Crawler:
                     for host, h in limiter.snapshot().items()
                 }
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
+            # Una línea por región en el registro (data/registro/app.log) cada 5 min: la evolución entre subidas.
+            for region, w in funnel["workers"].items():
+                t = w.get("timing") or {}
+                log.info(
+                    "Estado %s: %s partidas nuevas (%s/min ahora) · %s analizadas · errores %s · tiempo: %s",
+                    region, w.get("stored"), w.get("rate_recent"), w.get("details"), w.get("errors"),
+                    ", ".join(f"{k} {v:.0f}" for k, v in t.items() if isinstance(v, float)) or "—",
+                )
             base = Path(self.svc.settings.data_dir) / "otps"
             base.mkdir(parents=True, exist_ok=True)
             tmp = base / "_busqueda.json.tmp"

@@ -206,3 +206,29 @@ def test_cada_subida_lleva_el_registro_y_lo_que_hace_cada_hilo(repos, monkeypatc
     assert "fallo de prueba" in entry["trace"] and entry["hora"]
     assert any("autopush" in name for name in out["hilos"])
     assert git(repos.remote, "show", "--stat", "main").count("_registro.json") == 1
+
+
+def test_el_registro_completo_va_a_un_fichero_dentro_de_data(tmp_path):
+    import logging
+
+    from app import logbus
+
+    root = logging.getLogger("tempu")
+    before = list(root.handlers)
+    try:
+        logbus.add_file_log(tmp_path)
+        logbus.add_file_log(tmp_path)  # una sola vez
+        added = [h for h in root.handlers if h not in before]
+        assert len(added) == 1
+        old_level = root.level
+        root.setLevel(logging.INFO)
+        logbus.get_logger("crawler").info("Estado europe: 10 partidas nuevas")
+        added[0].flush()
+        text = (tmp_path / "registro" / "app.log").read_text(encoding="utf-8")
+        assert "Estado europe: 10 partidas nuevas" in text
+        root.setLevel(old_level)
+    finally:
+        for h in root.handlers[:]:
+            if h not in before:
+                root.removeHandler(h)
+                h.close()
