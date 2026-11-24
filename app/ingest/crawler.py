@@ -34,6 +34,7 @@ import calendar
 import contextlib
 import json
 import queue
+from concurrent.futures import ThreadPoolExecutor
 from collections import deque
 import threading
 import time
@@ -616,7 +617,71 @@ SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)
 # Analizar en otro hilo mientras se descarga: desactivado (con él, el recolector se quedó parado en Windows el
 # 24-11-2026 a las ~22 partidas; hasta saber por qué, se analiza en el mismo hilo, como cuando iba a 36/min).
 SAVE_IN_BACKGROUND = False
+PREFETCH = True  # descargar la siguiente partida mientras se analiza la actual (solo llamadas a Riot, ver _Prefetch)
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
+
+
+class _Prefetch:
+    """Descarga en otro hilo la siguiente partida (y su timeline si es de las que interesan) mientras la región analiza
+    la actual. Solo habla con Riot: la base de datos y los ficheros siguen en el hilo de la región (el intento de
+    analizar en otro hilo se quedó parado en Windows). Con la key gratuita, cada llamada espera su turno ~1,4 s: antes la
+    región descargaba y analizaba en fila (2,8 s + 1,5 s por partida); así se solapan."""
+
+    def __init__(self, worker: RegionWorker) -> None:
+        self.w = worker
+        self.pool: ThreadPoolExecutor | None = None
+        self.futures: dict[str, object] = {}
+        self.timelines: dict[str, dict] = {}
+
+    def hint(self, match_id: str | None, puuid: str) -> None:
+        if not PREFETCH or not match_id or match_id in self.futures:
+            return
+        if self.pool is None:
+            self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"crawler-dl-{self.w.region}")
+        self.futures[match_id] = self.pool.submit(self._fetch, match_id, puuid)
+
+    def _fetch(self, match_id: str, puuid: str):
+        w = self.w
+        kw = {"priority": Priority.LOW, "stop": w.stop_event}
+        payload = w.svc.riot.match(match_id, **kw)
+        timeline = None
+        cfg = w.config
+        if payload is not None and cfg.targets and cfg.save_details:
+            record = parse_match(payload)
+            mine = next((pr for pr in record.participants if pr.puuid == puuid), None) if record else None
+            if mine is not None and record.is_rift and not record.is_remake and cfg.is_target(mine.champ, mine.role):
+                timeline = w.svc.riot.timeline(match_id, **kw)  # aún no guardada (si no, no se estaría descargando)
+        return payload, timeline
+
+    def take(self, match_id: str) -> dict | None:
+        """La partida ya descargada (o ``None``: se descarga como siempre)."""
+        fut = self.futures.pop(match_id, None)
+        if fut is None:
+            return None
+        try:
+            with self.w.timed("esperando_descarga"):
+                payload, timeline = fut.result()
+        except Exception:  # noqa: BLE001  (error de Riot o parada: se repite en el hilo de la región, que sabe tratarlo)
+            return None
+        if timeline is not None:
+            self.timelines[match_id] = timeline
+        return payload
+
+    def take_timeline(self, match_id: str) -> dict | None:
+        return self.timelines.pop(match_id, None)
+
+    def drop(self) -> None:
+        """Fin de una visita: lo que quedó por consumir se descarta."""
+        for fut in self.futures.values():
+            fut.cancel()
+        self.futures.clear()
+        self.timelines.clear()
+
+    def close(self) -> None:
+        self.drop()
+        if self.pool is not None:
+            self.pool.shutdown(wait=False, cancel_futures=True)
+            self.pool = None
 
 
 class RegionWorker(threading.Thread):
@@ -643,6 +708,7 @@ class RegionWorker(threading.Thread):
         self._save_q: queue.Queue = queue.Queue(maxsize=SAVE_QUEUE_MAX)
         self._saver: threading.Thread | None = None
         self._saving: set[tuple[str, str]] = set()  # (partida, jugador) descargadas y aún sin guardar
+        self._prefetch = _Prefetch(self)
         self.scouts: list[OtpScout] = []  # una búsqueda de OTPs por plataforma (cada una tiene su propio cupo)
         self.found_by_tier: dict[tuple[str, str], int] = {}  # OTPs encontrados por (plataforma, elo)
         self.stored_at: deque[float] = deque(maxlen=5000)  # cuándo se guardó cada partida (velocidad reciente)
@@ -693,6 +759,7 @@ class RegionWorker(threading.Thread):
         else:
             self._run_ladder()
         self.finish_saving()
+        self._prefetch.close()
         self.state["status"] = "stopped"
         if self.config.targets and self.config.save_details:
             otp_details.flush(self.svc)  # los resúmenes de campeón pendientes, ya
@@ -1191,7 +1258,7 @@ class RegionWorker(threading.Thread):
                     payload = svc.riot.match(match_id, **kw)
                     if payload is None:
                         return False
-                timeline = svc.riot.timeline(match_id, **kw)
+                timeline = self._prefetch.take_timeline(match_id) or svc.riot.timeline(match_id, **kw)
         except RiotKeyError:
             raise
         except RiotAPIError as exc:
@@ -1365,6 +1432,8 @@ class RegionWorker(threading.Thread):
             known = self._known_for(puuid, ids)
             starts = self._stored_starts([m for m in ids if m in known])
             finished = True
+            todo = [m for m in reversed(ids) if m not in known]
+            after_of = dict(zip(todo, todo[1:]))
             for match_id in reversed(ids):
                 if self.stop_event.is_set():
                     finished = False
@@ -1375,6 +1444,9 @@ class RegionWorker(threading.Thread):
                 if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
                     finished = False
                     break
+                self._prefetch.hint(match_id, puuid)
+                if budget > 1:
+                    self._prefetch.hint(after_of.get(match_id), puuid)  # la siguiente, mientras se analiza esta
                 got = ingest(match_id)
                 prog["fwd_newest"] = max(prog["fwd_newest"], got.game_start)
             if finished:
@@ -1399,12 +1471,17 @@ class RegionWorker(threading.Thread):
                 known = self._known_for(puuid, ids)
                 consumed = page_seen = page_hits = 0
                 old_season = False
+                todo = [m for m in ids if m not in known]
+                after_of = dict(zip(todo, todo[1:]))
                 for match_id in ids:
                     if self.stop_event.is_set():
                         break
                     if match_id not in known:
                         if budget <= 0 or not cfg.share_ok(prog["seen"], prog["hits"]):
                             break
+                        self._prefetch.hint(match_id, puuid)
+                        if budget > 1:
+                            self._prefetch.hint(after_of.get(match_id), puuid)
                         got = ingest(match_id)
                         page_seen += got.valid
                         page_hits += got.valid and got.mine_target
@@ -1447,6 +1524,7 @@ class RegionWorker(threading.Thread):
                 self._otp_fails[puuid] = (fails, time.time() + OTP_FAIL_COOLDOWN_S if fails >= 3 else 0.0)
             raise
         finally:
+            self._prefetch.drop()
             save(final=True)
         stored_now = self.state["stored"] - stored_before
         if stored_now:
@@ -1511,8 +1589,10 @@ class RegionWorker(threading.Thread):
         """Descarga una partida y la guarda (o la recuerda como descartada para no volver a pedirla)."""
         svc, cfg = self.svc, self.config
         try:
-            with self.timed("riot"):
-                payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)
+            payload = self._prefetch.take(match_id)
+            if payload is None:
+                with self.timed("riot"):
+                    payload = svc.riot.match(match_id, priority=Priority.LOW, stop=self.stop_event)
         except RiotKeyError:
             raise
         except RiotAPIError as exc:
