@@ -164,3 +164,17 @@ def test_subir_ahora_sin_esperar_al_limite(repos, monkeypatch):
     assert out["started"]
     auto.thread.join(30)
     assert auto.state["pending"] == 0 and git(repos.remote, "log", "-1", "--format=%s", "main") == "datos"
+
+
+def test_antes_de_subir_se_pone_al_dia_el_estado_de_la_busqueda(repos, monkeypatch):
+    a = repos.a
+    monkeypatch.setattr(autopush, "every", lambda: 500)
+    calls = []
+    crawler = SimpleNamespace(running=True, _funnel_thread=None, write_funnel=lambda force=False: calls.append(force))
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=a / "data"), tracker=None, shutdown_event=threading.Event(), crawler=crawler)
+    auto = autopush.AutoPush(svc, repo=a)
+    (a / "data" / "x.json").write_text("{}")
+    auto.note_game()
+    auto.start()
+    auto.thread.join(30)
+    assert calls == [True] and git(repos.remote, "log", "-1", "--format=%s", "main") == "datos"
