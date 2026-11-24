@@ -1833,6 +1833,12 @@ class Crawler:
                     # Segundos en cada fase («visitas» incluye riot, riot_listas y analizar_guardar; el resto es la base
                     # de datos y la cola de cada visita).
                     "timing": {k: round(v, 1) for k, v in (getattr(w, "timing", None) or {}).items()},
+                    # Partidas descargadas esperando su análisis y si el hilo que las analiza sigue vivo.
+                    "analisis": {
+                        "en_cola": w._save_q.qsize() if hasattr(w, "_save_q") else None,
+                        "vivo": bool(getattr(w, "_saver", None) and w._saver.is_alive()),
+                        "en_proceso": len(getattr(w, "_saving", ()) or ()),
+                    },
                 }
                 for r, w in self.workers.items()
             }

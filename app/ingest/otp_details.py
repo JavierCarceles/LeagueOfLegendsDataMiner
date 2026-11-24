@@ -64,7 +64,10 @@ HEAVY_HEAL = {
     "Sona", "Seraphine", "Olaf", "Trundle", "Volibear", "Gwen", "Nasus", "Maokai", "Zac", "Fiddlesticks", "Kayn",
     "Senna", "Milio", "Renata Glasc", "Viego", "Darius", "Sett", "Irelia", "Aphelios", "Samira", "Kindred",
 }
-SUMMARY_EVERY_S = 300  # el resumen de un campeón se rehace como mucho cada 5 min mientras entran partidas
+# El resumen de un campeón se rehace como mucho cada 30 min mientras entran partidas (al parar el recolector, ya). Cada
+# uno relee todas sus partidas analizadas: con 173 campeones y ~30.000 partidas, cada 5 min se comía la CPU que
+# necesitan las descargas y el análisis.
+SUMMARY_EVERY_S = 1800
 TIER_ORDER = ("CHALLENGER", "GRANDMASTER", "MASTER", "DIAMOND", "EMERALD", "PLATINUM", "GOLD", "SILVER", "BRONZE", "IRON")
 
 
