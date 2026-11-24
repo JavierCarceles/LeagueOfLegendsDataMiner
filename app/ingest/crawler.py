@@ -636,6 +636,14 @@ PREFETCH_THREADS = 3
 RECENT_RATE_S = 300  # «velocidad actual»: partidas guardadas en los últimos 5 minutos
 
 
+def _field(row, key: str):
+    """Un campo de un jugador, sea un ``dict`` o una fila de la base de datos (``sqlite3.Row`` no tiene ``get``)."""
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 class _Prefetch:
     """Descarga en otro hilo la siguiente partida (y su timeline si es de las que interesan) mientras la región analiza
     la actual. Solo habla con Riot: la base de datos y los ficheros siguen en el hilo de la región (el intento de
@@ -1653,7 +1661,7 @@ class RegionWorker(threading.Thread):
         if got.result == "stored" or got.detailed:
             from app import autopush  # cada AUTO_PUSH_GAMES partidas nuevas, commit «datos» y push
 
-            autopush.note_game(svc, player.get("tier"), analyzed=bool(got.detailed))
+            autopush.note_game(svc, _field(player, "tier"), analyzed=bool(got.detailed))
         if got.result == "stored":
             # Las estadísticas exactas de Riot de sus 10 jugadores, a las medias por elo (también sin análisis).
             try:
@@ -1661,7 +1669,7 @@ class RegionWorker(threading.Thread):
 
                 stats = ranking_stats.of(svc)
                 if stats is not None:
-                    stats.add(payload, player.get("tier"))
+                    stats.add(payload, _field(player, "tier"))
             except Exception:  # noqa: BLE001  (son medias: nunca paran la recogida)
                 log.debug("No se pudieron sumar las medias del ranking", exc_info=True)
             self.state["stored"] += 1
