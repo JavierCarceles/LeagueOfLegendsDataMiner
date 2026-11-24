@@ -31,6 +31,51 @@ def available_patches(db: Database) -> list[str]:
     return sorted((r[0] for r in rows), key=patch_sort_key, reverse=True)
 
 
+def _recent_count(patch: str) -> int:
+    """Nº de parches de ``latest`` (1) o ``lastN`` (N; ``last`` a secas, 3)."""
+    if patch == "latest":
+        return 1
+    suffix = patch[4:]
+    if suffix.isdigit():
+        return max(1, int(suffix))
+    return 3
+
+
+def _parse_patches(db: Database, patch: str) -> tuple[tuple[str, ...] | None, bool]:
+    """(parches, excluir el histórico) según la etiqueta de parche."""
+    if patch in ("", "all"):
+        return None, False
+    if patch in ("recent", "new"):
+        return None, True
+    if patch == "latest" or patch.startswith("last"):
+        return tuple(available_patches(db)[: _recent_count(patch)]) or ("__none__",), False
+    return tuple(p.strip() for p in patch.split(",") if p.strip()), False
+
+
+def _parse_tiers(tier: str) -> tuple[str, ...] | None:
+    """Elos de un preset (``gold_plus``…) o de una lista separada por comas."""
+    key = tier.lower()
+    if key in TIER_PRESETS:
+        return tuple(TIER_PRESETS[key])
+    if key in ("", "all"):
+        return None
+    valid = set(TIERS) | {UNRANKED}
+    return tuple(t for t in (x.strip().upper() for x in tier.split(",")) if t in valid) or None
+
+
+def _parse_platforms(platform: str) -> tuple[str, ...] | None:
+    """Plataformas de una lista de regiones y/o plataformas, sin repetir."""
+    if platform in ("", "all"):
+        return None
+    selected: list[str] = []
+    for item in (x.strip() for x in platform.split(",")):
+        if item in REGIONS:
+            selected.extend(platforms_in_region(item))
+        elif item in PLATFORMS:
+            selected.append(item)
+    return tuple(dict.fromkeys(selected)) or None
+
+
 @dataclass(frozen=True)
 class Filters:
     patches: tuple[str, ...] | None = None
@@ -46,37 +91,8 @@ class Filters:
         patch = (patch or "all").strip()
         tier = (tier or "all").strip()
         platform = (platform or "all").strip().lower()
-
-        patches: tuple[str, ...] | None = None
-        exclude_legacy = False
-        if patch in ("", "all"):
-            pass
-        elif patch in ("recent", "new"):
-            exclude_legacy = True
-        elif patch == "latest" or patch.startswith("last"):
-            n = 1 if patch == "latest" else max(1, int(patch[4:] or 1)) if patch[4:].isdigit() else 3
-            patches = tuple(available_patches(db)[:n]) or ("__none__",)
-        else:
-            patches = tuple(p.strip() for p in patch.split(",") if p.strip())
-
-        tiers: tuple[str, ...] | None = None
-        if tier.lower() in TIER_PRESETS:
-            tiers = tuple(TIER_PRESETS[tier.lower()])
-        elif tier.lower() not in ("", "all"):
-            valid = set(TIERS) | {UNRANKED}
-            tiers = tuple(t for t in (x.strip().upper() for x in tier.split(",")) if t in valid) or None
-
-        platforms: tuple[str, ...] | None = None
-        if platform not in ("", "all"):
-            selected: list[str] = []
-            for item in (x.strip() for x in platform.split(",")):
-                if item in REGIONS:
-                    selected.extend(platforms_in_region(item))
-                elif item in PLATFORMS:
-                    selected.append(item)
-            platforms = tuple(dict.fromkeys(selected)) or None
-
-        return cls(patches, exclude_legacy, tiers, platforms, patch, tier, platform)
+        patches, exclude_legacy = _parse_patches(db, patch)
+        return cls(patches, exclude_legacy, _parse_tiers(tier), _parse_platforms(platform), patch, tier, platform)
 
     @property
     def includes_legacy(self) -> bool:

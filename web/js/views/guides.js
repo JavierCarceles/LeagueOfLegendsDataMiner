@@ -22,8 +22,8 @@ export async function render(container) {
   );
   mount(library, loading());
   renderTools(tools);
-  loadLibrary(library);
-  loadTop(top);
+  void loadLibrary(library); // las dos tratan sus errores (los pintan en su caja)
+  void loadTop(top);
 }
 
 async function loadLibrary(box) {
@@ -43,29 +43,36 @@ async function loadLibrary(box) {
         h(
           "div.col",
           { style: { gap: "8px" } },
-          roles.map(([role, champs]) => {
-            const count = champs.reduce((n, c) => n + c.guides.length, 0);
-            return collapsible(
-              `guias.rol.${role}`,
-              [ROLES.includes(role) ? roleIcon(role) : null, ROLE_LABEL[role] || "General"],
-              () =>
-                h(
-                  "div.chips",
-                  champs.flatMap((c) =>
-                    c.guides.map((g) =>
-                      h("span.chip", { onclick: () => openGuide(role, c.champ, g.opp) }, champImg(c.champ, "xs"), dd.name(c.champ), h("span.muted", "vs"), champImg(g.opp, "xs"), dd.name(g.opp), h(`span.tiny.${g.source === "IA" ? "gold" : "good"}`, g.source)),
-                    ),
-                  ),
-                ),
-              { summary: `${count} ${count === 1 ? "guía" : "guías"}`, cls: "flat" },
-            );
-          }),
+          roles.map(([role, champs]) => roleGuides(role, champs)),
         ),
       ),
     );
   } catch (err) {
     mount(box, errorBox(err));
   }
+}
+
+/** Las guías de un rol, plegadas: una ficha por enfrentamiento. */
+function roleGuides(role, champs) {
+  const count = champs.reduce((n, c) => n + c.guides.length, 0);
+  const chips = () => h("div.chips", champs.flatMap((c) => c.guides.map((g) => guideChip(role, c.champ, g))));
+  return collapsible(`guias.rol.${role}`, [ROLES.includes(role) ? roleIcon(role) : null, ROLE_LABEL[role] || "General"], chips, {
+    summary: `${count} ${count === 1 ? "guía" : "guías"}`,
+    cls: "flat",
+  });
+}
+
+function guideChip(role, champ, g) {
+  return h(
+    "span.chip",
+    { onclick: () => openGuide(role, champ, g.opp) },
+    champImg(champ, "xs"),
+    dd.name(champ),
+    h("span.muted", "vs"),
+    champImg(g.opp, "xs"),
+    dd.name(g.opp),
+    h(`span.tiny.${g.source === "IA" ? "gold" : "good"}`, g.source),
+  );
 }
 
 async function openGuide(role, champ, opp) {
@@ -90,6 +97,13 @@ function topRow(m) {
   );
 }
 
+/** Del 7.º al 18.º, tras «Ver N más». */
+function moreTop(rows) {
+  const rest = rows.slice(6, 18);
+  if (!rest.length) return null;
+  return h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rest.length} más`), h("div.col", { style: { gap: "6px", marginTop: "6px" } }, rest.map(topRow)));
+}
+
 async function loadTop(box) {
   mount(box, loading());
   try {
@@ -101,16 +115,7 @@ async function loadTop(box) {
       h(
         "section.card",
         h("h3.card-title", icon("spark"), "Enfrentamientos frecuentes sin guía"),
-        rows.length
-          ? h(
-              "div.col",
-              { style: { gap: "6px" } },
-              rows.slice(0, 6).map(topRow),
-              rows.length > 6
-                ? h("details.more", h("summary.btn.btn-ghost.btn-sm", `Ver ${rows.slice(6, 18).length} más`), h("div.col", { style: { gap: "6px", marginTop: "6px" } }, rows.slice(6, 18).map(topRow)))
-                : null,
-            )
-          : h("div.small.muted", "Sin datos propios todavía."),
+        rows.length ? h("div.col", { style: { gap: "6px" } }, rows.slice(0, 6).map(topRow), moreTop(rows)) : h("div.small.muted", "Sin datos propios todavía."),
       ),
     );
   } catch (err) {

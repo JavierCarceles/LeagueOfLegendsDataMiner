@@ -455,29 +455,35 @@ class Database:
         conn = conn or self.conn()
         before = self.wal_mb()
         t0 = time.monotonic()
+        ok = self._run_checkpoint(conn, mode)
+        if mode == "TRUNCATE":
+            self._note_truncate(ok, before, time.monotonic() - t0)
+        return ok
+
+    def _run_checkpoint(self, conn: sqlite3.Connection, mode: str) -> bool:
         try:
             if mode == "TRUNCATE":
                 with self.write_lock:
                     row = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
             else:
                 row = conn.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
-            ok = row is not None and row[0] == 0
         except sqlite3.Error:
-            ok = False
-        if mode == "TRUNCATE":
-            st = self.wal_stats
-            st["recortes"] = st.get("recortes", 0) + (1 if ok else 0)
-            st["fallos_seguidos"] = 0 if ok else st.get("fallos_seguidos", 0) + 1
-            st["ultimo"] = {"ok": ok, "s": round(time.monotonic() - t0, 1), "mb_antes": before, "mb_despues": self.wal_mb(),
-                            "at": int(time.time())}
-            if (before or 0) >= TRUNCATE_ABOVE_MB or not ok:
-                import logging
+            return False
+        return row is not None and row[0] == 0
 
-                logging.getLogger("tempu.db").info(
-                    "WAL %s: %s MB → %s MB en %.1f s", "recortado" if ok else "sin recortar (lecturas largas en curso)",
-                    before, st["ultimo"]["mb_despues"], st["ultimo"]["s"],
-                )
-        return ok
+    def _note_truncate(self, ok: bool, before: float | None, seconds: float) -> None:
+        """Lo que pasó al recortar el WAL (``wal_stats``) y, si era grande o no se pudo, una línea en el registro."""
+        st = self.wal_stats
+        st["recortes"] = st.get("recortes", 0) + (1 if ok else 0)
+        st["fallos_seguidos"] = 0 if ok else st.get("fallos_seguidos", 0) + 1
+        st["ultimo"] = {"ok": ok, "s": round(seconds, 1), "mb_antes": before, "mb_despues": self.wal_mb(), "at": int(time.time())}
+        if (before or 0) >= TRUNCATE_ABOVE_MB or not ok:
+            import logging
+
+            logging.getLogger("tempu.db").info(
+                "WAL %s: %s MB → %s MB en %.1f s", "recortado" if ok else "sin recortar (lecturas largas en curso)",
+                before, st["ultimo"]["mb_despues"], st["ultimo"]["s"],
+            )
 
     def start_checkpointer(self, stop: threading.Event | None = None) -> None:
         """Vuelca el WAL al fichero principal cada ``CHECKPOINT_EVERY_S`` en su propio hilo (no bloquea escrituras)."""

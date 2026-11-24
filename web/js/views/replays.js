@@ -590,7 +590,8 @@ function tipFor(m) {
   if (tags.has("fight_won")) return "Caíste, pero tu equipo ganó la pelea: suele ser un buen intercambio.";
   const tip = TIPS.find(([need]) => need.every((t) => tags.has(t)));
   if (!tip) return tags.has("traded") ? "Tu equipo sacó algo a cambio, así que esta muerte pesa menos." : "";
-  return tags.has("traded") ? `Tu equipo sacó algo a cambio, así que pesa menos. Aun así: ${tip[1].charAt(0).toLowerCase()}${tip[1].slice(1)}` : tip[1];
+  const text = String(tip[1]);
+  return tags.has("traded") ? `Tu equipo sacó algo a cambio, así que pesa menos. Aun así: ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
 }
 
 function tagsLine(tags) {

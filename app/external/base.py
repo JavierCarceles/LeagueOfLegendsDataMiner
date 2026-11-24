@@ -113,10 +113,12 @@ class Throttle:
 
 
 class CachedSource:
-    """Caché con SWR, single-flight y backoff. Las subclases definen ``name`` y ``lane_for``."""
+    """Caché con SWR, single-flight y backoff. Las subclases definen ``name`` y su carril del precargador."""
 
     name = "ext"
     default_lane = "web"
+    # Carril por tipo de dato cuando no es ``default_lane`` (OP.GG reparte entre su web y su MCP).
+    kind_lanes: dict[str, str] = {}
 
     def __init__(self, db: Database, enabled: bool = True, warmer=None) -> None:
         self.db = db
@@ -133,7 +135,7 @@ class CachedSource:
 
     # ------------------------------------------------------------ carriles
     def lane_for(self, kind: str) -> str:
-        return self.default_lane
+        return self.kind_lanes.get(kind, self.default_lane)
 
     # -------------------------------------------------------------- caché
     def _remember(self, kind: str, key: str, fetched_at: int, value) -> None:
@@ -263,7 +265,8 @@ class CachedSource:
             try:
                 self.stats["requests"] += 1
                 value = fetch()
-            except Exception as exc:  # noqa: BLE001  (una web caída o con otro formato nunca debe tumbar una vista)
+            # una web caída o con otro formato nunca debe tumbar una vista
+            except Exception as exc:  # noqa: BLE001
                 self._fail(kind, key, exc)
                 log.warning("%s (%s %s): %s", self.name, kind, key, exc)
             else:

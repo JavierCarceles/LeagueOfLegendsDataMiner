@@ -62,15 +62,26 @@ def _elo_key(e: dict) -> tuple:
     return (TIER_RANK.get(e["tier"] or "", 99), -(e["lp"] or 0))
 
 
-@router.get("/library")
-def library(svc=Depends(svc_from)):
-    entries = _entries(svc.db)
+# Orden de la lista de OTPs (``sort``); cualquier otro valor ordena por partidas.
+PLAYER_SORT_KEYS = {
+    "wr": lambda e: (-(e["wr"] or 0) if e["games"] >= 10 else 1, -e["games"]),
+    "elo": lambda e: (*_elo_key(e), -e["games"]),
+    "recent": lambda e: -e["last"],
+    "name": lambda e: ((e["game_name"] or "~").lower(), -e["games"]),
+    "games": lambda e: (-e["games"], *_elo_key(e)),
+}
+
+
+def _count_otps(entries: list[dict]) -> tuple[dict, dict, dict, dict]:
+    """Recuento por campeón (con su OTP de más elo en ``best``) y reparto de OTPs y partidas por elo, servidor y rol."""
     champs: dict[int, dict] = {}
     by_tier: dict[str, dict] = defaultdict(lambda: {"otps": 0, "games": 0})
     by_platform: dict[str, dict] = defaultdict(lambda: {"otps": 0, "games": 0})
     by_role: dict[str, dict] = defaultdict(lambda: {"otps": 0, "games": 0})
     for e in entries:
-        c = champs.setdefault(e["champ"], {"champ": e["champ"], "otps": 0, "games": 0, "wins": 0, "tiers": Counter(), "roles": Counter(), "best": None})
+        c = champs.setdefault(e["champ"], {
+            "champ": e["champ"], "otps": 0, "games": 0, "wins": 0, "tiers": Counter(), "roles": Counter(), "best": None,
+        })
         c["otps"] += 1
         c["games"] += e["games"]
         c["wins"] += e["wins"]
@@ -81,6 +92,12 @@ def library(svc=Depends(svc_from)):
         for bucket, key in ((by_tier, e["tier"] or "?"), (by_platform, e["platform"] or "?"), (by_role, e["role"])):
             bucket[key]["otps"] += 1
             bucket[key]["games"] += e["games"]
+    return champs, by_tier, by_platform, by_role
+
+
+def _ranking(champs: dict[int, dict]) -> list[dict]:
+    """Campeones con su WR, elos, roles y mejor OTP: más OTPs primero; a igualdad, el de mejor elo y luego el de más
+    partidas."""
     ranking = []
     for c in champs.values():
         best = c.pop("best")
@@ -90,10 +107,17 @@ def library(svc=Depends(svc_from)):
         c["best_tier"] = best["tier"] if best else None
         c["best_lp"] = best["lp"] if best else None
         ranking.append(c)
-    # Más OTPs primero; a igualdad, el de mejor elo y luego el de más partidas.
     ranking.sort(key=lambda c: (-c["otps"], TIER_RANK.get(c["best_tier"] or "", 99), -(c["best_lp"] or 0), -c["games"]))
     for i, c in enumerate(ranking, 1):
         c["rank"] = i
+    return ranking
+
+
+@router.get("/library")
+def library(svc=Depends(svc_from)):
+    entries = _entries(svc.db)
+    champs, by_tier, by_platform, by_role = _count_otps(entries)
+    ranking = _ranking(champs)
     return {
         "totals": {
             "otps": len(entries),
@@ -109,20 +133,8 @@ def library(svc=Depends(svc_from)):
     }
 
 
-@router.get("/players")
-def players(
-    champ: int | None = None,
-    role: str | None = None,
-    tier: str | None = None,
-    platform: str | None = None,
-    q: str | None = Query(None, max_length=40),
-    min_games: int = Query(0, ge=0),
-    sort: str = Query("games", pattern="^(games|wr|elo|recent|name)$"),
-    limit: int = Query(30, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-    svc=Depends(svc_from),
-):
-    rows = _entries(svc.db)
+def _filter_otps(rows: list[dict], champ, role, tier, platform, q, min_games: int) -> list[dict]:
+    """Los OTPs que cumplen los filtros de la lista: campeón, rol, elo, servidor, nombre y mínimo de partidas."""
     if champ:
         rows = [e for e in rows if e["champ"] == champ]
     if role:
@@ -136,20 +148,67 @@ def players(
         rows = [e for e in rows if needle in f"{e['game_name'] or ''}#{e['tag_line'] or ''}".lower()]
     if min_games:
         rows = [e for e in rows if e["games"] >= min_games]
-    if sort == "wr":
-        rows.sort(key=lambda e: (-(e["wr"] or 0) if e["games"] >= 10 else 1, -e["games"]))
-    elif sort == "elo":
-        rows.sort(key=lambda e: (*_elo_key(e), -e["games"]))
-    elif sort == "recent":
-        rows.sort(key=lambda e: -e["last"])
-    elif sort == "name":
-        rows.sort(key=lambda e: ((e["game_name"] or "~").lower(), -e["games"]))
-    else:
-        rows.sort(key=lambda e: (-e["games"], *_elo_key(e)))
+    return rows
+
+
+@router.get("/players")
+def players(
+    champ: int | None = None,
+    role: str | None = None,
+    tier: str | None = None,
+    platform: str | None = None,
+    q: str | None = Query(None, max_length=40),
+    min_games: int = Query(0, ge=0),
+    sort: str = Query("games", pattern="^(games|wr|elo|recent|name)$"),
+    limit: int = Query(30, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    svc=Depends(svc_from),
+):
+    rows = _filter_otps(_entries(svc.db), champ, role, tier, platform, q, min_games)
+    rows.sort(key=PLAYER_SORT_KEYS.get(sort, PLAYER_SORT_KEYS["games"]))
     return {"matched": len(rows), "offset": offset, "players": rows[offset : offset + limit]}
 
 
-@router.get("/players/{puuid}")
+def _add_metrics(metrics: dict[str, list[float]], m: dict) -> None:
+    """Valores de las métricas de una partida, para las medias del OTP."""
+    for k in DETAIL_METRICS:
+        if isinstance(m.get(k), (int, float)):
+            metrics[k].append(float(m[k]))
+
+
+def _add_build(build: dict, runes: dict, first_items: Counter, skills: Counter, keystones: Counter) -> None:
+    """Primer objeto legendario, orden de habilidades y runa clave de una partida."""
+    legend = [o["item"] for o in build.get("order") or [] if o.get("kind") == "legendary"]
+    if legend:
+        first_items[legend[0]] += 1
+    if build.get("skill_max"):
+        skills[">".join(build["skill_max"][:3])] += 1
+    if runes.get("keystone"):
+        keystones[runes["keystone"]] += 1
+
+
+def _player_games(rows) -> tuple[list[dict], dict[str, list[float]], Counter, Counter, Counter]:
+    """Las partidas de un OTP (para la lista), los valores de cada métrica (para sus medias) y los recuentos de su
+    build: primer objeto, orden de habilidades y runa clave."""
+    games, metrics, first_items, skills, keystones = [], defaultdict(list), Counter(), Counter(), Counter()
+    for r in rows:
+        d = unpack(r["dossier"]) or {}
+        a = d.get("analysis") or {}
+        m = a.get("metrics") or {}
+        if reliable(a):  # partidas con AFK: se listan, pero no cuentan en sus medias
+            _add_metrics(metrics, m)
+        _add_build(a.get("build") or {}, d.get("runes") or {}, first_items, skills, keystones)
+        games.append(
+            {
+                "match_id": r["match_id"], "game_start": d.get("game_start"), "duration": d.get("duration"), "win": d.get("win"),
+                "tier": d.get("tier"), "opponent": d.get("opponent_champ"), "patch": d.get("patch"),
+                "kills": m.get("kills"), "deaths": m.get("deaths"), "assists": m.get("assists"),
+            }
+        )
+    return games, metrics, first_items, skills, keystones
+
+
+@router.get("/players/{puuid}", responses={404: {"description": "No hay partidas analizadas de ese OTP con ese campeón"}})
 def player(puuid: str, champ: int = Query(...), role: str | None = None, svc=Depends(svc_from)):
     db = svc.db
     params: list = [puuid, champ]
@@ -163,30 +222,8 @@ def player(puuid: str, champ: int = Query(...), role: str | None = None, svc=Dep
     if not rows:
         raise HTTPException(404, "No hay partidas analizadas de ese OTP con ese campeón")
     info = db.one("SELECT platform, tier, division, lp, game_name, tag_line FROM players WHERE puuid = ?", (puuid,))
-    games, metrics, first_items, skills, keystones = [], defaultdict(list), Counter(), Counter(), Counter()
     tier = rows[0]["tier"]
-    for r in rows:
-        d = unpack(r["dossier"]) or {}
-        a = d.get("analysis") or {}
-        m = a.get("metrics") or {}
-        for k in DETAIL_METRICS if reliable(a) else ():  # partidas con AFK: se listan, pero no cuentan en sus medias
-            if isinstance(m.get(k), (int, float)):
-                metrics[k].append(float(m[k]))
-        build = a.get("build") or {}
-        legend = [o["item"] for o in build.get("order") or [] if o.get("kind") == "legendary"]
-        if legend:
-            first_items[legend[0]] += 1
-        if build.get("skill_max"):
-            skills[">".join(build["skill_max"][:3])] += 1
-        if (d.get("runes") or {}).get("keystone"):
-            keystones[d["runes"]["keystone"]] += 1
-        games.append(
-            {
-                "match_id": r["match_id"], "game_start": d.get("game_start"), "duration": d.get("duration"), "win": d.get("win"),
-                "tier": d.get("tier"), "opponent": d.get("opponent_champ"), "patch": d.get("patch"),
-                "kills": m.get("kills"), "deaths": m.get("deaths"), "assists": m.get("assists"),
-            }
-        )
+    games, metrics, first_items, skills, keystones = _player_games(rows)
     # Referencia: el resto de OTPs de ese campeón y rol en su mismo elo (medias de su resumen).
     ref = _reference(svc, champ, role, tier)
     catalog = getattr(getattr(svc, "dd", None), "item_catalog", None)

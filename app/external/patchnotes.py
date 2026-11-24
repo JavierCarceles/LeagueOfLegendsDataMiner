@@ -153,19 +153,29 @@ class _NotesParser(HTMLParser):
             self._in_title = False
         if tag == "h2" and self._capture == "h2":
             self.section = self._end()
-        elif tag == "h3" and self._capture == "h3" and self.current is not None:
-            self.current["name"] = self._end()
-        elif tag == "h4" and self._capture == "h4" and self.current is not None:
-            self.current["groups"].append({"title": self._end(), "lines": []})
-        elif tag == "blockquote" and self._in_context and self.current is not None:
+        elif self.current is not None:
+            self._end_in_block(tag, self.current)
+
+    def _end_in_block(self, tag: str, current: dict) -> None:
+        """Cierre de una etiqueta dentro de un bloque de cambios: su nombre, un grupo, el contexto o una línea."""
+        if tag == "h3" and self._capture == "h3":
+            current["name"] = self._end()
+        elif tag == "h4" and self._capture == "h4":
+            current["groups"].append({"title": self._end(), "lines": []})
+        elif tag == "blockquote" and self._in_context:
             self._in_context = False
-            self.current["context"] = self._end()
-        elif tag == "li" and self._capture == "li" and self.current is not None:
-            text = self._end()
-            if text:
-                if not self.current["groups"]:
-                    self.current["groups"].append({"title": "", "lines": []})
-                self.current["groups"][-1]["lines"].append(text)
+            current["context"] = self._end()
+        elif tag == "li" and self._capture == "li":
+            self._add_line(current, self._end())
+
+    @staticmethod
+    def _add_line(current: dict, text: str) -> None:
+        """Añade una línea de cambio al último grupo del bloque (crea uno sin título si aún no hay)."""
+        if not text:
+            return
+        if not current["groups"]:
+            current["groups"].append({"title": "", "lines": []})
+        current["groups"][-1]["lines"].append(text)
 
     def handle_data(self, data):
         if self._in_title:
@@ -184,39 +194,57 @@ class _NotesParser(HTMLParser):
         return text
 
 
+def _block_entry(block: dict) -> dict | None:
+    """Cambios de un bloque con su veredicto (``None`` si es de otro modo de juego o no trae nada)."""
+    section = (block.get("section") or "").strip().lower()
+    if section and not RIFT_SECTIONS.search(section):
+        return None  # ARAM, Arena y otros modos tienen sus propios ajustes
+    groups = [g for g in block["groups"] if g["lines"]]
+    lines = [line for g in groups for line in g["lines"]]
+    if not lines and not block["context"]:
+        return None
+    return {
+        "name": block["name"],
+        "context": block["context"][:900],
+        "groups": [{"title": g["title"], "lines": g["lines"][:25]} for g in groups][:12],
+        "verdict": verdict(lines),
+    }
+
+
+def _block_target(block: dict, dd: DDragon | None) -> tuple[str, str] | None:
+    """A quién se refiere un bloque: ``("champions", id)`` o ``("items", id)`` (por su imagen o su nombre)."""
+    img = block.get("img") or ""
+    champ_key = _CHAMP_IMG.search(img)
+    if champ_key and dd is not None:
+        champ = dd.resolve(champ_key.group(1)) or dd.resolve(block["name"])
+        if champ:
+            return "champions", str(champ)
+    item_id = _ITEM_IMG.search(img)
+    if item_id:
+        return "items", item_id.group(1)
+    champ = dd.resolve(block["name"]) if dd is not None else None
+    return ("champions", str(champ)) if champ else None
+
+
+def _page_title(raw: str) -> str:
+    """Título de la página sin el sufijo «| League of Legends»: se corta en la primera «|» de la última línea
+    (un salto de línea al final no cuenta como otra línea)."""
+    body = raw[:-1] if raw.endswith("\n") else raw
+    cut = body.find("|", body.rfind("\n") + 1)
+    return (raw if cut == -1 else raw[:cut]).strip()
+
+
 def parse_notes(page: str, dd: DDragon | None = None) -> dict:
     parser = _NotesParser()
     parser.feed(page)
-    champions: dict[str, dict] = {}
-    items: dict[str, dict] = {}
+    found: dict[str, dict[str, dict]] = {"champions": {}, "items": {}}
     for block in parser.blocks:
-        section = (block.get("section") or "").strip().lower()
-        if section and not RIFT_SECTIONS.search(section):
-            continue  # ARAM, Arena y otros modos tienen sus propios ajustes
-        groups = [g for g in block["groups"] if g["lines"]]
-        lines = [line for g in groups for line in g["lines"]]
-        if not lines and not block["context"]:
-            continue
-        entry = {
-            "name": block["name"],
-            "context": block["context"][:900],
-            "groups": [{"title": g["title"], "lines": g["lines"][:25]} for g in groups][:12],
-            "verdict": verdict(lines),
-        }
-        img = block.get("img") or ""
-        champ_key = _CHAMP_IMG.search(img)
-        item_id = _ITEM_IMG.search(img)
-        if champ_key and dd is not None:
-            champ = dd.resolve(champ_key.group(1)) or dd.resolve(block["name"])
-            if champ:
-                champions[str(champ)] = entry
-                continue
-        if item_id:
-            items[item_id.group(1)] = entry
-        elif dd is not None and dd.resolve(block["name"]):
-            champions[str(dd.resolve(block["name"]))] = entry
-    title = re.sub(r"\s*\|.*$", "", parser.title).strip()
-    return {"title": title, "champions": champions, "items": items}
+        entry = _block_entry(block)
+        target = _block_target(block, dd) if entry is not None else None
+        if target is not None:
+            kind, key = target
+            found[kind][key] = entry
+    return {"title": _page_title(parser.title), "champions": found["champions"], "items": found["items"]}
 
 
 class PatchNotes(CachedSource):

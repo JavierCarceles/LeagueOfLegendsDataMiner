@@ -129,7 +129,8 @@ def _request(method: str, path: str, body=None, timeout: float = 4.0):
             f"https://127.0.0.1:{port}{path}",
             json=body,
             headers={"Authorization": f"Basic {auth}", "Accept": "application/json"},
-            verify=False,  # certificado autofirmado del cliente local
+            # El cliente de LoL en este mismo ordenador (127.0.0.1) con el certificado autofirmado de Riot.
+            verify=False,  # NOSONAR
             timeout=timeout,
         )
     except requests.RequestException as exc:
@@ -303,16 +304,23 @@ def install_dir() -> Path | None:
     import psutil
 
     for proc in psutil.process_iter(["name", "cmdline", "exe"]):
-        if proc.info.get("name") not in CLIENT_PROCESSES:
-            continue
-        for arg in proc.info.get("cmdline") or []:
-            if arg.startswith("--install-directory="):
-                folder = Path(arg.split("=", 1)[1].strip('"'))
-                if folder.is_dir():
-                    return folder
-        exe = proc.info.get("exe")
-        if exe and Path(exe).parent.is_dir():
-            return Path(exe).parent
+        if proc.info.get("name") in CLIENT_PROCESSES:
+            folder = _process_install_dir(proc.info)
+            if folder is not None:
+                return folder
+    return None
+
+
+def _process_install_dir(info: dict) -> Path | None:
+    """La carpeta de LoL de un proceso del cliente: ``--install-directory=`` o, si no, la de su ejecutable."""
+    for arg in info.get("cmdline") or []:
+        if arg.startswith("--install-directory="):
+            folder = Path(arg.split("=", 1)[1].strip('"'))
+            if folder.is_dir():
+                return folder
+    exe = info.get("exe")
+    if exe and Path(exe).parent.is_dir():
+        return Path(exe).parent
     return None
 
 
@@ -426,7 +434,8 @@ def replay_watch(game_id: int) -> None:
 def replay_playback() -> dict | None:
     """Estado de la repetición abierta en el juego (``None`` si la Replay API no responde)."""
     try:
-        response = requests.get(f"{REPLAY_API}/replay/playback", verify=False, timeout=2)
+        # La repetición en el cliente de LoL de este ordenador (127.0.0.1) con el certificado autofirmado de Riot.
+        response = requests.get(f"{REPLAY_API}/replay/playback", verify=False, timeout=2)  # NOSONAR
     except requests.RequestException:
         return None
     if response.status_code != 200:
@@ -440,7 +449,10 @@ def replay_playback() -> dict | None:
 
 def replay_seek(seconds: float, paused: bool = False) -> dict | None:
     try:
-        response = requests.post(f"{REPLAY_API}/replay/playback", json={"time": max(0.0, float(seconds)), "paused": paused, "speed": 1.0}, verify=False, timeout=3)
+        # La repetición en el cliente de LoL de este ordenador (127.0.0.1) con el certificado autofirmado de Riot.
+        response = requests.post(  # NOSONAR
+            f"{REPLAY_API}/replay/playback", json={"time": max(0.0, float(seconds)), "paused": paused, "speed": 1.0}, verify=False, timeout=3,  # NOSONAR
+        )
     except requests.RequestException as exc:
         raise LCUError(f"La repetición no responde: {exc}") from exc
     if response.status_code != 200:

@@ -70,7 +70,8 @@ class ClientReplays:
         out["detail"] = STATE_TEXT.get(out["state"])
         try:
             out["replay_api"] = lcu.replay_api_enabled()
-        except Exception as exc:  # noqa: BLE001  (solo informa de si está activada; no debe impedir ver el estado)
+        # solo informa de si está activada; no debe impedir ver el estado
+        except Exception as exc:  # noqa: BLE001
             log.debug("No se pudo saber si la Replay API está activada: %s", exc)
             out["replay_api"] = None
         return out

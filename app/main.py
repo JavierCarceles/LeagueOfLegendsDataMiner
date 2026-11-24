@@ -48,9 +48,11 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
             threading.Thread(target=svc.startup, name="startup", daemon=True).start()
         else:
             svc.startup_done.set()
-        yield
-        log.info("Apagando…")
-        svc.shutdown()
+        try:
+            yield
+        finally:
+            log.info("Apagando…")
+            svc.shutdown()
 
     app = FastAPI(title="Tempu Drafter", version=__version__, lifespan=lifespan)
     app.state.svc = svc

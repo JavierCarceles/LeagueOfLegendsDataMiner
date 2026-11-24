@@ -135,7 +135,8 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
         for c in (champ, opp):
             try:
                 patch_changes[str(c)] = notes.champion_changes(c, 2, allow_fetch=False)
-            except Exception as exc:  # noqa: BLE001  (las notas de parche son un extra: el matchup se muestra igual)
+            # las notas de parche son un extra: el matchup se muestra igual
+            except Exception as exc:  # noqa: BLE001
                 log.warning("Notas de parche de %s: %s", c, exc)
                 patch_changes[str(c)] = []
 
@@ -143,7 +144,8 @@ def matchup_detail(svc, f: Filters, role: str, champ: int, opp: int, sources: st
     if with_guide and ev.scope:
         try:
             opgg_guide = svc.opgg.matchup_guide(champ, opp, role)
-        except Exception as exc:  # noqa: BLE001  (el MCP de OP.GG puede fallar; el resto del análisis sigue valiendo)
+        # el MCP de OP.GG puede fallar; el resto del análisis sigue valiendo
+        except Exception as exc:  # noqa: BLE001
             log.warning("Guía de OP.GG de %s contra %s: %s", champ, opp, exc)
             opgg_guide = None
 

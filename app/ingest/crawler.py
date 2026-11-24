@@ -209,7 +209,8 @@ def otp_history_state(row, list_key: str, depth_start: int, config_key: str | No
     if row["back_done_at"] is None:
         return "loading"
     if row["back_done_reason"] == "share":
-        stored = row["config_key"] if "config_key" in row.keys() else None  # noqa: SIM118  (sqlite3.Row no admite «in»)
+        # sqlite3.Row no admite «in»
+        stored = row["config_key"] if "config_key" in row.keys() else None  # noqa: SIM118
         return "loading" if config_key is not None and stored != config_key else "share"
     if depth_start < (row["back_done_start"] or 0):
         return "loading"
@@ -430,7 +431,8 @@ def role_pools(svc, roles: list[str]) -> dict[str, list[int]]:
     scope = None
     try:
         scope = ext_scope(svc, Filters())
-    except Exception:  # noqa: BLE001  (sin parches conocidos o webs desactivadas)
+    # sin parches conocidos o webs desactivadas
+    except Exception:  # noqa: BLE001
         scope = None
     for role in roles:
         data: dict = {}
@@ -440,7 +442,8 @@ def role_pools(svc, roles: list[str]) -> dict[str, list[int]]:
                 continue
             try:
                 data = src.tier_list(role, scope.tier, scope.region, scope.patches[0]) or {}
-            except Exception as exc:  # noqa: BLE001  (web caída: se prueba con la siguiente)
+            # web caída: se prueba con la siguiente
+            except Exception as exc:  # noqa: BLE001
                 log.warning("Tier list de %s (%s): %s", role, name, exc)
                 data = {}
             if data:
@@ -648,7 +651,8 @@ def cap_count(cfg: CrawlerConfig, hits: int, seen: int) -> int:
 
 def sourced_champs(row) -> set[int]:
     """Campeones por los que ese jugador sale en la tabla de los mejores (columna ``sourced`` de ``otp_rows``)."""
-    raw = row["sourced"] if "sourced" in row.keys() else None  # noqa: SIM118  (sqlite3.Row no admite «in»)
+    # sqlite3.Row no admite «in»
+    raw = row["sourced"] if "sourced" in row.keys() else None  # noqa: SIM118
     return {int(x) for x in str(raw or "").split(",") if x.strip().isdigit()}
 
 
@@ -764,7 +768,8 @@ class _Prefetch:
         try:
             with self.w.timed("esperando_descarga"):
                 payload, timeline = fut.result()
-        except Exception:  # noqa: BLE001  (error de Riot o parada: se repite en el hilo de la región, que sabe tratarlo)
+        # error de Riot o parada: se repite en el hilo de la región, que sabe tratarlo
+        except Exception:  # noqa: BLE001
             return None
         if timeline is not None:
             self.timelines[match_id] = timeline
@@ -1122,7 +1127,8 @@ class RegionWorker(threading.Thread):
                         ],
                     },
                 )
-            except Exception as exc:  # noqa: BLE001  (OP.GG caído o sin ese campeón: se sigue con el ranking de Riot)
+            # OP.GG caído o sin ese campeón: se sigue con el ranking de Riot
+            except Exception as exc:  # noqa: BLE001
                 log.warning("Tabla de los mejores de %s en %s (OP.GG): %s", champ, platform, exc)
                 continue
             entries = (data.get("leaderboard") or []) if isinstance(data, dict) else []
@@ -1957,7 +1963,8 @@ class RegionWorker(threading.Thread):
             stats = ranking_stats.of(svc)
             if stats is not None:
                 stats.add(payload, _field(player, "tier"))
-        except Exception:  # noqa: BLE001  (son medias: nunca paran la recogida)
+        # son medias: nunca paran la recogida
+        except Exception:  # noqa: BLE001
             log.debug("No se pudieron sumar las medias del ranking", exc_info=True)
         self.state["stored"] += 1
         self.crawler.total_stored += 1
@@ -2244,7 +2251,8 @@ class Crawler:
         """Las últimas partidas analizadas de la sesión anterior (el reparto sigue donde se quedó)."""
         try:
             saved = json.loads(self.svc.db.meta_get(RECENT_META_KEY) or "[]")
-        except Exception:  # noqa: BLE001  (sin base de datos o un valor raro: se empieza de cero)
+        # sin base de datos o un valor raro: se empieza de cero
+        except Exception:  # noqa: BLE001
             return
         if isinstance(saved, list):
             self._recent_games.extend(str(t) for t in saved[-RECENT_TIER_GAMES:])
@@ -2492,7 +2500,8 @@ class Crawler:
             rows = otp_rows_for_plan(self.svc.db, cfg)
             with self._rows_lock:
                 self._rows_cache = (key, at, rows)
-        except Exception:  # noqa: BLE001  (se reintenta en la siguiente; mientras, la anterior)
+        # se reintenta en la siguiente; mientras, la anterior
+        except Exception:  # noqa: BLE001
             log.debug("No se pudo rehacer la lista de jugadores", exc_info=True)
 
     def write_funnel(self, force: bool = False) -> None:
@@ -2787,7 +2796,8 @@ class Crawler:
             otp_details.flush(self.svc)  # por si alguna región no llegó a pedirlos: todos los resúmenes, antes de subir
             if auto.start(wait_summaries=True):
                 log.info("Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).")
-        except Exception:  # noqa: BLE001  (subir es un extra: detener ya está hecho)
+        # subir es un extra: detener ya está hecho
+        except Exception:  # noqa: BLE001
             log.exception("No se pudo subir a GitHub al detener el recolector")
 
     def _alive_threads(self) -> str:

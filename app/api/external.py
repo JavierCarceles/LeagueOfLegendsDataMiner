@@ -31,7 +31,14 @@ def status(svc=Depends(svc_from)):
     }
 
 
-@router.post("/sync")
+@router.post(
+    "/sync",
+    responses={
+        400: {"description": "Tier o región no válidos"},
+        409: {"description": "Ya hay una sincronización en curso"},
+        412: {"description": "OP.GG está desactivado (OPGG_ENABLED=0)"},
+    },
+)
 def sync(body: SyncBody, svc=Depends(svc_from)):
     if not svc.opgg.enabled:
         raise HTTPException(412, "OP.GG está desactivado (OPGG_ENABLED=0)")
@@ -51,7 +58,10 @@ def stop_sync(svc=Depends(svc_from)):
     return svc.opgg.sync_state
 
 
-@router.get("/guide/{role}/{champ}/{opp}")
+@router.get(
+    "/guide/{role}/{champ}/{opp}",
+    responses={404: {"description": "Campeón desconocido u OP.GG sin guía para ese enfrentamiento"}},
+)
 def guide(role: str, champ: str, opp: str, svc=Depends(svc_from)):
     data = svc.opgg.matchup_guide(champ_param(svc, champ), champ_param(svc, opp), role_param(role))
     if not data:

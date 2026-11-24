@@ -94,7 +94,8 @@ class Lolalytics(CachedSource):
         latest = None
         try:
             latest = self._latest_patch() if self._latest_patch else None
-        except Exception as exc:  # noqa: BLE001  (sin saber el último parche, se trata como el actual: caduca antes)
+        # sin saber el último parche, se trata como el actual: caduca antes
+        except Exception as exc:  # noqa: BLE001
             log.debug("Último parche desconocido: %s", exc)
             latest = None
         return TTL_LATEST if not latest or game_version(patch) == game_version(latest) else TTL_OLD
@@ -135,23 +136,7 @@ class Lolalytics(CachedSource):
             rows = data.get("cid")
             if not isinstance(rows, dict):
                 return None
-            out = {}
-            for cid, row in rows.items():
-                if not isinstance(row, dict) or not str(cid).isdigit():
-                    continue
-                games = int(row.get("games") or 0)
-                if games <= 0:
-                    continue
-                out[str(int(cid))] = {
-                    "wr": _float(row.get("wr")),
-                    "pick": _float(row.get("pr")),
-                    "ban": _float(row.get("br")),
-                    "games": games,
-                    "role_rate": round((_float(row.get("pctLane")) or 0) / 100, 4),
-                    "tier": row.get("tier"),
-                    "rank": row.get("rank"),
-                }
-            return out or None
+            return _tier_rows(rows) or None
 
         data = self._cached("lola_tier", key, self._ttl(patch), fetch, allow_fetch)
         return {int(k): v for k, v in data.items()} if data else None
@@ -171,18 +156,7 @@ class Lolalytics(CachedSource):
             stats = data.get("stats") or {}
             if stats.get("cid") not in (None, champ):
                 raise LolalyticsError(f"campeón inesperado ({stats.get('cid')} en vez de {champ})")
-            out = {}
-            for row in data.get("counters") or []:
-                try:
-                    opp = int(row["cid"])
-                    games = int(row.get("n") or 0)
-                    wr = float(row.get("vsWr"))
-                except (KeyError, TypeError, ValueError):
-                    continue
-                if opp == champ or games <= 0 or not 0 <= wr <= 100:
-                    continue
-                out[str(opp)] = [games, round(games * wr / 100)]
-            return out  # {} es un resultado válido (nadie lo juega en esa línea)
+            return _counter_rows(data.get("counters") or [], champ)  # {} es un resultado válido (nadie lo juega en esa línea)
 
         data = self._cached("lola_counters", key, self._ttl(patch), fetch, allow_fetch)
         if data is None:
@@ -210,50 +184,7 @@ class Lolalytics(CachedSource):
             sets = data.get("itemSets") or {}
             if not isinstance(sets, dict) or not sets.get("itemSet5"):
                 return None
-
-            def rows(name):
-                out = []
-                for row in sets.get(name) or []:
-                    try:
-                        ids = [int(x) for x in str(row[0]).split("_") if x.isdigit()]
-                        out.append((ids, int(row[1]), int(row[2])))
-                    except (IndexError, TypeError, ValueError):
-                        continue
-                return out
-
-            items: dict[str, list[int]] = {}
-            # Posición de compra (1-5): las builds vienen en orden. Un objeto que se compra de primero (Soberbia,
-            # objetos de bola de nieve) no tiene sentido de 4.º o 5.º aunque lo lleve un tercio de las builds.
-            pos: dict[str, list[int]] = {}
-            five = rows("itemSet5")
-            for ids, games, wins in five:
-                for i in set(ids):
-                    cur = items.setdefault(str(i), [0, 0])
-                    cur[0] += games
-                    cur[1] += wins
-                for k, i in enumerate(ids, start=1):
-                    cur = pos.setdefault(str(i), [0, 0])
-                    cur[0] += k * games
-                    cur[1] += games
-            first = {str(ids[0]): [g, w] for ids, g, w in rows("itemSet1") if ids}
-            # Botas: de «primer objeto + botas» (itemBootSet2). itemBootSet1 solo cuenta las partidas en que las botas
-            # fueron la primera compra (≈ 1/5 de la muestra y sesgada); aquí salen también los objetos, se filtran al usarlas.
-            boots: dict[str, list[int]] = {}
-            for ids, games, wins in rows("itemBootSet2") or rows("itemBootSet1"):
-                for i in ids:
-                    cur = boots.setdefault(str(i), [0, 0])
-                    cur[0] += games
-                    cur[1] += wins
-            return {
-                "items": items,
-                "first": first,
-                "boots": boots,
-                "games": sum(g for _ids, g, _w in five),
-                "paths": [[ids, g, w] for ids, g, w in sorted(five, key=lambda r: -r[1])[:8]],
-                "pos": {i: round(total / games, 2) for i, (total, games) in pos.items() if games},
-                # Las builds completas (las más jugadas): para medir qué se compra junto al núcleo que se recomienda.
-                "sets": [[ids, g, w] for ids, g, w in sorted(five, key=lambda r: -r[1])[:SETS_KEPT]],
-            }
+            return _item_sets_of(sets)
 
         return self._cached("lola_items", key, self._ttl(patch), fetch, allow_fetch)
 
@@ -275,23 +206,118 @@ class Lolalytics(CachedSource):
             total = (data.get("header") or {}).get("n") or 0
             out = []
             for kind, page in ((data.get("summary") or {}).get("runes") or {}).items():
-                rune_set = page.get("set") or {}
-                pri, sec, mod = rune_set.get("pri") or [], rune_set.get("sec") or [], rune_set.get("mod") or []
-                if len(pri) != 4 or len(sec) != 2 or len(mod) != 3:
-                    continue
-                primary = (self.dd.runes.get(int(pri[0])) or {}).get("style")
-                secondary = (self.dd.runes.get(int(sec[0])) or {}).get("style")
-                if not primary or not secondary:
-                    continue
-                out.append({"kind": kind, "keystone": int(pri[0]), "primary": primary, "secondary": secondary,
-                            "ids": [int(i) for i in pri + sec], "shards": [int(i) for i in mod], "games": page.get("n"),
-                            "wr": page.get("wr"), "share": round(page["n"] / total, 3) if total and page.get("n") else None})
+                row = self._rune_page(kind, page, total)
+                if row is not None:
+                    out.append(row)
             return out or None
 
         return self._cached("lola_runes", key, self._ttl(patch), fetch, allow_fetch)
 
+    def _rune_page(self, kind: str, page: dict, total: int) -> dict | None:
+        """Una página de ``summary.runes`` completa, con sus ramas y fragmentos (``None`` si le falta algo)."""
+        rune_set = page.get("set") or {}
+        pri, sec, mod = rune_set.get("pri") or [], rune_set.get("sec") or [], rune_set.get("mod") or []
+        if len(pri) != 4 or len(sec) != 2 or len(mod) != 3:
+            return None
+        primary = (self.dd.runes.get(int(pri[0])) or {}).get("style")
+        secondary = (self.dd.runes.get(int(sec[0])) or {}).get("style")
+        if not primary or not secondary:
+            return None
+        return {"kind": kind, "keystone": int(pri[0]), "primary": primary, "secondary": secondary,
+                "ids": [int(i) for i in pri + sec], "shards": [int(i) for i in mod], "games": page.get("n"),
+                "wr": page.get("wr"), "share": round(page["n"] / total, 3) if total and page.get("n") else None}
+
 
 SETS_KEPT = 1500  # builds de 5 objetos que se guardan por campeón y línea (Hecarim jungla: 2.663 distintas, 5.881 partidas)
+
+
+def _tier_rows(rows: dict) -> dict[str, dict]:
+    """Filas de la tier list (``cid`` de ``ep=list``) de los campeones con partidas en esa línea."""
+    out = {}
+    for cid, row in rows.items():
+        if not isinstance(row, dict) or not str(cid).isdigit():
+            continue
+        games = int(row.get("games") or 0)
+        if games <= 0:
+            continue
+        out[str(int(cid))] = {
+            "wr": _float(row.get("wr")),
+            "pick": _float(row.get("pr")),
+            "ban": _float(row.get("br")),
+            "games": games,
+            "role_rate": round((_float(row.get("pctLane")) or 0) / 100, 4),
+            "tier": row.get("tier"),
+            "rank": row.get("rank"),
+        }
+    return out
+
+
+def _counter_rows(rows: list, champ: int) -> dict[str, list[int]]:
+    """``{rival: [partidas, victorias de champ]}`` de ``ep=counter`` (sin el propio campeón ni filas rotas)."""
+    out = {}
+    for row in rows:
+        try:
+            opp = int(row["cid"])
+            games = int(row.get("n") or 0)
+            wr = float(row.get("vsWr"))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if opp == champ or games <= 0 or not 0 <= wr <= 100:
+            continue
+        out[str(opp)] = [games, round(games * wr / 100)]
+    return out
+
+
+def _item_rows(sets: dict, name: str) -> list[tuple[list[int], int, int]]:
+    """Builds de una lista de ``itemSets`` (``["3071_3053", partidas, victorias]``) como ``(objetos, partidas, victorias)``."""
+    out = []
+    for row in sets.get(name) or []:
+        try:
+            ids = [int(x) for x in str(row[0]).split("_") if x.isdigit()]
+            out.append((ids, int(row[1]), int(row[2])))
+        except (IndexError, TypeError, ValueError):
+            continue
+    return out
+
+
+def _add_games(totals: dict[str, list[int]], ids, games: int, wins: int) -> None:
+    """Suma las partidas y victorias de una build a cada uno de sus objetos."""
+    for i in ids:
+        cur = totals.setdefault(str(i), [0, 0])
+        cur[0] += games
+        cur[1] += wins
+
+
+def _item_sets_of(sets: dict) -> dict:
+    """Objetos, primer objeto, botas y builds completas de ``itemSets`` (ver :meth:`Lolalytics.item_sets`)."""
+    items: dict[str, list[int]] = {}
+    # Posición de compra (1-5): las builds vienen en orden. Un objeto que se compra de primero (Soberbia,
+    # objetos de bola de nieve) no tiene sentido de 4.º o 5.º aunque lo lleve un tercio de las builds.
+    pos: dict[str, list[int]] = {}
+    five = _item_rows(sets, "itemSet5")
+    for ids, games, wins in five:
+        _add_games(items, set(ids), games, wins)
+        for k, i in enumerate(ids, start=1):
+            cur = pos.setdefault(str(i), [0, 0])
+            cur[0] += k * games
+            cur[1] += games
+    first = {str(ids[0]): [g, w] for ids, g, w in _item_rows(sets, "itemSet1") if ids}
+    # Botas: de «primer objeto + botas» (itemBootSet2). itemBootSet1 solo cuenta las partidas en que las botas
+    # fueron la primera compra (≈ 1/5 de la muestra y sesgada); aquí salen también los objetos, se filtran al usarlas.
+    boots: dict[str, list[int]] = {}
+    for ids, games, wins in _item_rows(sets, "itemBootSet2") or _item_rows(sets, "itemBootSet1"):
+        _add_games(boots, ids, games, wins)
+    ranked = sorted(five, key=lambda r: -r[1])
+    return {
+        "items": items,
+        "first": first,
+        "boots": boots,
+        "games": sum(g for _ids, g, _w in five),
+        "paths": [[ids, g, w] for ids, g, w in ranked[:8]],
+        "pos": {i: round(total / games, 2) for i, (total, games) in pos.items() if games},
+        # Las builds completas (las más jugadas): para medir qué se compra junto al núcleo que se recomienda.
+        "sets": [[ids, g, w] for ids, g, w in ranked[:SETS_KEPT]],
+    }
 
 
 def _float(value) -> float | None:

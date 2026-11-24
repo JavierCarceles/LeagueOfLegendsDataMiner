@@ -9,6 +9,9 @@ from app import lcu
 from app.api.deps import svc_from
 
 router = APIRouter(prefix="/api/replay", tags=["repeticiones"])
+# Errores de ``_guard`` que documenta la API (OpenAPI) en cada ruta que lo usa.
+INVALID_DOC = {"description": "Partida o carpeta no válida"}
+CLIENT_DOC = {"description": "El cliente de LoL, la repetición o game.cfg no están disponibles"}
 
 
 class SeekBody(BaseModel):
@@ -24,27 +27,27 @@ def _guard(fn, *args):
         raise HTTPException(400, str(exc)) from exc
 
 
-@router.get("/{match_id}/client")
+@router.get("/{match_id}/client", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def client_status(match_id: str, svc=Depends(svc_from)):
     return _guard(svc.client_replays.status, match_id.strip().upper())
 
 
-@router.post("/{match_id}/client/download")
+@router.post("/{match_id}/client/download", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def client_download(match_id: str, svc=Depends(svc_from)):
     return _guard(svc.client_replays.download, match_id.strip().upper())
 
 
-@router.post("/{match_id}/client/watch")
+@router.post("/{match_id}/client/watch", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def client_watch(match_id: str, body: SeekBody | None = None, svc=Depends(svc_from)):
     return _guard(svc.client_replays.watch, match_id.strip().upper(), (body.t if body else 0.0))
 
 
-@router.post("/client/seek")
+@router.post("/client/seek", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def client_seek(body: SeekBody, svc=Depends(svc_from)):
     return _guard(svc.client_replays.seek, body.t)
 
 
-@router.post("/client/enable-api")
+@router.post("/client/enable-api", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def client_enable_api():
     path = _guard(lcu.enable_replay_api)
     return {"message": "Salto automático activado (EnableReplayApi=1). Se aplica al abrir la siguiente repetición.", "path": str(path)}
@@ -61,6 +64,6 @@ def local_replays(limit: int = 20, svc=Depends(svc_from)):
     return svc.local_replays.summary(max(1, min(limit, 200)))
 
 
-@router.post("/local/rescan")
+@router.post("/local/rescan", responses={400: INVALID_DOC, 409: CLIENT_DOC})
 def local_rescan(body: LocalPathBody | None = None, svc=Depends(svc_from)):
     return _guard(svc.local_replays.rescan, (body.path or "").strip() if body else None)

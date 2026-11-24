@@ -8,7 +8,6 @@ nombres de una forma distinta y muchas guías no se encontraban).
 
 from __future__ import annotations
 
-import re
 import threading
 import time
 from pathlib import Path
@@ -32,7 +31,26 @@ ROLE_FOLDERS = {
     "general": None,
 }
 ROLE_DIR_NAME = {"TOP": "Top", "JUNGLE": "Jungle", "MID": "Mid", "ADC": "Adc", "SUPPORT": "Support"}
-FILE_PATTERN = re.compile(r"^(?P<main>.+?)_vs_(?P<opp>.+?)(?P<ia>_IA)?\.txt$", re.IGNORECASE)
+
+
+def parse_guide_name(name: str) -> tuple[str, str, bool] | None:
+    """(campeón, rival, ¿de IA?) de «Campeón_vs_Rival[_IA].txt», sin distinguir mayúsculas; ``None`` si no lo es.
+
+    Sin expresión regular: la de antes (``^(.+?)_vs_(.+?)(_IA)?\\.txt$``) podía tardar mucho con nombres raros (dos
+    partes «lo mínimo posible» seguidas de una opcional). Mismo resultado: el primer «_vs_» que no está al principio y
+    un «_IA» final, si el rival no se queda vacío."""
+    if len(name) < 4 or name[-4:].lower() != ".txt":
+        return None
+    stem = name[:-4]
+    cut = stem.lower().find("_vs_", 1)
+    if cut < 1:
+        return None
+    main, opp = stem[:cut], stem[cut + 4 :]
+    ia = len(opp) > 3 and opp[-3:].lower() == "_ia"
+    if ia:
+        opp = opp[:-3]
+    return (main, opp, ia) if opp else None
+
 RESCAN_SECONDS = 15
 
 
@@ -46,29 +64,31 @@ class GuideIndex:
         self._scanned_at = 0.0
 
     # ---------------------------------------------------------------- índice
+    def _entry(self, path: Path) -> dict | None:
+        """La guía de un fichero (rol de la carpeta, campeón, rival y si es de IA) o ``None`` si no lo es."""
+        parsed = parse_guide_name(path.name)
+        if parsed is None:
+            return None
+        main, opp_name, ia = parsed
+        rel = path.relative_to(self.root).parts
+        role = ROLE_FOLDERS.get(rel[0].lower()) if len(rel) >= 2 else None
+        champ = self.dd.resolve(main) or (self.dd.resolve(rel[1]) if len(rel) >= 3 else None)
+        opp = self.dd.resolve(opp_name)
+        if not champ or not opp:
+            return None
+        return {
+            "role": role,
+            "champ": champ,
+            "opp": opp,
+            "source": "IA" if ia else "Vídeo",
+            "path": str(path.relative_to(self.root)),
+            "mtime": int(path.stat().st_mtime),
+        }
+
     def _scan(self) -> None:
         entries: list[dict] = []
         if self.root.is_dir():
-            for path in self.root.rglob("*.txt"):
-                match = FILE_PATTERN.match(path.name)
-                if not match:
-                    continue
-                rel = path.relative_to(self.root).parts
-                role = ROLE_FOLDERS.get(rel[0].lower()) if len(rel) >= 2 else None
-                champ = self.dd.resolve(match.group("main")) or (self.dd.resolve(rel[1]) if len(rel) >= 3 else None)
-                opp = self.dd.resolve(match.group("opp"))
-                if not champ or not opp:
-                    continue
-                entries.append(
-                    {
-                        "role": role,
-                        "champ": champ,
-                        "opp": opp,
-                        "source": "IA" if match.group("ia") else "Vídeo",
-                        "path": str(path.relative_to(self.root)),
-                        "mtime": int(path.stat().st_mtime),
-                    }
-                )
+            entries = [e for e in (self._entry(path) for path in self.root.rglob("*.txt")) if e is not None]
         by_key: dict[tuple, dict] = {}
         # Las de IA primero y las de vídeo después: si hay ambas, gana la del
         # coach humano. (None, a, b) es el comodín "cualquier rol".

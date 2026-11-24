@@ -19,12 +19,11 @@ function buildUrl(path, params = {}) {
 
 /** Marca en las respuestas que llegaron con datos externos aún descargándose. */
 export const PENDING = Symbol("pending");
-export const isPending = (data) => !!(data && data[PENDING]);
+export const isPending = (data) => !!data?.[PENDING];
 
-async function request(method, path, { params, body, signal } = {}) {
-  let res;
+async function send(method, path, params, body, signal) {
   try {
-    res = await fetch(buildUrl(path, params), {
+    return await fetch(buildUrl(path, params), {
       method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -34,21 +33,32 @@ async function request(method, path, { params, body, signal } = {}) {
     if (err?.name === "AbortError") throw err;
     throw new ApiError(0, "No hay conexión con Tempu Drafter. ¿Sigue abierta su ventana (run.py)? Si la cerraste, vuelve a abrir run.py.", "offline");
   }
-  let data = null;
+}
+
+async function readJson(res) {
   try {
-    data = await res.json();
+    return await res.json();
   } catch {
-    /* respuesta sin cuerpo */
+    return null; // respuesta sin cuerpo
   }
+}
+
+/** Mensaje de un error de la API: el texto que manda el servidor, sus errores de validación o «Error N». */
+function errorMessage(data, status) {
+  const detail = data?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((d) => d.msg).join(", ");
+  return `Error ${status}`;
+}
+
+async function request(method, path, { params, body, signal } = {}) {
+  const res = await send(method, path, params, body, signal);
+  const data = await readJson(res);
   if (res.ok && res.headers.get("x-data-pending") === "1") {
     if (data && typeof data === "object") Object.defineProperty(data, PENDING, { value: true, enumerable: false });
     window.dispatchEvent(new CustomEvent("tempu:pending", { detail: { path } }));
   }
-  if (!res.ok) {
-    const detail = data?.detail;
-    const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((d) => d.msg).join(", ") : `Error ${res.status}`;
-    throw new ApiError(res.status, message, data?.code);
-  }
+  if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.status), data?.code);
   return data;
 }
 

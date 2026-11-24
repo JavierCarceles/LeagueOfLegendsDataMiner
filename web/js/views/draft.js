@@ -79,7 +79,7 @@ export async function render(container) {
     buildsEl,
     bottomEl,
   );
-  analyze();
+  void analyze(); // trata sus errores (los pinta en el resumen)
   startLive();
 }
 
@@ -95,7 +95,7 @@ const live = { timer: null, panel: null, status: null, lastKey: null, prefs: nul
 
 function startLive() {
   stopLive();
-  pollLive();
+  void pollLive(); // trata sus errores (si el cliente no responde, se ignora)
   live.timer = setInterval(pollLive, 1500);
 }
 
@@ -143,8 +143,8 @@ function savePrefs(changes) {
     .put("/api/draft/live/prefs", changes)
     .then((p) => {
       live.prefs = p;
-      // Si ya se importó en esta selección, cambiar la tecla de Aplastar la vuelve a aplicar.
-      if ("smite_key" in changes && live.last?.active && live.last?.import && live.last?.draft?.me?.locked) importNow();
+      // Si ya se importó en esta selección, cambiar la tecla de Aplastar la vuelve a aplicar (importNow avisa si falla).
+      if ("smite_key" in changes && live.last?.active && live.last?.import && live.last?.draft?.me?.locked) void importNow();
     })
     .catch((err) => toast(err.message || "No se pudo guardar la preferencia", "bad"));
 }
@@ -197,26 +197,56 @@ function importText(imp) {
   return parts.join(", ");
 }
 
+/** «Selección de campeones», con la fase actual si el cliente la da. */
+function phaseText(phase) {
+  if (!phase) return "Selección de campeones";
+  return `Selección de campeones · ${PHASE_LABEL[phase] || phase.toLowerCase()}`;
+}
+
+/** «Tú: campeón (rol)» del panel en directo; null mientras no hayas elegido. */
+function liveMe(me) {
+  if (!me?.champ) return null;
+  const role = me.role ? ` (${ROLE_LABEL[me.role]})` : "";
+  const lock = me.locked ? "" : " · sin fijar";
+  return h("span.row.small.muted", { style: { gap: "6px", alignItems: "center" } }, "· Tú:", champImg(me.champ, "xs"), `${dd.name(me.champ)}${role}${lock}`);
+}
+
+/** Filas del panel durante la selección de campeones: fase, tu campeón y aviso sobre el rival. */
+function liveDraftRows(d) {
+  const me = d.me;
+  const rows = [
+    h(
+      "div.row",
+      { style: { gap: "8px", alignItems: "center", flexWrap: "wrap" } },
+      h("span.pill.pill-blue.pill-dot", "En directo"),
+      h("span.small", phaseText(d.phase)),
+      liveMe(me),
+      h("span.spacer"),
+      me?.locked ? h("button.btn.btn-sm", { onclick: importNow, title: "Pasa ya al cliente la build de tu campeón con los filtros de la web" }, icon("crown"), "Importar build ya") : null,
+    ),
+  ];
+  if (d.blind) rows.push(h("div.tiny.muted", "Elección a ciegas: el rival no se ve hasta la pantalla de carga; la build se ajusta solo a tu equipo."));
+  else if (Object.keys(d.enemy || {}).length) rows.push(h("div.tiny.muted", `Los roles del rival se deducen de dónde se juega cada campeón (y de quién lleva ${spellName(SMITE)}).`));
+  return rows;
+}
+
+/** Resultado de la última importación al cliente (durante la selección y hasta 10 min después). */
+function liveImportRows(s) {
+  const imp = s.import;
+  const rows = [];
+  if (imp && (s.active || Date.now() / 1000 - imp.at < 600)) {
+    const text = importText(imp);
+    if (text) rows.push(h(`div.small.${imp.status === "ok" ? "good" : "warn"}`, `Build de ${dd.name(imp.champ)} importada al cliente: ${text}.`));
+    for (const e of imp.errors || []) rows.push(h("div.small.bad", e));
+  }
+  return rows;
+}
+
 function renderLiveStatus(s) {
   if (!live.status) return;
   const rows = [];
   if (s.active && s.draft) {
-    const me = s.draft.me;
-    rows.push(
-      h(
-        "div.row",
-        { style: { gap: "8px", alignItems: "center", flexWrap: "wrap" } },
-        h("span.pill.pill-blue.pill-dot", "En directo"),
-        h("span.small", `Selección de campeones${s.draft.phase ? ` · ${PHASE_LABEL[s.draft.phase] || s.draft.phase.toLowerCase()}` : ""}`),
-        me?.champ
-          ? h("span.row.small.muted", { style: { gap: "6px", alignItems: "center" } }, "· Tú:", champImg(me.champ, "xs"), `${dd.name(me.champ)}${me.role ? ` (${ROLE_LABEL[me.role]})` : ""}${me.locked ? "" : " · sin fijar"}`)
-          : null,
-        h("span.spacer"),
-        me?.locked ? h("button.btn.btn-sm", { onclick: importNow, title: "Pasa ya al cliente la build de tu campeón con los filtros de la web" }, icon("crown"), "Importar build ya") : null,
-      ),
-    );
-    if (s.draft.blind) rows.push(h("div.tiny.muted", "Elección a ciegas: el rival no se ve hasta la pantalla de carga; la build se ajusta solo a tu equipo."));
-    else if (Object.keys(s.draft.enemy || {}).length) rows.push(h("div.tiny.muted", `Los roles del rival se deducen de dónde se juega cada campeón (y de quién lleva ${spellName(SMITE)}).`));
+    rows.push(...liveDraftRows(s.draft));
   } else {
     rows.push(
       h(
@@ -227,12 +257,7 @@ function renderLiveStatus(s) {
       ),
     );
   }
-  const imp = s.import;
-  if (imp && (s.active || Date.now() / 1000 - imp.at < 600)) {
-    const text = importText(imp);
-    if (text) rows.push(h(`div.small.${imp.status === "ok" ? "good" : "warn"}`, `Build de ${dd.name(imp.champ)} importada al cliente: ${text}.`));
-    for (const e of imp.errors || []) rows.push(h("div.small.bad", e));
-  }
+  rows.push(...liveImportRows(s));
   if (s.error && s.active) rows.push(h("div.tiny.bad", s.error));
   mount(live.status, rows);
 }
@@ -247,7 +272,7 @@ async function importNow() {
 }
 
 export function onFilters() {
-  analyze();
+  void analyze();
 }
 
 // Cambios del último parche (notas oficiales de Riot): ↑ mejorado / ↓ debilitado junto a cada campeón.
@@ -337,9 +362,16 @@ function slotRecs(side, role) {
 }
 
 function recTitle(s, opp) {
+  const syn = s.synergy_pp ? ` · sinergias ${fmt.signed(s.synergy_pp, 1, " pp")}` : "";
   return opp
-    ? `vs ${dd.name(opp)}: ${fmt.pct(s.lane_wr)} en ${fmt.int(s.lane_games)} partidas${s.synergy_pp ? ` · sinergias ${fmt.signed(s.synergy_pp, 1, " pp")}` : ""}`
-    : `WR general ${fmt.pct(s.base_wr)}${s.synergy_pp ? ` · sinergias ${fmt.signed(s.synergy_pp, 1, " pp")}` : ""}`;
+    ? `vs ${dd.name(opp)}: ${fmt.pct(s.lane_wr)} en ${fmt.int(s.lane_games)} partidas${syn}`
+    : `WR general ${fmt.pct(s.base_wr)}${syn}`;
+}
+
+/** Título de la sección de recomendados del desplegable de un hueco. */
+function recsSectionTitle(side, opp) {
+  if (side !== "ally") return "Mejores picks para el rival";
+  return opp ? `Recomendados contra ${dd.name(opp)}` : "Recomendados";
 }
 
 function pickerRecs(res, side, role) {
@@ -348,7 +380,7 @@ function pickerRecs(res, side, role) {
   const opp = slotRes.opponent;
   const sections = [
     {
-      title: side === "ally" ? (opp ? `Recomendados contra ${dd.name(opp)}` : "Recomendados") : "Mejores picks para el rival",
+      title: recsSectionTitle(side, opp),
       items: slotRes.best.slice(0, 6).map((s) => ({ champ: s.champ, meta: { text: fmt.signed(s.score_pp, 1, " pp"), cls: s.score_pp >= 0 ? "good" : "bad", title: recTitle(s, opp) } })),
     },
   ];
@@ -364,7 +396,7 @@ function pickRec(role, champ) {
   draft.ally[role] = champ;
   pickers.ally[role].setValue(champ);
   persist();
-  analyze();
+  void analyze();
 }
 
 /** Pinta en el centro de cada línea sin aliado los mejores picks (se actualiza solo). */
@@ -391,7 +423,7 @@ function refreshRecs() {
 
 function fillStrip(box, role, res) {
   const slotRes = res.slots[`ally:${role}`];
-  if (!slotRes || !slotRes.best.length) return mount(box, h("span.tiny.faint", "Sin datos suficientes para recomendar"));
+  if (!slotRes?.best.length) return mount(box, h("span.tiny.faint", "Sin datos suficientes para recomendar"));
   const pool = new Set((res.pool?.[role] || []).map((p) => p.champ));
   const opp = slotRes.opponent;
   mount(
@@ -427,7 +459,7 @@ function swapTeams() {
     updateBadge("ally", role);
     updateBadge("enemy", role);
   }
-  analyze();
+  void analyze();
 }
 
 function clearDraft() {
@@ -439,7 +471,7 @@ function clearDraft() {
     updateBadge("ally", role);
     updateBadge("enemy", role);
   }
-  analyze();
+  void analyze();
 }
 
 const analyzeSoon = debounce(() => analyze(), 250);
@@ -469,7 +501,7 @@ async function analyze() {
     renderSummary(result);
     result.lanes.forEach((lane) => renderLane(lane.role, lane));
     renderBottom(result);
-    loadBuilds(mine);
+    void loadBuilds(mine); // trata sus errores (los pinta en su caja)
   } catch (err) {
     if (mine === seq) mount(summaryEl, h("div", { style: { gridColumn: "1 / -1" } }, errorBox(err)));
   } finally {
@@ -491,6 +523,7 @@ async function loadBuilds(mine) {
   }
   if (mine !== seq || !root) return;
   if (!res.ally.length && !res.enemy.length) return mount(buildsEl);
+  const rivalWord = res.enemy.length === 1 ? "campeón" : "campeones";
   mount(
     buildsEl,
     planCard(res),
@@ -499,7 +532,7 @@ async function loadBuilds(mine) {
       h("h3.card-title", icon("crown"), "Builds recomendadas", h("span.spacer"), h("span.tiny.muted.hide-sm", "contra su rival de línea y ajustadas al equipo rival · pulsa una para ver el porqué")),
       res.ally.length ? h("div.build-rows", res.ally.map(buildRow)) : h("div.small.muted", "Elige campeones de tu equipo para ver su build."),
       res.enemy.length
-        ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.builds.rival", [icon("crown"), "Builds del rival"], () => h("div.build-rows", res.enemy.map(buildRow)), { cls: "flat", summary: `${res.enemy.length} ${res.enemy.length === 1 ? "campeón" : "campeones"} · para saber qué van a construir` }))
+        ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.builds.rival", [icon("crown"), "Builds del rival"], () => h("div.build-rows", res.enemy.map(buildRow)), { cls: "flat", summary: `${res.enemy.length} ${rivalWord} · para saber qué van a construir` }))
         : null,
     ),
   );
@@ -525,6 +558,7 @@ function planCard(res) {
   if (!rows.length) return null;
   const team = res.plans?.ally;
   const rivals = (res.enemy || []).map((p) => planPlayer(p, false)).filter(Boolean);
+  const rivalTempo = res.plans?.enemy ? TEMPO_LABEL[res.plans.enemy.tempo] : null;
   return h(
     "section.card",
     { style: { marginBottom: "16px" } },
@@ -532,9 +566,23 @@ function planCard(res) {
     h("p.tiny.muted", "Sale del draft: cómo va cada equipo según la duración de la partida y quién gana cada línea (OP.GG y el winrate de cada cruce)."),
     h("div.plan-grid", rows),
     rivals.length
-      ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.plan.rival", [icon("map"), "Lo que hará el rival"], () => h("div.plan-grid", rivals), { cls: "flat", summary: res.plans?.enemy ? TEMPO_LABEL[res.plans.enemy.tempo] : null }))
+      ? h("div", { style: { marginTop: "10px" } }, collapsible("draft.plan.rival", [icon("map"), "Lo que hará el rival"], () => h("div.plan-grid", rivals), { cls: "flat", summary: rivalTempo }))
       : null,
   );
+}
+
+/** Icono de un objeto en la fila de la build (en dorado si cambia por el draft). */
+function buildIcon(x, swap) {
+  return h(`span${swap ? ".build-swap" : ""}`, { title: `${dd.itemName(x.item)} · ${x.reason}` }, itemImg(x.item));
+}
+
+/** Pastilla del estilo de partida (bola de nieve o escalar); hueco vacío si es normal. */
+function planStylePill(plan) {
+  if (plan?.style && plan.style !== "normal") {
+    const aggressive = plan.style === "aggressive";
+    return h(`span.pill${aggressive ? ".pill-red" : ".pill-blue"}`, { title: plan.text || "" }, aggressive ? "Bola de nieve" : "Escalar");
+  }
+  return h("span");
 }
 
 function buildRow(p) {
@@ -546,67 +594,114 @@ function buildRow(p) {
     h("span.row", { style: { gap: "6px", minWidth: 0 } }, roleIcon(p.role), champImg(p.champ, "sm"), h("b.small.ellipsis", dd.name(p.champ))),
     h(
       "span.build-items",
-      boots ? h(`span${boots.situational ? ".build-swap" : ""}`, { title: `${dd.itemName(boots.item)} · ${boots.reason}` }, itemImg(boots.item)) : null,
-      (p.build || []).map((x) => h(`span${x.kind === "situational" ? ".build-swap" : ""}`, { title: `${dd.itemName(x.item)} · ${x.reason}` }, itemImg(x.item))),
+      boots ? buildIcon(boots, boots.situational) : null,
+      (p.build || []).map((x) => buildIcon(x, x.kind === "situational")),
       !p.build?.length ? h("span.tiny.muted", "sin datos de build todavía") : null,
     ),
     p.runes?.keystone ? runeImg(p.runes.keystone, 24) : h("span"),
     h("span.tiny.muted.hide-sm", p.opponent ? `vs ${dd.name(p.opponent)}` : ""),
     draftPicks ? h("span.pill.pill-gold", { title: "Objetos elegidos por cómo es el equipo rival (en dorado)" }, `${draftPicks} por el draft`) : h("span"),
-    p.plan?.style && p.plan.style !== "normal"
-      ? h(`span.pill${p.plan.style === "aggressive" ? ".pill-red" : ".pill-blue"}`, { title: p.plan.text || "" }, p.plan.style === "aggressive" ? "Bola de nieve" : "Escalar")
-      : h("span"),
+    planStylePill(p.plan),
   );
 }
 
-function openBuild(p) {
-  const itemRow = (x, extra = null) =>
-    h(
-      "div.row",
-      { style: { gap: "10px", alignItems: "flex-start" } },
-      h(`span${x.kind === "situational" || x.situational ? ".build-swap" : ""}`, itemImg(x.item)),
-      h("div", { style: { minWidth: 0 } }, h("div.small", h("b", dd.itemName(x.item) || `Objeto ${x.item}`), extra), h("div.tiny.muted", x.reason)),
-    );
+/** Fila de un objeto en el detalle de la build (en dorado si cambia por el draft). */
+function itemRow(x, extra = null) {
+  return h(
+    "div.row",
+    { style: { gap: "10px", alignItems: "flex-start" } },
+    h(`span${x.kind === "situational" || x.situational ? ".build-swap" : ""}`, itemImg(x.item)),
+    h("div", { style: { minWidth: 0 } }, h("div.small", h("b", dd.itemName(x.item) || `Objeto ${x.item}`), extra), h("div.tiny.muted", x.reason)),
+  );
+}
+
+/** Rol, rival de línea y daño del equipo rival, bajo el título del detalle de la build. */
+function buildSubtitle(p) {
   const e = p.enemy || {};
+  const vs = p.opponent ? ` · contra ${dd.name(p.opponent)}` : "";
+  const dmg = e.phys || e.magic ? ` · daño rival ${fmt.int(e.phys)} % físico / ${fmt.int(e.magic)} % mágico` : "";
+  return `${ROLE_LABEL[p.role]}${vs}${dmg}`;
+}
+
+/** Aviso con el plan de partida del campeón; null si no hay. */
+function planNotice(plan) {
+  if (!plan?.text) return null;
+  const kind = plan.style === "aggressive" ? "warn" : "info";
+  return h(`div.notice.notice-${kind}`, icon("info"), h("div.small", h("b", "Plan de partida: "), plan.text));
+}
+
+/** Botas de la build (con lo que sustituyen si cambian por el draft); null si no hay. */
+function bootsRow(boots) {
+  if (!boots) return null;
+  const kind = boots.situational ? "situational" : "";
+  const replaces = boots.replaces ? h("span.muted", ` en vez de ${dd.itemName(boots.replaces)}`) : null;
+  return itemRow({ ...boots, kind }, replaces);
+}
+
+/** Runas, objetos de inicio y orden de habilidades; null si no hay nada de eso. */
+function runesBlock(p) {
+  if (!p.runes?.names?.length && !p.skills && !p.starter?.length) return null;
+  return h(
+    "div.col",
+    { style: { gap: "6px" } },
+    p.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(p.runes.keystone, 22), h("span", p.runes.names.map((n, i) => dd.runeName(p.runes.ids?.[i]) || n).join(" · ")))) : null,
+    p.runes?.why ? h("div.tiny.muted", p.runes.why) : null,
+    p.starter?.length ? h("div.row", { style: { gap: "6px" } }, h("span.tiny.muted", "Inicio"), h("span.build-items", p.starter.map((i) => itemImg(i)))) : null,
+    p.skills ? h("div.small.muted", `Habilidades: ${p.skills}`) : null,
+  );
+}
+
+/** Cambio de build según cómo vaya la partida. */
+function situationRow(x) {
+  const instead = x.replaces ? `, en vez de ${dd.itemName(x.replaces)}` : "";
+  return itemRow({ ...x, kind: "situational" }, h("span.tiny.muted", ` · ${x.when}${instead}`));
+}
+
+/** Lo que hacen los OTPs del campeón (build más jugada y habilidad que suben); null si no hay datos. */
+function otpLine(otp) {
+  if (!otp) return null;
+  const path = otp.path?.value ? `build más jugada ${otp.path.value}` : "";
+  const skill = otp.skill_max?.value ? ` · suben ${otp.skill_max.value}` : "";
+  return h("div.small.muted", `Sus OTPs (${TIER_NAMES[otp.tier] || otp.tier}, ${fmt.int(otp.games)} partidas): ${path}${skill}`);
+}
+
+/** De dónde sale la build (y el núcleo contra el rival de línea, si lo hay). */
+function buildSources(p) {
+  const core = p.matchup?.games ? ` · núcleo contra ${dd.name(p.matchup.opponent)}: ${fmt.int(p.matchup.games)} partidas en OP.GG` : "";
+  return h("div.tiny.muted", `Fuentes: ${(p.sources || []).join(", ") || "ninguna todavía"}${core}`);
+}
+
+function openBuild(p) {
   modal(
-    h("div.row", { style: { gap: "10px" } }, champImg(p.champ, "lg"), h("div", h("h3", `Build de ${dd.name(p.champ)}`), h("div.tiny.muted", `${ROLE_LABEL[p.role]}${p.opponent ? ` · contra ${dd.name(p.opponent)}` : ""}${e.phys || e.magic ? ` · daño rival ${fmt.int(e.phys)} % físico / ${fmt.int(e.magic)} % mágico` : ""}`))),
+    h("div.row", { style: { gap: "10px" } }, champImg(p.champ, "lg"), h("div", h("h3", `Build de ${dd.name(p.champ)}`), h("div.tiny.muted", buildSubtitle(p)))),
     h(
       "div.col",
       { style: { gap: "16px" } },
-      p.plan?.text ? h(`div.notice.notice-${p.plan.style === "aggressive" ? "warn" : "info"}`, icon("info"), h("div.small", h("b", "Plan de partida: "), p.plan.text)) : null,
+      planNotice(p.plan),
       p.build?.length
         ? h(
             "div.col",
             { style: { gap: "10px" } },
             h("div.small", h("b", "Build para este draft"), h("span.tiny.muted", "  · en dorado, lo que cambia por el equipo rival")),
-            p.boots ? itemRow({ ...p.boots, kind: p.boots.situational ? "situational" : "" }, p.boots.replaces ? h("span.muted", ` en vez de ${dd.itemName(p.boots.replaces)}`) : null) : null,
+            bootsRow(p.boots),
             p.build.map((x, i) => itemRow(x, h("span.tiny.muted", ` · ${i + 1}.º objeto`))),
           )
         : h("div.small.muted", "Aún no hay datos de build para este campeón en este rol (se descargan en segundo plano: vuelve a mirar en un momento)."),
-      p.runes?.names?.length || p.skills || p.starter?.length
-        ? h(
-            "div.col",
-            { style: { gap: "6px" } },
-            p.runes?.names?.length ? h("div.small", h("span.row", { style: { gap: "6px" } }, runeImg(p.runes.keystone, 22), h("span", p.runes.names.map((n, i) => dd.runeName(p.runes.ids?.[i]) || n).join(" · ")))) : null,
-            p.runes?.why ? h("div.tiny.muted", p.runes.why) : null,
-            p.starter?.length ? h("div.row", { style: { gap: "6px" } }, h("span.tiny.muted", "Inicio"), h("span.build-items", p.starter.map((i) => itemImg(i)))) : null,
-            p.skills ? h("div.small.muted", `Habilidades: ${p.skills}`) : null,
-          )
-        : null,
+      runesBlock(p),
       p.team_items?.length ? h("div.col", { style: { gap: "8px" } }, h("div.small", h("b", "Para el equipo (support)")), p.team_items.map((x) => itemRow({ ...x, kind: "situational" }))) : null,
       p.situations?.length
         ? h(
             "div.col",
             { style: { gap: "8px" } },
             h("div.small", h("b", "Si la partida cambia"), h("span.tiny.muted", "  · qué cambiar de la build según cómo vaya")),
-            p.situations.map((x) => itemRow({ ...x, kind: "situational" }, h("span.tiny.muted", ` · ${x.when}${x.replaces ? `, en vez de ${dd.itemName(x.replaces)}` : ""}`))),
+            p.situations.map((x) => situationRow(x)),
           )
         : null,
       p.alternatives?.length
         ? collapsible("draft.build.alternativas", [icon("crown"), "Otras opciones"], () => h("div.col", { style: { gap: "8px" } }, p.alternatives.map((x) => itemRow(x))), { cls: "flat", summary: p.alternatives.map((x) => dd.itemName(x.item)).join(" · ") })
         : null,
-      p.otp ? h("div.small.muted", `Sus OTPs (${TIER_NAMES[p.otp.tier] || p.otp.tier}, ${fmt.int(p.otp.games)} partidas): ${p.otp.path?.value ? `build más jugada ${p.otp.path.value}` : ""}${p.otp.skill_max?.value ? ` · suben ${p.otp.skill_max.value}` : ""}`) : null,
-      h("div.tiny.muted", `Fuentes: ${(p.sources || []).join(", ") || "ninguna todavía"}${p.matchup?.games ? ` · núcleo contra ${dd.name(p.matchup.opponent)}: ${fmt.int(p.matchup.games)} partidas en OP.GG` : ""}`),
+      otpLine(p.otp),
+      buildSources(p),
     ),
   );
 }
@@ -631,16 +726,17 @@ function renderSummary(r) {
     r.lanes_filled < 5 ? h("div.tiny.muted", { style: { marginTop: "6px" } }, `Draft a medias: ${r.lanes_filled}/5 líneas con ambos campeones.`) : null,
   );
 
-  const team = (side, data, label) =>
-    data
-      ? h(
-          `div.team-strength.${side === "ally" ? "blue" : "red"}`,
-          h(`div.mini-grade.g-${data.grade.letter}`, data.grade.letter),
-          h("div", { style: { minWidth: 0 } }, h("div", { style: { fontWeight: 700 } }, label), h("div.small.muted", `WR frente a un equipo medio: `, h(`b.${wrClass(data.wr_vs_avg)}`, fmt.pct(data.wr_vs_avg)))),
-          h("div.spacer"),
-          h("div.right", h("div.tiny.muted", "Sinergias"), h(`div.impact.${data.synergy_pp >= 0 ? "good" : "bad"}`, fmt.signed(data.synergy_pp, 1, " pp"))),
-        )
-      : h(`div.team-strength.${side === "ally" ? "blue" : "red"}`, h("span.muted", `${label}: sin picks`));
+  const team = (side, data, label) => {
+    const color = side === "ally" ? "blue" : "red";
+    if (!data) return h(`div.team-strength.${color}`, h("span.muted", `${label}: sin picks`));
+    return h(
+      `div.team-strength.${color}`,
+      h(`div.mini-grade.g-${data.grade.letter}`, data.grade.letter),
+      h("div", { style: { minWidth: 0 } }, h("div", { style: { fontWeight: 700 } }, label), h("div.small.muted", `WR frente a un equipo medio: `, h(`b.${wrClass(data.wr_vs_avg)}`, fmt.pct(data.wr_vs_avg)))),
+      h("div.spacer"),
+      h("div.right", h("div.tiny.muted", "Sinergias"), h(`div.impact.${data.synergy_pp >= 0 ? "good" : "bad"}`, fmt.signed(data.synergy_pp, 1, " pp"))),
+    );
+  };
 
   const teamsCard = h(
     "section.card",
@@ -664,6 +760,22 @@ function damageBar(profile) {
   );
 }
 
+/** Nota «Primera línea y control ⓘ» de un equipo (multiplicadores en el título); null si no hay ninguno. */
+function frontlineNote(c) {
+  if (c.frontline === null && c.cc === null) return null;
+  return h(
+    "div.tiny.muted",
+    { style: { cursor: "help" }, title: [c.frontline !== null ? `Primera línea ×${fmt.num(c.frontline, 2)}` : null, c.cc !== null ? `Control ×${fmt.num(c.cc, 2)}` : null].filter(Boolean).join(" · ") },
+    [c.frontline !== null ? "Primera línea" : null, c.cc !== null ? "control" : null].filter(Boolean).join(" y ") + " ⓘ",
+  );
+}
+
+/** De dónde sale el tipo de daño de la composición. */
+function damageSourceNote(source) {
+  if (source === "data") return "Daño real medido en tus partidas.";
+  return source === "opgg" ? "Tipo de daño según OP.GG (AD/AP)." : "Estimado con los atributos de Data Dragon.";
+}
+
 function compositionBlock(comp) {
   const row = (label, c, cls) =>
     c
@@ -671,17 +783,11 @@ function compositionBlock(comp) {
           "div.stack-sm",
           h("div.row", h(`span.small.${cls}`, label), h("span.spacer"), h("span.tiny.muted", `${fmt.pct(c.damage_profile?.phys, 0)} AD · ${fmt.pct(c.damage_profile?.magic, 0)} AP`)),
           damageBar(c.damage_profile),
-          c.frontline !== null || c.cc !== null
-            ? h(
-                "div.tiny.muted",
-                { style: { cursor: "help" }, title: [c.frontline !== null ? `Primera línea ×${fmt.num(c.frontline, 2)}` : null, c.cc !== null ? `Control ×${fmt.num(c.cc, 2)}` : null].filter(Boolean).join(" · ") },
-                [c.frontline !== null ? "Primera línea" : null, c.cc !== null ? "control" : null].filter(Boolean).join(" y ") + " ⓘ",
-              )
-            : null,
+          frontlineNote(c),
           ...(c.warnings || []).map((w) => h("div.tiny.warn", "⚠ ", w)),
         )
       : null;
-  const sourceNote = comp.ally?.source === "data" ? "Daño real medido en tus partidas." : comp.ally?.source === "opgg" ? "Tipo de daño según OP.GG (AD/AP)." : "Estimado con los atributos de Data Dragon.";
+  const sourceNote = damageSourceNote(comp.ally?.source);
   return h(
     "div.col",
     row("Tu equipo", comp.ally, "gold"),
@@ -706,20 +812,39 @@ function renderLane(role, lane) {
     mount(el, "Elige los campeones");
     return;
   }
-  if (lane.kind === "solo") {
-    const who = lane.ally ? "aliado" : "rival";
-    mount(
-      el,
-      h("div.lane-top", h(`span.lane-wr.${wrClass(lane.wr_adj)}`, fmt.pct(lane.wr_adj)), h("span.small.muted", `WR general del ${who} en ${ROLE_LABEL[role]}`)),
-      needsAlly ? stripFor(role) : h("div.lane-meta", h("span", "Falta el otro campeón para analizar el enfrentamiento"), h(`span.impact.${lane.impact_pp >= 0 ? "good" : "bad"}`, fmt.signed(lane.impact_pp, 1, " pp"))),
-    );
-    return;
-  }
-  const opgg = lane.opgg || {};
-  const laneWinner = opgg.lane_advantage ? (opgg.lane_advantage === lane.ally ? "good" : opgg.lane_advantage === lane.enemy ? "bad" : "") : "";
+  if (lane.kind === "solo") renderSoloLane(el, role, lane, needsAlly);
+  else renderMatchupLane(el, role, lane);
+}
+
+/** Línea con un solo campeón: su WR general y, si falta tu aliado, los picks recomendados. */
+function renderSoloLane(el, role, lane, needsAlly) {
+  const who = lane.ally ? "aliado" : "rival";
+  const impactCls = lane.impact_pp >= 0 ? "good" : "bad";
+  mount(
+    el,
+    h("div.lane-top", h(`span.lane-wr.${wrClass(lane.wr_adj)}`, fmt.pct(lane.wr_adj)), h("span.small.muted", `WR general del ${who} en ${ROLE_LABEL[role]}`)),
+    needsAlly ? stripFor(role) : h("div.lane-meta", h("span", "Falta el otro campeón para analizar el enfrentamiento"), h(`span.impact.${impactCls}`, fmt.signed(lane.impact_pp, 1, " pp"))),
+  );
+}
+
+/** Clase del ganador de la línea según OP.GG: «good» si es tu campeón, «bad» si es el rival. */
+function laneWinnerCls(lane, winner) {
+  if (!winner) return "";
+  if (winner === lane.ally) return "good";
+  return winner === lane.enemy ? "bad" : "";
+}
+
+/** Pastilla «Counter» / «Te counterea» cuando el enfrentamiento se sale de lo esperado. */
+function counterPill(counter) {
+  if (counter === "counter") return h("span.pill.pill-good", { title: "Ventaja propia del matchup por encima de lo esperado" }, "Counter");
+  return counter === "countered" ? h("span.pill.pill-bad", "Te counterea") : null;
+}
+
+/** Texto de «Detalle ⓘ» de un enfrentamiento: intervalo, esperado, fuentes y estilo de línea. */
+function laneDetail(lane, opgg) {
   const playStyle = { aggressive: "agresivo", defensive: "defensivo", even: "igualado" }[opgg.play_style] || opgg.play_style;
   const src = lane.sources || {};
-  const detail = [
+  return [
     lane.ci ? `IC 95 %: ${fmt.pct(lane.ci[0])} – ${fmt.pct(lane.ci[1])}` : null,
     `Esperado solo por la fuerza de cada campeón (log5): ${fmt.pct(lane.expected)}`,
     lane.delta !== undefined ? `Δ ventaja propia del enfrentamiento: ${fmt.signed(lane.delta, 1)}` : null,
@@ -730,13 +855,20 @@ function renderLane(role, lane) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** Línea con los dos campeones: WR del enfrentamiento, veredicto, counter, impacto y enlace al matchup. */
+function renderMatchupLane(el, role, lane) {
+  const opgg = lane.opgg || {};
+  const laneWinner = laneWinnerCls(lane, opgg.lane_advantage);
+  const detail = laneDetail(lane, opgg);
   mount(
     el,
     h(
       "div.lane-top",
       h(`span.lane-wr.${wrClass(lane.wr_adj)}`, { title: detail }, fmt.pct(lane.wr_adj)),
       verdictEl(lane.verdict),
-      lane.counter === "counter" ? h("span.pill.pill-good", { title: "Ventaja propia del matchup por encima de lo esperado" }, "Counter") : lane.counter === "countered" ? h("span.pill.pill-bad", "Te counterea") : null,
+      counterPill(lane.counter),
       h("span.spacer"),
       h(`span.impact.${lane.impact_pp >= 0 ? "good" : "bad"}`, { title: "Cuánto mueve esta línea la probabilidad final" }, fmt.signed(lane.impact_pp, 1, " pp")),
     ),
@@ -832,7 +964,7 @@ async function openSuggest(side, role) {
                 pickers[side][role].setValue(s.champ);
                 persist();
                 m.close();
-                analyze();
+                void analyze();
               },
             },
             champImg(s.champ),

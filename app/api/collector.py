@@ -113,7 +113,14 @@ def _resolve_windows(svc, raw: list) -> list[dict]:
     return windows
 
 
-@router.post("/start")
+@router.post(
+    "/start",
+    responses={
+        400: {"description": "Configuración no válida: campeón desconocido, ventana sin campeones, plataforma o tier"},
+        409: {"description": "El recolector ya está en marcha"},
+        412: {"description": "Falta configurar la RIOT_API_KEY"},
+    },
+)
 def start(body: CrawlerBody, svc=Depends(svc_from)):
     data = body.model_dump()
     champs = [_champ_id(svc, value) for value in data.pop("champions") or []]
@@ -378,7 +385,7 @@ def otps_live(svc=Depends(svc_from)):
     return otp_details.live_counts(svc.db) | {"enabled": bool(cfg and cfg.save_details)} | _files_state(svc)
 
 
-@router.post("/otps/push")
+@router.post("/otps/push", responses={409: {"description": "La subida automática está desactivada o git no puede subir"}})
 def otps_push_now(svc=Depends(svc_from)):
     """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 2.000 partidas."""
     from app.autopush import AutoPush
@@ -392,7 +399,7 @@ def otps_push_now(svc=Depends(svc_from)):
     return {"started": started, "autopush": auto.public()}
 
 
-@router.post("/otps/files/rebuild")
+@router.post("/otps/files/rebuild", responses={409: {"description": "Aún no hay partidas analizadas minuto a minuto"}})
 def otps_files_rebuild(svc=Depends(svc_from)):
     """Reescribe las carpetas ``otps`` y ``partidas_campeon`` desde la base de datos (normalmente se escriben solas)."""
     files = otp_details.Files.of(svc)
@@ -432,22 +439,28 @@ def _window_stats(rows: list) -> dict:
     }
 
 
-def _recent_games(db, rows: list, limit: int) -> list[dict]:
-    """Las últimas partidas con los 10 campeones (por equipo) y su duración."""
-    recent = [dict(r) for r in rows[:limit]]
-    ids = [r["match_id"] for r in recent]
-    if not ids:
-        return recent
+def _add_lineups(db, games: list[dict]) -> None:
+    """Los 10 campeones (por equipo, con su KDA) y la duración de cada partida."""
+    ids = [g["match_id"] for g in games]
     marks = ",".join("?" * len(ids))
     lineup: dict[str, dict] = {}
-    for r in db.query(f"SELECT match_id, team, role, champ, kills, deaths, assists FROM participants WHERE match_id IN ({marks})", ids):
+    players_sql = f"SELECT match_id, team, role, champ, kills, deaths, assists FROM participants WHERE match_id IN ({marks})"
+    for r in db.query(players_sql, ids):
         lineup.setdefault(r["match_id"], {}).setdefault(str(r["team"]), []).append(
             {"role": r["role"], "champ": r["champ"], "kda": [r["kills"], r["deaths"], r["assists"]]}
         )
-    duration = {r["match_id"]: r["duration"] for r in db.query(f"SELECT match_id, duration FROM matches WHERE match_id IN ({marks})", ids)}
-    for g in recent:
+    duration_sql = f"SELECT match_id, duration FROM matches WHERE match_id IN ({marks})"
+    duration = {r["match_id"]: r["duration"] for r in db.query(duration_sql, ids)}
+    for g in games:
         g["teams"] = lineup.get(g["match_id"], {})
         g["duration"] = duration.get(g["match_id"])
+
+
+def _recent_games(db, rows: list, limit: int) -> list[dict]:
+    """Las últimas partidas con los 10 campeones (por equipo) y su duración."""
+    recent = [dict(r) for r in rows[:limit]]
+    if recent:
+        _add_lineups(db, recent)
     return recent
 
 

@@ -50,7 +50,8 @@ def sources_status(svc=Depends(svc_from)):
     ):
         try:
             cache = source.cache_summary(kinds)
-        except Exception as exc:  # noqa: BLE001  (es un panel de estado: una fuente con problemas no lo tumba)
+        # es un panel de estado: una fuente con problemas no lo tumba
+        except Exception as exc:  # noqa: BLE001
             log.warning("Resumen de caché de %s: %s", name, exc)
             cache = {}
         if hasattr(source, "circuit_open"):
@@ -90,7 +91,7 @@ def champion_patches(champ: str, count: int = 3, svc=Depends(svc_from)):
     return {"champ": champ_id, "changes": svc.patchnotes.champion_changes(champ_id, max(1, min(count, 6)), allow_fetch=True)}
 
 
-@router.get("/patches/{patch}")
+@router.get("/patches/{patch}", responses={404: {"description": "Aún no hay notas de esa versión"}})
 def patch_detail(patch: str, svc=Depends(svc_from)):
     data = svc.patchnotes.notes(patch, allow_fetch=True) if svc.patchnotes.enabled else None
     if not data:

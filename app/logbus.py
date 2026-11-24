@@ -96,7 +96,8 @@ class BusHandler(logging.Handler):
 
                 trace = "".join(traceback.format_exception(*record.exc_info))[-2000:]
             self.bus.publish(record.getMessage(), kind=kind, source=source, trace=trace)
-        except Exception:  # noqa: BLE001  (patrón de logging.Handler: un log nunca rompe nada)
+        # patrón de logging.Handler: un log nunca rompe nada
+        except Exception:  # noqa: BLE001
             self.handleError(record)
 
 

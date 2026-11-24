@@ -12,6 +12,8 @@ from app.api.deps import filters_dep, role_param, sources_dep, svc_from
 from app.riot.routing import ROLES
 
 router = APIRouter(prefix="/api/draft", tags=["draft"])
+# Error de ``_resolve_team`` que documenta la API (OpenAPI) en cada ruta que lo usa.
+UNKNOWN_CHAMP_DOC = {"description": "Campeón desconocido en el draft"}
 
 
 class DraftBody(BaseModel):
@@ -39,7 +41,10 @@ def role_pools(f: Filters = Depends(filters_dep), sources: str = Depends(sources
     return {"roles": {role: ev.champions_in_role(role) for role in ROLES}, "min_games": MIN_ROLE_GAMES}
 
 
-@router.post("/analyze")
+@router.post(
+    "/analyze",
+    responses={400: {"description": "Un campeón aparece dos veces en el draft o un rol no es válido"}, 404: UNKNOWN_CHAMP_DOC},
+)
 def analyze(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
     ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
     if len(set(ally.values()) | set(enemy.values())) < len(ally) + len(enemy):
@@ -47,14 +52,14 @@ def analyze(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = D
     return draft.analyze(svc, f, ally, enemy, sources)
 
 
-@router.post("/builds")
+@router.post("/builds", responses={404: UNKNOWN_CHAMP_DOC})
 def draft_builds(body: DraftBody, f: Filters = Depends(filters_dep), sources: str = Depends(sources_dep), svc=Depends(svc_from)):
     """Build recomendada para cada campeón elegido: contra su rival de línea y ajustada al equipo rival."""
     ally, enemy = _resolve_team(svc, body.ally), _resolve_team(svc, body.enemy)
     return builds.recommend(svc, f, ally, enemy, sources)
 
 
-@router.post("/suggest")
+@router.post("/suggest", responses={404: UNKNOWN_CHAMP_DOC})
 def suggest(
     body: DraftBody,
     role: str = Query(...),
@@ -78,7 +83,7 @@ class BatchBody(DraftBody):
     slots: list[Slot] = Field(default_factory=list, max_length=10)
 
 
-@router.post("/suggest-batch")
+@router.post("/suggest-batch", responses={404: UNKNOWN_CHAMP_DOC})
 def suggest_batch(
     body: BatchBody,
     limit: int = Query(8, ge=1, le=40),
@@ -140,7 +145,7 @@ def live_prefs(body: LivePrefs, svc=Depends(svc_from)):
     return draft_live.save_prefs(svc.db, body.model_dump(exclude_none=True))
 
 
-@router.post("/live/import")
+@router.post("/live/import", responses={409: {"description": "No estás en la selección de campeones"}})
 def live_import(f: Filters = Depends(filters_dep), svc=Depends(svc_from)):
     """Importa ya la build de tu campeón (runas, hechizos y objetos) con los filtros de la web."""
     if not svc.draft_live.state.get("active"):

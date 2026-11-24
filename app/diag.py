@@ -62,50 +62,74 @@ def _app_file(path: str) -> str | None:
     return p[i + 5 :] if i >= 0 else None
 
 
+DB_FILE = "db.py"
+_WAIT_FILES = ("threading.py", "queue.py")
+_DB_CALLS = ("execute(", "executemany(", ".query(", ".one(", ".scalar(", "fetchall(")
+
+
+def _app_frames(frame) -> list[tuple]:
+    """La línea del proyecto más interior y, si es de la base de datos, la de quién la llama: [(fichero, línea, función,
+    ruta)]."""
+    apps: list[tuple] = []
+    f = frame
+    while f is not None and len(apps) < 2:
+        rel = _app_file(f.f_code.co_filename)
+        if rel is not None and (not apps or not rel.endswith(DB_FILE)):
+            apps.append((rel, f.f_lineno, f.f_code.co_name, f.f_code.co_filename))
+            if not rel.endswith(DB_FILE):
+                break
+        f = f.f_back
+    return apps
+
+
+def _where(apps: list[tuple], inner_file: str, inner_name: str) -> str:
+    app = apps[0]
+    where = f"{app[0]}:{app[1]} {app[2]}"
+    if len(apps) > 1:  # la base de datos: quién la llama
+        where = f"{apps[1][0]}:{apps[1][1]} {apps[1][2]} → {app[0].rsplit('/', 1)[-1]}:{app[2]}"
+    if _app_file(inner_file) is None:
+        where += f" → {inner_file.rsplit('/', 1)[-1]}:{inner_name}"
+    return where
+
+
+def _lock_category(rel: str, text: str, where: str) -> str:
+    """Esperando en un candado o una cola: de la base de datos o de un candado nuestro, «candado»; si no, sin trabajo."""
+    lock = "lock" in text.lower() or "lock" in where.lower()
+    return "candado" if rel.endswith(DB_FILE) or lock else "sin_trabajo"
+
+
+def _category(rel: str, inner_file: str, text: str, where: str) -> str:
+    if rel.endswith("ratelimit.py"):
+        return "riot_limite"
+    if any(n in inner_file for n in _NET):
+        return "red"
+    if rel.endswith("autopush.py") and "subprocess" in inner_file:
+        return "git"
+    if inner_file.endswith(_WAIT_FILES) or "lock" in text.lower() or ".acquire(" in text:
+        return _lock_category(rel, text, where)
+    if rel.endswith(DB_FILE) or any(k in text for k in _DB_CALLS):
+        return "bd"
+    if rel.endswith(_ANALYZE):
+        return "analizar"
+    if any(n in inner_file for n in _FILES):
+        return "ficheros"
+    return "otro"
+
+
 def classify(frame) -> tuple[str, str]:
     """(categoría, dónde): la línea del proyecto más interior (si es la base de datos, quién la llama) y, si espera
     dentro de otra librería, en cuál. Las esperas en C (un candado, una consulta de SQLite) no tienen línea propia: se
     reconocen por el texto de la línea del proyecto."""
     inner_file = _norm(frame.f_code.co_filename)
     inner_name = frame.f_code.co_name
-    apps = []
-    f = frame
-    while f is not None and len(apps) < 2:
-        rel = _app_file(f.f_code.co_filename)
-        if rel is not None and (not apps or not rel.endswith("db.py")):
-            apps.append((rel, f.f_lineno, f.f_code.co_name, f.f_code.co_filename))
-            if not rel.endswith("db.py"):
-                break
-        f = f.f_back
-    app = apps[0] if apps else None
-    if app is None:
-        return ("sin_trabajo" if inner_file.endswith(("threading.py", "queue.py", "selectors.py")) else "otro"), (
-            f"{inner_file.rsplit('/', 1)[-1]} {inner_name}"
-        )
-    where = f"{app[0]}:{app[1]} {app[2]}"
-    if len(apps) > 1:  # la base de datos: quién la llama
-        where = f"{apps[1][0]}:{apps[1][1]} {apps[1][2]} → {app[0].rsplit('/', 1)[-1]}:{app[2]}"
-    if _app_file(inner_file) is None:
-        where += f" → {inner_file.rsplit('/', 1)[-1]}:{inner_name}"
+    apps = _app_frames(frame)
+    if not apps:
+        idle = inner_file.endswith((*_WAIT_FILES, "selectors.py"))
+        return ("sin_trabajo" if idle else "otro"), f"{inner_file.rsplit('/', 1)[-1]} {inner_name}"
+    app = apps[0]
+    where = _where(apps, inner_file, inner_name)
     text = linecache.getline(app[3], app[1]).strip() if _app_file(inner_file) is not None else ""
-    rel = app[0]
-    if rel.endswith("ratelimit.py"):
-        cat = "riot_limite"
-    elif any(n in inner_file for n in _NET):
-        cat = "red"
-    elif rel.endswith("autopush.py") and "subprocess" in inner_file:
-        cat = "git"
-    elif inner_file.endswith(("threading.py", "queue.py")) or "lock" in text.lower() or ".acquire(" in text:
-        cat = "candado" if (rel.endswith("db.py") or "lock" in text.lower() or "lock" in where.lower()) else "sin_trabajo"
-    elif rel.endswith("db.py") or any(k in text for k in ("execute(", "executemany(", ".query(", ".one(", ".scalar(", "fetchall(")):
-        cat = "bd"
-    elif rel.endswith(_ANALYZE):
-        cat = "analizar"
-    elif any(n in inner_file for n in _FILES):
-        cat = "ficheros"
-    else:
-        cat = "otro"
-    return cat, where
+    return _category(app[0], inner_file, text, where), where
 
 
 class Sampler:
@@ -171,7 +195,8 @@ class Sampler:
             while not (stop.wait(SAMPLE_S) if stop is not None else time.sleep(SAMPLE_S)):
                 try:
                     self.sample()
-                except Exception:  # noqa: BLE001  (un diagnóstico nunca puede tumbar nada)
+                # un diagnóstico nunca puede tumbar nada
+                except Exception:  # noqa: BLE001
                     log.debug("Fallo muestreando los hilos", exc_info=True)
 
         self._thread = threading.Thread(target=run, name="diag-sampler", daemon=True)

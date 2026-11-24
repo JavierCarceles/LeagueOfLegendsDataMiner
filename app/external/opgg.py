@@ -17,6 +17,7 @@ clientes automáticos con un checkpoint anti-bot, así que no se usan.
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import json
 import re
@@ -82,52 +83,71 @@ def rsc_payload(html: str) -> str:
     return "".join(out)
 
 
+def _string_end(text: str, i: int) -> int:
+    """Posición de las comillas que cierran la cadena JSON que sigue en ``i`` (o el final del texto)."""
+    n = len(text)
+    while i < n and text[i] != '"':
+        i += 2 if text[i] == "\\" else 1  # lo escapado no cierra la cadena
+    return min(i, n)
+
+
+def _object_end(text: str, start: int) -> int | None:
+    """Posición justo después de la llave que cierra el objeto que empieza en ``start`` (``None`` si no se cierra)."""
+    depth = 0
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if ch == '"':
+            i = _string_end(text, i + 1)  # las llaves dentro de una cadena no cuentan
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return None
+
+
 def iter_objects(text: str, marker: str):
     """Extrae objetos JSON completos que empiezan por ``marker``."""
     start = text.find(marker)
     while start != -1:
-        depth = 0
-        in_str = False
-        escape = False
-        end = None
-        for i in range(start, len(text)):
-            ch = text[i]
-            if in_str:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    in_str = False
-                continue
-            if ch == '"':
-                in_str = True
-            elif ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
+        end = _object_end(text, start)
         if end is None:
             return
-        try:
+        with contextlib.suppress(ValueError):  # si no es JSON válido, se salta
             yield json.loads(text[start:end])
-        except ValueError:
-            pass
         start = text.find(marker, end)
 
 
-_TOKEN = re.compile(
-    r'\s*(?:(?P<str>"(?:[^"\\]|\\.)*")|(?P<num>-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)|(?P<id>[A-Za-z_][A-Za-z0-9_]*)|(?P<p>[()\[\],]))'
-)
+# Formato compacto del MCP. Este patrón reconoce cada token por su comienzo (cadena JSON, signo, identificador o
+# número); el identificador y el número completos se leen después con el suyo.
+_MCP_TOKEN = re.compile(r'(?P<str>"(?:[^"\\]|\\.)*")|(?P<p>[()\[\],])|(?P<id>[A-Za-z_])|(?P<num>-?\d)')
+_MCP_FULL = {
+    "id": re.compile(r"[A-Za-z_]\w*", re.ASCII),
+    "num": re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"),
+}
+_MCP_LITERALS = {"true": True, "false": False, "null": None, "None": None}
 
 
-def parse_mcp_text(text: str):
-    """Parsea las respuestas del MCP de OP.GG (JSON o su formato compacto de clases)."""
-    text = text.strip()
-    if text.startswith(("{", "[")):
-        return json.loads(text)
+def _mcp_tokens(body: str) -> list[tuple[str, str]]:
+    """``(tipo, texto)`` de cada token del formato compacto, en orden (lo que no es un token se salta)."""
+    tokens = []
+    match = _MCP_TOKEN.search(body)
+    while match is not None:
+        kind = match.lastgroup
+        start, end = match.span()
+        full = _MCP_FULL.get(kind)
+        if full is not None:
+            end = full.match(body, start).end()
+        tokens.append((kind, body[start:end]))
+        match = _MCP_TOKEN.search(body, end)
+    return tokens
+
+
+def _mcp_classes(text: str) -> tuple[dict[str, list[str]], str]:
+    """Separa las cabeceras ``class Nombre: campo, …`` del cuerpo (que se devuelve sin líneas en blanco)."""
     classes: dict[str, list[str]] = {}
     body_lines = []
     for line in text.splitlines():
@@ -136,46 +156,65 @@ def parse_mcp_text(text: str):
             classes[name.strip()] = [f.strip() for f in fields.split(",") if f.strip()]
         elif line.strip():
             body_lines.append(line)
-    tokens = [m for m in _TOKEN.finditer("\n".join(body_lines))]
-    pos = 0
+    return classes, "\n".join(body_lines)
 
-    def value():
-        nonlocal pos
-        tok = tokens[pos]
-        pos += 1
-        if tok.group("str") is not None:
-            return json.loads(tok.group("str"))
-        if tok.group("num") is not None:
-            raw = tok.group("num")
-            return float(raw) if any(c in raw for c in ".eE") else int(raw)
-        if tok.group("p") == "[":
-            items = []
-            while tokens[pos].group("p") != "]":
-                items.append(value())
-                if tokens[pos].group("p") == ",":
-                    pos += 1
-            pos += 1
-            return items
-        ident = tok.group("id")
-        if ident in ("true", "false"):
-            return ident == "true"
-        if ident in ("null", "None"):
-            return None
-        if pos < len(tokens) and tokens[pos].group("p") == "(":
-            pos += 1
-            args = []
-            while tokens[pos].group("p") != ")":
-                args.append(value())
-                if tokens[pos].group("p") == ",":
-                    pos += 1
-            pos += 1
-            fields = classes.get(ident)
+
+class _McpReader:
+    """Lee un valor del formato compacto: ``Clase(arg, …)``, listas, cadenas, números y literales."""
+
+    def __init__(self, tokens: list[tuple[str, str]], classes: dict[str, list[str]]) -> None:
+        self.tokens = tokens
+        self.classes = classes
+        self.pos = 0
+
+    def _sign(self) -> str | None:
+        """Signo del token actual (``None`` si es otra cosa)."""
+        kind, text = self.tokens[self.pos]
+        return text if kind == "p" else None
+
+    def _sequence(self, close: str) -> list:
+        """Valores separados por comas hasta ``close``, que también se consume."""
+        values = []
+        while self._sign() != close:
+            values.append(self.value())
+            if self._sign() == ",":
+                self.pos += 1
+        self.pos += 1
+        return values
+
+    def value(self):
+        kind, text = self.tokens[self.pos]
+        self.pos += 1
+        if kind == "str":
+            return json.loads(text)
+        if kind == "num":
+            return float(text) if any(c in text for c in ".eE") else int(text)
+        if text == "[":
+            return self._sequence("]")
+        return self._name(text if kind == "id" else None)
+
+    def _name(self, ident: str | None):
+        """Literal, objeto ``Clase(…)`` (con sus campos si se conoce la clase) o identificador suelto."""
+        if ident in _MCP_LITERALS:
+            return _MCP_LITERALS[ident]
+        if self.pos < len(self.tokens) and self._sign() == "(":
+            self.pos += 1
+            args = self._sequence(")")
+            fields = self.classes.get(ident)
             if fields and len(fields) == len(args):
                 return dict(zip(fields, args))
             return {"_type": ident, "args": args}
         return ident
 
-    return value() if tokens else None
+
+def parse_mcp_text(text: str):
+    """Parsea las respuestas del MCP de OP.GG (JSON o su formato compacto de clases)."""
+    text = text.strip()
+    if text.startswith(("{", "[")):
+        return json.loads(text)
+    classes, body = _mcp_classes(text)
+    tokens = _mcp_tokens(body)
+    return _McpReader(tokens, classes).value() if tokens else None
 
 
 # ------------------------------------------------------------------ cliente
@@ -213,8 +252,72 @@ def _shards(page: dict) -> list[int]:
     return out if len(out) == 3 else []
 
 
+def _ids(entry) -> list[int]:
+    """``ids`` de una entrada del MCP como enteros (se saltan los que no lo son)."""
+    out = []
+    for value in (entry or {}).get("ids") or []:
+        try:
+            out.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _options(entries, limit: int = 6) -> list[dict]:
+    """Objetos que se eligen en un hueco de la build (4.º, 5.º, 6.º…) con sus partidas."""
+    rows = []
+    for e in (entries or [])[:limit]:
+        item = _ids(e)
+        if item:
+            rows.append({"id": item[0], "games": e.get("play"), "wins": e.get("win"), "pick_rate": e.get("pick_rate")})
+    return rows
+
+
+def _first_entry(value):
+    """El MCP da unas veces un objeto y otras una lista de ellos: el objeto o el primero (``{}`` si no hay)."""
+    return value if isinstance(value, dict) else (value or [{}])[0]
+
+
+def _core_entry(value):
+    """Núcleo de la build: el objeto o el primero de la lista."""
+    value = value or {}
+    return value[0] if isinstance(value, list) and value else value
+
+
+def _field(entry, key: str):
+    """``entry[key]`` si ``entry`` es un objeto (si no, ``None``)."""
+    return entry.get(key) if isinstance(entry, dict) else None
+
+
+def _texts(entry, key: str) -> list[str]:
+    """``entry[key]`` como lista de textos (vacía si ``entry`` no es un objeto o no lo trae)."""
+    return [str(s) for s in _field(entry, key) or []]
+
+
+def _build_of(data: dict) -> dict:
+    """Build de ``lol_get_champion_analysis``: objetos, botas, inicial, 4.º-6.º objeto, runas, hechizos y habilidades."""
+    core = _core_entry(data.get("core_items"))
+    return {
+        "core": _ids(core),
+        "core_games": _field(core, "play"),
+        "core_wins": _field(core, "win"),
+        "boots": _ids(_first_entry(data.get("boots"))),
+        "starter": _ids(_first_entry(data.get("starter_items"))),
+        "popular": _options(data.get("last_items")),
+        "fourth": _options(data.get("fourth_items"), 4),
+        "fifth": _options(data.get("fifth_items"), 4),
+        "sixth": _options(data.get("sixth_items"), 4),
+        "runes": _runes_of(data.get("runes")),
+        "spells": _ids(_first_entry(data.get("summoner_spells"))),
+        "skills": _texts(data.get("skills"), "order"),
+        "skill_max": _texts(data.get("skill_masteries"), "ids"),
+    }
+
+
 class Opgg(CachedSource):
     name = "opgg"
+    default_lane = "opgg-mcp"
+    kind_lanes = dict.fromkeys(WEB_KINDS, "opgg-web")  # lo que sale de la web; lo demás, del MCP
 
     def __init__(self, db: Database, dd: DDragon, enabled: bool = True, warmer=None) -> None:
         super().__init__(db, enabled=enabled, warmer=warmer)
@@ -227,9 +330,6 @@ class Opgg(CachedSource):
         self._ids = 0
         self.stats.update({"web_requests": 0, "mcp_requests": 0})
         self.sync_state: dict = {"status": "idle"}
-
-    def lane_for(self, kind: str) -> str:
-        return "opgg-web" if kind in WEB_KINDS else "opgg-mcp"
 
     def _http(self) -> requests.Session:
         session = getattr(self._local, "session", None)
@@ -289,29 +389,33 @@ class Opgg(CachedSource):
                 # Como en los counters: sin datos de ese parche, OP.GG devuelve el actual sin avisar (pedir 16.10 da 16.23).
                 log.debug("OP.GG aplicó %s en vez de %s/%s en la tier list: no se guarda", applied.groups(), tier, patch)
                 return None
-            out = {}
-            for obj in iter_objects(payload, '{"key":"'):
-                if "positionWinRate" not in obj:
-                    continue
-                champ = self.dd.resolve(obj.get("key")) or self.dd.resolve(obj.get("name"))
-                if not champ or POSITION_NAMES.get(str(obj.get("positionName", "")).lower(), role) != role:
-                    continue
-                out[str(champ)] = {
-                    "wr": obj.get("positionWinRate"),
-                    "pick": obj.get("positionPickRate"),
-                    "ban": obj.get("positionBanRate"),
-                    "role_rate": obj.get("positionRoleRate"),
-                    "tier": obj.get("positionTier"),
-                    "rank": obj.get("positionRank"),
-                    "counters": [
-                        {"champ": self.dd.resolve(c.get("key")) or c.get("champion_id"), "games": c.get("play"), "wins": c.get("win")}
-                        for c in obj.get("positionCounters") or []
-                    ],
-                }
-            return out or None
+            return self._tier_rows(payload, role) or None
 
         data = self._cached("tier", key, self._ttl(patch), fetch, allow_fetch)
         return {int(k): v for k, v in data.items()} if data else None
+
+    def _tier_rows(self, payload: str, role: str) -> dict[str, dict]:
+        """Filas de la tier list de una línea sacadas de la página: ``{campeón: {wr, pick, ban, …}}``."""
+        out = {}
+        for obj in iter_objects(payload, '{"key":"'):
+            if "positionWinRate" not in obj:
+                continue
+            champ = self.dd.resolve(obj.get("key")) or self.dd.resolve(obj.get("name"))
+            if not champ or POSITION_NAMES.get(str(obj.get("positionName", "")).lower(), role) != role:
+                continue
+            out[str(champ)] = {
+                "wr": obj.get("positionWinRate"),
+                "pick": obj.get("positionPickRate"),
+                "ban": obj.get("positionBanRate"),
+                "role_rate": obj.get("positionRoleRate"),
+                "tier": obj.get("positionTier"),
+                "rank": obj.get("positionRank"),
+                "counters": [
+                    {"champ": self.dd.resolve(c.get("key")) or c.get("champion_id"), "games": c.get("play"), "wins": c.get("win")}
+                    for c in obj.get("positionCounters") or []
+                ],
+            }
+        return out
 
     def counters(self, champ: int, role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> dict[int, tuple[int, int]] | None:
         """{rival: (partidas, victorias del campeón)} — perspectiva de ``champ``."""
@@ -334,21 +438,25 @@ class Opgg(CachedSource):
                 # actual): guardarlo con la clave pedida mostraría datos de otro parche como si fueran de ese.
                 log.debug("OP.GG aplicó %s en vez de %s/%s: no se guarda", applied.groups(), tier, patch)
                 return None
-            out: dict[str, list[int]] = {}
-            for match in re.finditer(r'\{"play":(\d+),"win":(\d+),"win_rate":[\d.]+,"champion":(\{[^{}]*\})\}', payload):
-                try:
-                    info = json.loads(match.group(3))
-                except ValueError:
-                    continue
-                opp = self.dd.resolve(info.get("key")) or self.dd.resolve(info.get("name"))
-                if opp and opp != champ and str(opp) not in out:
-                    out[str(opp)] = [int(match.group(1)), int(match.group(2))]
-            return out
+            return self._counter_rows(payload, champ)
 
         data = self._cached("counters", key, self._ttl(patch), fetch, allow_fetch)
         if data is None:
             return None
         return {int(k): (v[0], v[1]) for k, v in data.items()}
+
+    def _counter_rows(self, payload: str, champ: int) -> dict[str, list[int]]:
+        """``{rival: [partidas, victorias de champ]}`` de la página de counters (cuenta la primera fila de cada rival)."""
+        out: dict[str, list[int]] = {}
+        for match in re.finditer(r'\{"play":(\d+),"win":(\d+),"win_rate":[\d.]+,"champion":(\{[^{}]*\})\}', payload):
+            try:
+                info = json.loads(match.group(3))
+            except ValueError:
+                continue
+            opp = self.dd.resolve(info.get("key")) or self.dd.resolve(info.get("name"))
+            if opp and opp != champ and str(opp) not in out:
+                out[str(opp)] = [int(match.group(1)), int(match.group(2))]
+        return out
 
     # --------------------------------------------------------------- MCP
     def _mcp_post(self, payload: dict, session: str | None):
@@ -408,14 +516,19 @@ class Opgg(CachedSource):
                         self._mcp_session = None
                     continue
                 raise
-            if not data or "error" in data:
-                raise OpggError((data or {}).get("error", {}).get("message", "respuesta vacía"))
-            content = (data.get("result") or {}).get("content") or []
-            texts = [c.get("text", "") for c in content if c.get("type") == "text"]
-            if data.get("result", {}).get("isError"):
-                raise OpggError(" ".join(texts)[:200] or "error del MCP")
-            return parse_mcp_text("\n".join(texts)) if texts else None
+            return self._mcp_result(data)
         raise OpggError("No se pudo abrir sesión con el MCP de OP.GG")
+
+    @staticmethod
+    def _mcp_result(data):
+        """Valor que devuelve una herramienta del MCP (``OpggError`` si responde con un error o vacío)."""
+        if not data or "error" in data:
+            raise OpggError((data or {}).get("error", {}).get("message", "respuesta vacía"))
+        content = (data.get("result") or {}).get("content") or []
+        texts = [c.get("text", "") for c in content if c.get("type") == "text"]
+        if data.get("result", {}).get("isError"):
+            raise OpggError(" ".join(texts)[:200] or "error del MCP")
+        return parse_mcp_text("\n".join(texts)) if texts else None
 
     def mcp_name(self, champ: int) -> str:
         """Nombre que espera el MCP: inglés en mayúsculas con guiones bajos (``LEE_SIN``)."""
@@ -521,45 +634,7 @@ class Opgg(CachedSource):
                 },
             )
             data = (raw or {}).get("data") or {}
-            if not data:
-                return None
-
-            def ids(entry) -> list[int]:
-                out = []
-                for value in (entry or {}).get("ids") or []:
-                    try:
-                        out.append(int(value))
-                    except (TypeError, ValueError):
-                        continue
-                return out
-
-            def options(entries, limit=6) -> list[dict]:
-                rows = []
-                for e in (entries or [])[:limit]:
-                    item = ids(e)
-                    if item:
-                        rows.append({"id": item[0], "games": e.get("play"), "wins": e.get("win"), "pick_rate": e.get("pick_rate")})
-                return rows
-
-            core = data.get("core_items") or {}
-            core = core[0] if isinstance(core, list) and core else core
-            skills = data.get("skills") or {}
-            masteries = data.get("skill_masteries") or {}
-            return {
-                "core": ids(core),
-                "core_games": core.get("play") if isinstance(core, dict) else None,
-                "core_wins": core.get("win") if isinstance(core, dict) else None,
-                "boots": ids(data.get("boots") if isinstance(data.get("boots"), dict) else (data.get("boots") or [{}])[0]),
-                "starter": ids(data.get("starter_items") if isinstance(data.get("starter_items"), dict) else (data.get("starter_items") or [{}])[0]),
-                "popular": options(data.get("last_items")),
-                "fourth": options(data.get("fourth_items"), 4),
-                "fifth": options(data.get("fifth_items"), 4),
-                "sixth": options(data.get("sixth_items"), 4),
-                "runes": _runes_of(data.get("runes")),
-                "spells": ids(data.get("summoner_spells") if isinstance(data.get("summoner_spells"), dict) else (data.get("summoner_spells") or [{}])[0]),
-                "skills": [str(s) for s in (skills.get("order") if isinstance(skills, dict) else []) or []],
-                "skill_max": [str(s) for s in (masteries.get("ids") if isinstance(masteries, dict) else []) or []],
-            }
+            return _build_of(data) if data else None
 
         return self._cached("build", key, TTL_MCP, fetch, allow_fetch)
 
@@ -633,12 +708,7 @@ class Opgg(CachedSource):
             for patch in patches:
                 for role in POSITIONS:
                     self.tier_list(role, tier, region, patch)
-            work = []
-            for patch in patches:
-                for role in POSITIONS:
-                    for champ, row in (self.tier_list(role, tier, region, patch, allow_fetch=False) or {}).items():
-                        if (row.get("role_rate") or 0) >= min_role_rate:
-                            work.append((champ, role, patch))
+            work = self._sync_work(tier, region, patches, min_role_rate)
             state["total"] = len(work)
             for champ, role, patch in work:
                 if stop is not None and stop.is_set():
@@ -654,3 +724,13 @@ class Opgg(CachedSource):
         state["finished_at"] = time.time()
         log.info("Sincronización de OP.GG: %d/%d páginas.", state.get("done", 0), state.get("total", 0))
         return state
+
+    def _sync_work(self, tier: str, region: str, patches: list[str], min_role_rate: float) -> list[tuple[int, str, str]]:
+        """``(campeón, línea, parche)`` de los counters que hay que descargar (de las tier lists ya guardadas)."""
+        work = []
+        for patch in patches:
+            for role in POSITIONS:
+                for champ, row in (self.tier_list(role, tier, region, patch, allow_fetch=False) or {}).items():
+                    if (row.get("role_rate") or 0) >= min_role_rate:
+                        work.append((champ, role, patch))
+        return work

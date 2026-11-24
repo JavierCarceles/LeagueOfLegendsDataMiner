@@ -22,6 +22,12 @@ router = APIRouter(prefix="/api", tags=["progreso"])
 log = get_logger("progreso")
 _fetching: set[tuple[int, str]] = set()
 HABITS_GAMES = 100  # partidas recientes (de cualquier cola y rol) para el tilt, las sesiones y el pool
+GAME_NOT_FOUND = "Esa partida no está entre tus partidas analizadas"
+GOAL_NOT_FOUND = "Ese propósito no existe"
+# Errores que documenta la API (OpenAPI) en las rutas que los devuelven.
+NO_PROFILE_DOC = {"description": "Aún no has guardado tu perfil en «Mi progreso»"}
+GAME_NOT_FOUND_DOC = {"description": GAME_NOT_FOUND}
+GOAL_NOT_FOUND_DOC = {"description": GOAL_NOT_FOUND}
 
 
 class ProfileBody(BaseModel):
@@ -83,7 +89,8 @@ def _public(profile: dict | None) -> dict | None:
 def _elo_profile(svc) -> EloProfile | None:
     try:
         return EloProfile.of(svc)
-    except Exception:  # noqa: BLE001  (sin perfil por elo, el resto de «Mi progreso» sigue)
+    # sin perfil por elo, el resto de «Mi progreso» sigue
+    except Exception:  # noqa: BLE001
         log.debug("Sin perfil de errores por elo", exc_info=True)
         return None
 
@@ -98,36 +105,47 @@ def _catalog(svc):
     return catalog if catalog else None
 
 
+def _drop_retired_mistakes(g: dict) -> None:
+    """Reglas que en ese rol ya no cuentan (partidas analizadas antes del cambio): fuera de errores y recuentos."""
+    if not g.get("mistakes"):
+        return
+    gone = [
+        m for m in g["mistakes"]
+        if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role"), g.get("champ"))
+        or insights.excused({"kind": m[0], "tags": m[3]}, g.get("role"))
+    ]
+    if not gone:
+        return
+    g["mistakes"] = [m for m in g["mistakes"] if m not in gone]
+    issues = g["issues"] = dict(g.get("issues") or {})
+    for m in gone:
+        issues[m[1]] = max(0, issues.get(m[1], 0) - 1)
+
+
+def _check_vs_otps(svc, g: dict, prof: EloProfile, catalog) -> None:
+    """Errores de una partida frente a los OTPs de su campeón (solo si ya está analizada y puntúa)."""
+    cc = g.get("checks")
+    if not cc or g.get("mistakes") is None or not insights.reliable(g):
+        return
+    ref = prof.champ_ref(g.get("champ"), g.get("role"))
+    metrics = g.get("metrics") or {}
+    rec = {**cc, **{k: metrics.get(k) for k in champ_checks.METRIC_KEYS}, "role": g.get("role")}
+    issues = g["issues"] = dict(g.get("issues") or {})
+    flags = g["flags"] = []
+    for m in champ_checks.check(rec, ref, catalog, _champ_name(svc, g.get("champ"))):
+        g["mistakes"].append([m["kind"], m["severity"], m["t"], m["tags"], m["title"][:90]])
+        flags.append(m["tags"][-1])
+        issues[m["severity"]] = issues.get(m["severity"], 0) + 1  # la lista de repeticiones cuenta lo mismo que se ve dentro
+
+
 def _add_champ_checks(svc, games: list[dict], prof: EloProfile | None) -> None:
     """Orden de habilidades, primera vuelta y ritmo del primer objeto frente a los OTPs de cada campeón (en sus errores)."""
     if prof is None:
         return
     catalog = _catalog(svc)
     for g in games:
-        # Reglas que en ese rol ya no cuentan (partidas analizadas antes del cambio): fuera de errores y recuentos.
-        if g.get("mistakes"):
-            gone = [
-                m for m in g["mistakes"]
-                if insights.dropped({"kind": m[0], "tags": m[3]}, g.get("role"), g.get("champ"))
-                or insights.excused({"kind": m[0], "tags": m[3]}, g.get("role"))
-            ]
-            if gone:
-                g["mistakes"] = [m for m in g["mistakes"] if m not in gone]
-                issues = g["issues"] = dict(g.get("issues") or {})
-                for m in gone:
-                    issues[m[1]] = max(0, issues.get(m[1], 0) - 1)
-        cc = g.get("checks")
-        if not cc or g.get("mistakes") is None or not insights.reliable(g):
-            continue
-        ref = prof.champ_ref(g.get("champ"), g.get("role"))
-        metrics = g.get("metrics") or {}
-        rec = {**cc, **{k: metrics.get(k) for k in champ_checks.METRIC_KEYS}, "role": g.get("role")}
-        issues = g["issues"] = dict(g.get("issues") or {})
-        flags = g["flags"] = []
-        for m in champ_checks.check(rec, ref, catalog, _champ_name(svc, g.get("champ"))):
-            g["mistakes"].append([m["kind"], m["severity"], m["t"], m["tags"], m["title"][:90]])
-            flags.append(m["tags"][-1])
-            issues[m["severity"]] = issues.get(m["severity"], 0) + 1  # la lista de repeticiones cuenta lo mismo que se ve dentro
+        _drop_retired_mistakes(g)
+        _check_vs_otps(svc, g, prof, catalog)
 
 
 def _require_profile(svc) -> dict:
@@ -143,31 +161,44 @@ def get_profile(svc=Depends(svc_from)):
     return {"profile": _public(store.get_profile(svc.db)), "tracker": svc.tracker.status(), "targets": list(TARGET_TIERS)}
 
 
-@router.post("/profile")
-def save_profile(body: ProfileBody, svc=Depends(svc_from)):
+def _riot_id(body: ProfileBody) -> tuple[str, str]:
+    """Nombre y TAG del Riot ID (``Nombre#TAG`` o por separado); 400 si falta alguno."""
     name, tag = body.game_name, body.tag_line
     if body.riot_id:
         name, _, tag = body.riot_id.partition("#")
     name, tag = (name or "").strip(), (tag or "").strip().lstrip("#")
     if not name or not tag:
         raise HTTPException(400, "Escribe tu Riot ID completo: Nombre#TAG")
+    return name, tag
+
+
+def _link_account(svc, name: str, tag: str, platform: str) -> tuple[dict, str | None]:
+    """La cuenta de Riot del perfil y, si no se ha podido comprobar, el aviso para la web (el perfil se guarda igual)."""
+    if not svc.keys.get() or svc.keys.status == "invalid":
+        return {}, (
+            "Sin API key de Riot: el perfil queda guardado y empezará a recoger partidas en cuanto pegues tu key en "
+            "«Datos y API»."
+        )
+    try:
+        return resolve_account(svc, name, tag, platform), None
+    except ProfileNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except RiotKeyError:
+        return {}, "Riot no acepta la API key: el perfil queda guardado y se vinculará al pegar una key válida."
+    except RiotAPIError as exc:
+        return {}, f"No se pudo comprobar con Riot ahora ({exc.message}). Se reintentará solo."
+
+
+@router.post(
+    "/profile",
+    responses={400: {"description": "Riot ID incompleto o región no válida"}, 404: {"description": "No existe ese Riot ID"}},
+)
+def save_profile(body: ProfileBody, svc=Depends(svc_from)):
+    name, tag = _riot_id(body)
     platform = (body.platform or "").lower()
     if platform not in PLATFORMS:
         raise HTTPException(400, "Región no válida")
-
-    resolved: dict = {}
-    note = None
-    if svc.keys.get() and svc.keys.status != "invalid":
-        try:
-            resolved = resolve_account(svc, name, tag, platform)
-        except ProfileNotFound as exc:
-            raise HTTPException(404, str(exc)) from exc
-        except RiotKeyError:
-            note = "Riot no acepta la API key: el perfil queda guardado y se vinculará al pegar una key válida."
-        except RiotAPIError as exc:
-            note = f"No se pudo comprobar con Riot ahora ({exc.message}). Se reintentará solo."
-    else:
-        note = "Sin API key de Riot: el perfil queda guardado y empezará a recoger partidas en cuanto pegues tu key en «Datos y API»."
+    resolved, note = _link_account(svc, name, tag, platform)
 
     settings = {k: v for k, v in (("backfill", body.backfill), ("poll_minutes", body.poll_minutes), ("enabled", body.enabled)) if v is not None}
     profile = store.save_profile(
@@ -186,7 +217,7 @@ def save_profile(body: ProfileBody, svc=Depends(svc_from)):
     return {"profile": _public(profile), "tracker": svc.tracker.status(), "note": note}
 
 
-@router.patch("/profile")
+@router.patch("/profile", responses={412: NO_PROFILE_DOC})
 def update_profile(body: ProfileUpdate, svc=Depends(svc_from)):
     _require_profile(svc)
     settings = {k: v for k, v in (("backfill", body.backfill), ("poll_minutes", body.poll_minutes), ("enabled", body.enabled)) if v is not None}
@@ -206,7 +237,7 @@ def delete_profile(purge: bool = Query(False, description="Borrar también las p
     return {"profile": None, "purged": purge}
 
 
-@router.get("/profile/detect")
+@router.get("/profile/detect", responses={409: {"description": "El cliente de LoL no está abierto o no ha cargado tu cuenta"}})
 def detect_profile():
     """Lee tu Riot ID del cliente de LoL abierto en este ordenador."""
     try:
@@ -216,7 +247,7 @@ def detect_profile():
 
 
 # ---------------------------------------------------------------- progreso
-@router.post("/coach/sync")
+@router.post("/coach/sync", responses={412: NO_PROFILE_DOC})
 def sync_now(svc=Depends(svc_from)):
     _require_profile(svc)
     svc.tracker.trigger()
@@ -266,6 +297,33 @@ def _references(svc, profile: dict) -> References:
     return References(svc, profile["target_tier"], current=rank.get("tier"))
 
 
+def _safe_build(svc, champ, role, **kwargs):
+    """Build más jugada (OP.GG) de un campeón y rol, o None si OP.GG falla."""
+    try:
+        return svc.opgg.champion_build(champ, role, **kwargs)
+    # OP.GG es opcional: sin su build, el resto sigue
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Build de OP.GG de %s (%s): %s", champ, role, exc)
+        return None
+
+
+def _fetch_builds_later(svc, missing: list[tuple]) -> None:
+    """Pide a OP.GG en segundo plano las builds que faltan (sin repetir las que ya se están pidiendo)."""
+    _fetching.update(missing)
+
+    def run():
+        try:
+            for champ, role in missing:
+                try:
+                    svc.opgg.champion_build(champ, role)
+                except Exception:
+                    log.debug("Sin build de referencia para %s (%s)", champ, role, exc_info=True)
+        finally:
+            _fetching.difference_update(missing)
+
+    threading.Thread(target=run, name="opgg-builds", daemon=True).start()
+
+
 def _build_refs(svc, keys) -> dict:
     """Build más jugada (OP.GG) de cada campeón y rol, solo desde la caché; lo que falte se pide en segundo plano."""
     refs: dict = {}
@@ -273,29 +331,39 @@ def _build_refs(svc, keys) -> dict:
     for champ, role in keys:
         if not champ or not role:
             continue
-        try:
-            ref = svc.opgg.champion_build(champ, role, allow_fetch=False)
-        except Exception as exc:  # noqa: BLE001  (OP.GG es opcional: sin su build, el resto sigue)
-            log.warning("Build de OP.GG de %s (%s): %s", champ, role, exc)
-            ref = None
+        ref = _safe_build(svc, champ, role, allow_fetch=False)
         refs[(champ, role)] = ref
         if ref is None and (champ, role) not in _fetching:
             missing.append((champ, role))
     if missing and getattr(svc.opgg, "enabled", False):
-        _fetching.update(missing)
-
-        def run():
-            try:
-                for champ, role in missing:
-                    try:
-                        svc.opgg.champion_build(champ, role)
-                    except Exception:
-                        log.debug("Sin build de referencia para %s (%s)", champ, role, exc_info=True)
-            finally:
-                _fetching.difference_update(missing)
-
-        threading.Thread(target=run, name="opgg-builds", daemon=True).start()
+        _fetch_builds_later(svc, missing)
     return refs
+
+
+def _games_or_fallback(svc, puuids, queue: str, role_f: str | None, last: int):
+    """Tus partidas con ese filtro: ``(partidas, cola, rol, fallback)``. Tus datos siempre a la vista: si el filtro no
+    tiene partidas pero otro sí (casi no juegas clasificatorias, o ese rol no lo juegas), se enseñan las que hay y
+    ``fallback`` dice qué filtro se ha usado."""
+    games = store.list_games(svc.db, puuids, queue=queue, role=role_f, limit=last)
+    if games:
+        return games, queue, role_f, None
+    for alt_queue, alt_role in ((queue, None), ("normal", role_f), ("normal", None), ("all", role_f), ("all", None)):
+        if (alt_queue, alt_role) == (queue, role_f):
+            continue
+        alt = store.list_games(svc.db, puuids, queue=alt_queue, role=alt_role, limit=last)
+        if alt:
+            shown = {"queue": alt_queue, "role": alt_role or "all"}
+            return alt, alt_queue, alt_role, {"wanted": {"queue": queue, "role": role_f or "all"}, "shown": shown}
+    return games, queue, role_f, None
+
+
+def _top_build_keys(games: list[dict]) -> list[tuple]:
+    """Los 4 campeones (con su rol) con más partidas con build entre estas."""
+    counts: dict = {}
+    for g in games:
+        if g.get("build"):
+            counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
+    return [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
 
 
 @router.get("/coach/summary")
@@ -311,25 +379,9 @@ def summary(
     puuids = store.known_puuids(profile)
     queue, role_f = _queue(queue), _role(role)
     refresh_digests(svc.db)  # resúmenes de un formato anterior: se rehacen del análisis guardado (solo la primera vez)
-    games = store.list_games(svc.db, puuids, queue=queue, role=role_f, limit=last)
-    # Tus datos siempre a la vista: si el filtro no tiene partidas pero otro sí (casi no juegas clasificatorias, o ese rol
-    # no lo juegas), se enseñan las que hay y se dice qué filtro se ha usado.
-    fallback = None
-    if not games:
-        for alt_queue, alt_role in ((queue, None), ("normal", role_f), ("normal", None), ("all", role_f), ("all", None)):
-            if (alt_queue, alt_role) == (queue, role_f):
-                continue
-            alt = store.list_games(svc.db, puuids, queue=alt_queue, role=alt_role, limit=last)
-            if alt:
-                fallback = {"wanted": {"queue": queue, "role": role_f or "all"}, "shown": {"queue": alt_queue, "role": alt_role or "all"}}
-                games, queue, role_f = alt, alt_queue, alt_role
-                break
+    games, queue, role_f, fallback = _games_or_fallback(svc, puuids, queue, role_f, last)
     refs = _references(svc, profile)
-    counts: dict = {}
-    for g in games:
-        if g.get("build"):
-            counts[(g["champ"], g["role"])] = counts.get((g["champ"], g["role"]), 0) + 1
-    top = [key for key, _n in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:4]]
+    top = _top_build_keys(games)
     prof = _elo_profile(svc)
     _add_champ_checks(svc, games, prof)
     data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top), prof.get() if prof else None)
@@ -365,7 +417,7 @@ def summary(
     return data
 
 
-@router.get("/coach/games")
+@router.get("/coach/games", responses={412: NO_PROFILE_DOC})
 def list_games(
     queue: str = Query("all", pattern="^(all|normal|ranked)$"),
     role: str = Query("all"),
@@ -380,83 +432,109 @@ def list_games(
     return {"games": [_row(g, refs) for g in games]}
 
 
-@router.get("/coach/games/{match_id}")
+def _keep_valid_moments(analysis: dict) -> None:
+    """Fuera los momentos de reglas que ya no cuentan en ese rol; los cambios igualados quedan como información."""
+    role, champ = analysis.get("role"), analysis.get("champ")
+    analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, role, champ)]
+    for m in analysis["moments"]:
+        # Cambio igualado (caísteis los mismos en los dos bandos): se ve en la repetición, pero no es un error.
+        if m.get("severity") in ("high", "medium", "low") and insights.excused(m, role):
+            m["severity"] = "info"
+            m["detail"] = ((m.get("detail") or "") + " Cambio igualado: no cuenta como error.").strip()
+
+
+def _route_replay(analysis: dict, match_id: str) -> None:
+    """Rutas que rodean los muros (navgrid): sin ellas la vista 2D los atravesaba en línea recta (11 % del tiempo dentro
+    de un muro; con rutas, 1 %). Se calcula al abrir la partida (~0,2 s): no hace falta re-analizar nada."""
+    if not analysis.get("replay") or analysis["replay"].get("routed"):
+        return
+    try:
+        champs = {str(p.get("pid")): p.get("champ") for p in analysis.get("players") or []}
+        analysis["replay"] = navgrid.route_replay(analysis["replay"], champs)
+    # sin rutas, la repetición se ve igual que antes
+    except Exception:  # noqa: BLE001
+        log.warning("No se pudieron calcular las rutas de %s", match_id, exc_info=True)
+
+
+def _add_otp_moments(svc, analysis: dict, prof: EloProfile | None) -> None:
+    """Orden de habilidades, primera vuelta y primer objeto frente a los OTPs de tu campeón (Diamante o más)."""
+    champ_ref = prof.champ_ref(analysis.get("champ"), analysis.get("role")) if prof and prof.get() else None
+    if not (analysis.get("build") and analysis.get("has_timeline") and analysis.get("reliable")):
+        return
+    skill_t = None
+    if not analysis["build"].get("skill_t"):
+        skill_t = skill_times(store.raw_timeline(svc.db, analysis["match_id"]), analysis.get("me"))
+    rec = champ_checks.record_from_analysis(analysis, skill_t)
+    extra = champ_checks.check(rec, champ_ref, _catalog(svc), _champ_name(svc, analysis.get("champ")))
+    if extra:
+        analysis["moments"] = sorted((analysis.get("moments") or []) + extra, key=lambda m: m.get("t") or 0)
+
+
+def _elo_info(m: dict, tiers: dict, scope: str, role: str | None) -> dict | None:
+    """Frecuencia de un error en cada elo (None si el momento no es un error que se mida por elo)."""
+    if m.get("severity") not in ("high", "medium", "low"):
+        return None
+    mt = insights.mistake_type(m.get("kind"), set(m.get("tags") or []), role)
+    if mt is None:
+        return None
+    sep = insights.separation(tiers, mt["id"])
+    pct = {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in insights.ELO_GROUPS if g in tiers}
+    return {
+        "type": mt["title"],
+        "scope": scope,
+        "tiers": pct,
+        "separates": (not sep["flat"]) if sep else None,
+        "rises": bool(sep and sep["rises"]),
+    }
+
+
+def _add_elo_frequency(analysis: dict, prof: EloProfile | None) -> None:
+    """Cada error con su frecuencia en cada elo (tu campeón si hay varios elos; si no, tu rol): ¿lo hace todo el mundo o
+    es de lo que separa elos?"""
+    data = prof.get(refresh=False) if prof else None
+    tiers, scope = insights.elo_tiers(data, analysis.get("role"), analysis.get("champ"))
+    if not tiers:
+        return
+    for m in analysis.get("moments") or []:
+        elo = _elo_info(m, tiers, scope, analysis.get("role"))
+        if elo is not None:
+            m["elo"] = elo
+
+
+@router.get("/coach/games/{match_id}", responses={404: GAME_NOT_FOUND_DOC, 412: NO_PROFILE_DOC})
 def game_detail(match_id: str, svc=Depends(svc_from)):
     profile = _require_profile(svc)
     analysis = store.get_game(svc.db, match_id.strip().upper())
     if not analysis:
-        raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
+        raise HTTPException(404, GAME_NOT_FOUND)
     refs = _references(svc, profile)
     role_refs = insights.game_refs(refs, analysis)
     analysis["refs"] = role_refs
     analysis["refs_source"] = refs.source(analysis["role"]) if analysis.get("role") else None
     analysis["target_tier"] = profile["target_tier"]
     analysis["reliable"] = insights.reliable(analysis)
-    analysis["score"] = insights.fundamentals_score(analysis.get("metrics") or {}, role_refs, analysis.get("role")) if analysis["reliable"] else None
+    metrics = analysis.get("metrics") or {}
+    analysis["score"] = insights.fundamentals_score(metrics, role_refs, analysis.get("role")) if analysis["reliable"] else None
     analysis["metric_info"] = public_metrics()
-    ref = None
-    if analysis.get("build") and analysis.get("role"):
-        try:
-            ref = svc.opgg.champion_build(analysis["champ"], analysis["role"])
-        except Exception as exc:  # noqa: BLE001  (OP.GG es opcional: sin su build, el resto sigue)
-            log.warning("Build de OP.GG de %s (%s): %s", analysis["champ"], analysis["role"], exc)
-            ref = None
+    with_build = analysis.get("build") and analysis.get("role")
+    ref = _safe_build(svc, analysis["champ"], analysis["role"]) if with_build else None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
-    analysis["moments"] = [m for m in analysis.get("moments") or [] if not insights.dropped(m, analysis.get("role"), analysis.get("champ"))]
-    for m in analysis["moments"]:
-        # Cambio igualado (caísteis los mismos en los dos bandos): se ve en la repetición, pero no es un error.
-        if m.get("severity") in ("high", "medium", "low") and insights.excused(m, analysis.get("role")):
-            m["severity"] = "info"
-            m["detail"] = ((m.get("detail") or "") + " Cambio igualado: no cuenta como error.").strip()
-    # Rutas que rodean los muros (navgrid): sin ellas la vista 2D los atravesaba en línea recta (11 % del tiempo dentro
-    # de un muro; con rutas, 1 %). Se calcula al abrir la partida (~0,2 s): no hace falta re-analizar nada.
-    if analysis.get("replay") and not analysis["replay"].get("routed"):
-        try:
-            champs = {str(p.get("pid")): p.get("champ") for p in analysis.get("players") or []}
-            analysis["replay"] = navgrid.route_replay(analysis["replay"], champs)
-        except Exception:  # noqa: BLE001  (sin rutas, la repetición se ve igual que antes)
-            log.warning("No se pudieron calcular las rutas de %s", match_id, exc_info=True)
-    # Orden de habilidades, primera vuelta y primer objeto frente a los OTPs de tu campeón (Diamante o más).
+    _keep_valid_moments(analysis)
+    _route_replay(analysis, match_id)
     prof = _elo_profile(svc)
-    champ_ref = prof.champ_ref(analysis.get("champ"), analysis.get("role")) if prof and prof.get() else None
-    if analysis.get("build") and analysis.get("has_timeline") and analysis.get("reliable"):
-        skill_t = None
-        if not analysis["build"].get("skill_t"):
-            skill_t = skill_times(store.raw_timeline(svc.db, analysis["match_id"]), analysis.get("me"))
-        rec = champ_checks.record_from_analysis(analysis, skill_t)
-        extra = champ_checks.check(rec, champ_ref, _catalog(svc), _champ_name(svc, analysis.get("champ")))
-        if extra:
-            analysis["moments"] = sorted((analysis.get("moments") or []) + extra, key=lambda m: m.get("t") or 0)
-    # Cada error con su frecuencia en cada elo (tu campeón si hay varios elos; si no, tu rol): ¿lo hace todo el mundo o
-    # es de lo que separa elos?
-    data = prof.get(refresh=False) if prof else None
-    tiers, scope = insights.elo_tiers(data, analysis.get("role"), analysis.get("champ"))
-    if tiers:
-        for m in analysis.get("moments") or []:
-            if m.get("severity") not in ("high", "medium", "low"):
-                continue
-            mt = insights.mistake_type(m.get("kind"), set(m.get("tags") or []), analysis.get("role"))
-            if mt is None:
-                continue
-            sep = insights.separation(tiers, mt["id"])
-            m["elo"] = {
-                "type": mt["title"],
-                "scope": scope,
-                "tiers": {g: ((tiers[g].get("types") or {}).get(mt["id"]) or {}).get("pct", 0.0) for g in insights.ELO_GROUPS if g in tiers},
-                "separates": (not sep["flat"]) if sep else None,
-                "rises": bool(sep and sep["rises"]),
-            }
+    _add_otp_moments(svc, analysis, prof)
+    _add_elo_frequency(analysis, prof)
     return analysis
 
 
-@router.get("/coach/games/{match_id}/review")
+@router.get("/coach/games/{match_id}/review", responses={404: GAME_NOT_FOUND_DOC, 412: NO_PROFILE_DOC})
 def get_review(match_id: str, svc=Depends(svc_from)):
     """Revisión guiada de una partida: 3 momentos, 3 preguntas en cada uno y tus respuestas guardadas."""
     _require_profile(svc)
     match_id = match_id.strip().upper()
     analysis = store.get_game(svc.db, match_id)
     if not analysis:
-        raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
+        raise HTTPException(404, GAME_NOT_FOUND)
     return {
         "questions": insights.REVIEW_QUESTIONS,
         "moments": insights.review_moments(analysis.get("moments") or []),
@@ -464,12 +542,12 @@ def get_review(match_id: str, svc=Depends(svc_from)):
     }
 
 
-@router.put("/coach/games/{match_id}/review")
+@router.put("/coach/games/{match_id}/review", responses={404: GAME_NOT_FOUND_DOC, 412: NO_PROFILE_DOC})
 def put_review(match_id: str, body: ReviewAnswer, svc=Depends(svc_from)):
     _require_profile(svc)
     match_id = match_id.strip().upper()
     if not svc.db.scalar("SELECT 1 FROM my_games WHERE match_id = ?", (match_id,)):
-        raise HTTPException(404, "Esa partida no está entre tus partidas analizadas")
+        raise HTTPException(404, GAME_NOT_FOUND)
     store.save_review_answer(svc.db, match_id, body.t, body.question, body.answer)
     return {"ok": True}
 
@@ -501,7 +579,7 @@ def goals(svc=Depends(svc_from)):
     return {"goals": store.list_goals(svc.db), "catalog": catalog, "metrics": public_metrics()}
 
 
-@router.post("/coach/goals")
+@router.post("/coach/goals", responses={400: {"description": "Métrica desconocida o rol no válido"}})
 def add_goal(body: GoalBody, svc=Depends(svc_from)):
     if body.metric not in METRICS:
         raise HTTPException(400, f"Métrica desconocida: {body.metric}")
@@ -514,16 +592,16 @@ def add_goal(body: GoalBody, svc=Depends(svc_from)):
     return {"goal": store.add_goal(svc.db, metric=body.metric, op=body.op, target=body.target, role=role, label=label)}
 
 
-@router.patch("/coach/goals/{goal_id}")
+@router.patch("/coach/goals/{goal_id}", responses={404: GOAL_NOT_FOUND_DOC})
 def update_goal(goal_id: int, body: GoalUpdate, svc=Depends(svc_from)):
     goal = store.update_goal(svc.db, goal_id, target=body.target, label=body.label, active=body.active)
     if not goal:
-        raise HTTPException(404, "Ese propósito no existe")
+        raise HTTPException(404, GOAL_NOT_FOUND)
     return {"goal": goal}
 
 
-@router.delete("/coach/goals/{goal_id}")
+@router.delete("/coach/goals/{goal_id}", responses={404: GOAL_NOT_FOUND_DOC})
 def delete_goal(goal_id: int, svc=Depends(svc_from)):
     if not store.delete_goal(svc.db, goal_id):
-        raise HTTPException(404, "Ese propósito no existe")
+        raise HTTPException(404, GOAL_NOT_FOUND)
     return {"deleted": goal_id}

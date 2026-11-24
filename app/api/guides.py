@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import lcu
@@ -11,19 +13,22 @@ router = APIRouter(prefix="/api", tags=["guías"])
 
 
 @router.get("/guides")
-def tree(svc=Depends(svc_from)):
+def tree(svc: Annotated[Any, Depends(svc_from)]):
     return svc.guides.tree()
 
 
-@router.get("/guides/{role}/{champ}/{opp}")
-def get_guide(role: str, champ: str, opp: str, svc=Depends(svc_from)):
+@router.get(
+    "/guides/{role}/{champ}/{opp}",
+    responses={404: {"description": "Campeón desconocido o sin guía para ese enfrentamiento"}},
+)
+def get_guide(role: str, champ: str, opp: str, svc: Annotated[Any, Depends(svc_from)]):
     guide = svc.guides.find(role_param(role), champ_param(svc, champ), champ_param(svc, opp))
     if not guide:
         raise HTTPException(404, "No hay guía para este enfrentamiento")
     return guide
 
 
-@router.get("/lcu/friends")
+@router.get("/lcu/friends", responses={404: {"description": "El cliente de LoL no está abierto o no responde"}})
 def friends():
     try:
         return {"friends": lcu.friends()}

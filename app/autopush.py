@@ -86,6 +86,29 @@ _PROGRESS = re.compile(r"(Counting|Compressing|Writing) objects:\s+(\d+)%\s*\((\
 _PROGRESS_LABEL = {"Counting": "contando", "Compressing": "comprimiendo", "Writing": "enviando"}
 
 
+def _report_progress(text: str, on_progress) -> None:
+    m = _PROGRESS.search(text)
+    if m:
+        size = f", {m.group(5).strip()}" if m.group(5) else ""
+        on_progress(f"{_PROGRESS_LABEL[m.group(1)]} {m.group(2)} % ({m.group(3)}/{m.group(4)} objetos{size})")
+
+
+def _read_progress(stream, on_progress) -> bytearray:
+    """La salida de error de git, carácter a carácter (el progreso se reescribe con «\\r»), avisando de cada línea."""
+    err = bytearray()
+    line = bytearray()
+    while True:
+        ch = stream.read(1)
+        if not ch:
+            return err
+        err += ch
+        if ch in (b"\r", b"\n"):
+            _report_progress(line.decode("utf-8", "replace"), on_progress)
+            line.clear()
+        else:
+            line += ch
+
+
 def _push_streaming(repo: Path, remote: str, ref: str, on_progress, timeout: int = GIT_TIMEOUT_S) -> subprocess.CompletedProcess:
     """``git push --progress`` leyendo su progreso (``Writing objects: 45% (12/27), 1.2 MiB``) mientras sube."""
     env_vars = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
@@ -99,22 +122,8 @@ def _push_streaming(repo: Path, remote: str, ref: str, on_progress, timeout: int
         raise GitError("git no está instalado o no está en el PATH") from exc
     timer = threading.Timer(timeout, proc.kill)
     timer.start()
-    err = bytearray()
-    line = bytearray()
     try:
-        while True:
-            ch = proc.stderr.read(1)
-            if not ch:
-                break
-            err += ch
-            if ch in (b"\r", b"\n"):
-                m = _PROGRESS.search(line.decode("utf-8", "replace"))
-                if m:
-                    size = f", {m.group(5).strip()}" if m.group(5) else ""
-                    on_progress(f"{_PROGRESS_LABEL[m.group(1)]} {m.group(2)} % ({m.group(3)}/{m.group(4)} objetos{size})")
-                line.clear()
-            else:
-                line += ch
+        err = _read_progress(proc.stderr, on_progress)
         out = proc.stdout.read()
         proc.wait()
     finally:
@@ -124,13 +133,8 @@ def _push_streaming(repo: Path, remote: str, ref: str, on_progress, timeout: int
     return subprocess.CompletedProcess(args, proc.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"))
 
 
-def push_data(repo: Path, data_dir: Path, locks=(), progress=None) -> dict:
-    """Commit «datos» con lo que haya en ``data_dir`` y push de la rama actual. Devuelve qué se hizo.
-
-    ``locks``: cerrojos de los escritores de partidas, para no hacer el commit con un fichero a medio escribir.
-    ``progress(fase, detalle=None)``: en qué va (``STEPS``).
-    """
-    progress = progress or (lambda step, detail=None: None)
+def _check_repo(repo: Path, data_dir: Path) -> tuple[str, str]:
+    """(rama, carpeta de datos relativa al repositorio), o ``GitError`` si no se puede subir."""
     if _git(repo, "rev-parse", "--is-inside-work-tree", check=False).stdout.strip() != "true":
         raise GitError(f"{repo} no es un repositorio git")
     branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
@@ -140,61 +144,80 @@ def push_data(repo: Path, data_dir: Path, locks=(), progress=None) -> dict:
         rel = data_dir.resolve().relative_to(repo.resolve()).as_posix()
     except ValueError as exc:
         raise GitError(f"la carpeta de datos ({data_dir}) no está dentro del repositorio") from exc
-    if _git(repo, "rev-parse", "--verify", "--quiet", "REBASE_HEAD", check=False).returncode == 0:
-        raise GitError("hay un rebase a medias en el repositorio: termínalo o abórtalo antes")
-    if _git(repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
-        raise GitError("hay un merge a medias en el repositorio: termínalo o abórtalo antes")
+    for ref, what in (("REBASE_HEAD", "rebase"), ("MERGE_HEAD", "merge")):
+        if _git(repo, "rev-parse", "--verify", "--quiet", ref, check=False).returncode == 0:
+            raise GitError(f"hay un {what} a medias en el repositorio: termínalo o abórtalo antes")
+    return branch, rel
 
-    # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el merge y
-    # el autostash nunca tiene que mezclar partidas a medio escribir.
+
+def _pull(repo: Path, remote: str, remote_branch: str, progress) -> None:
+    # Merge, no rebase: el rebase reescribía en disco los ficheros de data/ que la app tiene abiertos y en Windows fallaba
+    # («git pull --rebase falló»). El merge solo toca lo que cambió en GitHub.
+    progress("pull")
+    pull = _git(repo, "pull", "--no-rebase", "--no-edit", "--autostash", remote, remote_branch, check=False)
+    conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.strip()
+    if pull.returncode != 0 or conflicts:
+        _git(repo, "merge", "--abort", check=False)
+        raise GitError(f"git pull falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
+
+
+def _commit_and_pull(repo: Path, rel: str, branch: str, progress) -> dict | None:
+    """Commit «datos» y, con el código limpio, pull. ``None`` si no hay nada que subir; si no, lo que necesita el push."""
+    progress("add")
+    _git(repo, "add", "--", rel)
+    files = _git(repo, "diff", "--cached", "--name-only", "--", rel, check=False).stdout.split("\n")
+    n_files = sum(1 for f in files if f.strip())
+    if n_files:
+        progress("commit", f"{n_files} ficheros")
+        _git(repo, "commit", "-m", COMMIT_MESSAGE, "--", rel)
+    upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).stdout.strip()
+    remote, _, remote_branch = upstream.partition("/") if upstream else ("origin", "", branch)
+    ahead = _git(repo, "rev-list", "--count", f"{upstream}..HEAD", check=False).stdout.strip() if upstream else "1"
+    if not n_files and ahead == "0":
+        return None
+    # Código modificado sin commit: un rebase con autostash podría dejar marcas de conflicto en tus ficheros si el remoto
+    # cambió los mismos. En ese caso no se toca nada: se intenta el push tal cual y, si el remoto va por delante, se
+    # avisa y se reintenta más tarde.
+    code_dirty = _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}").stdout.strip()
+    if not code_dirty:
+        _pull(repo, remote, remote_branch, progress)
+    return {"staged": n_files > 0, "remote": remote, "remote_branch": remote_branch, "code_dirty": code_dirty}
+
+
+def _push_error(pushed: subprocess.CompletedProcess, code_dirty: str) -> str:
+    if code_dirty:
+        return (
+            "GitHub tiene commits nuevos y hay cambios de código sin commit fuera de data/ "
+            f"({len(code_dirty.splitlines())} ficheros): haz commit o descártalos y se subirá solo (el commit «datos» queda en local)"
+        )
+    return f"git push: {(pushed.stderr or pushed.stdout).strip()[-500:]}"
+
+
+def push_data(repo: Path, data_dir: Path, locks=(), progress=None) -> dict:
+    """Commit «datos» con lo que haya en ``data_dir`` y push de la rama actual. Devuelve qué se hizo.
+
+    ``locks``: cerrojos de los escritores de partidas, para no hacer el commit con un fichero a medio escribir.
+    ``progress(fase, detalle=None)``: en qué va (``STEPS``).
+    """
+    progress = progress or (lambda step, detail=None: None)
+    branch, rel = _check_repo(repo, data_dir)
+    # Los escritores de partidas esperan hasta después del pull: así ``data/`` no cambia entre el commit y el merge y el
+    # autostash nunca tiene que mezclar partidas a medio escribir.
     progress("locks")
     for lock in locks:
         lock.acquire()
     try:
-        progress("add")
-        _git(repo, "add", "--", rel)
-        files = _git(repo, "diff", "--cached", "--name-only", "--", rel, check=False).stdout.split("\n")
-        n_files = sum(1 for f in files if f.strip())
-        staged = n_files > 0
-        if staged:
-            progress("commit", f"{n_files} ficheros")
-            _git(repo, "commit", "-m", COMMIT_MESSAGE, "--", rel)
-        upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).stdout.strip()
-        remote, _, remote_branch = upstream.partition("/") if upstream else ("origin", "", branch)
-        ahead = _git(repo, "rev-list", "--count", f"{upstream}..HEAD", check=False).stdout.strip() if upstream else "1"
-        if not staged and ahead == "0":
-            return {"committed": False, "pushed": False, "branch": branch}
-        # Código modificado sin commit: un rebase con autostash podría dejar marcas de conflicto en tus ficheros si el
-        # remoto cambió los mismos. En ese caso no se toca nada: se intenta el push tal cual y, si el remoto va por
-        # delante, se avisa y se reintenta más tarde.
-        code_dirty = _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}").stdout.strip()
-        if not code_dirty:
-            # Merge, no rebase: el rebase reescribía en disco los ficheros de data/ que la app tiene abiertos y en Windows
-            # fallaba («git pull --rebase falló»). El merge solo toca lo que cambió en GitHub.
-            progress("pull")
-            pull = _git(repo, "pull", "--no-rebase", "--no-edit", "--autostash", remote, remote_branch, check=False)
-            conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.strip()
-            if pull.returncode != 0 or conflicts:
-                _git(repo, "merge", "--abort", check=False)
-                raise GitError(f"git pull falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
+        state = _commit_and_pull(repo, rel, branch, progress)
     finally:
         for lock in reversed(locks):
             lock.release()
-
+    if state is None:
+        return {"committed": False, "pushed": False, "branch": branch}
     progress("push")
-    report = lambda detail: progress("push", detail)  # noqa: E731
-    if code_dirty:
-        pushed = _push_streaming(repo, remote, f"HEAD:{remote_branch}", report)
-        if pushed.returncode != 0:
-            raise GitError(
-                "GitHub tiene commits nuevos y hay cambios de código sin commit fuera de data/ "
-                f"({len(code_dirty.splitlines())} ficheros): haz commit o descártalos y se subirá solo (el commit «datos» queda en local)"
-            )
-        return {"committed": staged, "pushed": True, "branch": branch}
-    pushed = _push_streaming(repo, remote, f"HEAD:{remote_branch}", report)
+    pushed = _push_streaming(repo, state["remote"], f"HEAD:{state['remote_branch']}", lambda detail: progress("push", detail))
     if pushed.returncode != 0:
-        raise GitError(f"git push: {(pushed.stderr or pushed.stdout).strip()[-500:]}")
-    return {"committed": staged, "pushed": True, "branch": branch}
+        raise GitError(_push_error(pushed, state["code_dirty"]))
+    return {"committed": state["staged"], "pushed": True, "branch": branch}
 
 
 class AutoPush:
@@ -303,7 +326,8 @@ class AutoPush:
             thread = getattr(crawler, "_funnel_thread", None)
             if thread is not None:
                 thread.join(60)
-        except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
+        # es un informe: la subida sigue sin él
+        except Exception:  # noqa: BLE001
             log.debug("No se pudo poner al día el estado de la búsqueda antes de subir", exc_info=True)
 
     def _snapshot_log(self) -> None:
@@ -364,7 +388,8 @@ class AutoPush:
             tmp = folder / "_registro.json.tmp"
             tmp.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
             tmp.replace(folder / "_registro.json")
-        except Exception:  # noqa: BLE001  (es un informe: la subida sigue sin él)
+        # es un informe: la subida sigue sin él
+        except Exception:  # noqa: BLE001
             log.debug("No se pudo escribir el registro para GitHub", exc_info=True)
 
     def _step(self, key: str, detail: str | None = None) -> None:
@@ -394,57 +419,74 @@ class AutoPush:
                 self.state["step"] = None
                 self._save()
 
-    def _run_steps(self, stop, t0: float) -> None:
-        while self._in_game():  # el ancho de banda, para la partida
+    def _wait_game_end(self, stop) -> bool:
+        """Mientras juegas, el ancho de banda es para la partida: espera. ``False`` si se paró la app mientras."""
+        while self._in_game():
             self._step("game")
-            if stop is not None and stop.wait(IN_GAME_WAIT_S):
-                return
             if stop is None:
                 time.sleep(IN_GAME_WAIT_S)
-        with self.lock:
-            counted = int(self.state.get("pending") or 0)
-            counted_tiers = {k: dict(v) for k, v in (self.state.get("tiers") or {}).items()}
+            elif stop.wait(IN_GAME_WAIT_S):
+                return False
+        return True
+
+    def _prepare_report(self) -> None:
+        """Lo que va con la subida: las medias del ranking al día, el embudo y el registro."""
         self._step("report")
         try:
             from app.coach import ranking_stats
 
             stats = ranking_stats.of(self.svc)
             if stats is not None:
-                stats.flush()  # las medias del ranking, al día en la subida
+                stats.flush()
         except Exception:  # noqa: BLE001
             log.debug("No se pudieron volcar las medias del ranking", exc_info=True)
         self._fresh_funnel()
         self._snapshot_log()
         self._write_log()
+
+    def _push_now(self) -> dict | None:
+        """``push_data`` con los cerrojos de los escritores; si falla, lo apunta (y se reintenta más tarde) y da ``None``."""
         from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
 
         locks = [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
         try:
-            result = push_data(self.repo, self.data_dir, locks, progress=self._step)
+            return push_data(self.repo, self.data_dir, locks, progress=self._step)
         except GitError as exc:
             log.warning("No se pudieron subir los datos a GitHub: %s. Se reintentará en %d min.", exc, RETRY_AFTER_S // 60)
-            with self.lock:
-                self.state.update(last_error=str(exc), last_error_at=time.time())
-                self._save()
-            return
+            error = str(exc)
         except Exception:
             log.exception("Fallo inesperado subiendo los datos a GitHub")
-            with self.lock:
-                self.state.update(last_error="fallo inesperado (ver el log)", last_error_at=time.time())
-                self._save()
+            error = "fallo inesperado (ver el log)"
+        with self.lock:
+            self.state.update(last_error=error, last_error_at=time.time())
+            self._save()
+        return None
+
+    def _discount_tiers(self, counted_tiers: dict) -> None:
+        """La gráfica por elo vuelve a 0 (lo que llegó mientras se subía, cuenta para la siguiente)."""
+        for kind, done in counted_tiers.items():
+            now = self.state.setdefault("tiers", {}).setdefault(kind, {})
+            for tier, n_done in done.items():
+                left = int(now.get(tier) or 0) - int(n_done)
+                if left > 0:
+                    now[tier] = left
+                else:
+                    now.pop(tier, None)
+
+    def _run_steps(self, stop, t0: float) -> None:
+        if not self._wait_game_end(stop):
+            return
+        with self.lock:
+            counted = int(self.state.get("pending") or 0)
+            counted_tiers = {k: dict(v) for k, v in (self.state.get("tiers") or {}).items()}
+        self._prepare_report()
+        result = self._push_now()
+        if result is None:
             return
         with self.lock:
             # Las partidas que llegaron mientras se subía cuentan para la siguiente.
             self.state["pending"] = max(0, int(self.state.get("pending") or 0) - counted)
-            # La gráfica por elo vuelve a 0 (lo que llegó mientras se subía, cuenta para la siguiente).
-            for kind, done in counted_tiers.items():
-                now = self.state.setdefault("tiers", {}).setdefault(kind, {})
-                for tier, n_done in done.items():
-                    left = int(now.get(tier) or 0) - int(n_done)
-                    if left > 0:
-                        now[tier] = left
-                    else:
-                        now.pop(tier, None)
+            self._discount_tiers(counted_tiers)
             self.state.update(last_error=None, last_error_at=None, last_check_at=time.time(), last_push_s=round(time.time() - t0))
             if result["pushed"]:
                 self.state.update(last_push_at=time.time(), last_push_games=counted, last_result="pushed")

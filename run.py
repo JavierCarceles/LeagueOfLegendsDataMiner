@@ -302,8 +302,11 @@ def _ping(port: int, timeout: float = 2.0) -> bool:
 
 
 def _url(host: str, port: int) -> str:
+    """Dirección de la web. El servidor es local (este ordenador, o la red de casa con ``HOST``) y solo habla HTTP: no
+    hay certificado que poner para ``localhost``."""
     shown = "localhost" if host in ("127.0.0.1", "0.0.0.0", "::", "") else host
-    return f"http://{shown}:{port}"
+    # Servidor local sin TLS (ver la docstring): HTTP a propósito.
+    return f"http://{shown}:{port}"  # NOSONAR
 
 
 def _port_free(host: str, port: int) -> bool:
@@ -357,6 +360,41 @@ def _open_when_ready(url: str, port: int, open_browser: bool, low_priority: bool
     threading.Thread(target=run, name="open-browser", daemon=True).start()
 
 
+def _running_port(info_path: Path) -> int | None:
+    try:
+        return int(json.loads(info_path.read_text(encoding="utf-8"))["port"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _wait_other_copy(args, lock, info_path: Path) -> int | None:
+    """Ya hay una copia abierta o arrancando con estos datos: se espera a que responda y se abre el navegador (0). Si la
+    anterior se está cerrando (tiene el candado pero ya no responde), al soltarlo arranca esta (``None``)."""
+    for _ in range(60):
+        port = _running_port(info_path)
+        if port and _ping(port):
+            url = _url(args.host, port)
+            say(f"Tempu Drafter ya está abierto → {url}")
+            if not args.no_browser:
+                webbrowser.open(url)
+            return 0
+        if _try_lock(lock):
+            return None
+        time.sleep(0.5)
+    return _fail("Otra copia de Tempu Drafter está arrancando con estos datos y no responde. Ciérrala y vuelve a probar.")
+
+
+def _free_port(host: str, port: int) -> int | None:
+    """El puerto pedido o el siguiente libre (de los 19 siguientes); ``None`` si no hay."""
+    if _port_free(host, port):
+        return port
+    for candidate in range(port + 1, port + 20):
+        if _port_free(host, candidate):
+            say(f"El puerto {port} está ocupado por otro programa: uso el {candidate}.")
+            return candidate
+    return None
+
+
 def serve(args) -> int:
     """Dentro del entorno: una sola copia por carpeta de datos, puerto libre y servidor."""
     import uvicorn
@@ -366,36 +404,15 @@ def serve(args) -> int:
     data_dir = Path(settings.data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
     info_path = data_dir / "run.json"
-    lock = open(data_dir / ".run.lock", "a+b")  # noqa: SIM115 (vive lo que vive el proceso)
+    # vive lo que vive el proceso
+    lock = open(data_dir / ".run.lock", "a+b")  # noqa: SIM115
     if not _try_lock(lock):
-        # Ya hay una copia abierta o arrancando con estos datos: se espera a que responda y se abre el navegador.
-        # Si la anterior se está cerrando (tiene el candado pero ya no responde), al soltarlo arranca esta.
-        for _ in range(60):
-            try:
-                port = int(json.loads(info_path.read_text(encoding="utf-8"))["port"])
-            except (OSError, ValueError, KeyError, TypeError):
-                port = None
-            if port and _ping(port):
-                url = _url(args.host, port)
-                say(f"Tempu Drafter ya está abierto → {url}")
-                if not args.no_browser:
-                    webbrowser.open(url)
-                return 0
-            if _try_lock(lock):
-                break
-            time.sleep(0.5)
-        else:
-            return _fail("Otra copia de Tempu Drafter está arrancando con estos datos y no responde. Ciérrala y vuelve a probar.")
-
-    port = args.port
-    if not _port_free(args.host, port):
-        for candidate in range(port + 1, port + 20):
-            if _port_free(args.host, candidate):
-                say(f"El puerto {port} está ocupado por otro programa: uso el {candidate}.")
-                port = candidate
-                break
-        else:
-            return _fail(f"No hay ningún puerto libre entre {port} y {port + 19}. Cierra el programa que los usa o pasa --port.")
+        waited = _wait_other_copy(args, lock, info_path)
+        if waited is not None:
+            return waited
+    port = _free_port(args.host, args.port)
+    if port is None:
+        return _fail(f"No hay ningún puerto libre entre {args.port} y {args.port + 19}. Cierra el programa que los usa o pasa --port.")
     info_path.write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
 
     url = _url(args.host, port)
@@ -423,7 +440,8 @@ def serve(args) -> int:
 
 def main() -> int:
     _utf8_console()
-    if sys.version_info < (3, 10):  # noqa: UP036  (run.py se abre con cualquier Python: avisa si es antiguo)
+    # run.py se abre con cualquier Python: avisa si es antiguo
+    if sys.version_info < (3, 10):  # noqa: UP036
         return _fail("Tempu Drafter necesita Python 3.10 o superior (recomendado 3.14): https://www.python.org/downloads/")
     os.chdir(ROOT)
     if str(ROOT) not in sys.path:

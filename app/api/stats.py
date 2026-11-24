@@ -74,7 +74,7 @@ def regions_overview(f: Filters = Depends(filters_dep), svc=Depends(svc_from)):
     return regions.overview(svc, f)
 
 
-@router.get("/regions/{target}")
+@router.get("/regions/{target}", responses={404: {"description": "Plataforma desconocida"}})
 def region_detail(target: str, f: Filters = Depends(filters_dep), svc=Depends(svc_from)):
     """``target``: una plataforma (euw1, kr…) o ``all``. El filtro global de región se ignora aquí."""
     target = target.lower()

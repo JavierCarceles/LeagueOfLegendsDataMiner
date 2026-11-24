@@ -157,7 +157,8 @@ def _record(d: dict, role: str | None, player: str) -> dict | None:
     rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in (a.get("metrics") or {})]
     try:
         rec["move"].update(route_macro.from_dossier(d))
-    except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
+    # un dossier raro no puede parar el perfil
+    except Exception:  # noqa: BLE001
         pass
     try:
         rec["move"].update(rule_metrics.from_dossier(d))

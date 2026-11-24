@@ -14,7 +14,7 @@
   </head>
   <body>
     <div class="app">
-      <aside class="sidebar" id="sidebar"></aside>
+      <aside class="sidebar" id="sidebar" aria-label="Menú de vistas"></aside>
       <header class="topbar">
         <h1 id="view-title">Draft</h1>
         <button class="btn btn-ghost btn-sm filters-toggle" id="filters-toggle" type="button" title="Mostrar u ocultar los filtros"></button>
@@ -22,13 +22,13 @@
         <div class="spacer"></div>
         <span class="pending-chip hidden" id="pending-chip" title="Algún dato se está descargando: la vista se completa sola en unos segundos"><span class="spinner sm"></span>Completando datos…</span>
         <button class="status-pill data-pill hidden" id="data-pill" type="button" title="Precarga de datos en segundo plano"></button>
-        <a class="profile-pill hidden" id="profile-pill" href="#/progreso"></a>
+        <a class="profile-pill hidden" id="profile-pill" href="#/progreso" aria-label="Tu perfil (Mi progreso)"><span class="sr-only">Tu perfil</span></a>
         <button class="status-pill" id="key-pill" type="button" title="Estado de la API key de Riot"><span class="dot"></span><span>API key</span></button>
         <button class="btn btn-ghost btn-icon" id="log-toggle" title="Actividad en tiempo real"></button>
       </header>
       <main class="main" id="main"><div class="loading"><div class="spinner"></div>Cargando…</div></main>
     </div>
-    <aside class="drawer" id="drawer">
+    <aside class="drawer" id="drawer" aria-label="Actividad en tiempo real">
       <div class="drawer-head">Actividad en tiempo real<span class="spacer"></span><button class="btn btn-ghost btn-sm" id="log-clear">Limpiar</button><button class="btn btn-ghost btn-sm" id="log-close">Cerrar</button></div>
       <div class="log-list" id="log-list"></div>
     </aside>

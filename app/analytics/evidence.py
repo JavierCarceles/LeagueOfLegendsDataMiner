@@ -129,6 +129,27 @@ def combine_web(*maps: dict | None) -> dict | None:
     return out
 
 
+def _lola_tier_row(row: dict) -> dict:
+    """Fila de tier list sacada solo de Lolalytics (sin OP.GG)."""
+    return {
+        "wr": row.get("wr"),
+        "pick": row.get("pick"),
+        "ban": row.get("ban"),
+        "role_rate": row.get("role_rate"),
+        "tier": None,
+        "rank": row.get("rank"),
+        "counters": [],
+        "lola_wr": row.get("wr"),
+        "lola_games": row.get("games"),
+        "source": "lolalytics",
+    }
+
+
+def _first_known(value, fallback):
+    """``value`` si no es nulo; si no, ``fallback``."""
+    return value if value is not None else fallback
+
+
 class Evidence:
     def __init__(self, svc, f: Filters, sources: str = "all", fetch: bool = True) -> None:
         self.svc = svc
@@ -235,51 +256,60 @@ class Evidence:
             return self._ref_patch[role]
         patches = self.scope.patches
         choice = patches[0]
-        if len(patches) > 1 and self.use_opgg:
-            latest = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, patches[0], allow_fetch=self.fetch) or {}
-            if latest:
-                popular = max(latest, key=lambda c: latest[c].get("pick") or 0)
-                sizes = []
-                for patch in patches[:2]:
-                    data = self.svc.opgg.counters(popular, role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) or {}
-                    sizes.append(sum(g for g, _ in data.values()))
-                if sizes[0] < 0.5 * sizes[1]:
-                    choice = patches[1]
-            else:
-                choice = patches[1]
+        if len(patches) > 1 and self.use_opgg and self._prefer_previous_patch(role):
+            choice = patches[1]
         self._ref_patch[role] = choice
         return choice
+
+    def _prefer_previous_patch(self, role: str) -> bool:
+        """¿Mejor el parche anterior? Sí si el actual aún no tiene tier list en OP.GG o, en su campeón más jugado,
+        tiene menos de la mitad de partidas que el anterior."""
+        scope = self.scope
+        latest = self.svc.opgg.tier_list(role, scope.tier, scope.region, scope.patches[0], allow_fetch=self.fetch) or {}
+        if not latest:
+            return True
+        popular = max(latest, key=lambda c: latest[c].get("pick") or 0)
+        sizes = []
+        for patch in scope.patches[:2]:
+            data = self.svc.opgg.counters(popular, role, scope.tier, scope.region, patch, allow_fetch=self.fetch) or {}
+            sizes.append(sum(g for g, _ in data.values()))
+        return sizes[0] < 0.5 * sizes[1]
 
     def tier_list(self, role: str) -> dict:
         if not self.scope:
             return {}
         if role not in self._tier:
             patch = self.ref_patch(role)
-            data = None
-            if self.use_opgg:
-                data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) if patch else None
-                if not data:  # si falta el de referencia, cualquiera del alcance
-                    for other in self.scope.patches:
-                        data = self.svc.opgg.tier_list(role, self.scope.tier, self.scope.region, other, allow_fetch=False)
-                        if data:
-                            break
-            data = dict(data or {})
+            data = dict(self._opgg_tier(role, patch) or {})
             if self.use_lola and patch:
-                lola = self.svc.lolalytics.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) or {}
-                # Con OP.GG, Lolalytics solo complementa sus filas (OP.GG decide qué campeones son de ese rol).
-                # Sin OP.GG, se usan las de Lolalytics de campeones que de verdad juegan ese rol.
-                base_from_opgg = bool(data)
-                for champ, row in lola.items():
-                    if champ in data:
-                        data[champ] = {**data[champ], "lola_wr": row.get("wr"), "lola_games": row.get("games")}
-                    elif not base_from_opgg and (row.get("role_rate") or 0) >= LOLA_MIN_ROLE_RATE:
-                        data[champ] = {
-                            "wr": row.get("wr"), "pick": row.get("pick"), "ban": row.get("ban"), "role_rate": row.get("role_rate"),
-                            "tier": None, "rank": row.get("rank"), "counters": [], "lola_wr": row.get("wr"), "lola_games": row.get("games"),
-                            "source": "lolalytics",
-                        }
+                self._add_lola_rows(data, role, patch)
             self._tier[role] = data
         return self._tier[role]
+
+    def _opgg_tier(self, role: str, patch: str | None) -> dict | None:
+        """Tier list de OP.GG del parche de referencia; si falta, la de cualquiera del alcance que ya esté en caché."""
+        if not self.use_opgg:
+            return None
+        scope = self.scope
+        data = self.svc.opgg.tier_list(role, scope.tier, scope.region, patch, allow_fetch=self.fetch) if patch else None
+        if data:
+            return data
+        for other in scope.patches:
+            data = self.svc.opgg.tier_list(role, scope.tier, scope.region, other, allow_fetch=False)
+            if data:
+                return data
+        return data
+
+    def _add_lola_rows(self, data: dict, role: str, patch: str) -> None:
+        """Completa la tier list con Lolalytics. Con OP.GG, solo sus filas (OP.GG decide qué campeones son de ese
+        rol); sin OP.GG, se usan las de Lolalytics de campeones que de verdad juegan ese rol."""
+        lola = self.svc.lolalytics.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=self.fetch) or {}
+        base_from_opgg = bool(data)
+        for champ, row in lola.items():
+            if champ in data:
+                data[champ] = {**data[champ], "lola_wr": row.get("wr"), "lola_games": row.get("games")}
+            elif not base_from_opgg and (row.get("role_rate") or 0) >= LOLA_MIN_ROLE_RATE:
+                data[champ] = _lola_tier_row(row)
 
     def ext_role_matches(self, role: str) -> float | None:
         """Partidas totales de OP.GG en el rol (alcance actual), estimadas con
@@ -415,7 +445,8 @@ class Evidence:
                 patch = self.ref_patch(role) or self.scope.patches[0]
                 try:
                     data = self.svc.lolalytics.tier_list(role, self.scope.tier, self.scope.region, patch, allow_fetch=False) or {}
-                except Exception:  # noqa: BLE001  (Lolalytics es un extra para saber el reparto por líneas)
+                # Lolalytics es un extra para saber el reparto por líneas
+                except Exception:  # noqa: BLE001
                     data = {}
             self._lola_tier[role] = data
         return self._lola_tier[role]
@@ -425,35 +456,44 @@ class Evidence:
         línea) y partidas reales en ella (tu BD + las webs; sin el mínimo de 200 que usa ``base`` para estimar)."""
         row = self.tier_list(role).get(champ) or {}
         lola = self._lola_role(role).get(champ) or {}
-        share = row.get("role_rate") if row.get("role_rate") is not None else lola.get("role_rate")
-        pick = row.get("pick") if row.get("pick") is not None else lola.get("pick")
+        share = _first_known(row.get("role_rate"), lola.get("role_rate"))
+        pick = _first_known(row.get("pick"), lola.get("pick"))
         own_games = float((self.own_role(role).get(champ) or {}).get("games") or 0)
         if share is None:
-            if self._own_totals is None:
-                totals: dict[int, float] = {}
-                for r in ROLES:
-                    for c, data in self.own_role(r).items():
-                        totals[c] = totals.get(c, 0.0) + float(data.get("games") or 0)
-                self._own_totals = totals
-            total = self._own_totals.get(champ, 0.0)
+            total = self._own_champ_totals().get(champ, 0.0)
             share = own_games / total if total else None  # la fiabilidad la pone el mínimo de partidas
         if pick is None and own_games:
-            # Sin webs: el pick en tu BD (cada partida tiene dos de esa línea, una por equipo).
-            slots = sum(float(d.get("games") or 0) for d in self.own_role(role).values())
-            pick = 100 * own_games / (slots / 2) if slots else None
-        counters = self.counters(role, champ, fetch=False)
-        known = True
-        if counters:
-            ext = float(sum(g for g, _ in counters.values()))
-        elif row.get("lola_games") or lola.get("games"):
-            ext = float(row.get("lola_games") or lola.get("games") or 0)
-        else:
-            total_role = self.ext_role_matches(role) if row.get("pick") else None
-            ext = float(total_role * row["pick"] / 100) if total_role else 0.0
-            # En la tier list de OP.GG (que solo lista campeones con presencia real en una muestra enorme) pero sin
-            # recuento descargado todavía: no se sabe cuántas, pero no se descarta por eso.
-            known = bool(total_role) or not row.get("pick")
+            pick = self._own_pick(role, own_games)
+        ext, known = self._web_games(role, champ, row, lola)
         return {"share": share, "pick": pick, "games": own_games + ext, "games_known": known}
+
+    def _own_champ_totals(self) -> dict[int, float]:
+        """Partidas de cada campeón en tu BD sumando todas las líneas (se calcula una vez)."""
+        if self._own_totals is None:
+            totals: dict[int, float] = {}
+            for r in ROLES:
+                for c, data in self.own_role(r).items():
+                    totals[c] = totals.get(c, 0.0) + float(data.get("games") or 0)
+            self._own_totals = totals
+        return self._own_totals
+
+    def _own_pick(self, role: str, own_games: float) -> float | None:
+        """Sin webs: el pick en tu BD (cada partida tiene dos de esa línea, una por equipo)."""
+        slots = sum(float(d.get("games") or 0) for d in self.own_role(role).values())
+        return 100 * own_games / (slots / 2) if slots else None
+
+    def _web_games(self, role: str, champ: int, row: dict, lola: dict) -> tuple[float, bool]:
+        """(partidas del campeón en esa línea en las webs, si ese recuento se conoce)."""
+        counters = self.counters(role, champ, fetch=False)
+        if counters:
+            return float(sum(g for g, _ in counters.values())), True
+        if row.get("lola_games") or lola.get("games"):
+            return float(row.get("lola_games") or lola.get("games") or 0), True
+        total_role = self.ext_role_matches(role) if row.get("pick") else None
+        ext = float(total_role * row["pick"] / 100) if total_role else 0.0
+        # En la tier list de OP.GG (que solo lista campeones con presencia real en una muestra enorme) pero sin
+        # recuento descargado todavía: no se sabe cuántas, pero no se descarta por eso.
+        return ext, bool(total_role) or not row.get("pick")
 
     def plays_role(self, role: str, champ: int, min_games: int = MIN_ROLE_GAMES) -> bool:
         """¿Se juega de verdad en esa línea y con muestra suficiente? (Un Yuumi top suelto no.)"""

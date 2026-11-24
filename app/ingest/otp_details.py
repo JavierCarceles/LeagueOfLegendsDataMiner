@@ -82,7 +82,8 @@ def catalog_for(svc, match: dict):
     if finder is not None:
         try:
             catalog = finder((match.get("info") or {}).get("gameVersion"))
-        except Exception:  # noqa: BLE001  (sin catálogo de ese parche se usa el actual)
+        # sin catálogo de ese parche se usa el actual
+        except Exception:  # noqa: BLE001
             catalog = None
         if catalog:
             return catalog
@@ -362,7 +363,8 @@ def play_share(db, puuid: str, champ: int) -> tuple[int, float] | None:
     """(partidas revisadas, parte con ese campeón) de un jugador del recolector, o ``None`` sin muestra suficiente."""
     try:
         row = db.one("SELECT seen FROM otp_progress WHERE puuid = ?", (puuid,))
-    except Exception:  # noqa: BLE001  (BD sin la tabla: tests o versión vieja)
+    # BD sin la tabla: tests o versión vieja
+    except Exception:  # noqa: BLE001
         return None
     seen = int((row["seen"] if row else 0) or 0)
     if seen < OTP_SHARE_MIN_SEEN:
@@ -410,7 +412,8 @@ def reclassify(db) -> list[tuple[str, int]]:
             "WHERE o.seen >= ? AND g.kind IS NOT NULL",
             (OTP_SHARE_MIN_SEEN,),
         )
-    except Exception:  # noqa: BLE001  (BD vieja sin otp_progress)
+    # BD vieja sin otp_progress
+    except Exception:  # noqa: BLE001
         return []
     changes = []
     for r in pairs:

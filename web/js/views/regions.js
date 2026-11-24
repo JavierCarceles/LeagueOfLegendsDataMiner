@@ -13,11 +13,11 @@ export function destroy() {
 export async function render(container, args = []) {
   root = container;
   target = (args[0] || (state.filters.platform !== "all" ? state.filters.platform : "all")).toLowerCase();
-  load();
+  void load(); // trata sus errores (los pinta en la vista)
 }
 
 export function onFilters() {
-  load();
+  void load();
 }
 
 async function load() {
@@ -48,30 +48,31 @@ async function load() {
 function go(id) {
   target = id;
   history.replaceState(null, "", `#/regiones/${id}`);
-  load();
+  void load();
+}
+
+/** Partidas, duración, lado azul y rendiciones de tu base de datos (o el aviso de que aún no hay). */
+function ownKpis(d) {
+  if (!(d.matches > 0)) {
+    return notice("Aún no hay partidas propias de esta región. La meta de abajo sale de OP.GG; para objetivos, duración y lado del mapa inicia el recolector en «Datos y API».", "info");
+  }
+  const blueCi = d.blue_ci ? `IC ${fmt.pct(d.blue_ci[0])}–${fmt.pct(d.blue_ci[1])}` : null;
+  return h(
+    "div.kpis",
+    kpi("Partidas (tu BD)", fmt.int(d.matches), `${fmt.int(d.remakes)} remakes descartadas`),
+    kpi("Duración media", `${fmt.num(d.avg_minutes, 1)} min`),
+    kpi("WR lado azul", h(`span.${wrClass(d.blue_wr, 0.7)}`, fmt.pct(d.blue_wr)), blueCi),
+    kpi("Rendiciones", fmt.pct(d.surrender)),
+  );
 }
 
 function view(d, overview) {
-  const parts = [];
   const hasOwn = d.matches > 0;
-  parts.push(
-    h(
-      "section.card",
-      h("h3.card-title", icon("globe"), target === "all" ? "Todas las regiones" : `${platformLabel(target)} · ${state.meta?.platforms?.find((p) => p.id === target)?.name || ""}`),
-      hasOwn
-        ? h(
-            "div.kpis",
-            kpi("Partidas (tu BD)", fmt.int(d.matches), `${fmt.int(d.remakes)} remakes descartadas`),
-            kpi("Duración media", `${fmt.num(d.avg_minutes, 1)} min`),
-            kpi("WR lado azul", h(`span.${wrClass(d.blue_wr, 0.7)}`, fmt.pct(d.blue_wr)), d.blue_ci ? `IC ${fmt.pct(d.blue_ci[0])}–${fmt.pct(d.blue_ci[1])}` : null),
-            kpi("Rendiciones", fmt.pct(d.surrender)),
-          )
-        : notice("Aún no hay partidas propias de esta región. La meta de abajo sale de OP.GG; para objetivos, duración y lado del mapa inicia el recolector en «Datos y API».", "info"),
-    ),
-  );
-
-  // Meta por rol
-  parts.push(
+  const regionName = state.meta?.platforms?.find((p) => p.id === target)?.name || "";
+  const title = target === "all" ? "Todas las regiones" : `${platformLabel(target)} · ${regionName}`;
+  const parts = [
+    h("section.card", h("h3.card-title", icon("globe"), title), ownKpis(d)),
+    // Meta por rol
     h("h3.card-title", { style: { marginTop: "6px" } }, icon("crown"), "Meta por rol", h("span.spacer"), h("span.tiny.muted", "WR ajustado · OP.GG + tu BD")),
     h(
       "div.grid",
@@ -90,7 +91,7 @@ function view(d, overview) {
         ),
       ),
     ),
-  );
+  ];
 
   if (hasOwn) {
     parts.push(
@@ -148,7 +149,8 @@ function metaBest(best, popular, role) {
   const rest = best.slice(4);
   // Lo visible: los 4 mejores. El resto de la lista y los más jugados, tras «Ver más».
   if (!rest.length && !popular.length) return best.map(row);
-  const label = rest.length ? `Ver ${rest.length} más${popular.length ? " y los más jugados" : ""}` : "Ver los más jugados";
+  const andPopular = popular.length ? " y los más jugados" : "";
+  const label = rest.length ? `Ver ${rest.length} más${andPopular}` : "Ver los más jugados";
   return [
     best.slice(0, 4).map(row),
     h(

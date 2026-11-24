@@ -156,51 +156,60 @@ def assign_roles(champs: list[int], share, fixed: dict[int, str] | None = None, 
 
 
 # ------------------------------------------------------------------ sesión
+def _completed(session: dict, kind: str):
+    """Acciones completadas de ese tipo (``pick`` o ``ban``) con campeón."""
+    for turn in session.get("actions") or []:
+        for action in turn if isinstance(turn, list) else [turn]:
+            if action.get("type") == kind and action.get("completed") and action.get("championId"):
+                yield action
+
+
+def _member_row(m: dict, ally: bool, locked: dict[int, int]) -> dict:
+    cell = m.get("cellId")
+    champ = int(m.get("championId") or 0) or locked.get(cell, 0)
+    hover = int(m.get("championPickIntent") or 0) if not champ and ally else 0
+    # Tu equipo: fijado si su acción de elegir está completada. Del rival solo se ve lo ya fijado.
+    is_locked = (cell in locked) if ally else bool(champ)
+    return {
+        "cell": cell, "champ": champ or hover, "locked": is_locked, "hover": bool(hover),
+        "role": POSITION_ROLE.get(str(m.get("assignedPosition") or "").lower()),
+        "spells": [int(m.get("spell1Id") or 0), int(m.get("spell2Id") or 0)],
+    }
+
+
+def _team(members: list[dict], ally: bool, locked: dict[int, int], share) -> tuple[dict[str, int], list[dict]]:
+    """Roles de un equipo ``{rol: campeón}`` y sus filas (con el rol deducido de cada uno)."""
+    rows = [_member_row(m, ally, locked) for m in members or []]
+    picked = [r for r in rows if r["champ"]]
+    known = {r["champ"]: r["role"] for r in picked if r["role"]}
+    if len(known) != len(set(known.values())):  # posiciones repetidas (modos raros): se deducen
+        known = {}
+    smite = {r["champ"] for r in picked if SMITE in r["spells"]}
+    roles = assign_roles([r["champ"] for r in picked], share, fixed=known, smite=smite)
+    by_champ = {c: role for role, c in roles.items()}
+    for r in rows:
+        r["role"] = by_champ.get(r["champ"], r["role"])
+    return roles, rows
+
+
+def _draft_complete(ally_rows: list[dict], enemy_rows: list[dict], my_locked: bool, phase: str) -> bool:
+    """Ya fijaste tu campeón y, o están los 10 fijados, o el cliente pasó a la fase final."""
+    all_locked = len(ally_rows) == 5 and len(enemy_rows) == 5 and all(r["champ"] and r["locked"] for r in ally_rows + enemy_rows)
+    return my_locked and (all_locked or phase in ("FINALIZATION", "GAME_STARTING"))
+
+
 def parse_session(session: dict, share) -> dict:
     """Sesión del cliente -> draft: ``ally`` / ``enemy`` ``{rol: campeón}``, tú, baneos y si ya está completo."""
     my_cell = session.get("localPlayerCellId")
-    locked: dict[int, int] = {}
-    for turn in session.get("actions") or []:
-        for action in turn if isinstance(turn, list) else [turn]:
-            if action.get("type") == "pick" and action.get("completed") and action.get("championId"):
-                locked[action.get("actorCellId")] = int(action["championId"])
-    bans = {"ally": [], "enemy": []}
-    for turn in session.get("actions") or []:
-        for action in turn if isinstance(turn, list) else [turn]:
-            if action.get("type") == "ban" and action.get("completed") and action.get("championId"):
-                bans["ally" if action.get("isAllyAction") else "enemy"].append(int(action["championId"]))
-
-    def team(members: list[dict], ally: bool) -> tuple[dict[str, int], list[dict]]:
-        rows = []
-        for m in members or []:
-            cell = m.get("cellId")
-            champ = int(m.get("championId") or 0) or locked.get(cell, 0)
-            hover = 0
-            if not champ and ally:
-                hover = int(m.get("championPickIntent") or 0)
-            role = POSITION_ROLE.get(str(m.get("assignedPosition") or "").lower())
-            # Tu equipo: fijado si su acción de elegir está completada. Del rival solo se ve lo ya fijado.
-            is_locked = (cell in locked) if ally else bool(champ)
-            rows.append({"cell": cell, "champ": champ or hover, "locked": is_locked, "hover": bool(hover), "role": role,
-                         "spells": [int(m.get("spell1Id") or 0), int(m.get("spell2Id") or 0)]})
-        picked = [r for r in rows if r["champ"]]
-        known = {r["champ"]: r["role"] for r in picked if r["role"]}
-        if len(known) != len(set(known.values())):  # posiciones repetidas (modos raros): se deducen
-            known = {}
-        smite = {r["champ"] for r in picked if SMITE in r["spells"]}
-        roles = assign_roles([r["champ"] for r in picked], share, fixed=known, smite=smite)
-        by_champ = {c: role for role, c in roles.items()}
-        for r in rows:
-            r["role"] = by_champ.get(r["champ"], r["role"])
-        return roles, rows
-
-    ally, ally_rows = team(session.get("myTeam") or [], True)
-    enemy, enemy_rows = team(session.get("theirTeam") or [], False)
+    locked = {action.get("actorCellId"): int(action["championId"]) for action in _completed(session, "pick")}
+    bans: dict[str, list[int]] = {"ally": [], "enemy": []}
+    for action in _completed(session, "ban"):
+        bans["ally" if action.get("isAllyAction") else "enemy"].append(int(action["championId"]))
+    ally, ally_rows = _team(session.get("myTeam") or [], True, locked, share)
+    enemy, enemy_rows = _team(session.get("theirTeam") or [], False, locked, share)
     me = next((r for r in ally_rows if r["cell"] == my_cell), None)
     phase = ((session.get("timer") or {}).get("phase") or "").upper()
-    all_locked = len(ally_rows) == 5 and len(enemy_rows) == 5 and all(r["champ"] and r["locked"] for r in ally_rows + enemy_rows)
     my_locked = bool(me and me["champ"] and me["locked"])
-    complete = my_locked and (all_locked or phase in ("FINALIZATION", "GAME_STARTING"))
     return {
         "ally": ally,
         "enemy": enemy,
@@ -208,7 +217,7 @@ def parse_session(session: dict, share) -> dict:
         "me": {"role": me["role"], "champ": me["champ"], "locked": my_locked, "cell": my_cell} if me else None,
         "bans": bans,
         "phase": phase,
-        "complete": complete,
+        "complete": _draft_complete(ally_rows, enemy_rows, my_locked, phase),
         "blind": not enemy_rows,  # a ciegas el cliente no manda al equipo rival (en las colas con draft, sí: vacío al principio)
         "game_id": session.get("gameId"),
     }
@@ -305,45 +314,57 @@ def spells_for(svc, rec: dict, champ: int, role: str) -> tuple[list[int], str | 
     return [], None
 
 
+def _import_runes(client, rec: dict, champ_name: str, extra_runes: dict | None, done: dict) -> None:
+    page = _rune_page(rec.get("runes"), extra_runes, f"{champ_name[:22]} TD")  # el cliente admite 25 caracteres
+    if page is None:
+        done["errors"].append("Sin página de runas recomendada para este campeón")
+        return
+    try:
+        done["rune_page"] = write_rune_page(client, page)
+        done["runes"] = page["selectedPerkIds"]
+    except NoRuneSlot:
+        done["errors"].append("Runas: no hay ninguna página con «TD» en el nombre ni huecos libres. Pon «TD» en el nombre de una de "
+                              "tus páginas y la app escribirá siempre ahí, sin tocar las demás.")
+    except lcu.LCUError as exc:
+        done["errors"].append(f"Runas: {exc}")
+
+
+def _import_spells(client, rec: dict, prefs: dict, done: dict) -> None:
+    spells = order_spells(rec.get("spells") or [], prefs.get("smite_key", "F"))
+    if spells is None:
+        done["errors"].append("Sin hechizos recomendados para este campeón")
+        return
+    try:
+        done["spells"] = set_spells_checked(client, spells)
+        if done["spells"] is None:
+            done["errors"].append("Hechizos: el cliente no los aceptó (pruébalo con «Importar build ya»)")
+    except lcu.LCUError as exc:
+        done["errors"].append(f"Hechizos: {exc}")
+
+
+def _import_items(client, rec: dict, title: str, done: dict) -> None:
+    try:
+        sid = client.summoner_id()
+        payload = client.item_sets(sid) or {}
+        sets = [s for s in payload.get("itemSets") or [] if not is_app_page(s.get("title"))]
+        new = _item_set(rec["champ"], title[:75], rec)
+        sets.append(new)
+        client.save_item_sets(sid, {**payload, "accountId": payload.get("accountId", sid), "itemSets": sets, "timestamp": int(time.time() * 1000)})
+        done["items"] = sum(len(b["items"]) for b in new["blocks"])
+    except lcu.LCUError as exc:
+        done["errors"].append(f"Objetos: {exc}")
+
+
 def apply_import(client, rec: dict, champ_name: str, opponent_name: str | None, prefs: dict, extra_runes: dict | None = None) -> dict:
     """Escribe en el cliente lo que toque según ``prefs``. ``client``: el módulo ``lcu`` (o un doble en los tests)."""
     done: dict = {"runes": None, "spells": None, "items": None, "errors": []}
     title = f"{champ_name} TD" + (f" vs {opponent_name}" if opponent_name else "")
     if prefs.get("runes"):
-        page = _rune_page(rec.get("runes"), extra_runes, f"{champ_name[:22]} TD")  # el cliente admite 25 caracteres
-        if page is None:
-            done["errors"].append("Sin página de runas recomendada para este campeón")
-        else:
-            try:
-                done["rune_page"] = write_rune_page(client, page)
-                done["runes"] = page["selectedPerkIds"]
-            except NoRuneSlot:
-                done["errors"].append("Runas: no hay ninguna página con «TD» en el nombre ni huecos libres. Pon «TD» en el nombre de una de "
-                                      "tus páginas y la app escribirá siempre ahí, sin tocar las demás.")
-            except lcu.LCUError as exc:
-                done["errors"].append(f"Runas: {exc}")
+        _import_runes(client, rec, champ_name, extra_runes, done)
     if prefs.get("spells"):
-        spells = order_spells(rec.get("spells") or [], prefs.get("smite_key", "F"))
-        if spells is None:
-            done["errors"].append("Sin hechizos recomendados para este campeón")
-        else:
-            try:
-                done["spells"] = set_spells_checked(client, spells)
-                if done["spells"] is None:
-                    done["errors"].append("Hechizos: el cliente no los aceptó (pruébalo con «Importar build ya»)")
-            except lcu.LCUError as exc:
-                done["errors"].append(f"Hechizos: {exc}")
+        _import_spells(client, rec, prefs, done)
     if prefs.get("items"):
-        try:
-            sid = client.summoner_id()
-            payload = client.item_sets(sid) or {}
-            sets = [s for s in payload.get("itemSets") or [] if not is_app_page(s.get("title"))]
-            new = _item_set(rec["champ"], title[:75], rec)
-            sets.append(new)
-            client.save_item_sets(sid, {**payload, "accountId": payload.get("accountId", sid), "itemSets": sets, "timestamp": int(time.time() * 1000)})
-            done["items"] = sum(len(b["items"]) for b in new["blocks"])
-        except lcu.LCUError as exc:
-            done["errors"].append(f"Objetos: {exc}")
+        _import_items(client, rec, title, done)
     return done
 
 
@@ -436,26 +457,37 @@ class DraftLive:
             if key not in cache:
                 try:
                     cache[key] = ev.presence(role, champ).get("share")
-                except Exception:  # noqa: BLE001  (sin datos de ese campeón: el reparto lo trata como «no se sabe»)
+                # sin datos de ese campeón: el reparto lo trata como «no se sabe»
+                except Exception:  # noqa: BLE001
                     cache[key] = None
             return cache[key]
 
         return share
 
+    def _detect_profile(self) -> None:
+        """Con el cliente abierto, cada ``AUTO_PROFILE_EVERY_S`` guarda tu cuenta si aún no tienes perfil."""
+        if time.time() < self._next_profile:
+            return
+        self._next_profile = time.time() + AUTO_PROFILE_EVERY_S
+        try:
+            if ensure_profile(self.svc):
+                self.state["profile_detected"] = time.time()
+        except lcu.LCUError:
+            log.debug("El cliente aún no ha cargado tu cuenta", exc_info=True)
+
     def poll(self) -> float:
         phase = lcu.gameflow_phase()
         self.state["client"] = phase is not None
-        if phase is not None and time.time() >= self._next_profile:
-            self._next_profile = time.time() + AUTO_PROFILE_EVERY_S
-            try:
-                if ensure_profile(self.svc):
-                    self.state["profile_detected"] = time.time()
-            except lcu.LCUError:
-                log.debug("El cliente aún no ha cargado tu cuenta", exc_info=True)
+        if phase is not None:
+            self._detect_profile()
         if phase != "ChampSelect":
             if self.state["active"]:
                 self.state.update(active=False)
             return POLL_IDLE_S
+        return self._poll_select()
+
+    def _poll_select(self) -> float:
+        """En la selección de campeones: el draft al momento y, al completarse, la build al cliente (si está activado)."""
         session = lcu.champ_select_session()
         if not session:
             return POLL_IN_SELECT_S
@@ -474,6 +506,22 @@ class DraftLive:
             self.import_now(draft)
         return POLL_IN_SELECT_S
 
+    def _import_failed(self, message: str) -> dict:
+        result = {"status": "error", "errors": [message], "at": time.time()}
+        self.state["import"] = result
+        return result
+
+    def _extra_runes(self, me: dict) -> dict | None:
+        """La página de runas de OP.GG (por si la build no trae una completa)."""
+        opgg = getattr(self.svc, "opgg", None)
+        if opgg is None or not getattr(opgg, "enabled", False):
+            return None
+        try:
+            return opgg.rune_page(me["champ"], me["role"])
+        except Exception:
+            log.debug("Página de runas de OP.GG", exc_info=True)
+            return None
+
     def import_now(self, draft: dict | None = None, f=None) -> dict:
         """Importa la build del Draft para tu campeón (también a mano, desde la web)."""
         from app.analytics import builds
@@ -482,38 +530,32 @@ class DraftLive:
             draft = draft or self.state.get("draft")
             me = (draft or {}).get("me") or {}
             if not draft or not me.get("champ") or not me.get("role"):
-                result = {"status": "error", "errors": ["Aún no hay campeón tuyo en la selección"], "at": time.time()}
-                self.state["import"] = result
-                return result
+                return self._import_failed("Aún no hay campeón tuyo en la selección")
             svc = self.svc
             ally, enemy = dict(draft["ally"]), dict(draft["enemy"])
             ally[me["role"]] = me["champ"]
             rec = next((p for p in builds.recommend(svc, f or _filters(svc), ally, enemy)["ally"] if p["champ"] == me["champ"]), None)
             if rec is None:
-                result = {"status": "error", "errors": ["No hay build para tu campeón"], "at": time.time()}
-                self.state["import"] = result
-                return result
-            extra = None
-            opgg = getattr(svc, "opgg", None)
-            if opgg is not None and getattr(opgg, "enabled", False):
-                try:
-                    extra = opgg.rune_page(me["champ"], me["role"])
-                except Exception:
-                    log.debug("Página de runas de OP.GG", exc_info=True)
-                    extra = None
+                return self._import_failed("No hay build para tu campeón")
             spells, source = spells_for(svc, rec, me["champ"], me["role"])
             rec = {**rec, "spells": spells}
             name = svc.dd.name(me["champ"])
             opp = rec.get("opponent")
-            done = apply_import(lcu, rec, name, svc.dd.name(opp) if opp else None, get_prefs(svc.db), extra)
-            ok = any(done[k] is not None for k in ("runes", "spells", "items"))
-            result = {"status": "ok" if ok and not done["errors"] else "partial" if ok else "error", "champ": me["champ"], "role": me["role"],
-                      "opponent": opp, "spells_source": source, **done, "at": time.time()}
+            done = apply_import(lcu, rec, name, svc.dd.name(opp) if opp else None, get_prefs(svc.db), self._extra_runes(me))
+            result = {"status": _import_status(done), "champ": me["champ"], "role": me["role"], "opponent": opp, "spells_source": source,
+                      **done, "at": time.time()}
             self.state["import"] = result
+            warnings = f"; avisos: {' · '.join(done['errors'])}" if done["errors"] else ""
             log.info("Build de %s importada al cliente (%s): runas %s, hechizos %s (%s), %s objetos%s.", name, result["status"],
-                     "sí" if done["runes"] else "no", done["spells"], source, done["items"],
-                     f"; avisos: {' · '.join(done['errors'])}" if done["errors"] else "")
+                     "sí" if done["runes"] else "no", done["spells"], source, done["items"], warnings)
             return result
+
+
+def _import_status(done: dict) -> str:
+    """«ok» si entró todo, «partial» si entró algo con avisos y «error» si no entró nada."""
+    if not any(done[k] is not None for k in ("runes", "spells", "items")):
+        return "error"
+    return "partial" if done["errors"] else "ok"
 
 
 def _filters(svc):

@@ -48,7 +48,7 @@ def _external_matchup_samples(opgg) -> list[tuple[float, float, float]]:
     """Residuos de los counters de OP.GG cacheados frente a su esperado log5."""
     if opgg is None:
         return []
-    tiers = {key: data for key, data in opgg.cached_entries("tier")}
+    tiers = dict(opgg.cached_entries("tier"))
     samples = []
     for key, data in opgg.cached_entries("counters"):
         try:
@@ -69,6 +69,26 @@ def _external_matchup_samples(opgg) -> list[tuple[float, float, float]]:
                 continue
             samples.append((wins / games, log5(base_a, row["wr"] / 100), games))
     return samples
+
+
+def _champ_samples(role_maps: dict[str, dict]) -> list[tuple[float, float, float]]:
+    """WR de cada (rol, campeón) de tu BD con ≥ 100 partidas frente al 50 %."""
+    samples: list[tuple[float, float, float]] = []
+    for champs in role_maps.values():
+        for row in champs.values():
+            games, wins = row["games"] or 0, row["wins"] or 0
+            if games >= 100:
+                samples.append((wins / games, 0.5, games))
+    return samples
+
+
+def _champ_base(role_maps: dict[str, dict], k: float) -> dict[tuple[str, int], float]:
+    """WR encogido (``k`` partidas virtuales al 50 %) de cada (rol, campeón) de tu BD."""
+    base: dict[tuple[str, int], float] = {}
+    for role, champs in role_maps.items():
+        for champ, row in champs.items():
+            base[(role, champ)] = shrink(row["wins"] or 0, row["games"] or 0, 0.5, k)
+    return base
 
 
 class Priors:
@@ -96,39 +116,36 @@ class Priors:
         with self._lock:
             self._value = None
 
-    def _compute(self) -> dict:
-        all_data = Filters()
-        champ_samples: list[tuple[float, float, float]] = []
-        base: dict[tuple[str, int], float] = {}
-        k_champ_guess = DEFAULTS["champ"]
-        role_maps = {role: self.agg.role_champs(all_data, role) for role in ROLES}
-        for champs in role_maps.values():
-            for row in champs.values():
-                games, wins = row["games"] or 0, row["wins"] or 0
-                if games >= 100:
-                    champ_samples.append((wins / games, 0.5, games))
-        k_champ, n_champ = _estimate_k(champ_samples, "champ", min_samples=20)
-        for role, champs in role_maps.items():
-            for champ, row in champs.items():
-                base[(role, champ)] = shrink(row["wins"] or 0, row["games"] or 0, 0.5, k_champ or k_champ_guess)
-
-        matchup_samples: list[tuple[float, float, float]] = []
+    def _matchup_samples(self, base: dict[tuple[str, int], float]) -> list[tuple[float, float, float]]:
+        """Matchups de tu BD (≥ 50 partidas) frente a su esperado log5."""
+        samples: list[tuple[float, float, float]] = []
         for role in ROLES:
             for champ, opp, games, wins in self.agg.all_pairs(role):
                 if games < 50:
                     continue
                 expected = log5(base.get((role, champ), 0.5), base.get((role, opp), 0.5))
-                matchup_samples.append((wins / games, expected, games))
-        external = _external_matchup_samples(self.opgg)
-        k_matchup, n_matchup = _estimate_k(matchup_samples + external, "matchup")
+                samples.append((wins / games, expected, games))
+        return samples
 
-        synergy_samples: list[tuple[float, float, float]] = []
+    def _synergy_samples(self, base: dict[tuple[str, int], float]) -> list[tuple[float, float, float]]:
+        """Parejas de tu BD (≥ 50 partidas) frente a su esperado si fueran independientes."""
+        samples: list[tuple[float, float, float]] = []
         for r1, c1, r2, c2, games, wins in self.agg.all_synergies():
             if games < 50:
                 continue
             expected = sigmoid(logit(base.get((r1, c1), 0.5)) + logit(base.get((r2, c2), 0.5)))
-            synergy_samples.append((wins / games, expected, games))
-        k_synergy, n_synergy = _estimate_k(synergy_samples, "synergy")
+            samples.append((wins / games, expected, games))
+        return samples
+
+    def _compute(self) -> dict:
+        all_data = Filters()
+        role_maps = {role: self.agg.role_champs(all_data, role) for role in ROLES}
+        k_champ, n_champ = _estimate_k(_champ_samples(role_maps), "champ", min_samples=20)
+        base = _champ_base(role_maps, k_champ or DEFAULTS["champ"])
+        matchup_samples = self._matchup_samples(base)
+        external = _external_matchup_samples(self.opgg)
+        k_matchup, n_matchup = _estimate_k(matchup_samples + external, "matchup")
+        k_synergy, n_synergy = _estimate_k(self._synergy_samples(base), "synergy")
 
         return {
             "champ": round(k_champ, 1),

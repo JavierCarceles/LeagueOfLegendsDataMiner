@@ -242,6 +242,27 @@ function renderKey(key) {
 // ------------------------------------------------------------------ precarga
 const PAUSE_TEXT = { in_game: "En pausa: estás en partida (sigue sola al terminar)", manual: "En pausa (la has pausado tú)" };
 
+/** En pausa, descargando lo esencial o todo listo. */
+function warmerPill(w) {
+  if (w.paused) return h("span.pill.pill-warn.pill-dot", PAUSE_TEXT[w.pause_reason] || "En pausa");
+  if (w.essential_pct < 100) return h("span.pill.pill-gold.pill-dot", "Descargando lo esencial");
+  return h("span.pill.pill-good.pill-dot", "Todo listo para usar");
+}
+
+/** «120 hechas · 4 en cola · 12/min». */
+function laneCounts(l) {
+  const pending = l.pending ? " · " + fmt.int(l.pending) + " en cola" : "";
+  const rate = l.rate_per_min ? " · " + fmt.int(l.rate_per_min) + "/min" : "";
+  return `${fmt.int(l.done)} hechas${pending}${rate}`;
+}
+
+/** «emerald+ · global · actual + anterior». */
+function scopeText(s) {
+  const where = s.platform === "all" ? "global" : platformLabel(s.platform);
+  const patch = s.patch === "all" ? "actual + anterior" : s.patch;
+  return `${s.tier.replace("_plus", "+")} · ${where} · ${patch}`;
+}
+
 function renderWarmer(w) {
   if (!w) return mount(sections.warmer, h("div.small.muted", "Sin información."));
   if (!w.enabled) {
@@ -258,7 +279,7 @@ function renderWarmer(w) {
     sections.warmer,
     h(
       "div.row-wrap",
-      w.paused ? h("span.pill.pill-warn.pill-dot", PAUSE_TEXT[w.pause_reason] || "En pausa") : w.essential_pct < 100 ? h("span.pill.pill-gold.pill-dot", "Descargando lo esencial") : h("span.pill.pill-good.pill-dot", "Todo listo para usar"),
+      warmerPill(w),
       h("span.spacer"),
       pauseBtn,
       h("button.btn.btn-ghost.btn-sm", { onclick: replan, title: "Revisar ya qué falta y reintentar lo que falló" }, icon("refresh"), "Revisar ahora"),
@@ -281,7 +302,7 @@ function renderWarmer(w) {
       lanes.map(([name, l]) =>
         h(
           "div.lane",
-          h("div.row", h("b.small", l.label), h("span.spacer"), h("span.tiny.muted", `${fmt.int(l.done)} hechas${l.pending ? ` · ${fmt.int(l.pending)} en cola` : ""}${l.rate_per_min ? ` · ${fmt.int(l.rate_per_min)}/min` : ""}`)),
+          h("div.row", h("b.small", l.label), h("span.spacer"), h("span.tiny.muted", laneCounts(l))),
           h("div.tiny.faint.ellipsis", l.current || (l.pending ? "esperando turno…" : "al día")),
           l.errors ? h("div.tiny.warn", `${l.errors} errores (se reintentan solos)`) : null,
         ),
@@ -293,7 +314,7 @@ function renderWarmer(w) {
       "Se descargan solas, a ritmo tranquilo y por orden de importancia: tus campeones y matchups, después tier lists y counters con los filtros que usas, y al final sinergias y guías. Así cada vista abre al instante. Mientras juegas (cliente de LoL abierto en este ordenador) se pausa para no quitarte ancho de banda.",
     ),
     w.scopes?.length
-      ? h("div.tiny.faint", "Filtros que se mantienen al día: ", w.scopes.map((s) => `${s.tier.replace("_plus", "+")} · ${s.platform === "all" ? "global" : platformLabel(s.platform)} · ${s.patch === "all" ? "actual + anterior" : s.patch}`).join(" | "))
+      ? h("div.tiny.faint", "Filtros que se mantienen al día: ", w.scopes.map(scopeText).join(" | "))
       : null,
       ),
       { cls: "flat", summary: `${fmt.int(plan.done || 0)} de ${fmt.int(plan.total || 0)} descargas · ${lanes.length} webs` },
@@ -382,6 +403,14 @@ function resultsSection(mode) {
 
 /** Subida a GitHub en marcha (al detener se sube lo recogido): se ve aunque el recolector esté parado. */
 let pushSig = null;
+/** « (detalle)» de un paso de la subida a GitHub, o nada. */
+const stepDetail = (step) => (step.detail ? " (" + step.detail + ")" : "");
+/** «: paso 3 de 6, añadiendo los ficheros (12 ficheros)», o «…» si aún no se sabe. */
+function pushStepText(step) {
+  if (!step) return "…";
+  return `: paso ${step.n} de ${step.of}, ${step.label}${stepDetail(step)}`;
+}
+
 function renderPush(p, running) {
   const show = p && p.running && !running; // en marcha, ya lo dice la línea de GitHub de los resultados
   const sig = JSON.stringify(show ? [p.step?.key, p.step?.detail] : null);
@@ -395,7 +424,7 @@ function renderPush(p, running) {
       "div.notice.tiny",
       { style: { marginTop: "10px" } },
       icon("upload"),
-      h("span", `Subiendo a GitHub lo recogido${step ? `: paso ${step.n} de ${step.of}, ${step.label}${step.detail ? ` (${step.detail})` : ""}` : "…"}`),
+      h("span", `Subiendo a GitHub lo recogido${pushStepText(step)}`),
     ),
   );
 }
@@ -411,7 +440,12 @@ const OTP_DEPTHS = [
 ];
 const PER_OTP = [10, 20, 30, 50, 100].map((n) => ({ value: n, label: `sus ${n} partidas más recientes` })).concat([{ value: 0, label: "todas sus partidas" }]);
 const PER_PLAYER = [10, 20, 30, 50, 100].map((n) => ({ value: n, label: `sus ${n} partidas más recientes` }));
-const RECRAWL = [3, 6, 12, 24, 48, 72, 168].map((n) => ({ value: n, label: n < 24 ? `${n} horas` : n === 168 ? "semana" : `${n / 24} días` }));
+/** «3 horas», «2 días» o «semana». */
+function recrawlLabel(n) {
+  if (n < 24) return `${n} horas`;
+  return n === 168 ? "semana" : `${n / 24} días`;
+}
+const RECRAWL = [3, 6, 12, 24, 48, 72, 168].map((n) => ({ value: n, label: recrawlLabel(n) }));
 const QUEUES = [
   { value: "solo", label: "Solo SoloQ" },
   { value: "flex", label: "SoloQ y Flex" },
@@ -431,7 +465,10 @@ const SHARES = [
 const MASTERY_DEFAULT = { games: 10_000, otp: 100_000, mastery: 100_000 };
 const isSpecialist = (focus) => focus === "otp" || focus === "mastery";
 /** Cómo se llama a los jugadores encontrados según lo que buscas («OTPs» solo si buscas OTPs). */
-const noun = (focus, n = 2) => (focus === "otp" ? (n === 1 ? "OTP" : "OTPs") : n === 1 ? "jugador" : "jugadores");
+function noun(focus, n = 2) {
+  if (focus === "otp") return n === 1 ? "OTP" : "OTPs";
+  return n === 1 ? "jugador" : "jugadores";
+}
 const RESULTS_TITLE = { otp: "OTPs encontrados", mastery: "Jugadores con mucha maestría encontrados", games: "Jugadores encontrados" };
 const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[3]).label;
 // Qué buscar: todo el ranking, por campeón (y rol), por matchup (ventanas tipo minidraft) o por composición.
@@ -525,10 +562,15 @@ function tiersText(tiers) {
 }
 function champsText(cfg, poolSize = null) {
   const parts = [];
-  if (cfg.roles?.length) parts.push(`${cfg.roles.length > 1 ? "Líneas" : "Línea"} ${linesText(cfg.roles).toLowerCase()} completa${cfg.roles.length > 1 ? "s" : ""}${poolSize ? ` (${poolSize} campeones)` : ""}`);
+  if (cfg.roles?.length) {
+    const many = cfg.roles.length > 1;
+    const pool = poolSize ? " (" + poolSize + " campeones)" : "";
+    parts.push(`${many ? "Líneas" : "Línea"} ${linesText(cfg.roles).toLowerCase()} completa${many ? "s" : ""}${pool}`);
+  }
   const names = (cfg.champions || []).map((id) => {
     const roles = (cfg.champion_roles || {})[String(id)] || [];
-    return `${dd.name(id)}${roles.length ? ` (${roles.map((r) => ROLE_LABEL[r].toLowerCase()).join("/")})` : ""}`;
+    const which = roles.length ? " (" + roles.map((r) => ROLE_LABEL[r].toLowerCase()).join("/") + ")" : "";
+    return dd.name(id) + which;
   });
   if (names.length) parts.push(listText(names, 3));
   return parts.join(" + ") || "Todos";
@@ -538,15 +580,19 @@ function playersText(cfg) {
   const points = `≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
   if (cfg.focus === "games") return `Cualquiera que lo juegue · ${points}`;
   const share = cfg.focus === "otp" ? SHARES.find((x) => x.value === Number(cfg.min_share ?? 0.5)) : null;
-  return `Especialistas · ${points}${share ? ` · ${share.short}` : ""}`;
+  const shareText = share ? " · " + share.short : "";
+  return `Especialistas · ${points}${shareText}`;
+}
+function perPlayerText(cfg) {
+  if (!hasTargets(cfg)) return `Últimas ${cfg.matches_per_player} de cada jugador`;
+  return cfg.games_per_otp ? `Primero ${cfg.games_per_otp} de cada jugador` : "Todas las de cada jugador";
 }
 function gamesText(cfg) {
   const queues = cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ";
-  const per = hasTargets(cfg)
-    ? cfg.games_per_otp ? `Primero ${cfg.games_per_otp} de cada jugador` : "Todas las de cada jugador"
-    : `Últimas ${cfg.matches_per_player} de cada jugador`;
+  const per = perPlayerText(cfg);
   const only = hasTargets(cfg) && cfg.focus !== "games" && cfg.only_target_games === false ? " · también con otros campeones" : "";
-  return `${per}${only} · ${queues} · nuevas cada ${RECRAWL.find((r) => r.value === Number(cfg.recrawl_hours))?.label || `${cfg.recrawl_hours} h`}`;
+  const every = RECRAWL.find((r) => r.value === Number(cfg.recrawl_hours))?.label || cfg.recrawl_hours + " h";
+  return `${per}${only} · ${queues} · nuevas cada ${every}`;
 }
 
 /** Lo que va a pasar, en una frase. */
@@ -1242,33 +1288,6 @@ async function stop(ev) {
 
 // ------------------------------------------------------------------ OTPs encontrados
 /** « de jungla o mid» si ese campeón se busca solo en algunos roles. */
-const rolesText = (champRoles, champ) => {
-  const roles = (champRoles || {})[String(champ)] || [];
-  return roles.length ? ` de ${roles.map((r) => ROLE_LABEL[r].toLowerCase()).join(" o ")}` : "";
-};
-const OTP_PAGE = 25;
-const OTP_SORTS = [
-  { value: "games", label: "Más partidas" },
-  { value: "elo", label: "Más elo" },
-  { value: "winrate", label: "Mejor winrate (≥ 5)" },
-  { value: "points", label: "Más maestría" },
-  { value: "name", label: "Nombre" },
-];
-const riotId = (p) => (p.game_name ? `${p.game_name}#${p.tag_line}` : null);
-const eloText = (p) => `${TIER_LABEL[p.tier] || p.tier || "—"}${p.division && !["MASTER", "GRANDMASTER", "CHALLENGER"].includes(p.tier) ? ` ${p.division}` : ""}${p.lp != null ? ` · ${fmt.int(p.lp)} LP` : ""}`;
-const wrClass = (wr) => (wr === null ? "muted" : wr >= 55 ? "good" : wr < 47 ? "bad" : "");
-
-/** Barra con el reparto de partidas por rol. */
-function roleBar(roles, total) {
-  const entries = Object.entries(roles || {}).filter(([, n]) => n > 0);
-  if (!entries.length || !total) return null;
-  return h(
-    "div.otp-rolebar",
-    { title: entries.map(([r, n]) => `${ROLE_LABEL[r] || r}: ${fmt.pct((100 * n) / total, 0)}`).join(" · ") },
-    entries.map(([r, n]) => h(`span.seg.role-${r.toLowerCase()}`, { style: { flexGrow: n } })),
-  );
-}
-
 let otpsAt = 0;
 let otpsSig = null;
 let otpsLoading = false;
@@ -1545,18 +1564,18 @@ function otpFilesBar(data) {
 }
 
 /** Subida automática a GitHub: cuántas partidas faltan para la siguiente y cómo fue la última. */
+/** «subiendo · paso 5 de 6: git push (45 %) · desde hace 12 s». */
+function runningPushText(step) {
+  if (!step) return "subiendo los datos ahora…";
+  return `subiendo · paso ${step.n} de ${step.of}: ${step.label}${stepDetail(step)} · desde hace ${fmt.int(Math.max(0, Date.now() / 1000 - step.at))} s`;
+}
+
 function autopushLine(p) {
   if (!p) return null;
   if (!p.enabled) return h("div.tiny.muted", { style: { marginTop: "4px" } }, h("b", "GitHub: "), "subida automática desactivada (AUTO_PUSH_GAMES=0).");
   const left = Math.max(0, p.every - (p.pending || 0));
   const step = p.running ? p.step : null;
-  const parts = [
-    p.running
-      ? step
-        ? `subiendo · paso ${step.n} de ${step.of}: ${step.label}${step.detail ? ` (${step.detail})` : ""} · desde hace ${fmt.int(Math.max(0, Date.now() / 1000 - step.at))} s`
-        : "subiendo los datos ahora…"
-      : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`,
-  ];
+  const parts = [p.running ? runningPushText(step) : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`];
   if (!p.running && p.last_push_s) parts.push(`la última tardó ${fmt.int(p.last_push_s)} s`);
   if (p.last_push_at) parts.push(`última subida ${fmt.ago(p.last_push_at)}`);
   if (p.last_result === "nothing") parts.push("la última vez no había nada nuevo en data/ (sin campeones elegidos, las partidas solo van a la base de datos)");
@@ -1587,163 +1606,6 @@ function autopushLine(p) {
       : null,
     p.git_ok === false ? h("div.tiny.bad", `No se podrá subir: ${p.git}`) : p.git ? h("div.tiny.faint", p.git) : null,
     p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
-  );
-}
-
-function otpChampCard(ch, data) {
-  const wr = ch.games ? (100 * ch.wins) / ch.games : null;
-  const wanted = ch.roles_wanted || [];
-  const searching = !ch.found;
-  return h(
-    "button.otp-card",
-    { type: "button", disabled: searching || null, onclick: () => openOtpChamp(ch, data), title: searching ? `Aún no hay ${noun(data.focus)} de este campeón` : `Ver los ${noun(data.focus)} de ${dd.name(ch.champ)}` },
-    h(
-      "div.otp-card-head",
-      champImg(ch.champ, "lg"),
-      h(
-        "div",
-        { style: { minWidth: 0 } },
-        h("div.otp-card-name", dd.name(ch.champ)),
-        h("div.tiny.muted.row", { style: { gap: "4px" } }, wanted.length ? [wanted.map((r) => roleIcon(r)), wanted.map((r) => ROLE_LABEL[r]).join(" / ")] : "Cualquier rol"),
-      ),
-    ),
-    searching
-      ? h("div.small.muted", "Buscando… se revisa la maestría del ranking al ritmo de tu API key.")
-      : [
-          h(
-            "div.otp-card-stats",
-            h("div", h("b", fmt.int(ch.found)), h("span", noun(data.focus, ch.found))),
-            h("div", h("b", fmt.int(ch.games)), h("span", "partidas")),
-            h("div", h(`b.${wrClass(wr)}`, wr === null ? "—" : fmt.pct(wr, 0)), h("span", "winrate")),
-          ),
-          roleBar(ch.roles, ch.games),
-          h(
-            "div.tiny.muted",
-            `Con todas sus partidas del periodo: ${fmt.int(ch.complete)}/${fmt.int(ch.found)}`,
-            ch.best ? ` · mejor elo: ${eloText(ch.best)}` : "",
-          ),
-          ch.leaders?.length && ch.leaders[0].total
-            ? h(
-                "div.otp-card-leaders",
-                ch.leaders.filter((l) => l.total).map((l) => h("span.tiny", h("b", riotId(l) || "Sin nombre"), h("span.muted", ` · ${fmt.int(l.total)}`))),
-              )
-            : null,
-          h("div.otp-card-cta", "Ver jugadores", icon("chevron")),
-        ],
-  );
-}
-
-/** Ventana con todos los OTPs de un campeón: búsqueda, filtros, orden y paginado. */
-function openOtpChamp(ch, data) {
-  const f = { q: "", platform: "", sort: "games" };
-  let loaded = [];
-  let matched = 0;
-  const wr = ch.games ? (100 * ch.wins) / ch.games : null;
-  const list = h("div.otp-list");
-  const countEl = h("span.tiny.muted");
-  const moreBtn = h("button.btn.btn-sm", { type: "button", onclick: () => load(false) }, "Ver más");
-  const platforms = Object.keys(ch.platforms || {});
-  let searchTimer = null;
-  const search = h("input.input.input-sm", {
-    type: "search",
-    placeholder: "Buscar jugador…",
-    "aria-label": "Buscar jugador",
-    oninput: (e) => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => ((f.q = e.target.value), load(true)), 250);
-    },
-  });
-  const body = h(
-    "div.col",
-    { style: { gap: "14px" } },
-    h(
-      "div.kpis",
-      kpi(noun(data.focus, ch.found).replace(/^./, (x) => x.toUpperCase()), fmt.int(ch.found), `${fmt.int(ch.with_games)} con partidas guardadas`),
-      kpi("Partidas", fmt.int(ch.games), rolesText(data.champion_roles, ch.champ) ? `solo${rolesText(data.champion_roles, ch.champ)}` : "en cualquier rol"),
-      kpi("Winrate", wr === null ? "—" : fmt.pct(wr, 1), ch.games ? `${fmt.int(ch.wins)} V · ${fmt.int(ch.games - ch.wins)} D` : null, wrClass(wr)),
-      kpi("Historial", `${fmt.int(ch.complete)}/${fmt.int(ch.found)}`, "completos"),
-      ch.best ? kpi("Mejor elo", TIER_LABEL[ch.best.tier] || ch.best.tier || "—", ch.best.lp != null ? `${fmt.int(ch.best.lp)} LP · ${platformLabel(ch.best.platform)}` : platformLabel(ch.best.platform)) : null,
-    ),
-    Object.keys(ch.roles || {}).length
-      ? h(
-          "div.otp-roles-line",
-          roleBar(ch.roles, ch.games),
-          h("div.row-wrap.tiny.muted", { style: { gap: "4px 12px" } }, Object.entries(ch.roles).map(([r, n]) => h("span.row", { style: { gap: "4px" } }, roleIcon(r), `${ROLE_LABEL[r] || r} ${fmt.pct((100 * n) / ch.games, 0)}`))),
-        )
-      : null,
-    h(
-      "div.otp-filters",
-      search,
-      platforms.length > 1
-        ? select([{ value: "", label: "Todos los servidores" }, ...platforms.map((p) => ({ value: p, label: `${platformLabel(p)} (${ch.platforms[p]})` }))], "", (v) => ((f.platform = v), load(true)), "select select-sm")
-        : null,
-      select(OTP_SORTS, f.sort, (v) => ((f.sort = v), load(true)), "select select-sm"),
-      countEl,
-    ),
-    list,
-    h("div.row", { style: { justifyContent: "center" } }, moreBtn),
-  );
-  modal(h("div.row", { style: { gap: "12px" } }, champImg(ch.champ, "lg"), h("div", h("h3", `${noun(data.focus).replace(/^./, (x) => x.toUpperCase())} de ${dd.name(ch.champ)}`), h("div.tiny.muted", `${platforms.map(platformLabel).join(", ") || "—"} · historial: ${depthLabel(data.otp_depth).toLowerCase()}`))), body, { wide: true });
-
-  async function load(reset) {
-    if (reset) loaded = [];
-    moreBtn.disabled = true;
-    if (reset) mount(list, loading());
-    const fresh = latest("datos.otps.modal");
-    let res;
-    try {
-      res = await api.get("/api/crawler/otps", { champ: ch.champ, limit: OTP_PAGE, offset: loaded.length, sort: f.sort, q: f.q || undefined, platform: f.platform || undefined });
-    } catch (err) {
-      return mount(list, errorBox(err));
-    }
-    if (!fresh()) return;
-    loaded = [...loaded, ...res.players];
-    matched = res.matched;
-    mount(list, loaded.length ? loaded.map((p, i) => otpPlayerRow(p, i + 1)) : h("div.small.muted", { style: { padding: "12px 0" } }, "Ningún jugador coincide con la búsqueda."));
-    countEl.textContent = `${fmt.int(loaded.length)} de ${fmt.int(matched)}`;
-    moreBtn.hidden = loaded.length >= matched;
-    moreBtn.disabled = false;
-  }
-  load(true);
-}
-
-function otpPlayerRow(p, rank) {
-  const name = riotId(p);
-  const wr = p.total ? (100 * p.wins) / p.total : null;
-  const historyText = p.history === "loading" && p.history_checked ? `${HISTORY_LABEL.loading} · ${fmt.int(p.history_checked)} revisadas` : HISTORY_LABEL[p.history] || "";
-  const mainRole = Object.keys(p.roles || {})[0];
-  return h(
-    "div.otp-player",
-    h("span.otp-rank", rank),
-    h(
-      "div.otp-player-id",
-      name
-        ? h("a.ellipsis", { href: `#/jugador/${p.platform}/${encodeURIComponent(p.game_name)}/${encodeURIComponent(p.tag_line)}`, onclick: () => document.querySelector(".modal-backdrop")?.remove() }, name)
-        : h("span.muted", "Nombre aún desconocido"),
-      h("div.tiny.muted", `${platformLabel(p.platform)} · ${eloText(p)} · ${fmt.compact(p.points)} pts`),
-    ),
-    h(
-      "div.otp-player-games",
-      h("div.small", h("b", fmt.int(p.total)), h("span.muted", p.total === 1 ? " partida" : " partidas"), wr !== null ? h(`span.${wrClass(wr)}`, ` · ${fmt.pct(wr, 0)}`) : null),
-      wr !== null ? h("div.otp-wr", h("span", { style: { width: `${wr}%` } })) : h("div.tiny.muted", "partidas en cola"),
-    ),
-    h("div.otp-player-role", mainRole ? [roleIcon(mainRole), h("span.tiny.muted", ROLE_LABEL[mainRole] || mainRole)] : h("span.tiny.muted", "—")),
-    h(
-      "div.otp-form",
-      { "aria-label": "Últimas partidas" },
-      (p.games || []).map((g) =>
-        h(`a.otp-dot.${g.win ? "win" : "loss"}`, {
-          href: `#/partida/${g.match_id}`,
-          onclick: () => document.querySelector(".modal-backdrop")?.remove(),
-          title: `${g.win ? "Victoria" : "Derrota"} ${g.kills}/${g.deaths}/${g.assists}${g.role ? ` · ${ROLE_LABEL[g.role] || g.role}` : ""} · ${fmt.date(g.game_start)} · ${fmt.duration(g.duration)}`,
-        }),
-      ),
-    ),
-    h(
-      `span.otp-history.${p.history === "done" || p.history === "share" ? "good" : "muted"}`,
-      { title: historyText },
-      p.history === "done" || p.history === "share" ? "Completo" : p.history === "capped" ? "En su tope" : p.history === "loading" ? "Bajando" : "En cola",
-    ),
   );
 }
 

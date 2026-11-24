@@ -71,7 +71,8 @@ def _route_macro(analysis: dict) -> dict | None:
 
     try:
         return route_macro.from_analysis(analysis) or None
-    except Exception:  # noqa: BLE001  (un análisis raro no puede romper el resumen)
+    # un análisis raro no puede romper el resumen
+    except Exception:  # noqa: BLE001
         log.debug("Sin roams ni contraganks para %s", analysis.get("match_id"), exc_info=True)
         return None
 
@@ -81,7 +82,8 @@ def _rules(analysis: dict) -> dict | None:
 
     try:
         return rule_metrics.from_analysis(analysis) or None
-    except Exception:  # noqa: BLE001  (un análisis raro no puede romper el resumen)
+    # un análisis raro no puede romper el resumen
+    except Exception:  # noqa: BLE001
         log.debug("Sin reglas medibles para %s", analysis.get("match_id"), exc_info=True)
         return None
 
@@ -154,14 +156,16 @@ def refresh_digests(db) -> int:
             "AND (CASE WHEN json_valid(digest) THEN json_extract(digest, '$.dv') END) IS NOT ?",
             (DIGEST_VERSION,),
         )
-    except Exception:  # noqa: BLE001  (BD en migración: se intenta en la siguiente)
+    # BD en migración: se intenta en la siguiente
+    except Exception:  # noqa: BLE001
         log.debug("No se pudieron poner al día los resúmenes", exc_info=True)
         return 0
     done = 0
     for r in rows:
         try:
             analysis = store.unpack(r["analysis"])
-        except Exception:  # noqa: BLE001  (blob dañado: se queda como estaba)
+        # blob dañado: se queda como estaba
+        except Exception:  # noqa: BLE001
             continue
         if not analysis:
             continue
@@ -602,7 +606,8 @@ class GameTracker:
         if finder is not None:
             try:
                 catalog = finder(version)
-            except Exception as exc:  # noqa: BLE001  (sin el catálogo de ese parche se usa el actual)
+            # sin el catálogo de ese parche se usa el actual
+            except Exception as exc:  # noqa: BLE001
                 log.warning("Catálogo de objetos del parche %s: %s", version, exc)
                 catalog = None
         return catalog or self.items()

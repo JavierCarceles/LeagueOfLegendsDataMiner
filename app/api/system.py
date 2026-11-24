@@ -86,7 +86,7 @@ def status(svc=Depends(svc_from)):
     }
 
 
-@router.post("/system/riot-key")
+@router.post("/system/riot-key", responses={400: {"description": "La API key no tiene el formato RGAPI-…"}})
 def set_key(body: KeyBody, svc=Depends(svc_from)):
     try:
         svc.keys.set(body.key)
@@ -99,7 +99,7 @@ def set_key(body: KeyBody, svc=Depends(svc_from)):
     return {"key": svc.keys.public(), "valid": check["valid"], "check": check}
 
 
-@router.post("/system/validate-key")
+@router.post("/system/validate-key", responses={412: {"description": "No hay RIOT_API_KEY configurada"}})
 def validate_key(svc=Depends(svc_from)):
     if not svc.keys.get():
         raise HTTPException(412, "No hay RIOT_API_KEY configurada")
@@ -110,7 +110,7 @@ def validate_key(svc=Depends(svc_from)):
     return {"valid": check["valid"], "check": check, "key": svc.keys.public()}
 
 
-@router.post("/system/legacy-import")
+@router.post("/system/legacy-import", responses={409: {"description": "Data Dragon aún no está cargado"}})
 def legacy_import(force: bool = False, svc=Depends(svc_from)):
     if not svc.dd.champions:
         raise HTTPException(409, "Data Dragon aún no está cargado")

@@ -103,7 +103,8 @@ def client_dir() -> Path | None:
     for path in ("/lol-replays/v1/rofls/path", "/lol-replays/v1/rofls/path/default"):
         try:
             value = lcu._get(path, timeout=2.0)
-        except Exception:  # noqa: BLE001, S112  (cliente cerrado o sin esa ruta: se sigue buscando)
+        # cliente cerrado o sin esa ruta: se sigue buscando
+        except Exception:  # noqa: BLE001, S112
             continue
         if isinstance(value, str) and value.strip():
             return Path(value.strip())

@@ -41,18 +41,24 @@ export async function render(container, args = []) {
   }
   if (!root) return;
   mount(root, view());
-  loadList(true);
+  void loadList(true); // trata sus errores (los pinta en la lista)
 }
 
 const tierName = (t) => TIER_LABEL[t] || (t === "?" ? "Sin elo" : t || "—");
-const eloText = (p) => `${tierName(p.tier)}${p.division && !["MASTER", "GRANDMASTER", "CHALLENGER"].includes(p.tier) ? ` ${p.division}` : ""}${p.lp != null ? ` · ${fmt.int(p.lp)} LP` : ""}`;
+const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
+/** «Diamante II · 54 LP» (los de Maestro o más, sin división). */
+function eloText(p) {
+  const division = p.division && !APEX_TIERS.has(p.tier) ? " " + p.division : "";
+  const lp = p.lp == null ? "" : " · " + fmt.int(p.lp) + " LP";
+  return tierName(p.tier) + division + lp;
+}
 const riotId = (p) => (p.game_name ? `${p.game_name}#${p.tag_line}` : "Nombre aún desconocido");
 
 function setFilters(patch) {
   filters = { ...filters, ...patch };
   save(PREFS, filters);
   if (champSelect) champSelect.value = filters.champ;
-  loadList(true);
+  void loadList(true);
 }
 
 // ------------------------------------------------------------------ vista
@@ -84,6 +90,8 @@ function head() {
   );
 }
 
+const moreLabel = (expanded, n) => (expanded ? "Ver menos" : `Ver los ${n}`);
+
 /** Ranking de campeones: más OTPs primero; a igualdad, el de mejor elo. */
 function rankingCard() {
   const all = lib.champions;
@@ -104,7 +112,7 @@ function rankingCard() {
           h("span.chip-muted.hide-sm", { title: "Mejor elo entre sus OTPs" }, tierName(c.best_tier)),
         ),
       ),
-      all.length > 8 ? h("button.btn.btn-ghost.btn-sm", { type: "button", onclick: () => { expanded = !expanded; draw(); } }, expanded ? "Ver menos" : `Ver los ${all.length}`) : null,
+      all.length > 8 ? h("button.btn.btn-ghost.btn-sm", { type: "button", onclick: () => { expanded = !expanded; draw(); } }, moreLabel(expanded, all.length)) : null,
     );
   draw();
   return h("section.card", h("h3.card-title", icon("crown"), "Campeones con más OTPs"), box);
@@ -141,13 +149,14 @@ function listCard() {
   moreBtn = h("button.btn.btn-sm", { type: "button", onclick: () => loadList(false) }, "Ver más");
   let searchTimer = null;
   const tiers = Object.keys(lib.tiers).sort((a, b) => TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b));
+  champSelect = select([{ value: "", label: "Todos los campeones" }, ...lib.champions.map((c) => ({ value: String(c.champ), label: `${dd.name(c.champ)} (${c.otps})` }))], filters.champ, (v) => setFilters({ champ: v }), "select select-sm");
   const bar = h(
     "div.otp-filters",
     h("input.input.input-sm", {
       type: "search", placeholder: "Buscar jugador…", value: filters.q || "", "aria-label": "Buscar jugador",
       oninput: (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setFilters({ q: e.target.value }), 250); },
     }),
-    (champSelect = select([{ value: "", label: "Todos los campeones" }, ...lib.champions.map((c) => ({ value: String(c.champ), label: `${dd.name(c.champ)} (${c.otps})` }))], filters.champ, (v) => setFilters({ champ: v }), "select select-sm")),
+    champSelect,
     select([{ value: "", label: "Todos los roles" }, ...Object.keys(lib.roles).map((r) => ({ value: r, label: ROLE_LABEL[r] || "Sin rol" }))], filters.role, (v) => setFilters({ role: v }), "select select-sm"),
     select([{ value: "", label: "Todos los elos" }, ...tiers.map((t) => ({ value: t, label: tierName(t) }))], filters.tier, (v) => setFilters({ tier: v }), "select select-sm"),
     select([{ value: "", label: "Todos los servidores" }, ...Object.keys(lib.platforms).map((p) => ({ value: p, label: platformLabel(p) }))], filters.platform, (v) => setFilters({ platform: v }), "select select-sm"),
@@ -234,14 +243,7 @@ async function openDetail(p) {
       "div.col",
       { style: { gap: "14px" } },
       h("div.kpis", kpi("Partidas", fmt.int(d.games_count)), kpi("Winrate", fmt.pct(d.wr, 1), `${fmt.int(d.wins)} V · ${fmt.int(d.games_count - d.wins)} D`, wrClass(d.wr)), kpi("Elo", tierName(d.tier)), d.player?.game_name ? kpi("Perfil", h("a", { href: `#/jugador/${d.player.platform}/${encodeURIComponent(d.player.game_name)}/${encodeURIComponent(d.player.tag_line)}` }, "Ver →")) : null),
-      b.first_items?.length || b.skill_max?.length
-        ? h(
-            "div.small",
-            h("b", "Build: "),
-            b.first_items?.length ? `empieza con ${b.first_items.map((i) => `${i.name || `objeto ${i.key}`} (${i.games})`).join(", ")}` : "",
-            b.skill_max?.length ? ` · sube ${b.skill_max[0].key}` : "",
-          )
-        : null,
+      buildLine(b),
       collapsible(
         "otps.detalle.medias",
         [icon("activity"), d.ref_tier ? `Sus medias frente a los OTPs ${tierName(d.ref_tier)} de ${dd.name(d.champ)}` : "Sus medias"],
@@ -254,7 +256,8 @@ async function openDetail(p) {
               "tbody",
               Object.entries(d.metrics).map(([k, v]) => {
                 const [label, , dec, unit] = METRIC_LABEL[k] || [k, "higher", 1];
-                const f = (x) => (x == null ? "—" : `${fmt.num(x, dec)}${unit ? ` ${unit}` : ""}`);
+                const suffix = unit ? " " + unit : "";
+                const f = (x) => (x == null ? "—" : fmt.num(x, dec) + suffix);
                 return h("tr", h("td", label), h("td.num", h(`b.${status(k, v.mine, v.ref)}`, f(v.mine))), d.ref_tier ? h("td.num.muted", f(v.ref)) : null);
               }),
             ),
@@ -270,7 +273,7 @@ async function openDetail(p) {
           d.games.map((g) =>
             h(
               `a.chip.otp-game.${g.win ? "win" : "loss"}`,
-              { href: `#/partida/${g.match_id}`, title: `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)} · ${tierName(g.tier)}${g.opponent ? ` · vs ${dd.name(g.opponent)}` : ""}` },
+              { href: `#/partida/${g.match_id}`, title: gameTitle(g) },
               g.opponent ? champImg(g.opponent, "xs") : null,
               `${g.win ? "V" : "D"} ${g.kills ?? "?"}/${g.deaths ?? "?"}/${g.assists ?? "?"}`,
             ),
@@ -280,4 +283,17 @@ async function openDetail(p) {
       ),
     ),
   );
+}
+
+/** «Build: empieza con Espada larga (12), Poción (9) · sube Q». */
+function buildLine(b) {
+  const first = b.first_items?.length ? "empieza con " + b.first_items.map((i) => `${i.name || "objeto " + i.key} (${i.games})`).join(", ") : "";
+  const skill = b.skill_max?.length ? " · sube " + b.skill_max[0].key : "";
+  if (!first && !skill) return null;
+  return h("div.small", h("b", "Build: "), first, skill);
+}
+
+function gameTitle(g) {
+  const vs = g.opponent ? " · vs " + dd.name(g.opponent) : "";
+  return `${fmt.date(g.game_start)} · ${fmt.duration(g.duration)} · ${tierName(g.tier)}${vs}`;
 }

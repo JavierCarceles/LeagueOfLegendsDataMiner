@@ -538,7 +538,8 @@ def _lane_state(svc, ev, opgg, role: str, mine: int | None, theirs: int | None) 
         return -1
     try:
         wr = ev.pair(role, mine, theirs, fetch=False)["adjusted"]
-    except Exception:  # noqa: BLE001  (sin datos del cruce: igualada)
+    # sin datos del cruce: igualada
+    except Exception:  # noqa: BLE001
         return 0
     return 1 if wr >= 0.53 else -1 if wr <= 0.47 else 0
 
@@ -551,7 +552,8 @@ def _game_plans(svc, ev, opgg, ally: dict[str, int], enemy: dict[str, int]) -> d
 
     try:
         curve = _duration_curve(svc, ev, ally, enemy, get_alpha(svc)) if ally and enemy else None
-    except Exception:  # noqa: BLE001  (sin curva: tempo igualado)
+    # sin curva: tempo igualado
+    except Exception:  # noqa: BLE001
         curve = None
     out = {}
     # Quién gana cada línea se decide una vez (desde tu lado) y el rival tiene justo lo contrario: así los dos planes

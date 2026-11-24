@@ -27,7 +27,7 @@ export async function render(container, args = []) {
     h("div", { style: { height: "16px" } }),
     resultEl,
   );
-  if (query.name && query.tag) load();
+  if (query.name && query.tag) void load(); // trata sus errores (los pinta en el resultado)
   else mount(resultEl, recentBlock());
 }
 
@@ -53,7 +53,7 @@ function searchCard() {
       const { results } = await api.get("/api/players/search", { q });
       suggestions.replaceChildren(
         ...results.map((r) =>
-          h("span.chip", { onclick: () => { query.platform = r.platform || query.platform; input.value = `${r.game_name}#${r.tag_line}`; submit(); } }, `${r.game_name}#${r.tag_line}`, h("span.tiny.muted", `${platformLabel(r.platform)}${r.tier ? ` · ${r.tier}` : ""}`)),
+          h("span.chip", { onclick: () => { query.platform = r.platform || query.platform; input.value = `${r.game_name}#${r.tag_line}`; submit(); } }, `${r.game_name}#${r.tag_line}`, h("span.tiny.muted", suggestionSub(r))),
         ),
       );
     } catch {
@@ -84,6 +84,12 @@ function searchCard() {
     ),
     suggestions,
   );
+}
+
+// Región y, si se sabe, elo de una sugerencia de búsqueda.
+function suggestionSub(r) {
+  const tier = r.tier ? ` · ${r.tier}` : "";
+  return `${platformLabel(r.platform)}${tier}`;
 }
 
 function recentBlock() {
@@ -148,10 +154,9 @@ function profileView(p) {
   );
   if (!s.games) return h("div.stack", head, h("section.card", empty("Sin partidas en esta cola", "Prueba con otra cola o más partidas.")));
 
-  const streak = p.streak;
   const summary = h(
     "section.card",
-    h("h3.card-title", icon("chart"), `Últimas ${s.games} partidas`, h("span.spacer"), h("div.form-dots", p.form.map((w) => h(`span.${w ? "w" : "l"}`, w ? "V" : "D"))), streak ? h(`span.pill.${streak > 0 ? "pill-good" : "pill-bad"}`, `${Math.abs(streak)} ${streak > 0 ? "victorias" : "derrotas"} seguidas`) : null),
+    h("h3.card-title", icon("chart"), `Últimas ${s.games} partidas`, h("span.spacer"), h("div.form-dots", p.form.map((w) => h(`span.${w ? "w" : "l"}`, w ? "V" : "D"))), streakPill(p.streak)),
     h(
       "div.kpis",
       kpi("Winrate", h(`span.${wrClass(s.wr)}`, fmt.pct(s.wr)), `${s.wins}V ${s.losses}D`),
@@ -212,39 +217,57 @@ function profileView(p) {
     ),
   );
 
-  const bench = p.benchmarks.length
-    ? collapsible(
-        "jugador.comparativa",
-        [icon("chart"), "Comparado con la media (mismo campeón y rol)"],
-        h(
-          "div.grid.grid-3",
-          p.benchmarks.map((b) =>
-            h(
-              "div",
-              h("div.row", { style: { marginBottom: "8px" } }, champImg(b.champ, "sm"), h("b", dd.name(b.champ)), h("span.tiny.muted", `${ROLE_LABEL[b.role]} · media de ${fmt.compact(b.sample)} partidas${b.tier ? ` en ${TIER[b.tier] || b.tier}` : ""}`)),
-              b.metrics.map((m) => {
-                const pct = Math.max(-50, Math.min(50, m.diff_pct));
-                return h(
-                  "div.diverge",
-                  h("span.small", m.label),
-                  h("div.track", h("span", { style: pct >= 0 ? { left: "50%", width: `${pct}%`, background: "var(--good)" } : { left: `${50 + pct}%`, width: `${-pct}%`, background: "var(--bad)" } })),
-                  h(`b.small.right.${m.diff_pct >= 0 ? "good" : "bad"}`, { title: `${fmt.num(m.player, 2)} vs ${fmt.num(m.avg, 2)}` }, fmt.signed(m.diff_pct, 0, " %")),
-                );
-              }),
-            ),
-          ),
-        ),
-        { summary: `${p.benchmarks.length} ${p.benchmarks.length === 1 ? "campeón" : "campeones"}` },
-      )
-    : null;
-
+  const bench = benchCard(p.benchmarks);
   const matches = h("section.card", h("h3.card-title", icon("match"), "Partidas"), h("div.col", { style: { gap: "6px" } }, p.matches.map(matchRow)));
   return h("div.stack", head, summary, h("div.grid.player-split", roles, pool), bench, matches);
 }
 
+// Racha actual: «3 victorias seguidas» / «2 derrotas seguidas» (sin racha, nada).
+function streakPill(streak) {
+  if (!streak) return null;
+  const won = streak > 0;
+  return h(`span.pill.${won ? "pill-good" : "pill-bad"}`, `${Math.abs(streak)} ${won ? "victorias" : "derrotas"} seguidas`);
+}
+
+// Comparativa con la media del mismo campeón y rol (sin datos, no hay tarjeta).
+function benchCard(benchmarks) {
+  if (!benchmarks.length) return null;
+  const plural = benchmarks.length === 1 ? "campeón" : "campeones";
+  return collapsible(
+    "jugador.comparativa",
+    [icon("chart"), "Comparado con la media (mismo campeón y rol)"],
+    h(
+      "div.grid.grid-3",
+      benchmarks.map((b) =>
+        h(
+          "div",
+          h("div.row", { style: { marginBottom: "8px" } }, champImg(b.champ, "sm"), h("b", dd.name(b.champ)), h("span.tiny.muted", benchSub(b))),
+          b.metrics.map((m) => {
+            const pct = Math.max(-50, Math.min(50, m.diff_pct));
+            return h(
+              "div.diverge",
+              h("span.small", m.label),
+              h("div.track", h("span", { style: pct >= 0 ? { left: "50%", width: `${pct}%`, background: "var(--good)" } : { left: `${50 + pct}%`, width: `${-pct}%`, background: "var(--bad)" } })),
+              h(`b.small.right.${m.diff_pct >= 0 ? "good" : "bad"}`, { title: `${fmt.num(m.player, 2)} vs ${fmt.num(m.avg, 2)}` }, fmt.signed(m.diff_pct, 0, " %")),
+            );
+          }),
+        ),
+      ),
+    ),
+    { summary: `${benchmarks.length} ${plural}` },
+  );
+}
+
+// «Mid · media de 1,2 K partidas en Diamante» (el elo, solo si la media es de un elo concreto).
+function benchSub(b) {
+  const tier = b.tier ? ` en ${TIER[b.tier] || b.tier}` : "";
+  return `${ROLE_LABEL[b.role]} · media de ${fmt.compact(b.sample)} partidas${tier}`;
+}
+
 function matchRow(m) {
   const detail = h("div.match-detail.hidden");
-  const cls = m.remake ? "remake" : m.win ? "win" : "loss";
+  const [cls, resultCls, resultText] = matchResult(m);
+  const roleName = m.role ? ROLE_LABEL[m.role] : "—";
   const row = h(
     `div.match-row.${cls}`,
     { onclick: () => detail.classList.toggle("hidden") },
@@ -254,9 +277,9 @@ function matchRow(m) {
       champImg(m.champ, "lg"),
       h(
         "div",
-        { title: `${m.role ? ROLE_LABEL[m.role] : "—"} · ${m.queue_label} · ${fmt.duration(m.duration)}` },
+        { title: `${roleName} · ${m.queue_label} · ${fmt.duration(m.duration)}` },
         h("div", { style: { fontWeight: 700 } }, dd.name(m.champ)),
-        h("div.tiny", { class: m.remake ? "muted" : m.win ? "good" : "bad" }, m.remake ? "Remake" : m.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.ago(m.game_start)}`)),
+        h("div.tiny", { class: resultCls }, resultText, h("span.muted", ` · ${fmt.ago(m.game_start)}`)),
       ),
     ),
     h("div", { title: `KDA ${fmt.num(m.kda, 2)} · KP ${fmt.pct(m.kp, 0)} · ${m.cs} CS (${fmt.num(m.cs_min, 1)}/min)` }, h("div.kda", `${m.kills} / ${m.deaths} / ${m.assists}`)),
@@ -264,8 +287,20 @@ function matchRow(m) {
     h("div"), // hueco de la antigua columna de mini-equipos (ahora en el detalle) para no descuadrar la rejilla
     h("div.muted", "⌄"),
   );
-  mount(
-    detail,
+  mount(detail, matchDetail(m, roleName));
+  return h("div", row, detail);
+}
+
+// Resultado de la partida: [clase de la fila, clase del texto, texto].
+function matchResult(m) {
+  if (m.remake) return ["remake", "muted", "Remake"];
+  if (m.win) return ["win", "good", "Victoria"];
+  return ["loss", "bad", "Derrota"];
+}
+
+// Detalle desplegable de una partida: cifras, mini-equipos, hechizos, runas y enlace al análisis.
+function matchDetail(m, roleName) {
+  return [
     h(
       "div.kpis",
       kpi("KDA", fmt.num(m.kda, 2), `KP ${fmt.pct(m.kp, 0)}`),
@@ -274,23 +309,36 @@ function matchRow(m) {
       kpi("Daño", fmt.int(m.dmg), `${fmt.pct(m.dmg_share)} del equipo`),
       kpi("Visión", m.vision, `${m.wards} wards · ${m.control_wards} pinks`),
       kpi("CS@10", fmt.num(m.cs10, 0), m.cs10_diff !== null ? `Δ ${fmt.signed(m.cs10_diff, 0)}` : null),
-      kpi("Fase de líneas", m.lane_adv > 0 ? h("span.good", "Ganada") : m.opp_lane_adv > 0 ? h("span.bad", "Perdida") : "Igualada"),
+      kpi("Fase de líneas", lanePhase(m)),
       kpi("Solo kills", m.solo_kills ?? "—", `placas ${m.plates ?? "—"}`),
     ),
     h(
       "div.mini-teams",
       { style: { marginTop: "10px", maxWidth: "460px" } },
-      [0, 1, 2, 3, 4].map((i) => [m.team[i], m.enemies[i]]).flat().map((t) => (t ? h(`div${t.puuid && t.name === m.team.find((x) => x.champ === m.champ)?.name ? ".me" : ""}`, champImg(t.champ, "xs"), h("span", t.name || "—")) : h("div"))),
+      [0, 1, 2, 3, 4].flatMap((i) => [m.team[i], m.enemies[i]]).map((t) => miniTeamCell(t, m)),
     ),
     h(
       "div.row-wrap",
       { style: { marginTop: "10px", gap: "14px" } },
       h("div.row", h("span.tiny.muted", "Hechizos"), h("div.items", m.spells.map(spellImg))),
       m.runes?.length ? h("div.row", h("span.tiny.muted", "Runas"), runeImg(m.runes[0], 26), runeImg(m.runes[2], 18)) : null,
-      h("span.tiny.muted", `${m.role ? ROLE_LABEL[m.role] : "—"} · ${m.queue_label} · ${fmt.duration(m.duration)} · Parche ${m.patch} · ${m.tier}`),
+      h("span.tiny.muted", `${roleName} · ${m.queue_label} · ${fmt.duration(m.duration)} · Parche ${m.patch} · ${m.tier}`),
       h("span.spacer"),
       h("a.btn.btn-sm", { href: `#/partida/${m.match_id}`, onclick: (e) => e.stopPropagation() }, icon("eye"), "Analizar partida"),
     ),
-  );
-  return h("div", row, detail);
+  ];
+}
+
+// Fase de líneas de la partida: ganada, perdida o igualada.
+function lanePhase(m) {
+  if (m.lane_adv > 0) return h("span.good", "Ganada");
+  if (m.opp_lane_adv > 0) return h("span.bad", "Perdida");
+  return "Igualada";
+}
+
+// Casilla de un jugador en los mini-equipos (resaltada si es el propio jugador; hueco vacío si falta).
+function miniTeamCell(t, m) {
+  if (!t) return h("div");
+  const me = t.puuid && t.name === m.team.find((x) => x.champ === m.champ)?.name ? ".me" : "";
+  return h(`div${me}`, champImg(t.champ, "xs"), h("span", t.name || "—"));
 }
