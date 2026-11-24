@@ -307,11 +307,18 @@ class AutoPush:
         try:
             if not live.exists():
                 return
-            size = live.stat().st_size
-            with open(live, "rb") as fh:
-                fh.seek(max(0, size - LOG_SNAPSHOT_BYTES))
-                tail = fh.read()
-            if size > LOG_SNAPSHOT_BYTES:
+            tail, total = b"", 0
+            # El vivo y, si acaba de rotar (es corto), el final del anterior: siempre ~LOG_SNAPSHOT_BYTES seguidos.
+            for path in (live.with_name(live.name + ".1"), live):
+                if not path.exists():
+                    continue
+                size = path.stat().st_size
+                total += size
+                with open(path, "rb") as fh:
+                    fh.seek(max(0, size - LOG_SNAPSHOT_BYTES))
+                    tail += fh.read()
+            tail = tail[-LOG_SNAPSHOT_BYTES:]
+            if total > len(tail):
                 tail = tail.split(b"\n", 1)[-1]  # desde una línea entera
             tmp = folder / "app.log.tmp"
             tmp.write_bytes(tail)

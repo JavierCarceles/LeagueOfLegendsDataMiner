@@ -23,12 +23,13 @@ from __future__ import annotations
 import math
 import threading
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 DEV_KEY_LIMITS: list[tuple[int, int]] = [(20, 1), (100, 120)]
 MARGIN = 0.12  # segundos extra por jitter de red / reloj
 FOREIGN_GRACE_S = 130  # al arrancar, lo que Riot recuerda de la ejecución anterior no es «otra app»
 FOREIGN_WINDOW_S = 120
+DIAG_WINDOW_S = 300  # llamadas por minuto de los últimos 5 min (diagnóstico)
 # Si llevas un rato sin usar la web (ninguna petición de prioridad alta), el recolector puede usar casi todo el cupo:
 # la reserva para tus búsquedas baja de ``reserve_frac`` a ``IDLE_RESERVE``; vuelve en cuanto haces algo. 2 min (antes
 # 10): con el recolector en marcha casi nunca hay búsquedas, y cada llamada esperaba 1,41 s en vez de 1,26 s.
@@ -158,6 +159,9 @@ class RateLimiter:
         self._born: float | None = None
         self._clock = time.monotonic
         self._last_high: float | None = None  # última petición de prioridad alta (el usuario usando la web)
+        # Diagnóstico (por qué va lento): cuándo salió cada petición y cuánto se esperó por cada motivo, por host.
+        self._calls: dict[str, deque] = defaultdict(lambda: deque(maxlen=4000))
+        self._waited: dict[str, Counter] = defaultdict(Counter)
 
     def _reserve_now(self, priority: int, now: float) -> float:
         """Reserva según la prioridad; menor mientras nadie usa la web (más cupo para el recolector)."""
@@ -197,15 +201,16 @@ class RateLimiter:
                 reserve = self._reserve_now(priority, now)
                 app = self._app_bucket(host)
                 meth = self._method.get((host, method))
-                wait = max(
-                    self._blocked.get(host, 0.0) - now,
-                    self._blocked.get(method_key, 0.0) - now,
-                    app.wait(now, reserve),
-                    meth.wait(now) if meth else 0.0,
+                terms = {
+                    "bloqueo_429": max(self._blocked.get(host, 0.0), self._blocked.get(method_key, 0.0)) - now,
+                    "ventana_llena": app.wait(now, reserve),
+                    "limite_metodo": meth.wait(now) if meth else 0.0,
                     # Prioridad baja repartida a lo largo de la ventana: si llenara la ventana de golpe, sus marcas
                     # caducarían todas a la vez al final y una búsqueda tuya esperaría hasta 2 min (se midieron 92 s).
-                    self._low_next.get(host, 0.0) - now if paced else 0.0,
-                )
+                    "ritmo": self._low_next.get(host, 0.0) - now if paced else 0.0,
+                }
+                reason = max(terms, key=terms.get)
+                wait = terms[reason]
                 if wait <= 0:
                     if paced:
                         self._low_next[host] = max(now, self._low_next.get(host, now)) + app.pace(reserve)
@@ -213,10 +218,13 @@ class RateLimiter:
                     if meth:
                         meth.record(now)
                     self._stats[host]["requests"] += 1
+                    self._calls[host].append((now, priority))
                     return True
                 if deadline is not None and now + wait > deadline:
                     return False
+                t0 = self._clock()
                 self._cond.wait(timeout=min(wait, 0.5))
+                self._waited[host][reason] += self._clock() - t0
 
     def update(self, host: str, method: str, status: int, headers) -> float:
         """Procesa las cabeceras de la respuesta. Devuelve la espera aplicada si fue 429."""
@@ -277,8 +285,18 @@ class RateLimiter:
                 foreign = self._foreign.get(host)
                 while foreign and foreign[0][0] < now - FOREIGN_WINDOW_S:
                     foreign.popleft()
+                calls = [c for c in self._calls.get(host, ()) if c[0] >= now - DIAG_WINDOW_S]
+                span = min(DIAG_WINDOW_S, now - calls[0][0]) if calls else 0
+                low_reserve = self._reserve_now(Priority.LOW, now)
                 hosts[host] = {
                     "windows": bucket.usage(now),
+                    # Lo que de verdad sale por minuto (últimos 5 min), el máximo para el recolector con la reserva de
+                    # ahora y por qué se espera (s en total desde que arrancó).
+                    "llamadas_min": round(60 * len(calls) / span, 1) if span >= 30 else None,
+                    "llamadas_min_recolector": round(60 * sum(1 for c in calls if c[1] == Priority.LOW) / span, 1) if span >= 30 else None,
+                    "max_min_recolector": round(60 / bucket.pace(low_reserve), 1) if bucket.pace(low_reserve) else None,
+                    "reserva_pct": round(100 * low_reserve),
+                    "espera_s": {k: round(v) for k, v in self._waited.get(host, Counter()).most_common() if v >= 1},
                     "blocked_for": round(max(0.0, blocked), 1),
                     **self._stats[host],
                     # Peticiones de otra app con esta misma key en los últimos 2 minutos (os repartís el cupo).

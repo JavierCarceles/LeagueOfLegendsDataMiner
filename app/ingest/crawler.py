@@ -1927,7 +1927,15 @@ class Crawler:
 
     def _write_funnel(self, cfg: CrawlerConfig) -> None:
         try:
+            # El uso de la key, antes que nada: el embudo tarda hasta ~20 s y al detener la ventana se iba vaciando
+            # (salía «63 de 100» con el recolector a tope).
+            limiter = getattr(self.svc, "limiter", None)
+            limits = limiter.snapshot() if limiter is not None else None
             funnel = search_funnel(self.svc.db, cfg)
+            # Para «Datos y API» (no lo recalcula en cada petición): (configuración, cuándo, embudo).
+            import json as _json
+
+            self.last_funnel = (_json.dumps(asdict(cfg), sort_keys=True, default=str), time.time(), dict(funnel))
             dd = getattr(self.svc, "dd", None)
             funnel["config"] = {
                 "champions": [dd.name(c) if dd is not None and hasattr(dd, "name") else c for c in cfg.targets],
@@ -1970,12 +1978,16 @@ class Crawler:
             funnel["found_by_tier"] = by_tier
             # Uso del cupo de cada host de Riot en los últimos 2 minutos: si una región no llega al límite, el cuello
             # de botella no es la key (es la búsqueda de jugadores o el filtro); «foreign»: otra app con la misma key.
-            limiter = getattr(self.svc, "limiter", None)
-            if limiter is not None:
-                funnel["ratelimit"] = {
-                    host: {"windows": h.get("windows"), "foreign": h.get("foreign"), "rate_limited": h.get("rate_limited")}
-                    for host, h in limiter.snapshot().items()
-                }
+            if limits is not None:
+                keep = ("windows", "foreign", "rate_limited", "llamadas_min", "llamadas_min_recolector", "max_min_recolector",
+                        "reserva_pct", "espera_s")
+                funnel["ratelimit"] = {host: {k: h.get(k) for k in keep} for host, h in limits.items()}
+                regional = {h: v for h, v in limits.items() if h in REGIONS}
+                if regional:
+                    log.info("Key de Riot (llamadas/min del recolector, de un máximo de): %s", ", ".join(
+                        f"{h} {v.get('llamadas_min_recolector')} de {v.get('max_min_recolector')} (reserva {v.get('reserva_pct')} %)"
+                        for h, v in sorted(regional.items())
+                    ))
             funnel["rate"] = {"since_start": self.status().get("rate_per_min"), "recent": self.recent_rate(self._all_stored_at())}
             # Dónde se va el tiempo de cada grupo de hilos (últimos 5 min, ``app.diag``) y las consultas lentas.
             from app import diag
@@ -2077,8 +2089,18 @@ class Crawler:
         for worker in list(self.workers.values()):
             worker.wake()
         self._autostart = False
-        threading.Thread(target=self._after_stop, args=(self.stop_event,), name="crawler-stop", daemon=True).start()
+        self.stop_thread = threading.Thread(target=self._after_stop, args=(self.stop_event,), name="crawler-stop", daemon=True)
+        self.stop_thread.start()
         return self.status()
+
+    def wait_stopped(self, timeout: float = 10) -> None:
+        """Para los tests (y al cerrar): espera a que acabe lo que se hace en segundo plano al detener."""
+        t = getattr(self, "stop_thread", None)
+        if t is not None:
+            t.join(timeout)
+        f = self._funnel_thread
+        if f is not None:
+            f.join(timeout)
 
     def _after_stop(self, stop_event: threading.Event) -> None:
         """Lo que no hace falta para responder al botón: guardar que no arranque solo, el embudo y, si tarda en parar,

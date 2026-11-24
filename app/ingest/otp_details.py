@@ -530,13 +530,23 @@ def load_raw(db, svc, match_id: str, puuid: str) -> tuple[dict | None, dict | No
 # saltaba de 20 en 20 o de 80 en 80. Ahora se cuenta una vez, se suma cada partida nueva al guardarla y se recuenta
 # de verdad cada ``LIVE_RECOUNT_S`` (en un hilo aparte).
 LIVE_RECOUNT_S = 300
-_live: dict[int, dict] = {}  # por base de datos (id): {"data", "at", "counting"}
-_live_lock = threading.Lock()
+_live_lock = threading.Lock()  # el estado va en la propia base de datos (``db._live_counts``)
+
+
+def _live_state(db) -> dict:
+    st = getattr(db, "_live_counts", None)
+    if st is None:
+        st = {"data": None, "at": 0.0, "counting": False}
+        try:
+            db._live_counts = st
+        except AttributeError:
+            pass
+    return st
 
 
 def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> None:
     with _live_lock:
-        d = (_live.get(id(db)) or {}).get("data")
+        d = _live_state(db)["data"]
         if d is None:
             return
         d["games"] += 1
@@ -549,7 +559,7 @@ def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> No
 def live_counts(db) -> dict:
     """``counts`` al momento sin recorrer la tabla en cada petición (ver ``_note_live``)."""
     with _live_lock:
-        st = _live.setdefault(id(db), {"data": None, "at": 0.0, "counting": False})
+        st = _live_state(db)
         data, stale, busy = st["data"], time.time() - st["at"] >= LIVE_RECOUNT_S, st["counting"]
         if data is not None and stale and not busy:
             st["counting"] = True

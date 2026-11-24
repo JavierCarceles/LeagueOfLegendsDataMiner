@@ -622,3 +622,18 @@ quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
   de la key de Riot, a la red, un candado, la base de datos, analizando, ficheros, parado sin trabajo, y las líneas
   donde más está. Cada 5 min el registro lo resume («Dónde se va el tiempo») junto con las consultas de más de 0,5 s y
   las escrituras de más de 1 s con el candado cogido, con la línea que las lanza (`db.lentas`).
+- **Primer diagnóstico (subida de las 11:14):** el freno es la key de desarrollo de Riot. Los hilos que descargan pasan
+  el 54-67 % del tiempo esperando turno del limitador y los recolectores el 75 % esperando esas descargas; guardar y
+  analizar ya solo son ~20 %. El limitador da el máximo de la key en una simulación (48 llamadas/min por región con 5 %
+  de reserva): estáis cerca del techo (~23 partidas/min por región; dos llamadas por partida, la partida y el timeline).
+  El «63 de 100» del embudo estaba sesgado: se leía ~20 s después de detener, con la ventana medio vacía; ahora se lee
+  antes del embudo, y cada servidor dice sus llamadas por minuto, el máximo con la reserva de ese momento y por qué se
+  espera (`ratelimit.<host>.espera_s`; en el registro, «Key de Riot»).
+- **El registro se cortaba a las 10:57:** en Windows no podía rotar (renombrar un fichero abierto falla) y el `logging`
+  estándar perdía todo lo de después. Ahora, si no puede renombrar, copia y vacía; la copia que se sube junta el final
+  del anterior y del actual.
+- **La lista de OTPs de la web** recalculaba en cada petición la lista de jugadores (hasta 18 s) y el embudo (hasta
+  22 s): CPU para el recolector y lecturas tan largas que el WAL no se podía recortar. Ahora la lista se reutiliza 60 s y
+  el embudo es el que escribe el recolector cada 5 min.
+- **Errores de visión rival por elo:** 758 partidas analizadas ya con ellos, todas de Esmeralda o menos (la búsqueda va
+  ahora por los elos bajos): aún no se puede comparar con Diamante → Aspirante.

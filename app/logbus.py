@@ -123,11 +123,44 @@ LIVE_LOG = "app_vivo.log"
 LOG_SNAPSHOT_BYTES = 1_000_000
 
 
+def _safe_rotating_handler(path, max_bytes: int, backups: int):
+    """``RotatingFileHandler`` que no pierde el registro en Windows.
+
+    Para rotar renombra el fichero, y en Windows eso falla si alguien lo tiene abierto (la copia que se sube a GitHub, un
+    editor…): el ``logging`` estándar se traga el error y vuelve a intentarlo en cada línea, que se pierde. Pasó el
+    24-11-2026: el registro subido se cortaba a las 10:57. Si no puede renombrar, copia el fichero a ``.1`` y lo vacía."""
+    import shutil
+    from logging.handlers import RotatingFileHandler
+
+    class SafeRotatingFileHandler(RotatingFileHandler):
+        def doRollover(self) -> None:
+            try:
+                super().doRollover()
+                return
+            except OSError:
+                pass
+            try:
+                if self.stream:
+                    self.stream.close()
+                    self.stream = None
+                shutil.copyfile(self.baseFilename, f"{self.baseFilename}.1")
+            except OSError:
+                pass
+            try:
+                with open(self.baseFilename, "w", encoding=self.encoding or "utf-8"):
+                    pass  # vaciarlo
+            except OSError:
+                pass
+            if not self.delay:
+                self.stream = self._open()
+
+    return SafeRotatingFileHandler(path, maxBytes=max_bytes, backupCount=backups, encoding="utf-8", delay=True)
+
+
 def add_file_log(data_dir) -> None:
     """Registro completo en ``data/registro/app_vivo.log`` (su final se sube a GitHub como ``app.log``): todo lo que sale en la ventana
     negra, con fecha y, en los errores, dónde fallaron. Así se puede revisar desde otro ordenador qué pasó entre dos
     subidas."""
-    from logging.handlers import RotatingFileHandler
     from pathlib import Path
 
     root = logging.getLogger("tempu")
@@ -136,7 +169,7 @@ def add_file_log(data_dir) -> None:
     folder = Path(data_dir) / "registro"
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        handler = RotatingFileHandler(folder / LIVE_LOG, maxBytes=LOG_FILE_BYTES, backupCount=2, encoding="utf-8", delay=True)
+        handler = _safe_rotating_handler(folder / LIVE_LOG, LOG_FILE_BYTES, 2)
     except OSError:
         return
     handler.setLevel(logging.INFO)

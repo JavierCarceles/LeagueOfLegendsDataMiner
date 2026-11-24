@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -21,6 +24,35 @@ from app.ingest.crawler import (
     target_sql,
 )
 from app.riot.routing import TIER_INDEX
+
+# La lista de OTPs de «Datos y API» lanzaba en cada petición la lista de jugadores (hasta 18 s en Windows) y el embudo
+# (hasta 22 s): CPU que le faltaba al recolector y lecturas tan largas que el WAL no se podía recortar. Ahora se reutilizan
+# un rato (el embudo, el que escribe el recolector cada 5 min).
+ROWS_TTL_S = 60
+FUNNEL_TTL_S = 360
+_heavy_lock = threading.Lock()
+
+
+def _cached(svc, key, ttl: float, compute):
+    """Caché en el propio servicio (``svc._heavy``): cada app (y cada test) la suya."""
+    with _heavy_lock:
+        store = getattr(svc, "_heavy", None)
+        if store is None:
+            store = svc._heavy = {}
+        hit = store.get(key)
+        if hit is not None and time.time() - hit[0] < ttl:
+            return hit[1]
+    value = compute()
+    with _heavy_lock:
+        store[key] = (time.time(), value)
+    return value
+
+
+def _cfg_key(cfg) -> str:
+    import json
+    from dataclasses import asdict
+
+    return json.dumps(asdict(cfg), sort_keys=True, default=str)
 
 router = APIRouter(prefix="/api/crawler", tags=["recolector"])
 
@@ -104,7 +136,8 @@ def otps(
         return {"champions": [], "focus": None, "players": [], "by_champion": []}
     target_cond, target_params = target_sql(cfg)
     games_cond, games_params = target_sql(cfg, "pa")
-    found = otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers)  # los de los servidores y elos elegidos (los que se visitan)
+    # Los de los servidores y elos elegidos (los que se visitan).
+    found = _cached(svc, ("rows", _cfg_key(cfg)), ROWS_TTL_S, lambda: otp_rows(svc.db, cfg, cfg.platforms, cfg.tiers))
     cap = int(cfg.games_per_otp or 0) if svc.crawler.running and svc.crawler.searching() else 0
     list_key = otp_list_key(cfg)
     depth_start, _ = otp_depth_start(cfg, getattr(getattr(svc, "dd", None), "version", None))
@@ -239,8 +272,15 @@ def otps(
         "offset": offset,
         "players": page,
         "details": otp_details.live_counts(svc.db) | {"enabled": cfg.save_details} | _files_state(svc),
-        "funnel": search_funnel(svc.db, cfg),
+        "funnel": _funnel(svc, cfg),
     }
+
+
+def _funnel(svc, cfg) -> dict:
+    last = getattr(svc.crawler, "last_funnel", None)
+    if last is not None and last[0] == _cfg_key(cfg) and time.time() - last[1] < FUNNEL_TTL_S:
+        return last[2]
+    return _cached(svc, ("funnel", _cfg_key(cfg)), FUNNEL_TTL_S, lambda: search_funnel(svc.db, cfg))
 
 
 def _files_state(svc) -> dict:

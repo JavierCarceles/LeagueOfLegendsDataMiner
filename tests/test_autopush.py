@@ -368,3 +368,48 @@ def test_las_peticiones_lentas_quedan_en_el_registro(monkeypatch, caplog):
         client.get("/api/rapida")
     slow = [r.getMessage() for r in caplog.records if "Petición lenta" in r.getMessage()]
     assert len(slow) == 1 and "/api/lenta" in slow[0]
+
+
+def test_el_registro_no_se_pierde_si_no_puede_rotar(tmp_path, monkeypatch):
+    """En Windows renombrar el registro falla si alguien lo tiene abierto: antes se perdía todo lo que venía después."""
+    import logging
+    import os
+
+    from app import logbus
+
+    path = tmp_path / "vivo.log"
+    handler = logbus._safe_rotating_handler(path, 200, 2)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    real_rename = os.rename
+
+    def broken(*a, **k):
+        raise PermissionError("en uso")
+
+    monkeypatch.setattr(os, "rename", broken)
+    monkeypatch.setattr(os, "replace", broken)
+    logger = logging.getLogger("tempu.test-rotacion")
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    try:
+        for i in range(30):
+            logger.info("linea %02d con algo de texto", i)
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+        monkeypatch.setattr(os, "rename", real_rename)
+    assert "linea 29" in path.read_text(encoding="utf-8")
+    assert (tmp_path / "vivo.log.1").exists()
+
+
+def test_el_limitador_dice_cuanto_usa_y_por_que_espera():
+    from app.riot.ratelimit import Priority, RateLimiter
+
+    clock = [1000.0]
+    lim = RateLimiter()
+    lim._clock = lambda: clock[0]
+    for _ in range(40):
+        lim.acquire("europe", "match", Priority.LOW, timeout=0)  # sin esperar: las que no caben no salen
+        clock[0] += 1.5
+    snap = lim.snapshot()["europe"]
+    assert snap["llamadas_min_recolector"] == snap["llamadas_min"] and 30 <= snap["llamadas_min"] <= 41
+    assert snap["max_min_recolector"] == 47.5 and snap["reserva_pct"] == 5

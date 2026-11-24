@@ -56,6 +56,7 @@ def run(svc, **cfg):
     assert wait_until(lambda: worker.state["status"] == "idle"), worker.state
     svc.crawler.stop()
     worker.join(timeout=5)
+    svc.crawler.wait_stopped()  # el embudo, que se escribe en segundo plano al detener, escribe en data/otps
     return worker, fake
 
 
@@ -238,6 +239,7 @@ def run_history(svc, fake, timeout=30, **cfg):
     assert wait_until(lambda: worker.state["status"] == "idle", timeout), worker.state
     svc.crawler.stop()
     worker.join(timeout=5)
+    svc.crawler.wait_stopped()  # el embudo, que se escribe en segundo plano al detener, escribe en data/otps
     return worker
 
 
