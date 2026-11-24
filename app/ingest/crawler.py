@@ -84,6 +84,7 @@ OTP_DEPTHS = ("30", "90", "180", "season", "365", "all")
 FUNNEL_EVERY_S = 300  # cada cuánto se escribe data/otps/_busqueda.json
 LEADERBOARD_TTL_S = 24 * 3600  # la tabla de los mejores de cada campeón (OP.GG) se vuelve a pedir una vez al día
 LEADERBOARD_TIERS = {"DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"}  # elos que salen en esa tabla
+LEADERBOARD_MAX = 20  # jugadores por tabla: cada uno nuevo cuesta una llamada de account-v1 (cupo regional)
 OPGG_REGION = {p: label for p, (_region, label, _name) in PLATFORMS.items()} | {"sg2": "SG"}
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV"}
 OTP_DETAIL_BACKFILL = 25  # partidas ya guardadas a las que se les baja el micro/macro por visita (2 llamadas cada una)
@@ -764,7 +765,13 @@ class RegionWorker(threading.Thread):
         return checked
 
     def leaderboard_pending(self, platform: str) -> list[int]:
-        """Campeones cuya tabla de los mejores (OP.GG) de esa plataforma toca pedir (no se ha pedido en 24 h)."""
+        """Campeones cuya tabla de los mejores (OP.GG) de esa plataforma toca pedir (no se ha pedido en 24 h).
+
+        Solo buscando especialistas («otp» o «mastery»): con líneas enteras o «cualquiera que lo juegue» las tablas solo
+        añaden jugadores de Diamante+ (de los que sobran) y cada uno nuevo cuesta una llamada de account-v1 del cupo
+        regional de las partidas: con 173 campeones y 15 plataformas, miles al día."""
+        if self.config.focus == "games" or self.config.roles:
+            return []
         opgg = getattr(self.svc, "opgg", None)
         if opgg is None or not getattr(opgg, "enabled", False) or not OPGG_REGION.get(platform):
             return []
@@ -822,7 +829,7 @@ class RegionWorker(threading.Thread):
                 log.warning("Tabla de los mejores de %s en %s (OP.GG): %s", champ, platform, exc)
                 continue
             entries = (data.get("leaderboard") or []) if isinstance(data, dict) else []
-            for entry in entries:
+            for entry in entries[:LEADERBOARD_MAX]:
                 if self.stop_event.is_set():
                     break
                 summ = entry.get("summoner") or {}
@@ -905,7 +912,8 @@ class RegionWorker(threading.Thread):
                 was = False
             if not was:
                 self.state["targets_found"] += 1
-            self._resolve_name(platform, puuid)
+            # Sin pedir su Riot ID aparte (account-v1, del mismo cupo regional que las partidas): con ~7.500 revisados por
+            # hora y casi todos válidos eran ~100 llamadas por minuto. Llega con su primera partida descargada.
             self.wake()
         return top
 
@@ -1186,8 +1194,8 @@ class RegionWorker(threading.Thread):
         if fresh:
             self.state["players"] += 1
             save()
-            if not row["game_name"]:
-                self._resolve_name(platform, puuid)
+            # Su nombre llega con su primera partida (``store_match`` guarda el Riot ID de los 10): pedirlo aparte gastaba
+            # una llamada de account-v1 del mismo cupo regional que las partidas por cada jugador nuevo.
         try:
             # 1) Partidas nuevas (posteriores al ancla), de la más antigua a la más reciente, con su propio cursor:
             #    si se corta a mitad, la siguiente visita sigue desde la última recorrida.
