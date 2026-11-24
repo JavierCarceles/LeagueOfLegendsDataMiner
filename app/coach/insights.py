@@ -586,6 +586,11 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
     # ``unless``: con esas etiquetas no es error. Un cambio igualado (caéis los mismos en los dos bandos) no es morir
     # adelantado ni que te ganqueen: lo era en el 20-30 % de esas muertes en top y mid y en el 40-50 % en bot, y más en
     # Aspirante que en Platino (contaba como error justo lo que hacen los mejores). Medido el 24-11-2026, ~34.000 partidas.
+    {"id": "death_lens_unused", "kind": "death", "need": ("seen_ward", "lens_unused"), "metric": "deaths_lens_unused",
+     "unless": ("fight_even",), "title": "Te ve un ward rival antes de la jugada y llevabas la lente",
+     "tip": "Antes de entrar en el río, en una jungla o de ir a un gank, usa la lente (trinket rojo) en los arbustos y la "
+            "entrada por la que vas a pasar: si te ven llegar, la jugada se acaba antes de empezar. Si no puedes barrer, "
+            "entra por otro camino."},
     {"id": "death_gank_no_ward", "kind": "death", "need": ("gank", "no_ward"), "metric": "deaths_no_vision_pre14",
      "unless": ("fight_even",), "title": "Te ganquean sin visión"},
     {"id": "death_overextended", "kind": "death", "need": ("overextended",), "metric": "deaths_overextended",
@@ -624,6 +629,11 @@ MISTAKE_TYPES: list[dict] = [  # el primero que encaje (de lo más concreto a lo
     {"id": "objective_dead", "kind": "objective", "need": ("dead",), "metric": "obj_lost_dead",
      "title": "El rival coge objetivos mientras estás muerto",
      "tip": "Antes de cada objetivo, juega para estar vivo: retrocede si no ves a varios rivales y no busques peleas sin visión en el minuto previo."},
+    {"id": "enemy_pink_ignored", "kind": "vision", "need": ("enemy_pink",), "metric": "enemy_pinks_ignored",
+     "title": "Pinks rivales que revelan tu jungla mucho rato",
+     "tip": "Una pink rival en tu jungla les dice tus rutas, tus campamentos y quién entra al río. Se ve sin lente: si "
+            "pasas a su lado, quítala (unos 3 golpes). Jungla y support: revisad los arbustos del río y la entrada a vuestra "
+            "jungla cada vez que volváis de base."},
     {"id": "gold_hoard", "kind": "gold", "need": (), "metric": "gold_hoard_min", "title": "Tardas en gastar el oro"},
     {"id": "skill_order", "kind": "build", "need": ("skill_order",), "metric": None,
      "title": "Subes las habilidades en un orden que no usan los OTPs de tu campeón",

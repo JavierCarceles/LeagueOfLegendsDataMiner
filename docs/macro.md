@@ -575,3 +575,27 @@ tiempo al poner al día los resúmenes (`DIGEST_VERSION = 6`), sin volver a anal
 - Siguen separando bien (bajan con el elo en todos los roles): morir aislado, perder duelos 1 contra 1, aceptar duelos
   con niveles u objetos de menos, sin pinks, sin quitar wards y el ritmo de objetos (el orden de habilidades también,
   salvo en support).
+
+### Wards rivales: te ven llegar con la lente sin usar y pinks rivales en tu jungla (24-11-2026)
+
+Riot no da la posición de los wards ni cuál cae en cada WARD_KILL. `_ward_map` los estima: el sitio es donde estaba
+quien lo puso (se pone a menos de ~600 de uno; la posición sale del recorrido reconstruido), la vida es de 90-120 s el
+trinket amarillo (según el nivel), 150 s el ward de support y hasta que la quitan la pink; cada jugador tiene 1 pink y 3
+wards sigilosos a la vez (el siguiente quita el más antiguo), y el ward que cae es el del tipo y equipo rival más cerca de
+quien lo quita (a menos de 2.500; si no, no se sabe cuál fue).
+
+- **Te ve un ward rival antes de la jugada y llevabas la lente** (`death_lens_unused`): mueres en una jugada de pocos
+  (antes del 14, o con 1-2 aliados como mucho), fuera de las bases y donde la visión importa (gank, río, jungla); en los
+  15 s anteriores pasaste a menos de 1.100 de un ward rival vivo que no quitaste, y tu trinket era la lente (la última
+  compra de trinket, 3364). Un cambio igualado no cuenta. En tus 55 partidas guardadas: 25 muertes con un ward rival
+  viéndote, 8 con la lente, 4 cuentan como error.
+- **Pinks rivales que revelan tu jungla mucho rato** (`enemy_pink_ignored`): pink rival en tu jungla viva 3 min o más.
+  Es error en cualquier rol si pasaste a su lado (una vez basta: tu posición cada 5 s a menos de 1.200, con la pink
+  puesta desde hace 20 s o más, para no culparte si te la ponen en plena pelea) y siguió viva 1 min más; si no pasaste,
+  solo en jungla y support (limpiar vuestra jungla es vuestro trabajo); a top, mid y ADC no se les dice nada.
+- **Por elo:** no se re-analizan las ~35.000 partidas guardadas (horas de CPU con el recolector en marcha); el perfil por
+  elo cuenta estos dos errores solo en las partidas analizadas con este código (`LATER_TYPES`), así que se calibran
+  solos con las partidas nuevas.
+- **Visión de los súbditos** (que te vean llegar a una jugada por la oleada): no se puede medir. Riot no da dónde está
+  cada oleada, y entre dos posiciones conocidas el camino lo pone la reconstrucción (el más corto que rodea muros): si
+  entraste por la línea o por los arbustos no está en los datos.

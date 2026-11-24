@@ -106,6 +106,20 @@ CONTROL_WARD = 2055
 HEAVY_HEAL_MIN = 650  # curación por minuto (propia + aliados) para considerar a un rival «curandero»
 VISION_NEAR = 4000  # un ward de un aliado cuenta si lo puso a esta distancia de donde moriste
 WARD_LIFE_MS = {"CONTROL_WARD": 360_000, "BLUE_TRINKET": 180_000, "SIGHT_WARD": 150_000}  # el resto, WARD_WINDOW_MS
+# Wards de cada equipo con su sitio (donde estaba quien lo puso: el ward se pone a menos de ~600) y su vida
+# (``_ward_map``). Riot no da ni la posición del ward ni cuál cae en un WARD_KILL: el que cae es el del tipo y equipo
+# rival más cerca de quien lo quita. Trinket amarillo: 90-120 s según el nivel; ward de support: 150 s; pink: hasta que la
+# quitan. Cada jugador: 1 pink y 3 wards sigilosos a la vez (el siguiente quita el más antiguo).
+STEALTH_WARDS = ("YELLOW_TRINKET", "SIGHT_WARD")
+WARD_MAX_ALIVE = {"CONTROL_WARD": 1, "STEALTH": 3}
+WARD_KILL_MATCH = 2500  # quien quita un ward estaba a menos de esto de él (si no, no se sabe cuál fue)
+TRINKETS = {3340: "ward", 3363: "farsight", 3364: "lens"}
+SEEN_BY_WARD = 1100  # visión de un ward (~900) y algo de margen por la posición estimada
+SEEN_BEFORE_MS = 15_000  # te vio en los 15 s antes de morir
+ENEMY_PINK_LONG_MS = 180_000  # pink rival en tu jungla que vive 3 min o más…
+ENEMY_PINK_PASS = 1200  # …y pasaste a su lado (la pink se ve: no hace falta lente)…
+ENEMY_PINK_AFTER_MS = 60_000  # …y siguió viva 1 min o más después
+ENEMY_PINK_SETTLE_MS = 20_000  # pasar justo cuando la ponen (en plena pelea) no cuenta
 OBJ_RELEVANT_RADIUS = 6000  # una muerte influye en un objetivo de su zona del mapa
 OBJ_SETUP_MS = 120_000  # colocarse y preparar visión antes de un objetivo no es tiempo vacío
 OBJ_SETUP_RADIUS = 3500
@@ -418,6 +432,7 @@ class _Game:
         self.control_wards_placed: Counter = Counter()
         self.wards_killed: Counter = Counter()
         self.ward_kills: dict[int, list[int]] = {pid: [] for pid in self.players}  # limpiar visión también es jugar
+        self.ward_kill_events: list[tuple[int, int, str]] = []  # (t, quién, tipo): para saber qué ward cayó
         self.pinks_lost: dict[int, list[int]] = {100: [], 200: []}  # pinks de cada equipo destruidas por el rival
         self.purchases: dict[int, list[tuple[int, int]]] = {pid: [] for pid in self.players}
         self.item_events: dict[int, list[dict]] = {pid: [] for pid in self.players}
@@ -516,6 +531,7 @@ class _Game:
                 if killer in self.players:
                     self.wards_killed[killer] += 1
                     self.ward_kills[killer].append(t)
+                    self.ward_kill_events.append((t, killer, (e.get("wardType") or "").upper()))
                     victim_team = 300 - self.players[killer]["team"]
                     if (e.get("wardType") or "").upper() == "CONTROL_WARD" and victim_team in self.pinks_lost:
                         self.pinks_lost[victim_team].append(t)
@@ -1056,6 +1072,7 @@ def analyze_game(
 
     deaths = [_classify_death(g, k) for k in g.kills if k["victim"] == me]
     moments: list[dict] = [d["moment"] for d in deaths]
+    enemy_pinks = _enemy_pinks(g, moments)
 
     kills = _num(me_raw.get("kills"))
     n_deaths = _num(me_raw.get("deaths"))
@@ -1162,6 +1179,9 @@ def analyze_game(
             "deaths_outnumbered_obj": count("fight_outnumbered", unless=CONTEXT_OK) if g.clocks_ok else None,
             "deaths_fight_won": count("fight_won"),
             "deaths_duel_behind": count("duel_behind"),
+            "deaths_seen_ward": count("seen_ward", unless=CONTEXT_OK) if g.has_timeline else None,
+            "deaths_lens_unused": count("lens_unused", unless=CONTEXT_OK) if g.has_timeline else None,
+            **enemy_pinks,
             "wards_pre14": sum(1 for t in g.wards[me] if t < EARLY_MS),
             "control_wards_placed": g.control_wards_placed[me],
             "afk_min": round(g.afk_ms(me) / 60_000, 1),
@@ -1337,6 +1357,16 @@ def _classify_death(g: _Game, k: dict) -> dict:
     vision_matters = bool(outsiders) or bool(zone and not geo.is_lane(zone) and not zone.startswith("base_"))
     if early and g.has_timeline and enemies and vision_matters and not _had_vision(g, t, pos):
         tags.append("no_ward")
+    # Te vio un ward rival antes de la jugada (en el río, en una jungla o en un gank) y llevabas la lente.
+    # Solo en jugadas de pocos (antes del 14, o cogido con 1-2 aliados como mucho) y fuera de las bases: en una pelea de
+    # equipos a mitad de partida que te vieran llegar no es lo que decide.
+    small_play = early or fight["allies"] <= 2
+    out_of_base = not (zone or "").startswith("base")
+    seen = _seen_by_ward(g, t) if g.has_timeline and enemies and vision_matters and small_play and out_of_base else None
+    if seen:
+        tags.append("seen_ward")
+        if _trinket(g, g.me["pid"], t) == "lens":
+            tags.append("lens_unused")
     gold = _death_gold(g, t)
     if gold:
         tags.append("unspent_gold")
@@ -1426,6 +1456,10 @@ def _classify_death(g: _Game, k: dict) -> dict:
         details.append("estabas adelantado, más cerca de su torre que de la tuya")
     if "no_ward" in tags:
         details.append("sin ward tuyo ni de un aliado cerca en los 2 minutos previos")
+    if seen:
+        kind, put = ("una pink", "puesta") if seen["kind"] == "CONTROL_WARD" else ("un ward", "puesto")
+        lens = (", y llevabas la lente: barre antes de entrar en zonas donde suelen poner wards" if "lens_unused" in tags else "")
+        details.append(f"{kind} de {_champ_ref(g, seen['pid'])} ({put} en el {_mmss(seen['t'])}) te veía antes de la jugada{lens}")
     if gold:
         buy = f": {_buy_text(g, gold['item'], gold['cost'])}" if gold.get("cost") else ""
         details.append(f"con {_int(gold['gold'])} de oro sin gastar{buy}")
@@ -1548,6 +1582,133 @@ def _had_vision(g: _Game, t: int, pos) -> bool:
             if where is None or geo.dist(where, pos) <= VISION_NEAR:
                 return True
     return False
+
+
+def _ward_map(g: _Game) -> list[dict]:
+    """Wards de los dos equipos: quién, tipo, sitio estimado, desde y hasta cuándo, y quién lo quitó (``None``: caducó)."""
+    cached = getattr(g, "_wards_cache", None)
+    if cached is not None:
+        return cached
+    wards: list[dict] = []
+    for pid, events in g.ward_events.items():
+        if pid not in g.players:
+            continue
+        for t, kind in events:
+            if kind not in STEALTH_WARDS and kind != "CONTROL_WARD":
+                continue
+            if kind == "YELLOW_TRINKET":
+                life = 90_000 + 30_000 * (min(g.level_at(pid, t), 18) - 1) // 17
+            else:
+                life = WARD_LIFE_MS.get(kind, WARD_WINDOW_MS) if kind != "CONTROL_WARD" else None
+            wards.append({
+                "pid": pid, "team": g.players[pid]["team"], "kind": kind, "t": t, "pos": g.pos_at(pid, t),
+                "end": min(t + life, g.duration_ms) if life else g.duration_ms, "killer": None,
+            })
+    wards.sort(key=lambda w: w["t"])
+    # Límite por jugador: la pink nueva quita la anterior; el cuarto ward sigiloso, el más antiguo.
+    for pid in g.players:
+        for group in (("CONTROL_WARD",), STEALTH_WARDS):
+            mine = [w for w in wards if w["pid"] == pid and w["kind"] in group]
+            cap = WARD_MAX_ALIVE["CONTROL_WARD" if group == ("CONTROL_WARD",) else "STEALTH"]
+            for i, w in enumerate(mine):
+                alive = [x for x in mine[:i] if x["end"] > w["t"]]
+                if len(alive) >= cap:
+                    alive[0]["end"] = w["t"]
+    for t, killer, kind in sorted(g.ward_kill_events):
+        if killer not in g.players:
+            continue
+        kpos = g.pos_at(killer, t)
+        team = g.players[killer]["team"]
+        cands = [
+            w for w in wards
+            if w["team"] != team and w["t"] <= t < w["end"] and w["killer"] is None
+            and (w["kind"] == kind or kind not in STEALTH_WARDS + ("CONTROL_WARD",))
+        ]
+        if not cands:
+            continue
+        if kpos is not None:
+            near = [(geo.dist(kpos, w["pos"]), w) for w in cands if w["pos"] is not None]
+            near = [x for x in near if x[0] <= WARD_KILL_MATCH]
+            if not near:
+                continue
+            w = min(near, key=lambda x: x[0])[1]
+        else:
+            w = cands[0]
+        w["end"], w["killer"] = t, killer
+    g._wards_cache = wards
+    return wards
+
+
+def _trinket(g: _Game, pid: int, t: int) -> str | None:
+    """Trinket que llevaba en ``t`` (el último comprado): ``ward``, ``farsight`` o ``lens``."""
+    out = None
+    for ts, item in g.purchases.get(pid) or []:
+        if ts > t:
+            break
+        out = TRINKETS.get(item, out)
+    return out
+
+
+def _seen_by_ward(g: _Game, t: int) -> dict | None:
+    """Ward rival vivo que te veía en los 15 s antes de morir (por tu recorrido) y que no quitaste."""
+    me = g.me["pid"]
+    for ts in range(t - SEEN_BEFORE_MS, t + 1, 2_500):
+        p = g.pos_at(me, ts) if ts < t else None
+        if p is None:
+            continue
+        for w in _ward_map(g):
+            if w["team"] != g.team and w["pos"] is not None and w["t"] <= ts < w["end"] and geo.dist(p, w["pos"]) <= SEEN_BY_WARD:
+                return w
+    return None
+
+
+def _enemy_pinks(g: _Game, moments: list) -> dict:
+    """Pinks rivales que revelan tu jungla 3 min o más. Si pasaste a su lado (una vez basta: tu posición cada 5 s a
+    menos de ``ENEMY_PINK_PASS``, con la pink puesta desde hace 20 s o más) es error en cualquier rol (el mid que roamea
+    y pasa por al lado); si no, solo en jungla y support (limpiar vuestra jungla es parte de vuestro trabajo): a quien no
+    pasa por donde afecta no se le dice nada."""
+    me = g.me["pid"]
+    out = {"enemy_pinks_own_jungle": 0, "enemy_pinks_long": 0, "enemy_pinks_ignored": 0}
+    if not g.has_timeline:
+        return out
+    for w in _ward_map(g):
+        if w["team"] == g.team or w["kind"] != "CONTROL_WARD" or w["pos"] is None:
+            continue
+        if not geo.is_jungle_of(geo.zone(w["pos"]), g.team):
+            continue
+        out["enemy_pinks_own_jungle"] += 1
+        if w["end"] - w["t"] < ENEMY_PINK_LONG_MS:
+            continue
+        out["enemy_pinks_long"] += 1
+        passed = next(
+            (ts for ts in range(w["t"] + ENEMY_PINK_SETTLE_MS, w["end"] - ENEMY_PINK_AFTER_MS, 5_000)
+             if (p := g.pos_at(me, ts)) is not None and geo.dist(p, w["pos"]) <= ENEMY_PINK_PASS),
+            None,
+        )
+        who = "tú" if w["killer"] == me else _champ_ref(g, w["killer"]) if w["killer"] else None
+        alive = (w["end"] - w["t"]) // 60_000
+        end = (f"hasta que la quitó {who} en el {_mmss(w['end'])}" if who
+               else "hasta el final de la partida" if w["end"] >= g.duration_ms else "sin que nadie la quitara")
+        where = geo.zone_label(geo.zone(w["pos"]), g.team)
+        why = "les daba la visión de tu jungla (tus campamentos, tus rutas, quién entra al río)"
+        if passed is not None:
+            out["enemy_pinks_ignored"] += 1
+            moments.append(_moment(
+                passed, "vision", "medium" if w["end"] - passed >= 2 * ENEMY_PINK_LONG_MS else "low",
+                "Pink rival en tu jungla y pasas a su lado sin quitarla",
+                f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])}. Pasaste a su lado en el "
+                f"{_mmss(passed)} y siguió viva {alive} min en total, {end}: {why}. Las pinks se ven sin lente: quítala al pasar (unos 3 golpes).",
+                w["pos"], ["vision", "enemy_pink", "passed"],
+            ))
+        elif g.role in ("JUNGLE", "SUPPORT"):
+            moments.append(_moment(
+                w["t"], "vision", "low",
+                f"Pink rival {alive} min en tu jungla",
+                f"{_champ_ref(g, w['pid'])} puso una pink en {where} en el {_mmss(w['t'])} y siguió viva {alive} min, {end}: {why}. "
+                "Al volver de base, jungla y support: revisad las entradas a vuestra jungla y los arbustos del río de vuestro lado.",
+                w["pos"], ["vision", "enemy_pink"],
+            ))
+    return out
 
 
 def _pinks_alive(g: _Game, pid: int, since: int, t: int) -> bool:

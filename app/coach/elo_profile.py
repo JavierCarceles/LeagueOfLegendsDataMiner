@@ -50,6 +50,11 @@ MOVE_KEYS = (
 ) + route_macro.KEYS + rule_metrics.KEYS
 
 
+# Errores que se detectan desde una versión del análisis sin cambiar ``ANALYSIS_VERSION`` (re-analizar ~35.000 partidas
+# frenaría el recolector horas): se cuentan solo en las partidas cuyo análisis trae la métrica que lo marca.
+LATER_TYPES = {"death_lens_unused": "deaths_seen_ward", "enemy_pink_ignored": "enemy_pinks_long"}
+
+
 def game_mistakes(moments: list[dict], role: str | None) -> list[tuple[str, str]]:
     """(tipo, gravedad) de cada error de una partida, con la misma regla que «Errores que repites»."""
     from app.coach.insights import mistake_type  # aquí: evita un import circular
@@ -75,8 +80,11 @@ class _Agg:
         self.sev: Counter = Counter()
         self.total = 0
         self.move: dict[str, list[float]] = defaultdict(list)
+        self.eligible: Counter = Counter()  # partidas que pueden tener cada tipo de ``LATER_TYPES``
 
-    def add(self, mistakes: list[tuple[str, str]], player: str, metrics: dict | None = None) -> None:
+    def add(self, mistakes: list[tuple[str, str]], player: str, metrics: dict | None = None, caps=()) -> None:
+        for mid in caps:
+            self.eligible[mid] += 1
         for k in MOVE_KEYS:
             v = (metrics or {}).get(k)
             if isinstance(v, (int, float)) and not isinstance(v, bool):
@@ -97,7 +105,11 @@ class _Agg:
             "players": len(self.players),
             "per_game": round(self.total / n, 3),
             "severity": {s: round(self.sev[s] / n, 3) for s in COUNTED},
-            "types": {mid: {"per_game": round(c / n, 3), "pct": round(100 * self.with_type[mid] / n, 1)} for mid, c in self.count.items()},
+            "types": {
+                mid: {"per_game": round(c / d, 3), "pct": round(100 * self.with_type[mid] / d, 1)}
+                for mid, c in self.count.items()
+                if (d := (self.eligible[mid] if mid in LATER_TYPES else n)) >= (MIN_GROUP_GAMES if mid in LATER_TYPES else 1)
+            },
             # Medias de movimiento (posiciones reconstruidas; solo partidas analizadas con la versión 14 o más).
             "move": {k: round(sum(v) / len(v), 2) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
         }
@@ -148,6 +160,7 @@ def _records(data_dir: Path, throttle: bool = False):
                     if throttle and read % YIELD_EVERY == 0:
                         time.sleep(0.005)
                     rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
+                    rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in (a.get("metrics") or {})]
                     try:
                         rec["move"].update(route_macro.from_dossier(d))
                     except Exception:  # noqa: BLE001  (un dossier raro no puede parar el perfil)
@@ -181,9 +194,9 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
         name = (champ_name(r["champ"]) if champ_name and r.get("champ") else None) or "tu campeón"
         extra = champ_checks.check(r, champ_refs.get(key), catalog, name)
         mistakes = r["mistakes"] + game_mistakes(extra, r["role"])
-        roles[r["role"]][group].add(mistakes, r["player"], r.get("move"))
+        roles[r["role"]][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
         if r.get("champ"):
-            champs[key][group].add(mistakes, r["player"], r.get("move"))
+            champs[key][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
 
     def blocks(groups: dict[str, _Agg], min_games: int) -> dict:
         return {g: groups[g].public() for g in GROUPS if g in groups and groups[g].games >= min_games}

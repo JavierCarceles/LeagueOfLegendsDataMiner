@@ -146,6 +146,8 @@ MISTAKE_TOPIC = {
     "gold_hoard": "backs",
     "enemy_jungler_far": "jungle",
     "pink_unused": "vision",
+    "death_lens_unused": "vision",
+    "enemy_pink_ignored": "vision",
     "skill_order": "jungle",
     "first_back": "backs",
     "item_tempo": "farm",
