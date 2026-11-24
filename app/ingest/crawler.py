@@ -608,9 +608,9 @@ class Ingested:
     detailed: bool = False  # se bajó también su timeline (micro y macro)
 
 
-OTP_PLAN_TTL_S = 120  # la cola de OTPs se recalcula cada 2 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S)
+OTP_PLAN_TTL_S = 300  # la cola de OTPs se recalcula cada 5 min (o antes si se vacía, tras OTP_PLAN_EMPTY_S); ~10 s en Windows
 OTP_PLAN_EMPTY_S = 15
-OTP_ROWS_FRESH_S = 60  # las regiones que recalculan su cola en el mismo minuto comparten la lectura de jugadores
+OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
 SCOUT_BACKLOG = 200  # jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más
 SCOUT_BACKLOG_WAIT_S = 60
 SAVE_QUEUE_MAX = 4  # partidas descargadas esperando su análisis (por región)

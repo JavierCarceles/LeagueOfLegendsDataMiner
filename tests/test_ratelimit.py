@@ -248,10 +248,10 @@ def test_crawler_uses_almost_all_the_quota_while_nobody_uses_the_web():
         clock.advance(0.2)
     limiter._low_next.clear()
     assert not limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=10)
+    clock.advance(130)  # se vacía la ventana
     assert limiter.acquire(HOST, METHOD, priority=Priority.HIGH, timeout=0)  # usas la web
     assert limiter.interactive()
-    clock.advance(130)  # se vacía la ventana
-    for _ in range(85):
+    for _ in range(84):
         limiter._low_next.clear()
         assert limiter.acquire(HOST, METHOD, priority=Priority.LOW, timeout=0)
         clock.advance(0.2)
