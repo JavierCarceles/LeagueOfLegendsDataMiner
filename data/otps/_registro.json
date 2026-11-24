@@ -1,91 +1,91 @@
 {
- "at": 1795526064,
+ "at": 1795527011,
  "diagnostico": {
+  "crawler-dl-sea": {
+   "muestras": 1257,
+   "en": {
+    "esperando turno de la key de Riot": 59,
+    "esperando a la red (Riot, OP.GG, GitHub)": 28,
+    "otro": 12
+   },
+   "lineas": {
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 59,
+    "riot/client.py:74 request → ssl.py:read": 20,
+    "thread.py _worker": 11,
+    "riot/client.py:74 request → response.py:decompress": 6,
+    "riot/client.py:74 request → utils.py:proxy_bypass_registry": 1,
+    "riot/client.py:74 request → utils.py:get_netrc_auth": 1
+   }
+  },
   "crawler-dl-europe": {
-   "muestras": 1260,
+   "muestras": 1251,
+   "en": {
+    "esperando turno de la key de Riot": 76,
+    "esperando a la red (Riot, OP.GG, GitHub)": 14,
+    "otro": 10
+   },
+   "lineas": {
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 76,
+    "thread.py _worker": 9,
+    "riot/client.py:74 request → ssl.py:read": 7,
+    "riot/client.py:74 request → response.py:decompress": 5,
+    "riot/client.py:74 request → request.py:getproxies_registry": 1,
+    "riot/client.py:74 request → utils.py:get_netrc_auth": 1
+   }
+  },
+  "crawler-dl-asia": {
+   "muestras": 1239,
    "en": {
     "esperando turno de la key de Riot": 66,
-    "otro": 19,
-    "esperando a la red (Riot, OP.GG, GitHub)": 15
+    "esperando a la red (Riot, OP.GG, GitHub)": 22,
+    "otro": 13
    },
    "lineas": {
     "riot/ratelimit.py:226 acquire → threading.py:wait": 66,
-    "thread.py _worker": 19,
-    "riot/client.py:74 request → ssl.py:read": 7,
+    "riot/client.py:74 request → ssl.py:read": 14,
+    "thread.py _worker": 12,
     "riot/client.py:74 request → response.py:decompress": 5,
     "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
     "riot/client.py:74 request → request.py:getproxies_registry": 1
    }
   },
-  "crawler-dl-asia": {
-   "muestras": 1260,
-   "en": {
-    "esperando turno de la key de Riot": 62,
-    "esperando a la red (Riot, OP.GG, GitHub)": 24,
-    "otro": 15
-   },
-   "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 62,
-    "riot/client.py:74 request → ssl.py:read": 15,
-    "thread.py _worker": 14,
-    "riot/client.py:74 request → response.py:decompress": 6,
-    "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
-    "riot/client.py:74 request → adapters.py:cert_verify": 1
-   }
-  },
-  "crawler-dl-sea": {
-   "muestras": 1260,
-   "en": {
-    "esperando turno de la key de Riot": 59,
-    "esperando a la red (Riot, OP.GG, GitHub)": 29,
-    "otro": 12
-   },
-   "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 59,
-    "riot/client.py:74 request → ssl.py:read": 19,
-    "thread.py _worker": 11,
-    "riot/client.py:74 request → response.py:decompress": 7,
-    "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
-    "riot/client.py:74 request → request.py:getproxies_registry": 1
-   }
-  },
   "crawler-dl-americas": {
-   "muestras": 1260,
+   "muestras": 1230,
    "en": {
-    "esperando turno de la key de Riot": 63,
+    "esperando turno de la key de Riot": 70,
     "esperando a la red (Riot, OP.GG, GitHub)": 21,
-    "otro": 16
+    "otro": 9
    },
    "lineas": {
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 63,
-    "thread.py _worker": 16,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 70,
     "riot/client.py:74 request → ssl.py:read": 12,
-    "riot/client.py:74 request → response.py:decompress": 7,
+    "thread.py _worker": 9,
+    "riot/client.py:74 request → response.py:decompress": 6,
     "riot/client.py:74 request → utils.py:get_netrc_auth": 1,
     "riot/client.py:74 request → utils.py:proxy_bypass_registry": 1
    }
   },
   "db-checkpoint": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "esperando un candado (base de datos, ficheros)": 99,
     "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "data/db.py:474 run → threading.py:wait": 99,
+    "data/db.py:474 run → threading.py:wait": 98,
+    "data/db.py:441 checkpoint": 1,
     "data/db.py:444 checkpoint": 0,
-    "data/db.py:442 checkpoint": 0,
     "data/db.py:489 wal_mb → __init__.py:stat": 0
    }
   },
   "MainThread": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "windows_events.py _poll": 91,
-    "windows_events.py recv": 3,
+    "windows_events.py _poll": 95,
+    "windows_events.py recv": 1,
     "budget.py:105 send_wrapper → windows_events.py:send": 1,
     "windows_events.py recv_into": 1,
     "windows_events.py send": 1,
@@ -93,246 +93,251 @@
    }
   },
   "web": {
-   "muestras": 1736,
+   "muestras": 1605,
    "en": {
-    "parado esperando trabajo": 72,
-    "otro": 18,
-    "consultando o escribiendo la base de datos": 9,
+    "parado esperando trabajo": 79,
+    "otro": 14,
+    "consultando o escribiendo la base de datos": 6,
     "comprimiendo o escribiendo ficheros": 1
    },
    "lineas": {
-    "threading.py wait": 72,
-    "api/collector.py:196 otps": 9,
+    "threading.py wait": 79,
+    "api/collector.py:196 otps": 7,
     "api/collector.py:150 otps → db.py:query": 2,
-    "external/base.py:315 cache_summary → db.py:query": 1,
-    "proactor_events.py _write_to_self": 1,
+    "ingest/crawler.py:300 targets": 1,
+    "api/collector.py:186 otps": 1,
     "api/system.py:34 _db_counts → db.py:one": 1
    }
   },
   "crawler-sea": {
-   "muestras": 420,
+   "muestras": 419,
    "en": {
-    "parado esperando trabajo": 41,
-    "esperando un candado (base de datos, ficheros)": 21,
-    "consultando o escribiendo la base de datos": 17,
-    "comprimiendo o escribiendo ficheros": 14,
-    "analizando partidas": 3,
+    "parado esperando trabajo": 53,
+    "esperando un candado (base de datos, ficheros)": 19,
+    "consultando o escribiendo la base de datos": 14,
+    "comprimiendo o escribiendo ficheros": 8,
     "esperando turno de la key de Riot": 3,
-    "otro": 1,
-    "esperando a la red (Riot, OP.GG, GitHub)": 1
+    "analizando partidas": 1,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1,
+    "otro": 1
    },
    "lineas": {
-    "ingest/crawler.py:710 take → threading.py:wait": 41,
-    "ingest/otp_details.py:461 save → db.py:write": 15,
-    "data/repository.py:270 store_match → db.py:write": 6,
-    "ingest/otp_details.py:1171 _player_dir → __init__.py:is_dir": 6,
-    "data/repository.py:320 _aggregate": 3,
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 3
+    "ingest/crawler.py:715 take → threading.py:wait": 53,
+    "data/repository.py:270 store_match → db.py:write": 12,
+    "ingest/otp_details.py:461 save → db.py:write": 5,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 3,
+    "ingest/otp_details.py:1171 _player_dir → __init__.py:is_dir": 2,
+    "ingest/crawler.py:1488 save → db.py:write": 2
    }
   },
-  "crawler-asia": {
-   "muestras": 420,
+  "crawler-europe": {
+   "muestras": 417,
    "en": {
-    "parado esperando trabajo": 45,
-    "esperando un candado (base de datos, ficheros)": 23,
-    "consultando o escribiendo la base de datos": 20,
-    "comprimiendo o escribiendo ficheros": 7,
-    "esperando turno de la key de Riot": 3,
+    "parado esperando trabajo": 54,
+    "esperando un candado (base de datos, ficheros)": 19,
+    "consultando o escribiendo la base de datos": 17,
+    "comprimiendo o escribiendo ficheros": 6,
     "analizando partidas": 1,
     "otro": 1
    },
    "lineas": {
-    "ingest/crawler.py:710 take → threading.py:wait": 45,
-    "ingest/otp_details.py:461 save → db.py:write": 12,
-    "data/repository.py:270 store_match → db.py:write": 10,
-    "data/repository.py:320 _aggregate": 4,
-    "riot/ratelimit.py:226 acquire → threading.py:wait": 3,
-    "data/repository.py:91 estimate_match_tier": 2
+    "ingest/crawler.py:715 take → threading.py:wait": 54,
+    "ingest/otp_details.py:461 save → db.py:write": 11,
+    "data/repository.py:270 store_match → db.py:write": 9,
+    "data/repository.py:319 _aggregate": 3,
+    "data/repository.py:320 _aggregate": 2,
+    "ingest/otp_details.py:1171 _player_dir → __init__.py:is_dir": 2
    }
   },
   "crawler-americas": {
-   "muestras": 420,
+   "muestras": 410,
    "en": {
-    "parado esperando trabajo": 49,
-    "esperando un candado (base de datos, ficheros)": 22,
-    "consultando o escribiendo la base de datos": 20,
-    "comprimiendo o escribiendo ficheros": 7,
-    "otro": 2
-   },
-   "lineas": {
-    "ingest/crawler.py:710 take → threading.py:wait": 49,
-    "data/repository.py:270 store_match → db.py:write": 11,
-    "ingest/otp_details.py:461 save → db.py:write": 10,
-    "ingest/crawler.py:1322 _lacking_details → db.py:query": 5,
-    "data/repository.py:106 upsert_match_players": 2,
-    "data/repository.py:321 _aggregate": 2
-   }
-  },
-  "crawler-europe": {
-   "muestras": 420,
-   "en": {
-    "parado esperando trabajo": 51,
-    "esperando un candado (base de datos, ficheros)": 23,
-    "consultando o escribiendo la base de datos": 13,
-    "comprimiendo o escribiendo ficheros": 10,
-    "analizando partidas": 2,
+    "parado esperando trabajo": 54,
+    "esperando un candado (base de datos, ficheros)": 20,
+    "consultando o escribiendo la base de datos": 11,
+    "comprimiendo o escribiendo ficheros": 6,
+    "esperando turno de la key de Riot": 6,
     "otro": 1,
-    "esperando turno de la key de Riot": 1
+    "analizando partidas": 1
    },
    "lineas": {
-    "ingest/crawler.py:710 take → threading.py:wait": 51,
-    "data/repository.py:270 store_match → db.py:write": 11,
-    "ingest/otp_details.py:461 save → db.py:write": 10,
-    "ingest/otp_details.py:507 save_raw → gzip.py:_write_raw": 2,
-    "ingest/otp_details.py:1171 _player_dir → __init__.py:is_dir": 2,
-    "data/repository.py:320 _aggregate": 2
+    "ingest/crawler.py:715 take → threading.py:wait": 54,
+    "ingest/otp_details.py:461 save → db.py:write": 11,
+    "data/repository.py:270 store_match → db.py:write": 9,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 6,
+    "data/repository.py:320 _aggregate": 2,
+    "ingest/otp_details.py:364 play_share → db.py:one": 1
    }
   },
   "otp-summaries": {
-   "muestras": 187,
+   "muestras": 180,
    "en": {
-    "otro": 49,
-    "consultando o escribiendo la base de datos": 44,
-    "comprimiendo o escribiendo ficheros": 7
+    "otro": 46,
+    "consultando o escribiendo la base de datos": 45,
+    "comprimiendo o escribiendo ficheros": 9
    },
    "lineas": {
-    "ingest/otp_details.py:1274 write_summary → db.py:query": 42,
-    "coach/store.py:25 unpack": 36,
-    "ingest/otp_details.py:1276 write_summary": 4,
-    "ingest/otp_details.py:819 metric_block": 3,
-    "coach/store.py:25 unpack → _weakrefset.py:_remove": 2,
-    "ingest/otp_details.py:1274 write_summary → db.py:conn": 2
+    "ingest/otp_details.py:1274 write_summary → db.py:query": 41,
+    "coach/store.py:25 unpack": 32,
+    "ingest/otp_details.py:1274 write_summary → db.py:conn": 4,
+    "coach/store.py:25 unpack → _weakrefset.py:_remove": 3,
+    "ingest/otp_details.py:1276 write_summary": 3,
+    "coach/store.py:25 unpack → decoder.py:raw_decode": 3
    }
   },
-  "crawler-funnel": {
-   "muestras": 54,
+  "crawler-asia": {
+   "muestras": 413,
    "en": {
-    "consultando o escribiendo la base de datos": 93,
-    "otro": 7
+    "parado esperando trabajo": 57,
+    "esperando un candado (base de datos, ficheros)": 16,
+    "consultando o escribiendo la base de datos": 15,
+    "comprimiendo o escribiendo ficheros": 7,
+    "esperando turno de la key de Riot": 2,
+    "analizando partidas": 1,
+    "otro": 1
    },
    "lineas": {
-    "ingest/crawler.py:449 search_funnel → db.py:query": 91,
-    "ingest/crawler.py:462 <genexpr>": 6,
-    "ingest/crawler.py:444 search_funnel → db.py:query": 2,
-    "ingest/crawler.py:457 search_funnel": 2
+    "ingest/crawler.py:715 take → threading.py:wait": 57,
+    "ingest/otp_details.py:461 save → db.py:write": 10,
+    "data/repository.py:270 store_match → db.py:write": 7,
+    "data/repository.py:106 upsert_match_players": 2,
+    "riot/ratelimit.py:226 acquire → threading.py:wait": 2,
+    "data/repository.py:320 _aggregate": 2
    }
   },
   "draft-live": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 91,
     "esperando a la red (Riot, OP.GG, GitHub)": 6,
     "comprimiendo o escribiendo ficheros": 2,
-    "otro": 1,
     "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
     "draft_live.py:426 _run → threading.py:wait": 91,
-    "lcu.py:127 _request → ssl.py:do_handshake": 1,
-    "lcu.py:93 _lockfile → __init__.py:read_text": 1,
-    "lcu.py:93 _lockfile → __init__.py:open": 1,
-    "lcu.py:127 _request → ssl.py:read": 1,
-    "lcu.py:127 _request → ssl.py:send": 1
+    "draft_live.py:89 get_prefs → db.py:one": 1,
+    "lcu.py:154 _get → socket.py:_real_close": 1,
+    "lcu.py:127 _request → utils.py:get_netrc_auth": 1,
+    "lcu.py:127 _request → utils.py:proxy_bypass_registry": 1,
+    "lcu.py:93 _lockfile → __init__.py:open": 1
    }
   },
-  "crawler-rows": {
-   "muestras": 25,
+  "crawler-funnel": {
+   "muestras": 39,
    "en": {
-    "consultando o escribiendo la base de datos": 96,
-    "otro": 4
+    "consultando o escribiendo la base de datos": 95,
+    "comprimiendo o escribiendo ficheros": 5
    },
    "lineas": {
-    "ingest/crawler.py:558 otp_rows_for_plan → db.py:query": 52,
-    "ingest/crawler.py:555 otp_rows_for_plan → db.py:query": 44,
-    "ingest/crawler.py:295 targets": 4
+    "ingest/crawler.py:454 search_funnel → db.py:query": 87,
+    "ingest/crawler.py:449 search_funnel → db.py:query": 5,
+    "ingest/crawler.py:464 search_funnel → decoder.py:raw_decode": 5,
+    "ingest/crawler.py:449 search_funnel → db.py:conn": 3
    }
   },
   "mis-partidas": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
-    "parado esperando trabajo": 97,
-    "consultando o escribiendo la base de datos": 2,
+    "parado esperando trabajo": 96,
+    "consultando o escribiendo la base de datos": 3,
     "comprimiendo o escribiendo ficheros": 1
    },
    "lineas": {
-    "coach/files.py:89 _run → threading.py:wait": 97,
-    "coach/files.py:114 sync → db.py:query": 2,
-    "coach/files.py:132 sync → __init__.py:exists": 1,
-    "coach/files.py:139 sync → __init__.py:exists": 0,
-    "coach/files.py:105 _index → __init__.py:open": 0
+    "coach/files.py:89 _run → threading.py:wait": 96,
+    "coach/files.py:114 sync → db.py:query": 3,
+    "coach/files.py:132 sync → __init__.py:exists": 1
+   }
+  },
+  "crawler-stop": {
+   "muestras": 38,
+   "en": {
+    "parado esperando trabajo": 58,
+    "otro": 26,
+    "esperando un candado (base de datos, ficheros)": 13,
+    "comprimiendo o escribiendo ficheros": 3
+   },
+   "lineas": {
+    "ingest/crawler.py:2480 _push_after_stop → threading.py:join": 58,
+    "ingest/crawler.py:2462 _after_stop": 24,
+    "ingest/crawler.py:2442 _after_stop → db.py:write": 13,
+    "coach/ranking_stats.py:122 load → __init__.py:open": 3,
+    "ingest/crawler.py:2464 _after_stop → __init__.py:emit": 3
+   }
+  },
+  "crawler-rows": {
+   "muestras": 11,
+   "en": {
+    "consultando o escribiendo la base de datos": 91,
+    "otro": 9
+   },
+   "lineas": {
+    "ingest/crawler.py:560 otp_rows_for_plan → db.py:query": 45,
+    "ingest/crawler.py:563 otp_rows_for_plan → db.py:query": 45,
+    "ingest/crawler.py:579 otp_rows_for_plan": 9
    }
   },
   "lol-client-watch": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 99,
     "esperando a la red (Riot, OP.GG, GitHub)": 1
    },
    "lineas": {
     "coach/tracker.py:398 _watch_loop → threading.py:wait": 99,
+    "lcu.py:127 _request → request.py:getproxies_registry": 0,
     "lcu.py:127 _request → connection.py:create_connection": 0,
-    "lcu.py:93 _lockfile → __init__.py:read_text": 0,
-    "lcu.py:127 _request → ssl.py:do_handshake": 0,
     "lcu.py:127 _request → ssl.py:_create": 0,
-    "lcu.py:127 _request → utils.py:proxy_bypass_registry": 0
+    "lcu.py:127 _request → ssl.py:load_default_certs": 0,
+    "lcu.py:93 _lockfile → __init__.py:open": 0
    }
   },
   "otp-counts": {
-   "muestras": 5,
+   "muestras": 6,
    "en": {
     "consultando o escribiendo la base de datos": 100
    },
    "lineas": {
-    "ingest/otp_details.py:594 counts → db.py:one": 80,
-    "ingest/otp_details.py:589 counts → db.py:one": 20
+    "ingest/otp_details.py:594 counts → db.py:one": 50,
+    "ingest/otp_details.py:592 counts → db.py:query": 33,
+    "ingest/otp_details.py:589 counts → db.py:conn": 17
    }
   },
   "rofl": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
-    "parado esperando trabajo": 99
+    "parado esperando trabajo": 99,
+    "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
     "replays_local.py:276 _run → threading.py:wait": 99,
+    "replays_local.py:332 index → db.py:query": 0,
     "replays_local.py:230 saved → db.py:one": 0,
-    "lcu.py:127 _request → connection.py:create_connection": 0,
-    "replays_local.py:332 index → db.py:query": 0
-   }
-  },
-  "crawler-stop": {
-   "muestras": 49,
-   "en": {
-    "parado esperando trabajo": 94,
-    "otro": 4,
-    "consultando o escribiendo la base de datos": 2
-   },
-   "lineas": {
-    "ingest/crawler.py:2315 _push_after_stop → threading.py:join": 94,
-    "ingest/crawler.py:2297 _after_stop": 4,
-    "ingest/crawler.py:2277 _after_stop → db.py:conn": 2
+    "lcu.py:127 _request → ssl.py:load_default_certs": 0,
+    "lcu.py:127 _request → ssl.py:send": 0
    }
   },
   "game-tracker": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
-    "parado esperando trabajo": 100
+    "parado esperando trabajo": 99,
+    "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "coach/tracker.py:317 _sleep → threading.py:wait": 100,
-    "coach/store.py:435 peers_missing → db.py:query": 0
+    "coach/tracker.py:317 _sleep → threading.py:wait": 99,
+    "coach/store.py:52 get_profile → db.py:one": 1
    }
   },
   "busquedas": {
-   "muestras": 6285,
+   "muestras": 6060,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "ingest/crawler.py:1922 run → threading.py:wait": 100
+    "ingest/crawler.py:1979 run → threading.py:wait": 100
    }
   },
   "tier-calibrator": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -341,7 +346,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -350,7 +355,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1467,
+   "muestras": 1398,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -359,7 +364,7 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -368,7 +373,7 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 489,
+   "muestras": 466,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -377,7 +382,7 @@
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 978,
+   "muestras": 932,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -386,7 +391,7 @@
    }
   },
   "warm-opgg-web": {
-   "muestras": 978,
+   "muestras": 932,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -395,7 +400,7 @@
    }
   },
   "autopush": {
-   "muestras": 21,
+   "muestras": 24,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -407,595 +412,675 @@
  "registro": [
   {
    "id": 1,
-   "ts": 1795525710.493232,
+   "ts": 1795526568.4055045,
    "kind": "info",
    "source": "app",
    "message": "Tempu Drafter 2.0.0 arrancando…",
-   "hora": "14:08:30"
+   "hora": "14:22:48"
   },
   {
    "id": 2,
-   "ts": 1795525710.555163,
+   "ts": 1795526568.4990737,
    "kind": "info",
    "source": "ddragon",
    "message": "Data Dragon 16.23.1 cargado (173 campeones).",
-   "hora": "14:08:30"
+   "hora": "14:22:48"
   },
   {
    "id": 3,
-   "ts": 1795525711.457325,
+   "ts": 1795526569.3720376,
    "kind": "info",
    "source": "precarga",
    "message": "Precarga en marcha: 2850 tareas (346 esenciales). Las vistas se abren al instante con lo que ya hay.",
-   "hora": "14:08:31"
+   "hora": "14:22:49"
   },
   {
    "id": 4,
-   "ts": 1795525711.6461623,
+   "ts": 1795526570.5495849,
    "kind": "info",
    "source": "precarga",
    "message": "Precarga completa: 2850 tareas al día.",
-   "hora": "14:08:31"
+   "hora": "14:22:50"
   },
   {
    "id": 5,
-   "ts": 1795525714.7659013,
-   "kind": "info",
-   "source": "otp-details",
-   "message": "Reclasificados por lo que juegan de verdad: 6 jugador-campeón (4 dejan de contar como OTP).",
-   "hora": "14:08:34"
-  },
-  {
-   "id": 6,
-   "ts": 1795525714.7793856,
+   "ts": 1795526571.7232587,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector americas por campeones (jugadores) iniciado (NA, BR, LAN, LAS): periodo season.",
-   "hora": "14:08:34"
+   "hora": "14:22:51"
   },
   {
-   "id": 7,
-   "ts": 1795525714.779709,
+   "id": 6,
+   "ts": 1795526571.7240722,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector europe por campeones (jugadores) iniciado (EUW, EUNE, TR, RU, ME): periodo season.",
-   "hora": "14:08:34"
+   "hora": "14:22:51"
   },
   {
-   "id": 8,
-   "ts": 1795525714.7800236,
+   "id": 7,
+   "ts": 1795526571.724635,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector asia por campeones (jugadores) iniciado (KR, JP): periodo season.",
-   "hora": "14:08:34"
+   "hora": "14:22:51"
   },
   {
-   "id": 9,
-   "ts": 1795525714.7812903,
+   "id": 8,
+   "ts": 1795526571.7255194,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector sea por campeones (jugadores) iniciado (OCE, SEA, TW, VN): periodo season.",
-   "hora": "14:08:34"
+   "hora": "14:22:51"
   },
   {
-   "id": 10,
-   "ts": 1795525715.0657816,
-   "kind": "info",
-   "source": "otp-details",
-   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 7.",
-   "hora": "14:08:35"
-  },
-  {
-   "id": 11,
-   "ts": 1795525715.5834541,
+   "id": 9,
+   "ts": 1795526572.4591186,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector en marcha en 4 regiones en paralelo.",
-   "hora": "14:08:35"
+   "hora": "14:22:52"
   },
   {
-   "id": 12,
-   "ts": 1795525716.2836974,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Ranking JP DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "14:08:36"
-  },
-  {
-   "id": 13,
-   "ts": 1795525718.694617,
+   "id": 10,
+   "ts": 1795526576.464544,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps/live tardó 3.1 s",
-   "hora": "14:08:38"
+   "message": "Petición lenta: GET /api/crawler/otps/live tardó 3.8 s",
+   "hora": "14:22:56"
   },
   {
-   "id": 14,
-   "ts": 1795525720.1567187,
+   "id": 11,
+   "ts": 1795526576.5616705,
    "kind": "info",
    "source": "crawler",
    "message": "Key de Riot (llamadas/min del recolector, de un máximo de): europe None de 47.5 (reserva 5 %)",
-   "hora": "14:08:40"
+   "hora": "14:22:56"
+  },
+  {
+   "id": 12,
+   "ts": 1795526576.607028,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Reclasificados por lo que juegan de verdad: 3 jugador-campeón (3 dejan de contar como OTP).",
+   "hora": "14:22:56"
+  },
+  {
+   "id": 13,
+   "ts": 1795526576.7345254,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 3.",
+   "hora": "14:22:56"
+  },
+  {
+   "id": 14,
+   "ts": 1795526579.4039555,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 64 %, esperando a la red (Riot, OP.GG, GitHub) 24 %, consultando o escribiendo la base de datos 10 %, otro 2 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | web: parado esperando trabajo 72 %, consultando o escribiendo la base de datos 27 %, otro 1 % (más en threading.py wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-sea: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2194 otp_rows_cached) | crawler-asia: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2194 otp_rows_cached) | crawler-europe: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2194 otp_rows_cached) | crawler-americas: consultando o escribiendo la base de datos 80 %, esperando un candado (base de datos, ficheros) 13 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:563 otp_rows_for_plan → db.py:query) | startup: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:371 play_share → db.py:one) | crawler-funnel: consultando o escribiendo la base de datos 46 %, esperando un candado (base de datos, ficheros) 38 %, otro 8 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:454 search_funnel → db.py:query) | open-browser: otro 100 % (más en run.py run) | otp-summaries: otro 100 % (más en coach/store.py:25 unpack) | warm-opgg-mcp: parado esperando trabajo 95 %, esperando a la red (Riot, OP.GG, GitHub) 5 % (más en warmer.py:166 _work → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:89 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:61 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | draft-live: parado esperando trabajo 100 % (más en draft_live.py:426 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:317 _sleep → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:276 _run → threading.py:wait)",
+   "hora": "14:22:59"
   },
   {
    "id": 15,
-   "ts": 1795525726.3076208,
+   "ts": 1795526579.4043548,
    "kind": "info",
    "source": "crawler",
-   "message": "Ranking TR DIAMOND: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).",
-   "hora": "14:08:46"
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:563 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 1 veces, 4.0 s en total, la peor 4.0 s",
+   "hora": "14:22:59"
   },
   {
    "id": 16,
-   "ts": 1795525726.9064584,
+   "ts": 1795526579.4048018,
    "kind": "info",
    "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): busquedas: esperando turno de la key de Riot 41 %, esperando a la red (Riot, OP.GG, GitHub) 26 %, esperando un candado (base de datos, ficheros) 22 %, consultando o escribiendo la base de datos 10 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | web: parado esperando trabajo 73 %, consultando o escribiendo la base de datos 19 %, otro 6 %, comprimiendo o escribiendo ficheros 2 % (más en threading.py wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-sea: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2049 otp_rows_cached) | crawler-asia: consultando o escribiendo la base de datos 87 %, esperando un candado (base de datos, ficheros) 9 %, comprimiendo o escribiendo ficheros 4 % (más en ingest/crawler.py:558 otp_rows_for_plan → db.py:query) | crawler-europe: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2049 otp_rows_cached) | crawler-americas: esperando un candado (base de datos, ficheros) 100 % (más en ingest/crawler.py:2049 otp_rows_cached) | crawler-funnel: esperando un candado (base de datos, ficheros) 57 %, consultando o escribiendo la base de datos 33 %, otro 5 %, comprimiendo o escribiendo ficheros 5 % (más en ingest/crawler.py:2028 tier_report) | startup: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:408 reclassify → db.py:query) | otp-summaries: otro 80 %, comprimiendo o escribiendo ficheros 20 % (más en coach/store.py:25 unpack) | open-browser: otro 100 % (más en run.py run) | draft-live: parado esperando trabajo 97 %, esperando a la red (Riot, OP.GG, GitHub) 3 % (más en draft_live.py:426 _run → threading.py:wait) | otp-relocate: comprimiendo o escribiendo ficheros 100 % (más en ingest/otp_details.py:676 relocate → gzip.py:_write_raw) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:89 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:61 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | lol-client-watch: parado esperando trabajo 100 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:317 _sleep → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:276 _run → threading.py:wait)",
-   "hora": "14:08:46"
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:454 search_funnel · SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_ch — 1 veces, 3.2 s en total, la peor 3.2 s",
+   "hora": "14:22:59"
   },
   {
    "id": 17,
-   "ts": 1795525726.9077873,
+   "ts": 1795526579.4052293,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:558 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 1 veces, 7.9 s en total, la peor 7.9 s",
-   "hora": "14:08:46"
+   "message": "Base de datos lenta: lectura · ingest/otp_details.py:594 counts · SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_ga — 1 veces, 3.2 s en total, la peor 3.2 s",
+   "hora": "14:22:59"
   },
   {
    "id": 18,
-   "ts": 1795525726.9084206,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:508 otp_rows · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam — 1 veces, 6.2 s en total, la peor 6.2 s",
-   "hora": "14:08:46"
-  },
-  {
-   "id": 19,
-   "ts": 1795525726.9091916,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:449 search_funnel · SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_ch — 1 veces, 3.6 s en total, la peor 3.6 s",
-   "hora": "14:08:46"
-  },
-  {
-   "id": 20,
-   "ts": 1795525726.9095883,
+   "ts": 1795526579.405461,
    "kind": "info",
    "source": "crawler",
    "message": "Estado americas: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "14:08:46"
+   "hora": "14:22:59"
   },
   {
-   "id": 21,
-   "ts": 1795525726.909785,
+   "id": 19,
+   "ts": 1795526579.4057212,
    "kind": "info",
    "source": "crawler",
    "message": "Estado europe: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "14:08:46"
+   "hora": "14:22:59"
   },
   {
-   "id": 22,
-   "ts": 1795525726.9101152,
+   "id": 20,
+   "ts": 1795526579.4061863,
    "kind": "info",
    "source": "crawler",
    "message": "Estado asia: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "14:08:46"
+   "hora": "14:22:59"
   },
   {
-   "id": 23,
-   "ts": 1795525726.9104185,
+   "id": 21,
+   "ts": 1795526579.406462,
    "kind": "info",
    "source": "crawler",
    "message": "Estado sea: 0 partidas nuevas (None/min ahora) · 0 analizadas · errores 0 · tiempo: —",
-   "hora": "14:08:46"
+   "hora": "14:22:59"
+  },
+  {
+   "id": 22,
+   "ts": 1795526603.7275012,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 31.1 s",
+   "hora": "14:23:23"
+  },
+  {
+   "id": 23,
+   "ts": 1795526607.0059886,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · SILVER · jugador: 5 partidas nuevas, 5 analizadas en 0.4 min (historial: 5 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado SILVER.",
+   "hora": "14:23:27"
   },
   {
    "id": 24,
-   "ts": 1795525746.1315725,
+   "ts": 1795526636.2479315,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 30.5 s",
-   "hora": "14:09:06"
+   "message": "Petición lenta: GET /api/crawler/otps tardó 19.8 s",
+   "hora": "14:23:56"
   },
   {
    "id": 25,
-   "ts": 1795525752.1881728,
+   "ts": 1795526636.7243233,
    "kind": "info",
    "source": "crawler",
-   "message": "NA · GOLD · jugador: 8 partidas nuevas (historial: 9 revisadas, completo).",
-   "hora": "14:09:12"
+   "message": "NA · GOLD · jugador: 13 partidas nuevas, 13 analizadas en 0.9 min (historial: 13 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado GOLD.",
+   "hora": "14:23:56"
   },
   {
    "id": 26,
-   "ts": 1795525777.0737875,
+   "ts": 1795526669.9111054,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/sources/status tardó 2.3 s",
-   "hora": "14:09:37"
+   "message": "Petición lenta: GET /api/crawler/otps tardó 21.7 s",
+   "hora": "14:24:29"
   },
   {
    "id": 27,
-   "ts": 1795525777.5325596,
+   "ts": 1795526673.1490827,
    "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 20.1 s",
-   "hora": "14:09:37"
+   "source": "crawler",
+   "message": "TW · BRONZE · jugador: 27 partidas nuevas, 27 analizadas en 1.5 min (historial: 27 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "14:24:33"
   },
   {
    "id": 28,
-   "ts": 1795525781.6064374,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAN · IRON · jugador: 9 partidas nuevas (historial: 10 revisadas, completo).",
-   "hora": "14:09:41"
-  },
-  {
-   "id": 29,
-   "ts": 1795525809.7016704,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/sources/status tardó 2.3 s",
-   "hora": "14:10:09"
-  },
-  {
-   "id": 30,
-   "ts": 1795525810.397548,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 20.5 s",
-   "hora": "14:10:10"
-  },
-  {
-   "id": 31,
-   "ts": 1795525813.0354507,
+   "ts": 1795526673.225432,
    "kind": "info",
    "source": "autopush",
    "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
-   "hora": "14:10:13"
+   "hora": "14:24:33"
+  },
+  {
+   "id": 29,
+   "ts": 1795526700.288574,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/sources/status tardó 2.0 s",
+   "hora": "14:25:00"
+  },
+  {
+   "id": 30,
+   "ts": 1795526702.7776883,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 22.1 s",
+   "hora": "14:25:02"
+  },
+  {
+   "id": 31,
+   "ts": 1795526722.8445494,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM · jugador: 50 partidas nuevas, 50 analizadas en 2.3 min (historial: 51 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado PLATINUM.",
+   "hora": "14:25:22"
   },
   {
    "id": 32,
-   "ts": 1795525843.7461393,
+   "ts": 1795526733.5095239,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 21.4 s",
-   "hora": "14:10:43"
+   "message": "Petición lenta: GET /api/sources/status tardó 2.1 s",
+   "hora": "14:25:33"
   },
   {
    "id": 33,
-   "ts": 1795525876.3117492,
+   "ts": 1795526739.0893972,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 21.4 s",
-   "hora": "14:11:16"
+   "message": "Petición lenta: GET /api/crawler/otps tardó 25.6 s",
+   "hora": "14:25:39"
   },
   {
    "id": 34,
-   "ts": 1795525877.3524067,
-   "kind": "info",
-   "source": "crawler",
-   "message": "VN · BRONZE · jugador: 50 partidas nuevas (historial: 51 revisadas).",
-   "hora": "14:11:17"
-  },
-  {
-   "id": 35,
-   "ts": 1795525877.6005752,
-   "kind": "info",
-   "source": "crawler",
-   "message": "KR · PLATINUM · jugador: 58 partidas nuevas (historial: 59 revisadas).",
-   "hora": "14:11:17"
-  },
-  {
-   "id": 36,
-   "ts": 1795525877.955523,
+   "ts": 1795526747.5776422,
    "kind": "info",
    "source": "autopush",
    "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
-   "hora": "14:11:17"
+   "hora": "14:25:47"
+  },
+  {
+   "id": 35,
+   "ts": 1795526748.3779044,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · IRON · jugador: 47 partidas nuevas, 47 analizadas en 2.4 min (historial: 53 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
+   "hora": "14:25:48"
+  },
+  {
+   "id": 36,
+   "ts": 1795526772.7267103,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 21.3 s",
+   "hora": "14:26:12"
   },
   {
    "id": 37,
-   "ts": 1795525907.5532658,
+   "ts": 1795526778.9859667,
    "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 20.2 s",
-   "hora": "14:11:47"
+   "source": "crawler",
+   "message": "BR · EMERALD · jugador: 50 partidas nuevas, 47 analizadas en 2.3 min (historial: 53 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado EMERALD.",
+   "hora": "14:26:18"
   },
   {
    "id": 38,
-   "ts": 1795525907.5548408,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/sources/status tardó 2.7 s",
-   "hora": "14:11:47"
-  },
-  {
-   "id": 39,
-   "ts": 1795525909.2036645,
-   "kind": "info",
-   "source": "crawler",
-   "message": "ME · SILVER · jugador: 54 partidas nuevas (historial: 54 revisadas).",
-   "hora": "14:11:49"
-  },
-  {
-   "id": 40,
-   "ts": 1795525933.200066,
-   "kind": "info",
-   "source": "crawler",
-   "message": "LAS · EMERALD · jugador: 49 partidas nuevas (historial: 51 revisadas).",
-   "hora": "14:12:13"
-  },
-  {
-   "id": 41,
-   "ts": 1795525941.4726558,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 21.6 s",
-   "hora": "14:12:21"
-  },
-  {
-   "id": 42,
-   "ts": 1795525972.0522726,
-   "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/sources/status tardó 2.2 s",
-   "hora": "14:12:52"
-  },
-  {
-   "id": 43,
-   "ts": 1795525974.9597695,
+   "ts": 1795526818.1968055,
    "kind": "info",
    "source": "autopush",
    "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
-   "hora": "14:12:54"
+   "hora": "14:26:58"
   },
   {
-   "id": 44,
-   "ts": 1795525975.4981656,
+   "id": 39,
+   "ts": 1795526819.4446318,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GRANDMASTER · jugador: 53 partidas nuevas, 48 analizadas en 2.4 min (historial: 62 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GRANDMASTER.",
+   "hora": "14:26:59"
+  },
+  {
+   "id": 40,
+   "ts": 1795526841.33456,
    "kind": "info",
    "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 23.1 s",
-   "hora": "14:12:55"
+   "message": "Petición lenta: GET /api/crawler/otps tardó 23.7 s",
+   "hora": "14:27:21"
   },
   {
-   "id": 45,
-   "ts": 1795526010.7863295,
+   "id": 41,
+   "ts": 1795526879.5087314,
    "kind": "info",
    "source": "http",
    "message": "Petición lenta: GET /api/crawler/otps tardó 23.4 s",
-   "hora": "14:13:30"
+   "hora": "14:27:59"
+  },
+  {
+   "id": 42,
+   "ts": 1795526883.0654879,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER · jugador: 49 partidas nuevas, 49 analizadas en 2.3 min (historial: 52 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado MASTER.",
+   "hora": "14:28:03"
+  },
+  {
+   "id": 43,
+   "ts": 1795526886.1366026,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 42.5 de 47.5 (reserva 5 %), asia 43.5 de 47.5 (reserva 5 %), europe 44.9 de 47.5 (reserva 5 %), sea 42.5 de 47.5 (reserva 5 %)",
+   "hora": "14:28:06"
+  },
+  {
+   "id": 44,
+   "ts": 1795526886.1380112,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 12.8%/12.1%/1796, BRONZE 15.6%/7.0%/1430, SILVER 13.7%/9.8%/1654, GOLD 14.6%/3.4%/1540, PLATINUM 12.8%/12.9%/1787, EMERALD 10.4%/12.1%/2275, DIAMOND 2.3%/5.4%/17394, MASTER 5.3%/12.6%/5082, GRANDMASTER 8.3%/12.4%/2967, CHALLENGER 4.2%/12.4%/6899",
+   "hora": "14:28:06"
+  },
+  {
+   "id": 45,
+   "ts": 1795526886.1386433,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 1·47·47.0·2.4·0%, BRONZE 1·27·27.0·1.5·100%, SILVER 1·5·5.0·0.4·100%, GOLD 1·13·13.0·0.9·100%, PLATINUM 1·50·50.0·2.3·0%, EMERALD 1·47·47.0·2.3·0%, MASTER 1·49·49.0·2.3·0%, GRANDMASTER 1·48·48.0·2.4·0%",
+   "hora": "14:28:06"
   },
   {
    "id": 46,
-   "ts": 1795526014.2298286,
+   "ts": 1795526886.1389313,
    "kind": "info",
    "source": "crawler",
-   "message": "KR · MASTER · jugador: 51 partidas nuevas (historial: 57 revisadas).",
-   "hora": "14:13:34"
+   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 1471/32/29/0, BRONZE 1412/13/27/0, SILVER 1440/3/32/0, GOLD 1442/5/33/0, PLATINUM 1478/3/36/0, EMERALD 1557/1/36/0, DIAMOND 8486/255/23/0, MASTER 7474/0/31/0, GRANDMASTER 2359/4/26/0, CHALLENGER 1831/28/14/0",
+   "hora": "14:28:06"
   },
   {
    "id": 47,
-   "ts": 1795526017.9463434,
+   "ts": 1795526886.1487007,
    "kind": "info",
    "source": "crawler",
-   "message": "VN · GRANDMASTER · jugador: 50 partidas nuevas (historial: 64 revisadas).",
-   "hora": "14:13:37"
+   "message": "Dónde se va el tiempo (5 min): crawler-dl-asia: esperando turno de la key de Riot 65 %, esperando a la red (Riot, OP.GG, GitHub) 23 %, otro 12 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 78 %, esperando a la red (Riot, OP.GG, GitHub) 16 %, otro 5 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 67 %, esperando a la red (Riot, OP.GG, GitHub) 22 %, otro 10 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 58 %, esperando a la red (Riot, OP.GG, GitHub) 27 %, otro 15 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | web: parado esperando trabajo 78 %, otro 15 %, consultando o escribiendo la base de datos 7 % (más en threading.py wait) | crawler-americas: parado esperando trabajo 55 %, esperando un candado (base de datos, ficheros) 19 %, consultando o escribiendo la base de datos 13 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-sea: parado esperando trabajo 55 %, esperando un candado (base de datos, ficheros) 17 %, consultando o escribiendo la base de datos 15 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-asia: parado esperando trabajo 55 %, consultando o escribiendo la base de datos 20 %, esperando un candado (base de datos, ficheros) 13 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-europe: parado esperando trabajo 55 %, esperando un candado (base de datos, ficheros) 19 %, consultando o escribiendo la base de datos 15 %, comprimiendo o escribiendo ficheros 6 % (más en ingest/crawler.py:715 take → threading.py:wait) | otp-summaries: consultando o escribiendo la base de datos 55 %, otro 40 %, comprimiendo o escribiendo ficheros 5 % (más en ingest/otp_details.py:1274 write_summary → db.py:query) | crawler-rows: consultando o escribiendo la base de datos 98 %, otro 2 % (más en ingest/crawler.py:560 otp_rows_for_plan → db.py:query) | draft-live: parado esperando trabajo 91 %, esperando a la red (Riot, OP.GG, GitHub) 6 %, comprimiendo o escribiendo ficheros 1 %, consultando o escribiendo la base de datos 1 % (más en draft_live.py:426 _run → threading.py:wait) | mis-partidas: parado esperando trabajo 95 %, consultando o escribiendo la base de datos 4 %, comprimiendo o escribiendo ficheros 2 % (más en coach/files.py:89 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 98 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:594 counts → db.py:one) | crawler-funnel: consultando o escribiendo la base de datos 83 %, comprimiendo o escribiendo ficheros 17 % (más en ingest/crawler.py:454 search_funnel → db.py:query) | rofl: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en replays_local.py:276 _run → threading.py:wait) | busquedas: parado esperando trabajo 100 % (más en ingest/crawler.py:1979 run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:317 _sleep → threading.py:wait)",
+   "hora": "14:28:06"
   },
   {
    "id": 48,
-   "ts": 1795526021.2018065,
+   "ts": 1795526886.1494846,
    "kind": "info",
    "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 42.2 de 47.5 (reserva 5 %), asia 44.1 de 47.5 (reserva 5 %), europe 38.9 de 47.5 (reserva 5 %), sea 44.2 de 47.5 (reserva 5 %)",
-   "hora": "14:13:41"
+   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 37 veces, 110.4 s en total, la peor 4.9 s",
+   "hora": "14:28:06"
   },
   {
    "id": 49,
-   "ts": 1795526021.2032053,
+   "ts": 1795526886.1497576,
    "kind": "info",
    "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 12.9%/2.5%/1749, BRONZE 15.6%/14.0%/1403, SILVER 13.6%/12.6%/1640, GOLD 14.5%/2.2%/1526, PLATINUM 13.0%/11.5%/1737, EMERALD 10.4%/13.7%/2230, DIAMOND 2.3%/6.7%/17376, MASTER 5.3%/13.4%/5044, GRANDMASTER 8.3%/13.7%/2911, CHALLENGER 4.2%/9.5%/6863",
-   "hora": "14:13:41"
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:1355 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 12 veces, 39.0 s en total, la peor 10.8 s",
+   "hora": "14:28:06"
   },
   {
    "id": 50,
-   "ts": 1795526021.2046084,
+   "ts": 1795526886.1501527,
    "kind": "info",
    "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): crawler-dl-asia: esperando turno de la key de Riot 62 %, esperando a la red (Riot, OP.GG, GitHub) 25 %, otro 13 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 60 %, esperando a la red (Riot, OP.GG, GitHub) 30 %, otro 10 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 61 %, esperando a la red (Riot, OP.GG, GitHub) 22 %, otro 17 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 65 %, otro 20 %, esperando a la red (Riot, OP.GG, GitHub) 15 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | busquedas: parado esperando trabajo 93 %, esperando turno de la key de Riot 3 %, esperando un candado (base de datos, ficheros) 3 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en ingest/crawler.py:1922 run → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | web: parado esperando trabajo 73 %, otro 18 %, consultando o escribiendo la base de datos 9 %, comprimiendo o escribiendo ficheros 1 % (más en threading.py wait) | crawler-asia: parado esperando trabajo 44 %, esperando un candado (base de datos, ficheros) 23 %, consultando o escribiendo la base de datos 20 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-sea: parado esperando trabajo 44 %, esperando un candado (base de datos, ficheros) 23 %, consultando o escribiendo la base de datos 16 %, comprimiendo o escribiendo ficheros 13 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-americas: parado esperando trabajo 46 %, esperando un candado (base de datos, ficheros) 22 %, consultando o escribiendo la base de datos 20 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-europe: parado esperando trabajo 53 %, esperando un candado (base de datos, ficheros) 24 %, consultando o escribiendo la base de datos 12 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:710 take → threading.py:wait) | otp-summaries: otro 50 %, consultando o escribiendo la base de datos 46 %, comprimiendo o escribiendo ficheros 3 %, esperando un candado (base de datos, ficheros) 1 % (más en ingest/otp_details.py:1274 write_summary → db.py:query) | draft-live: parado esperando trabajo 90 %, esperando a la red (Riot, OP.GG, GitHub) 6 %, comprimiendo o escribiendo ficheros 2 %, otro 1 % (más en draft_live.py:426 _run → threading.py:wait) | crawler-rows: consultando o escribiendo la base de datos 96 %, otro 4 % (más en ingest/crawler.py:558 otp_rows_for_plan → db.py:query) | mis-partidas: parado esperando trabajo 96 %, consultando o escribiendo la base de datos 2 %, comprimiendo o escribiendo ficheros 2 % (más en coach/files.py:89 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | crawler-funnel: consultando o escribiendo la base de datos 67 %, otro 33 % (más en ingest/crawler.py:449 search_funnel → db.py:query) | rofl: parado esperando trabajo 99 % (más en replays_local.py:276 _run → threading.py:wait) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:594 counts → db.py:one) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:317 _sleep → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait)",
-   "hora": "14:13:41"
+   "message": "Base de datos lenta: lectura · ingest/otp_details.py:1274 write_summary · SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ? — 13 veces, 35.9 s en total, la peor 8.1 s",
+   "hora": "14:28:06"
   },
   {
    "id": 51,
-   "ts": 1795526021.2049978,
+   "ts": 1795526886.150335,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 46 veces, 125.3 s en total, la peor 3.8 s",
-   "hora": "14:13:41"
+   "message": "Estado americas: 97 partidas nuevas (19.4/min ahora) · 93 analizadas · errores 0 · tiempo: cola 16, riot_listas 12, esperando_descarga 155, guardar_partida 62, riot 0, analizar_guardar 60, partidas 282, visitas 190",
+   "hora": "14:28:06"
   },
   {
    "id": 52,
-   "ts": 1795526021.205415,
+   "ts": 1795526886.1505666,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/otp_details.py:1274 write_summary · SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ? — 9 veces, 16.9 s en total, la peor 5.7 s",
-   "hora": "14:13:41"
+   "message": "Estado europe: 100 partidas nuevas (20.0/min ahora) · 100 analizadas · errores 0 · tiempo: cola 13, riot_listas 8, esperando_descarga 165, guardar_partida 56, riot 0, analizar_guardar 64, partidas 290, visitas 163",
+   "hora": "14:28:06"
   },
   {
    "id": 53,
-   "ts": 1795526021.2058175,
+   "ts": 1795526886.1507676,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:558 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 3 veces, 15.1 s en total, la peor 7.9 s",
-   "hora": "14:13:41"
+   "message": "Estado asia: 99 partidas nuevas (19.8/min ahora) · 99 analizadas · errores 0 · tiempo: cola 33, riot_listas 3, esperando_descarga 170, guardar_partida 49, riot 0, analizar_guardar 50, partidas 275, visitas 278",
+   "hora": "14:28:06"
   },
   {
    "id": 54,
-   "ts": 1795526021.206144,
+   "ts": 1795526886.1510284,
    "kind": "info",
    "source": "crawler",
-   "message": "Estado americas: 90 partidas nuevas (18.0/min ahora) · 90 analizadas · errores 0 · tiempo: cola 24, riot_listas 6, esperando_descarga 133, guardar_partida 66, riot 0, analizar_guardar 67, partidas 271, visitas 205",
-   "hora": "14:13:41"
+   "message": "Estado sea: 101 partidas nuevas (20.2/min ahora) · 96 analizadas · errores 0 · tiempo: cola 14, riot_listas 9, esperando_descarga 155, guardar_partida 66, riot 0, analizar_guardar 57, partidas 283, visitas 234",
+   "hora": "14:28:06"
   },
   {
    "id": 55,
-   "ts": 1795526021.2064629,
+   "ts": 1795526889.7371893,
    "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 94 partidas nuevas (18.8/min ahora) · 79 analizadas · errores 0 · tiempo: cola 14, riot_listas 3, esperando_descarga 153, guardar_partida 60, riot 0, analizar_guardar 66, partidas 284, visitas 181",
-   "hora": "14:13:41"
+   "source": "autopush",
+   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
+   "hora": "14:28:09"
   },
   {
    "id": 56,
-   "ts": 1795526021.2066708,
+   "ts": 1795526893.1601565,
    "kind": "info",
    "source": "crawler",
-   "message": "Estado asia: 109 partidas nuevas (21.8/min ahora) · 89 analizadas · errores 0 · tiempo: cola 14, riot_listas 8, esperando_descarga 133, guardar_partida 73, riot 0, analizar_guardar 69, partidas 282, visitas 285",
-   "hora": "14:13:41"
+   "message": "EUW · CHALLENGER · jugador: 49 partidas nuevas, 49 analizadas en 2.4 min (historial: 69 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado CHALLENGER.",
+   "hora": "14:28:13"
   },
   {
    "id": 57,
-   "ts": 1795526021.2070146,
+   "ts": 1795526920.9547696,
    "kind": "info",
-   "source": "crawler",
-   "message": "Estado sea: 100 partidas nuevas (20.0/min ahora) · 99 analizadas · errores 0 · tiempo: cola 14, riot_listas 3, esperando_descarga 130, guardar_partida 59, riot 0, analizar_guardar 92, partidas 286, visitas 289",
-   "hora": "14:13:41"
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 30.2 s",
+   "hora": "14:28:40"
   },
   {
    "id": 58,
-   "ts": 1795526026.3094985,
+   "ts": 1795526924.6864123,
    "kind": "info",
    "source": "crawler",
-   "message": "Recolector americas detenido. Guardadas 91 partidas.",
-   "hora": "14:13:46"
+   "message": "BR · SILVER · jugador: 49 partidas nuevas, 48 analizadas en 2.4 min (historial: 52 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado SILVER.",
+   "hora": "14:28:44"
   },
   {
    "id": 59,
-   "ts": 1795526026.3165078,
+   "ts": 1795526955.3323267,
    "kind": "info",
-   "source": "crawler",
-   "message": "Recolector europe detenido. Guardadas 95 partidas.",
-   "hora": "14:13:46"
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 22.1 s",
+   "hora": "14:29:15"
   },
   {
    "id": 60,
-   "ts": 1795526026.3251042,
+   "ts": 1795526959.3763158,
    "kind": "info",
    "source": "crawler",
-   "message": "Recolector sea detenido. Guardadas 100 partidas.",
-   "hora": "14:13:46"
+   "message": "VN · DIAMOND · jugador: 50 partidas nuevas, 50 analizadas en 2.3 min (historial: 50 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado DIAMOND.",
+   "hora": "14:29:19"
   },
   {
    "id": 61,
-   "ts": 1795526026.3409104,
+   "ts": 1795526966.3554378,
    "kind": "info",
-   "source": "crawler",
-   "message": "Recolector asia detenido. Guardadas 110 partidas.",
-   "hora": "14:13:46"
+   "source": "autopush",
+   "message": "Subida a GitHub: 500 de 2000 partidas nuevas.",
+   "hora": "14:29:26"
   },
   {
    "id": 62,
-   "ts": 1795526027.3624241,
+   "ts": 1795526978.5850904,
    "kind": "info",
    "source": "crawler",
-   "message": "Recolector detenido en 2 s.",
-   "hora": "14:13:47"
+   "message": "BR · GOLD · jugador: 13 partidas nuevas, 13 analizadas en 0.9 min (historial: 14 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado GOLD.",
+   "hora": "14:29:38"
   },
   {
    "id": 63,
-   "ts": 1795526044.4267795,
+   "ts": 1795526978.7762444,
    "kind": "info",
-   "source": "http",
-   "message": "Petición lenta: GET /api/crawler/otps tardó 22.0 s",
-   "hora": "14:14:04"
+   "source": "crawler",
+   "message": "Recolector americas detenido. Guardadas 125 partidas.",
+   "hora": "14:29:38"
   },
   {
    "id": 64,
-   "ts": 1795526052.38883,
+   "ts": 1795526980.1032326,
    "kind": "info",
    "source": "crawler",
-   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 42.2 de 47.5 (reserva 5 %), asia 44.1 de 47.5 (reserva 5 %), europe 39.0 de 47.5 (reserva 5 %), sea 44.2 de 47.5 (reserva 5 %)",
-   "hora": "14:14:12"
+   "message": "KR · GOLD · jugador: 26 partidas nuevas, 26 analizadas en 1.6 min (historial: 27 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado GOLD.",
+   "hora": "14:29:40"
   },
   {
    "id": 65,
-   "ts": 1795526052.3930552,
+   "ts": 1795526980.243117,
    "kind": "info",
    "source": "crawler",
-   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 12.9%/2.5%/1749, BRONZE 15.6%/13.9%/1403, SILVER 13.6%/12.5%/1640, GOLD 14.5%/2.5%/1526, PLATINUM 13.0%/11.4%/1737, EMERALD 10.4%/13.6%/2230, DIAMOND 2.3%/6.9%/17376, MASTER 5.3%/13.3%/5044, GRANDMASTER 8.3%/13.6%/2911, CHALLENGER 4.2%/9.7%/6863",
-   "hora": "14:14:12"
+   "message": "Recolector asia detenido. Guardadas 125 partidas.",
+   "hora": "14:29:40"
   },
   {
    "id": 66,
-   "ts": 1795526052.3948562,
+   "ts": 1795526982.3929443,
    "kind": "info",
    "source": "crawler",
-   "message": "Dónde se va el tiempo (5 min): crawler-dl-europe: esperando turno de la key de Riot 66 %, otro 19 %, esperando a la red (Riot, OP.GG, GitHub) 15 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 62 %, esperando a la red (Riot, OP.GG, GitHub) 24 %, otro 15 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 59 %, esperando a la red (Riot, OP.GG, GitHub) 29 %, otro 12 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 63 %, esperando a la red (Riot, OP.GG, GitHub) 21 %, otro 16 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | web: parado esperando trabajo 71 %, otro 19 %, consultando o escribiendo la base de datos 9 %, comprimiendo o escribiendo ficheros 1 % (más en threading.py wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-sea: parado esperando trabajo 41 %, esperando un candado (base de datos, ficheros) 21 %, consultando o escribiendo la base de datos 17 %, comprimiendo o escribiendo ficheros 14 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-asia: parado esperando trabajo 45 %, esperando un candado (base de datos, ficheros) 23 %, consultando o escribiendo la base de datos 20 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-americas: parado esperando trabajo 49 %, esperando un candado (base de datos, ficheros) 22 %, consultando o escribiendo la base de datos 20 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:710 take → threading.py:wait) | crawler-europe: parado esperando trabajo 51 %, esperando un candado (base de datos, ficheros) 23 %, consultando o escribiendo la base de datos 13 %, comprimiendo o escribiendo ficheros 10 % (más en ingest/crawler.py:710 take → threading.py:wait) | otp-summaries: consultando o escribiendo la base de datos 49 %, otro 46 %, comprimiendo o escribiendo ficheros 5 % (más en ingest/otp_details.py:1274 write_summary → db.py:query) | crawler-funnel: consultando o escribiendo la base de datos 93 %, otro 7 % (más en ingest/crawler.py:449 search_funnel → db.py:query) | draft-live: parado esperando trabajo 90 %, esperando a la red (Riot, OP.GG, GitHub) 6 %, comprimiendo o escribiendo ficheros 2 %, otro 1 % (más en draft_live.py:426 _run → threading.py:wait) | crawler-rows: consultando o escribiendo la base de datos 96 %, otro 4 % (más en ingest/crawler.py:558 otp_rows_for_plan → db.py:query) | mis-partidas: parado esperando trabajo 97 %, consultando o escribiendo la base de datos 2 %, comprimiendo o escribiendo ficheros 1 % (más en coach/files.py:89 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:594 counts → db.py:one) | rofl: parado esperando trabajo 99 % (más en replays_local.py:276 _run → threading.py:wait) | crawler-stop: parado esperando trabajo 94 %, otro 4 %, consultando o escribiendo la base de datos 2 % (más en ingest/crawler.py:2315 _push_after_stop → threading.py:join) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:317 _sleep → threading.py:wait) | busquedas: parado esperando trabajo 100 % (más en ingest/crawler.py:1922 run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait)",
-   "hora": "14:14:12"
+   "message": "RU · BRONZE · jugador: 25 partidas nuevas, 25 analizadas en 1.5 min (historial: 28 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "14:29:42"
   },
   {
    "id": 67,
-   "ts": 1795526052.396121,
+   "ts": 1795526982.4994733,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 46 veces, 125.3 s en total, la peor 3.8 s",
-   "hora": "14:14:12"
+   "message": "Recolector europe detenido. Guardadas 126 partidas.",
+   "hora": "14:29:42"
   },
   {
    "id": 68,
-   "ts": 1795526052.3975189,
+   "ts": 1795526983.260943,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/otp_details.py:1274 write_summary · SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ? — 16 veces, 37.6 s en total, la peor 6.0 s",
-   "hora": "14:14:12"
+   "message": "VN · BRONZE · jugador: 2 partidas nuevas, 2 analizadas en 0.4 min (historial: 2 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "14:29:43"
   },
   {
    "id": 69,
-   "ts": 1795526052.3984542,
+   "ts": 1795526983.293636,
    "kind": "info",
    "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:449 search_funnel · SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_ch — 3 veces, 30.6 s en total, la peor 24.7 s",
-   "hora": "14:14:12"
+   "message": "Recolector sea detenido. Guardadas 132 partidas.",
+   "hora": "14:29:43"
   },
   {
    "id": 70,
-   "ts": 1795526052.3998415,
+   "ts": 1795526983.7371526,
    "kind": "info",
    "source": "crawler",
-   "message": "Estado americas: 91 partidas nuevas (None/min ahora) · 91 analizadas · errores 0 · tiempo: cola 24, riot_listas 6, esperando_descarga 138, guardar_partida 66, riot 0, analizar_guardar 67, partidas 278, visitas 286",
-   "hora": "14:14:12"
+   "message": "Recolector detenido en 8 s.",
+   "hora": "14:29:43"
   },
   {
    "id": 71,
-   "ts": 1795526052.4009132,
+   "ts": 1795526987.9924042,
    "kind": "info",
-   "source": "crawler",
-   "message": "Estado europe: 95 partidas nuevas (None/min ahora) · 80 analizadas · errores 0 · tiempo: cola 14, riot_listas 3, esperando_descarga 160, guardar_partida 60, riot 0, analizar_guardar 66, partidas 291, visitas 297",
-   "hora": "14:14:12"
+   "source": "http",
+   "message": "Petición lenta: GET /api/crawler/otps tardó 22.3 s",
+   "hora": "14:29:47"
   },
   {
    "id": 72,
-   "ts": 1795526052.4058287,
+   "ts": 1795526997.153512,
    "kind": "info",
    "source": "crawler",
-   "message": "Estado asia: 110 partidas nuevas (None/min ahora) · 90 analizadas · errores 0 · tiempo: cola 14, riot_listas 8, esperando_descarga 140, guardar_partida 73, riot 0, analizar_guardar 69, partidas 288, visitas 297",
-   "hora": "14:14:12"
+   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 45.5 de 47.5 (reserva 5 %), asia 42.5 de 47.5 (reserva 5 %), europe 46.1 de 47.5 (reserva 5 %), sea 44.5 de 47.5 (reserva 5 %)",
+   "hora": "14:29:57"
   },
   {
    "id": 73,
-   "ts": 1795526052.4070244,
+   "ts": 1795526997.1580772,
    "kind": "info",
    "source": "crawler",
-   "message": "Estado sea: 100 partidas nuevas (None/min ahora) · 99 analizadas · errores 0 · tiempo: cola 14, riot_listas 9, esperando_descarga 131, guardar_partida 59, riot 0, analizar_guardar 92, partidas 287, visitas 297",
-   "hora": "14:14:12"
+   "message": "Reparto por elo (parte objetivo / últimas partidas analizadas / analizadas en total): IRON 12.8%/7.0%/1796, BRONZE 15.6%/6.8%/1438, SILVER 13.6%/12.0%/1684, GOLD 14.6%/9.8%/1551, PLATINUM 12.9%/5.5%/1787, EMERALD 10.4%/10.0%/2278, DIAMOND 2.3%/12.5%/17421, MASTER 5.3%/12.2%/5108, GRANDMASTER 8.3%/12.0%/2977, CHALLENGER 4.2%/12.2%/6925",
+   "hora": "14:29:57"
   },
   {
    "id": 74,
-   "ts": 1795526052.4144843,
+   "ts": 1795526997.1588578,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 1·47·47.0·2.4·0%, BRONZE 3·54·18.0·1.1·33%, SILVER 2·53·26.5·1.4·50%, GOLD 3·52·17.3·1.1·33%, PLATINUM 1·50·50.0·2.3·0%, EMERALD 1·47·47.0·2.3·0%, DIAMOND 1·50·50.0·2.3·0%, MASTER 1·49·49.0·2.3·0%, GRANDMASTER 1·48·48.0·2.4·0%, CHALLENGER 1·49·49.0·2.4·0%",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 75,
+   "ts": 1795526997.1601894,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 1471/31/30/0, BRONZE 1412/13/27/0, SILVER 1440/4/32/0, GOLD 1442/5/33/0, PLATINUM 1478/3/36/0, EMERALD 1557/0/37/0, DIAMOND 8486/256/23/0, MASTER 7474/0/31/0, GRANDMASTER 2359/3/27/0, CHALLENGER 1831/29/14/0",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 76,
+   "ts": 1795526997.171157,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Dónde se va el tiempo (5 min): crawler-dl-sea: esperando turno de la key de Riot 60 %, esperando a la red (Riot, OP.GG, GitHub) 29 %, otro 12 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 75 %, esperando a la red (Riot, OP.GG, GitHub) 15 %, otro 9 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 63 %, esperando a la red (Riot, OP.GG, GitHub) 21 %, otro 17 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 68 %, esperando a la red (Riot, OP.GG, GitHub) 22 %, otro 11 % (más en riot/ratelimit.py:226 acquire → threading.py:wait) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:474 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | web: parado esperando trabajo 77 %, otro 15 %, consultando o escribiendo la base de datos 7 %, comprimiendo o escribiendo ficheros 1 % (más en threading.py wait) | crawler-sea: parado esperando trabajo 54 %, esperando un candado (base de datos, ficheros) 19 %, consultando o escribiendo la base de datos 15 %, comprimiendo o escribiendo ficheros 8 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-europe: parado esperando trabajo 53 %, esperando un candado (base de datos, ficheros) 18 %, consultando o escribiendo la base de datos 16 %, comprimiendo o escribiendo ficheros 6 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-americas: parado esperando trabajo 55 %, esperando un candado (base de datos, ficheros) 19 %, consultando o escribiendo la base de datos 12 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:715 take → threading.py:wait) | crawler-asia: parado esperando trabajo 56 %, consultando o escribiendo la base de datos 19 %, esperando un candado (base de datos, ficheros) 13 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:715 take → threading.py:wait) | otp-summaries: consultando o escribiendo la base de datos 51 %, otro 44 %, comprimiendo o escribiendo ficheros 5 % (más en ingest/otp_details.py:1274 write_summary → db.py:query) | crawler-rows: consultando o escribiendo la base de datos 96 %, otro 4 % (más en ingest/crawler.py:560 otp_rows_for_plan → db.py:query) | draft-live: parado esperando trabajo 91 %, esperando a la red (Riot, OP.GG, GitHub) 5 %, comprimiendo o escribiendo ficheros 2 %, consultando o escribiendo la base de datos 1 % (más en draft_live.py:426 _run → threading.py:wait) | crawler-funnel: consultando o escribiendo la base de datos 95 %, comprimiendo o escribiendo ficheros 5 % (más en ingest/crawler.py:454 search_funnel → db.py:query) | mis-partidas: parado esperando trabajo 96 %, consultando o escribiendo la base de datos 3 %, comprimiendo o escribiendo ficheros 1 % (más en coach/files.py:89 _run → threading.py:wait) | crawler-stop: parado esperando trabajo 58 %, otro 26 %, esperando un candado (base de datos, ficheros) 13 %, comprimiendo o escribiendo ficheros 3 % (más en ingest/crawler.py:2480 _push_after_stop → threading.py:join) | rofl: parado esperando trabajo 98 %, consultando o escribiendo la base de datos 1 % (más en replays_local.py:276 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:398 _watch_loop → threading.py:wait) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:594 counts → db.py:one) | game-tracker: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en coach/tracker.py:317 _sleep → threading.py:wait) | busquedas: parado esperando trabajo 100 % (más en ingest/crawler.py:1979 run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:300 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:166 _work → threading.py:wait)",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 77,
+   "ts": 1795526997.1727433,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 53 veces, 151.1 s en total, la peor 4.9 s",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 78,
+   "ts": 1795526997.1738145,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · ingest/otp_details.py:1274 write_summary · SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ? — 19 veces, 57.5 s en total, la peor 8.1 s",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 79,
+   "ts": 1795526997.1764321,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:1355 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 12 veces, 39.0 s en total, la peor 10.8 s",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 80,
+   "ts": 1795526997.1779225,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado americas: 125 partidas nuevas (None/min ahora) · 121 analizadas · errores 0 · tiempo: cola 18, riot_listas 17, esperando_descarga 210, guardar_partida 78, riot 0, analizar_guardar 75, partidas 369, visitas 388",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 81,
+   "ts": 1795526997.1788006,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado europe: 126 partidas nuevas (None/min ahora) · 126 analizadas · errores 0 · tiempo: cola 14, riot_listas 10, esperando_descarga 210, guardar_partida 78, riot 0, analizar_guardar 89, partidas 385, visitas 395",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 82,
+   "ts": 1795526997.1833882,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado asia: 125 partidas nuevas (None/min ahora) · 125 analizadas · errores 0 · tiempo: cola 33, riot_listas 8, esperando_descarga 217, guardar_partida 68, riot 0, analizar_guardar 73, partidas 366, visitas 374",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 83,
+   "ts": 1795526997.1841574,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado sea: 132 partidas nuevas (None/min ahora) · 127 analizadas · errores 0 · tiempo: cola 15, riot_listas 12, esperando_descarga 199, guardar_partida 89, riot 0, analizar_guardar 84, partidas 378, visitas 396",
+   "hora": "14:29:57"
+  },
+  {
+   "id": 84,
+   "ts": 1795526997.195933,
    "kind": "info",
    "source": "crawler",
    "message": "Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).",
-   "hora": "14:14:12"
+   "hora": "14:29:57"
   }
  ],
  "hilos": {
@@ -1014,7 +1099,7 @@
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
-  "AnyIO worker thread #2848": [
+  "AnyIO worker thread #26400": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
