@@ -995,5 +995,14 @@ campamentos y gank el 46 %. «Invade» en la reconstrucción es lo menos fiable 
 posición de cada minuto); para invades, mejor `challenges.enemyJungleMonsterKills` (exacto, ya en «Campamentos de la
 jungla rival cada 10 min»: 6,7 → 14,9 por partida de Hierro-Bronce a Aspirante).
 
-Pendiente: enseñar en «Tu pathing de jungla» tus primeros minutos frente a los OTPs de tu campeón por elo (sin marcar
-como error saltarse campamentos: en elo alto es lo normal), y usar el inicio típico de cada campeón en la reconstrucción.
+En la app: «Cómo te mueves por el mapa» compara tus primeros 4 min con cada elo y con los OTPs de tu campeón
+(`route_macro.early_route`), como tendencias.
+
+Reconstrucción (validada con `track_check.validate_jungle`: se esconde la posición del jungla en cada minuto, 212 casos
+de tus partidas; con campamentos, mediana / media / p90 / fallos de más de 4.000):
+- Base (con los bufos a 5:00 y lo hecho en los tramos saltados): 2.611 / 3.027 / 5.880 / 27,8 %.
+- Inicio típico de cada campeón (posición real en el minuto 1 de 24.454 partidas: Kindred rojo 72 %, Lee Sin raptors
+  62 %, Hecarim azul 38 / rojo 24 / raptors 24 %) como desempate del primer tramo: 2.639 / 3.061 / 5.951 / 27,8 %,
+  peor (la posición del minuto 1 ya es real). **Descartado.**
+- Sin campamentos rivales para el jungla que no mató ningún monstruo de la jungla rival en la partida
+  (`challenges.enemyJungleMonsterKills`, exacto): 2.545 / 2.966 / 5.585 / 26,4 %. **En uso.**
