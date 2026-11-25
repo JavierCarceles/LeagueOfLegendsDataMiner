@@ -413,6 +413,22 @@ def test_clock_reader_falls_back_per_frame():
     assert vf.ClockReader(vf.Clock(vf.load_digits()), None).hud is None
 
 
+def test_queue_pace_uses_the_last_videos_collected_in_a_row(tmp_path):
+    """Ritmo y lo que le queda a la cola con los últimos vídeos recogidos seguidos: un hueco de más de media hora (app
+    cerrada o en pausa) corta la muestra para no dar un ritmo falso."""
+    store = VideoStore(tmp_path / "videos")
+    ids = [f"v{i:010d}" for i in range(12)]
+    store.add_videos([{"id": vid} for vid in ids])
+    assert store.pace() is None
+    t = 1_000_000.0
+    for i, vid in enumerate(ids[:2]):  # ayer, antes de cerrar la app
+        store.update(vid, estado="hecho", inicio=t + i * 240, fin=t + i * 240 + 240)
+    t += 86_400
+    for i, vid in enumerate(ids[2:6]):  # hoy: 4 vídeos de 4 minutos seguidos
+        store.update(vid, estado="hecho", inicio=t + i * 240, fin=t + i * 240 + 240)
+    assert store.pace() == {"por_hora": 15.0, "horas": 0.4, "muestra": 4}  # quedan 6: 24 minutos
+
+
 def test_outdated_videos_are_redone(tmp_path):
     from types import SimpleNamespace
 

@@ -255,7 +255,7 @@ function statusCard(s) {
     toolsNotice(s.herramientas),
     h(
       "div.kpis",
-      kpi("En cola", fmt.int((c.pendiente || 0) + (c.procesando || 0))),
+      kpi("En cola", fmt.int((c.pendiente || 0) + (c.procesando || 0)), paceText(s.ritmo)),
       kpi("Recogidos", fmt.int(c.hecho || 0)),
       kpi("Con error", fmt.int(c.error || 0)),
       kpi("Descartados", fmt.int(c.descartado || 0), "privados, borrados…"),
@@ -265,6 +265,20 @@ function statusCard(s) {
     equipmentLine(s.equipo),
     s.ultimo_error ? h("p.small.muted", "Último aviso: ", s.ultimo_error) : null,
   );
+}
+
+/** «~2 días a 15 vídeos/h»: lo que le queda a la cola al ritmo de los últimos vídeos recogidos (null sin muestra). */
+function paceText(r) {
+  if (!r?.por_hora) return null;
+  const rate = `${fmt.num(r.por_hora, r.por_hora < 10 ? 1 : 0)} vídeos/h`;
+  if (!r.horas) return rate;
+  return `${durationText(r.horas)} a ${rate}`;
+}
+
+function durationText(hours) {
+  if (hours < 1) return "menos de 1 h";
+  if (hours < 48) return `~${Math.round(hours)} h`;
+  return `~${Math.round(hours / 24)} días`;
 }
 
 /** «Equipo: 28 hilos de CPU · el último vídeo usó 19 (70 % de la CPU libre) · gráfica NVIDIA GeForce RTX 4070 SUPER». */

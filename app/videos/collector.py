@@ -186,6 +186,7 @@ class VideoCollector:
             "hasta": self.limited_until if time.time() < self.limited_until else None,
             "actual": dict(self.current) if self.current else None,
             "cuentas": self.store.counts(),
+            "ritmo": self.store.pace(),
             "herramientas": deps.state(),
             "ultimo_error": self.last_error,
             "carpeta": str(self.root),

@@ -24,6 +24,11 @@ DONE = "hecho"
 FAILED = "error"
 SKIPPED = "descartado"
 STATES = (PENDING, WORKING, DONE, FAILED, SKIPPED)
+# Ritmo de la recogida: con los últimos vídeos acabados seguidos (sin un hueco de más de media hora entre uno y el
+# siguiente: app cerrada o en pausa), cuántos salen por hora y cuánto le queda a la cola a ese ritmo.
+PACE_SAMPLE = 10
+PACE_MIN = 3
+PACE_MAX_GAP_S = 1800
 MAX_TRIES = 3  # después de 3 fallos un vídeo queda en «error» (se puede reintentar desde la web)
 RETRY_DELAY_S = 20 * 60  # un vídeo que falló no se vuelve a intentar antes
 
@@ -241,6 +246,25 @@ class VideoStore:
             out["total"] = len(self._data()["videos"])
             out["fuentes_pendientes"] = sum(1 for s in self._data()["fuentes"] if s.get("estado") == PENDING)
             return out
+
+    def pace(self) -> dict | None:
+        """``{"por_hora", "horas", "muestra"}`` con los últimos vídeos recogidos seguidos; ``None`` sin muestra."""
+        with self.lock:
+            videos = [dict(v) for v in self._data()["videos"].values()]
+        done = sorted((v for v in videos if v.get("estado") == DONE and v.get("inicio") and v.get("fin")), key=lambda v: v["fin"])
+        if not done:
+            return None
+        chain = [done[-1]]
+        for v in reversed(done[:-1]):
+            if len(chain) >= PACE_SAMPLE or chain[-1]["inicio"] - v["fin"] > PACE_MAX_GAP_S:
+                break
+            chain.append(v)
+        span = chain[0]["fin"] - chain[-1]["inicio"]
+        if len(chain) < PACE_MIN or span <= 0:
+            return None
+        per_hour = len(chain) * 3600 / span
+        pending = sum(1 for v in videos if (v.get("estado") or PENDING) in (PENDING, WORKING))
+        return {"por_hora": round(per_hour, 1), "horas": round(pending / per_hour, 1), "muestra": len(chain)}
 
     def videos(self, state: str | None = None, limit: int = 300) -> list[dict]:
         """Los vídeos más recientes primero (los que se están procesando, arriba)."""
