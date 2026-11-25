@@ -122,6 +122,43 @@ def _otp(db, puuid, champ, tier, lp=100, visited=False, hits=0, cfg=None):
             )
 
 
+def _new_with_top(db, puuid, tier, top, lp=100):
+    """Un jugador sin visitar con su maestría tal cual: ``top`` = [[campeón, puntos], …] de más a menos."""
+    now = _now()
+    with db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', ?, 1, ?)", (puuid, tier, lp))
+        conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[c, p, now] for c, p in top])))
+
+
+def test_buscando_otps_van_antes_los_de_mas_pinta_de_especialista(keyed_svc, monkeypatch):
+    """Con líneas enteras la cola de nuevos iba por LP (casi únicos) y la pinta de especialista no contaba: 2 de cada 3
+    visitas acababan en «no es especialista». Ahora entran y se visitan antes los de maestría más concentrada en su
+    principal (de los buscados); quien tiene el campeón buscado de segundo, al final."""
+    monkeypatch.setattr(crawler_mod, "PLAN_UNVISITED_PER_TIER", 3)
+    monkeypatch.setattr(crawler_mod, "OTP_PLAN_TTL_S", 120)  # una sola lectura de la cola (en los tests se rehace siempre)
+    monkeypatch.setattr(crawler_mod, "OTP_ROWS_FRESH_S", 60)
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["GOLD"], champions=[AATROX, DARIUS], roles=["TOP"]).validated()
+    db = keyed_svc.db
+    _new_with_top(db, "mixed", "GOLD", [[AATROX, 300_000], [GAREN, 250_000]], lp=99)  # 1,2 veces el segundo
+    _new_with_top(db, "second", "GOLD", [[GAREN, 900_000], [AATROX, 400_000]], lp=98)  # Aatrox de segundo
+    _new_with_top(db, "focused", "GOLD", [[AATROX, 800_000], [GAREN, 100_000]], lp=1)  # 8 veces
+    _new_with_top(db, "only", "GOLD", [[DARIUS, 600_000]], lp=2)  # sin segundo: el tope
+    _new_with_top(db, "fair", "GOLD", [[DARIUS, 400_000], [GAREN, 160_000]], lp=3)  # 2,5 veces
+    rows = crawler_mod.otp_rows_for_plan(db, cfg)
+    assert sorted(r["puuid"] for r, _ in rows) == ["fair", "focused", "only"]  # los 3 de más pinta, con menos LP
+    worker = RegionWorker(keyed_svc.crawler, "europe", ["euw1"], cfg)
+    order = []
+    for _ in range(5):
+        row = worker._next_otp()
+        if row is None:
+            break
+        order.append(row["puuid"])
+        worker._visited[row["puuid"]] = __import__("time").time()
+    assert order == ["only", "focused", "fair"]
+    assert crawler_mod.specialist_ratio(cfg, [[GAREN, 9], [AATROX, 1]], {"sourced": None}) is None
+    assert crawler_mod.specialist_ratio(cfg, [[GAREN, 9]], {"sourced": str(AATROX)}) == crawler_mod.BOARD_RATIO
+
+
 def test_new_otps_of_champions_without_any_go_first(keyed_svc):
     """Variedad: primero un OTP de cada campeón (aunque haya otros de más elo), luego cada elo, luego la profundidad."""
     cfg = CrawlerConfig(platforms=["euw1"], tiers=["EMERALD", "DIAMOND", "MASTER"], champions=[AATROX, DARIUS], otp_depth="all").validated()

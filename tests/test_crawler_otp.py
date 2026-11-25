@@ -75,10 +75,13 @@ def test_qualifies_otp_vs_mastery():
     # …y especialista solo si sus partidas lo confirman: 300 K con Lee Sin y 130 K con Yuumi no hacen a nadie OTP.
     assert otp.min_share == 0.5 and mastery.min_share == 0
     assert otp.share_ok(10, 1)  # aún sin muestra: se le sigue revisando
+    # …mientras pueda llegar: con 11 sin el campeón ya no llega a 10 de 20 (antes se bajaban las 20 igual).
+    assert otp.share_ok(10, 0) and not otp.share_ok(11, 0) and not otp.share_ok(13, 2) and otp.share_ok(13, 3)
     assert otp.share_ok(30, 15) and not otp.share_ok(30, 14)
     assert mastery.share_ok(30, 0)  # mucha maestría: da igual lo que juegue
     strict = CrawlerConfig(champions=[AATROX], focus="otp", min_share=0.75).validated()
     assert strict.min_share == 0.75 and not strict.share_ok(40, 29)
+    assert strict.share_ok(5, 0) and not strict.share_ok(6, 0)  # al 75 %: con 6 sin él ya no llega a 15 de 20
     assert CrawlerConfig(champions=[AATROX], focus="otp", min_share=0).validated().focus == "mastery"
 
 
@@ -330,13 +333,15 @@ def test_a_recent_break_from_the_champion_does_not_stop_the_history(keyed_svc):
 
 def test_specialists_are_checked_with_their_own_games(keyed_svc):
     """Buscando OTPs (la mitad de sus partidas con el campeón): con 900 K de maestría pero 1 de cada 5 partidas con
-    Aatrox, tras 20 revisadas se le deja de seguir; quien de verdad lo juega sigue hasta el final."""
+    Aatrox, se le deja de seguir en cuanto ya no puede llegar (11 sin Aatrox: 14 revisadas, antes 20); quien de verdad
+    lo juega sigue hasta el final. Al descartado se le juzga por lo que juega, no por su maestría (que diría OTP)."""
     ids_a, pay_a = history("casual", 200, prefix="1", champ_for=lambda i: AATROX if i % 5 == 0 else GAREN, every_h=3)
     ids_b, pay_b = history("main", 60, prefix="2", champ_for=lambda i: AATROX if i % 4 else GAREN, every_h=3)
     fake = HistoryRiot({"casual": ids_a, "main": ids_b}, {**pay_a, **pay_b}, {"casual": [(AATROX, 900_000)], "main": [(AATROX, 900_000)]})
     run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="otp", only_target_games=True)
     casual, main = progress(keyed_svc, "casual"), progress(keyed_svc, "main")
-    assert casual["back_done_reason"] == "share" and casual["seen"] == 20 and casual["hits"] == 4
+    assert casual["back_done_reason"] == "share" and casual["seen"] == 14 and casual["hits"] == 3
+    assert otp_details.judgeable(14, "share")
     assert main["back_done_reason"] == "end" and main["hits"] == 45
     # Sus partidas con Aatrox no ensucian la carpeta de OTPs: con muestra, OTP = lo que juega.
     assert otp_details.classify(keyed_svc.db, "casual", AATROX) == "player"
@@ -1932,7 +1937,8 @@ def test_a_short_but_complete_history_is_enough_to_judge_an_otp(keyed_svc):
     with db.write() as conn:
         conn.execute("UPDATE otp_progress SET back_done_at = 1, back_done_reason = 'end' WHERE puuid = 'p-few'")
     assert otp_details.reclassify_player(db, "p-few") == [("p-few", AATROX)]  # todas las que tiene: 8 de 12
-    assert otp_details.judgeable(9, "end") is False and otp_details.judgeable(19, "share") is False
+    assert otp_details.judgeable(9, "end") is False and otp_details.judgeable(19, None) is False
+    assert otp_details.judgeable(11, "share") and not otp_details.judgeable(0, "share")  # descartado: con lo revisado
 
 
 def test_the_total_by_elo_is_counted_from_an_index_not_the_whole_table(keyed_svc):
@@ -1986,3 +1992,45 @@ def test_otp_search_judges_each_candidate_by_his_own_champion():
     got = SimpleNamespace(mine_target=None)
     RegionWorker._keep(worker, SimpleNamespace(), SimpleNamespace(champ=DARIUS, role="TOP"), {"puuid": "p", "champs": None}, got)
     assert got.mine_target is True  # sin campeones propios (otros modos): como antes
+
+
+def test_the_session_chart_splits_otps_and_the_rest_as_players_are_decided(keyed_svc):
+    """La gráfica de la sesión era toda dorada aunque la mitad no fueran de OTPs: ahora cuenta lo guardado desde que
+    arrancó por clase. Lo de un jugador aún en revisión va sin clasificar y pasa a la suya al decidirlo; arrancar el
+    recolector lo vuelve a 0."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    otp_details.session_reset(db)
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-ses', '420', 0, 5, 5, 0)")
+    for i in range(3):
+        assert otp_details.save(db, svc, make_match(f"EUW1_83{i:02d}", puuids={1: "p-ses"}), None, "p-ses", {"tier": "GOLD", "division": "I", "lp": 9})
+    assert otp_details.session_counts(db) == {"tiers": {"GOLD": 3}, "tiers_otp": {}, "tiers_player": {}}
+    with db.write() as conn:  # descartado con 14 revisadas, 3 con su campeón: no es especialista
+        conn.execute("UPDATE otp_progress SET seen = 14, hits = 3, back_done_at = 1, back_done_reason = 'share' WHERE puuid = 'p-ses'")
+    otp_details.reclassify_player(db, "p-ses")
+    assert otp_details.session_counts(db) == {"tiers": {"GOLD": 3}, "tiers_otp": {}, "tiers_player": {"GOLD": 3}}
+    assert otp_details.save(db, svc, make_match("EUW1_8300", puuids={1: "p-ses"}), None, "p-ses", {"tier": "GOLD", "division": "I", "lp": 9})
+    assert otp_details.session_counts(db)["tiers"] == {"GOLD": 3}  # la misma partida otra vez no suma
+    otp_details.session_reset(db)
+    assert otp_details.session_counts(db) == {"tiers": {}, "tiers_otp": {}, "tiers_player": {}}
+
+
+def test_visits_are_tallied_by_their_specialist_ratio(keyed_svc):
+    """Para comprobar que la pinta de especialista acierta: visitas, descartados y partidas por grupo de pinta (las
+    paradas a medias no cuentan)."""
+    crawler = keyed_svc.crawler
+    crawler._reset_session(CrawlerConfig(champions=[AATROX]).validated())
+    crawler.visit_ended("europe", {"elo": "GOLD", "pinta": 6.0, "fin": "historial completo", "nuevas": 30})
+    crawler.visit_ended("europe", {"elo": "GOLD", "pinta": 1.2, "fin": "pocas con esos campeones", "nuevas": 2})
+    crawler.visit_ended("europe", {"elo": "GOLD", "pinta": "tabla", "fin": "tope de la visita", "nuevas": 40})
+    crawler.visit_ended("europe", {"elo": "GOLD", "pinta": 2.5, "fin": "detenido", "nuevas": 1})
+    assert crawler.visit_report()["por_pinta"] == {
+        "tabla": {"visitas": 1, "descartados": 0, "nuevas": 40},
+        "≥5×": {"visitas": 1, "descartados": 0, "nuevas": 30},
+        "<1,5×": {"visitas": 1, "descartados": 1, "nuevas": 2},
+    }

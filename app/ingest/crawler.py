@@ -58,7 +58,8 @@ LADDER_RESET_S = 24 * 3600
 EXHAUSTED_COOLDOWN_S = 20 * 60
 MASTERY_TTL_S = 7 * 86400
 MASTERY_BATCH = 25
-OTP_RATIO = otp_details.OTP_RATIO  # (solo para clasificar jugadores aún sin partidas revisadas)
+SPECIALIST_RATIO_CAP = 10.0  # principal con 10 veces o más los puntos del segundo: igual de especialista
+BOARD_RATIO = SPECIALIST_RATIO_CAP + 1  # en la tabla de los mejores de OP.GG: el que más pinta tiene
 FOCUSES = ("otp", "mastery", "games")
 GAMES_MIN_MASTERY = 10_000  # mínimo de puntos con el campeón (entre sus 3 primeros) para cualquier búsqueda
 # Especialistas: qué parte de sus partidas tiene que ser con ese campeón. La maestría es de toda la vida de la cuenta
@@ -398,11 +399,16 @@ class CrawlerConfig:
         return own
 
     def share_ok(self, seen: int | None, hits: int | None) -> bool:
-        """Con sus partidas revisadas: ¿juega esos campeones lo bastante? (Sin muestra aún, se le da el beneficio de
-        la duda.) Solo filtra buscando especialistas con un mínimo de partidas."""
+        """Con sus partidas revisadas: ¿juega esos campeones lo bastante? Solo filtra buscando especialistas con un mínimo
+        de partidas. Sin la muestra aún (``SHARE_MIN_SEEN``) se le da el beneficio de la duda mientras pueda llegar: si
+        ni con todas las que faltan hasta la muestra con esos campeones llegaría al mínimo, ya no. Con 11 de 20 sin
+        ellos ya no llega al 50 %: antes se bajaban las 20 igual para el mismo veredicto (de 149 descartados, 38 no
+        tenían ninguna con su campeón; 25-11-2026)."""
         seen, hits = int(seen or 0), int(hits or 0)
-        if self.focus != "otp" or self.min_share <= 0 or seen < SHARE_MIN_SEEN:
+        if self.focus != "otp" or self.min_share <= 0:
             return True
+        if seen < SHARE_MIN_SEEN:
+            return hits + (SHARE_MIN_SEEN - seen) >= self.min_share * SHARE_MIN_SEEN
         return hits >= self.min_share * seen
 
 
@@ -607,18 +613,36 @@ def otp_rows(db, cfg: CrawlerConfig, platforms: list[str] | None = None, tiers: 
     return out
 
 
-PLAN_UNVISITED_PER_TIER = 100  # sin visitar que entran en la cola por plataforma y elo (los de más LP)
+PLAN_UNVISITED_PER_TIER = 100  # sin visitar que entran en la cola por plataforma y elo (ver ``_unvisited_order``)
+
+
+def _unvisited_order(cfg: CrawlerConfig, now: int) -> tuple[str, tuple]:
+    """Qué nunca visitados entran en la cola (``ORDER BY`` y sus parámetros). Buscando OTPs, los de más pinta de
+    especialista (``specialist_ratio``: su principal, de los buscados, con el mínimo y jugado en el periodo, cuantas
+    más veces los puntos del segundo); a igualdad, y buscando otra cosa, los de más LP. Antes entraban solo por LP:
+    con líneas enteras, 2 de cada 3 visitas acababan en «no es especialista» (Platino, 25-11-2026)."""
+    if cfg.focus != "otp" or not cfg.targets:
+        return "p.lp DESC", ()
+    cutoff = cfg.active_since(now)
+    order = (
+        f"CASE WHEN json_extract(m.top, '$[0][0]') IN ({','.join('?' * len(cfg.targets))}) "
+        "AND json_extract(m.top, '$[0][1]') >= ? AND COALESCE(json_extract(m.top, '$[0][2]'), ?) >= ? THEN 0 ELSE 1 END, "
+        "MIN(?, CAST(json_extract(m.top, '$[0][1]') AS REAL) / MAX(1, COALESCE(json_extract(m.top, '$[1][1]'), 0))) DESC, "
+        "p.lp DESC"
+    )
+    return order, (*cfg.targets, cfg.min_mastery, cutoff, cutoff, SPECIALIST_RATIO_CAP)
 
 
 def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None) -> list:
     """Como ``otp_rows`` pero solo lo que necesita la cola de visitas: todos los ya visitados (o de las tablas de OP.GG)
-    y, de los que nunca se han visitado, los ``PLAN_UNVISITED_PER_TIER`` de más LP de cada plataforma y elo. Con ~350.000
-    jugadores encontrados, ordenarlos todos costaba 15-19 s por región en Windows cada vez que se rehacía la cola; al
-    visitar unos, entran los siguientes."""
+    y, de los que nunca se han visitado, ``PLAN_UNVISITED_PER_TIER`` de cada plataforma y elo (``_unvisited_order``).
+    Con ~350.000 jugadores encontrados, ordenarlos todos costaba 15-19 s por región en Windows cada vez que se rehacía
+    la cola; al visitar unos, entran los siguientes."""
     targets = cfg.targets
     platforms, tiers = list(cfg.platforms), list(cfg.tiers)
     if not targets or not platforms or not tiers:
         return []
+    now = now or now_s()
     pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
     cols = (
         "p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_name, p.tag_line, p.newest_match_at, "
@@ -633,12 +657,12 @@ def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None) -> list:
     known = db.query(
         f"SELECT {cols} {base} AND (o.puuid IS NOT NULL OR p.puuid IN (SELECT puuid FROM otp_sources))", (*platforms, *tiers)
     )
+    order, order_args = _unvisited_order(cfg, now)
     fresh = db.query(
-        f"SELECT * FROM (SELECT {cols}, ROW_NUMBER() OVER (PARTITION BY p.platform, p.tier ORDER BY p.lp DESC) AS rn "
+        f"SELECT * FROM (SELECT {cols}, ROW_NUMBER() OVER (PARTITION BY p.platform, p.tier ORDER BY {order}) AS rn "
         f"{base} AND o.puuid IS NULL AND p.puuid NOT IN (SELECT puuid FROM otp_sources)) WHERE rn <= ?",
-        (*platforms, *tiers, PLAN_UNVISITED_PER_TIER),
+        (*order_args, *platforms, *tiers, PLAN_UNVISITED_PER_TIER),
     )
-    now = now or now_s()
     wanted = set(targets)
     out = []
     for row in [*known, *fresh]:
@@ -662,17 +686,42 @@ def otp_champs(cfg: CrawlerConfig, top: list, sourced: set[int] | None = None) -
     return list(dict.fromkeys([*found, *sorted((sourced or set()) & targets)]))
 
 
-def likely_specialist(cfg: CrawlerConfig, top: list, row) -> int:
-    """0 si tiene pinta de especialista (en la tabla de los mejores de OP.GG, o su principal con 1,5 veces los puntos
-    del segundo); 1 si no (se comprueba igual, pero después)."""
+def specialist_ratio(cfg: CrawlerConfig, top: list, row) -> float | None:
+    """Cuánta pinta de especialista tiene: las veces que los puntos de su principal (si es de los buscados) superan a
+    los del segundo, hasta ``SPECIALIST_RATIO_CAP`` (sin segundo, el tope). ``BOARD_RATIO`` si sale en la tabla de los
+    mejores de OP.GG; ``None`` si el campeón buscado no es su principal."""
     if sourced_champs(row) & set(cfg.targets):
-        return 0
+        return BOARD_RATIO
     entries = [(int(e[0]), int(e[1])) for e in top if len(e) >= 2]
-    if entries and entries[0][0] in set(cfg.targets):
-        second = entries[1][1] if len(entries) > 1 else 0
-        if entries[0][1] >= OTP_RATIO * second:
-            return 0
-    return 1
+    if not entries or entries[0][0] not in set(cfg.targets):
+        return None
+    second = entries[1][1] if len(entries) > 1 else 0
+    return min(SPECIALIST_RATIO_CAP, entries[0][1] / second) if second > 0 else SPECIALIST_RATIO_CAP
+
+
+RATIO_BUCKETS = ("tabla", "≥5×", "3-5×", "2-3×", "1,5-2×", "<1,5×")
+# Visitas que llegaron a un veredicto (las paradas a medias o por error no dicen nada de si acertó la pinta).
+JUDGED_ENDS = frozenset({"pocas con esos campeones", "historial completo", "tope de la visita", "tope por jugador", "páginas de la visita"})
+
+
+def ratio_bucket(pinta) -> str | None:
+    """Grupo de la pinta de especialista de una visita (``_visit_ratio``) para el diagnóstico ``por_pinta``."""
+    if pinta == "tabla":
+        return "tabla"
+    if not isinstance(pinta, (int, float)):
+        return None
+    for floor, name in ((5, "≥5×"), (3, "3-5×"), (2, "2-3×"), (1.5, "1,5-2×")):
+        if pinta >= floor:
+            return name
+    return "<1,5×"
+
+
+def specialist_rank(cfg: CrawlerConfig, top: list, row) -> float:
+    """Orden de los nuevos por su pinta de especialista (menos = antes; comprobar a uno cuesta ~20 descargas): primero
+    los de la tabla de OP.GG; luego, cuanto más concentrada su maestría en su principal, antes; al final, aquellos
+    cuyo campeón buscado no es su principal."""
+    ratio = specialist_ratio(cfg, top, row)
+    return 0.0 if ratio is None else -ratio
 
 
 def cap_count(cfg: CrawlerConfig, hits: int, seen: int) -> int:
@@ -1137,9 +1186,23 @@ class RegionWorker(threading.Thread):
             self.crawler.visit_ended(self.region, {
                 "plataforma": PLATFORMS.get(target["platform"], (None, target["platform"]))[1],
                 "elo": target["tier"] or "", "analizadas": self._visit_analyzed,
-                "s": round(time.time() - t0, 1), **(self._pick or {}), **self._visit_result,
+                "s": round(time.time() - t0, 1), **(self._pick or {}), **self._visit_result, **self._visit_ratio(target),
             })
         self.timing["n_visitas"] = self.timing.get("n_visitas", 0) + 1
+
+    def _visit_ratio(self, target) -> dict:
+        """Su pinta de especialista al elegirlo (``specialist_ratio``), para medir si acierta: ``{"pinta": veces}``
+        (``"tabla"`` si sale en la de OP.GG; nada si el campeón buscado no es su principal o no se busca OTPs)."""
+        if self.config.focus != "otp":
+            return {}
+        try:
+            top = json.loads(target["top"] or "[]")
+        except (TypeError, ValueError, IndexError, KeyError):
+            return {}
+        ratio = specialist_ratio(self.config, top, target)
+        if ratio is None:
+            return {}
+        return {"pinta": "tabla" if ratio >= BOARD_RATIO else round(ratio, 1)}
 
     def _wait_for_key(self) -> None:
         self.state["status"] = "waiting_key"
@@ -1565,15 +1628,17 @@ class RegionWorker(threading.Thread):
         cfg = self.config
         in_tier, in_champ = ctx.champ_tier.get((champ, tier), 0), ctx.champ_otps.get(champ, 0)
         level = self._variety_level(in_tier, in_champ)
-        likely = 0 if cfg.focus != "otp" else likely_specialist(cfg, ctx.top_of[row["puuid"]], row)
+        likely = 0.0 if cfg.focus != "otp" else specialist_rank(cfg, ctx.top_of[row["puuid"]], row)
         if ctx.by_elo:
             # Primero la línea y el elo con menos partidas; la variedad de campeones, después. Los nunca visitados
             # antes que los que vuelven a la cola por un cambio de búsqueda (de esos ya hay partidas).
             # A igualdad (muchas líneas y elos a 0 partidas), el elo más bajo: de los altos hay mucho más guardado
-            # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar.
+            # y las tablas de OP.GG ya traen jugadores de Diamante+ nada más arrancar. Buscando OTPs, dentro de la
+            # línea y el elo, primero quien más pinta tiene: iba detrás del elo y los LP (casi únicos), así que no
+            # contaba y 2 de cada 3 visitas acababan en «no es especialista» (Platino, 25-11-2026).
             again = int(row["anchor"] is not None)
             low_first = (TIER_INDEX.get(tier, 0), -(row["lp"] or 0))
-            return (0, ctx.behind(tier), ctx.lane_tier_games.get((self._lane_of(champ), tier), 0), again, low_first, level, likely, in_tier)
+            return (0, ctx.behind(tier), ctx.lane_tier_games.get((self._lane_of(champ), tier), 0), again, likely, low_first, level, in_tier)
         # Buscando especialistas, primero los que más pinta tienen (comprobar a uno cuesta ~20 descargas).
         return (0, level, likely, in_tier, in_champ, *rank)
 
@@ -2578,6 +2643,7 @@ class Crawler:
         # Diagnóstico del reparto por elo (``visit_report``): qué da cada visita, qué había en la cola de cada región y
         # cuántas veces el elo más atrasado no tenía a nadie esperando en la cola de una región.
         self._visit_stats: dict[str, dict] = {}  # elo -> {visitas, analizadas, nuevas, s, completo} desde que arrancó
+        self._ratio_stats: dict[str, dict] = {}  # pinta de especialista -> {visitas, descartados, nuevas} desde que arrancó
         self._visit_log: deque = deque(maxlen=VISIT_LOG_SIZE)
         self._pick_misses: dict[str, Counter] = {}  # elo más atrasado sin candidatos -> Counter(región)
         self._queue_by_tier: dict[str, dict] = {}  # región -> elo -> candidatos por tipo [nuevos, partidas nuevas, historial, sin análisis]
@@ -2646,6 +2712,12 @@ class Crawler:
             st["nuevas"] += int(info.get("nuevas") or 0)
             st["s"] += float(info.get("s") or 0)
             st["completo"] += int(info.get("fin") == "historial completo")
+            bucket = ratio_bucket(info.get("pinta"))
+            if bucket and info.get("fin") in JUDGED_ENDS:
+                rs = self._ratio_stats.setdefault(bucket, {"visitas": 0, "descartados": 0, "nuevas": 0})
+                rs["visitas"] += 1
+                rs["descartados"] += int(info.get("fin") == "pocas con esos campeones")
+                rs["nuevas"] += int(info.get("nuevas") or 0)
 
     def note_pick(self, region: str, wanted: str | None, has_wanted: bool) -> None:
         """El elo más atrasado al elegir jugador y si había alguien de ese elo en la cola de la región."""
@@ -2666,6 +2738,7 @@ class Crawler:
             queues = dict(self._queue_by_tier)
             misses = {t: dict(c) for t, c in self._pick_misses.items()}
             last = list(self._visit_log)
+            ratios = {b: dict(self._ratio_stats[b]) for b in RATIO_BUCKETS if b in self._ratio_stats}
         order = lambda t: TIER_INDEX.get(t, 0)  # noqa: E731
         visits = {}
         for t in sorted(stats, key=order):
@@ -2688,6 +2761,7 @@ class Crawler:
             "cola_por_elo": {t: dict(zip(("nuevos", "partidas_nuevas", "historial", "sin_analisis"), c)) for t, c in queue.items()},
             "cola_por_region": queues,
             "sin_candidatos": {t: misses[t] for t in sorted(misses, key=order)},
+            "por_pinta": ratios,
             "ultimas_visitas": last,
         }
 
@@ -2696,6 +2770,7 @@ class Crawler:
         reciente por elo no)."""
         with self._rows_lock:
             self._visit_stats.clear()
+            self._ratio_stats.clear()
             self._visit_log.clear()
             self._pick_misses.clear()
             self._queue_by_tier.clear()
@@ -2703,6 +2778,9 @@ class Crawler:
             self._pattern_stats = {
                 "revisadas": 0, "ventanas": {w["id"]: {"encontradas": 0, "guardadas": 0, "de_bd": 0} for w in config.patterns}, "en_bd": None,
             }
+        db = getattr(self.svc, "db", None)
+        if db is not None:
+            otp_details.session_reset(db)  # lo recogido en la sesión por clase (OTPs y resto), también
 
     # ------------------------------------------------------------ búsqueda por partidas
     def note_pattern_checked(self, found: list) -> None:
@@ -3029,6 +3107,9 @@ class Crawler:
         if report["cola_por_elo"]:
             log.info("Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): %s",
                      ", ".join(f"{t} {'/'.join(str(n) for n in c.values())}" for t, c in report["cola_por_elo"].items()))
+        if report["por_pinta"]:
+            log.info("Visitas por pinta de especialista (puntos del principal / del segundo: visitas · descartados · partidas nuevas): %s",
+                     ", ".join(f"{b} {v['visitas']}·{v['descartados']}·{v['nuevas']}" for b, v in report["por_pinta"].items()))
         if report["sin_candidatos"]:
             log.info("El elo más atrasado no tenía a nadie en la cola de la región (veces al elegir): %s",
                      ", ".join(f"{t} {sum(r.values())} ({', '.join(f'{k} {n}' for k, n in r.items())})"
@@ -3065,7 +3146,7 @@ class Crawler:
             t = w.get("timing") or {}
             log.info(
                 "Estado %s: %s partidas nuevas (%s/min ahora) · %s analizadas · errores %s · tiempo: %s",
-                region, w.get("stored"), w.get("rate_recent"), w.get("details"), w.get("errors"),
+                region, w.get("stored"), "—" if w.get("rate_recent") is None else w["rate_recent"], w.get("details"), w.get("errors"),
                 ", ".join(f"{k} {v:.0f}" for k, v in t.items() if isinstance(v, float)) or "—",
             )
 

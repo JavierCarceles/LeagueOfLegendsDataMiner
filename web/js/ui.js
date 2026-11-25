@@ -134,7 +134,9 @@ export function roleIcon(role, cls = "role-ico") {
 const toMs = (ts) => (ts > 1e12 ? ts : ts * 1000);
 
 export const fmt = {
-  int: (n) => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("es-ES")),
+  // Con separador de miles siempre: en español los de 4 cifras van sin él y en una misma gráfica salía «9202» junto a
+  // «18.403» (eje de «Partidas por elo (total)», 25-11-2026).
+  int: (n) => (n === null || n === undefined ? "—" : Math.round(n).toLocaleString("es-ES", { useGrouping: "always" })),
   num: (n, d = 1) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d })),
   pct: (n, d = 1) => (n === null || n === undefined ? "—" : `${Number(n).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d })}%`),
   signed: (n, d = 1, suffix = "") => {

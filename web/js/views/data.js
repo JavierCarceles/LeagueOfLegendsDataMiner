@@ -378,7 +378,7 @@ function renderCrawler(c, key) {
     patternsSig = null;
     patternsAt = 0;
     eloSig = null;
-    if (resultsFor) eloBox = h("div.elo-chart-box", eloChartShell());
+    if (resultsFor) eloBox = h("div.elo-chart-box", eloChartShell(true, false));
     mount(
       sections.results,
       resultsFor ? h("div", { style: { marginTop: "14px" } }, eloBox, resultsSection(resultsFor)) : null,
@@ -1457,7 +1457,7 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
-    if (eloBox?.isConnected) updateEloChart(eloBox, details.session_tiers, resultsMode === "ranking");
+    if (eloBox?.isConnected) updateEloChart(eloBox, details, resultsMode === "ranking");
     if (sections?.eloTotal?.isConnected) {
       if (!totalBox?.isConnected) {
         totalBox = eloTotalCard();
@@ -1481,15 +1481,11 @@ const ELO_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "D
 let eloBox = null;
 let eloSig = null;
 
-/** ``stacked``: cada barra partida en OTPs (abajo) y el resto, con leyenda (la del total por elo). */
-function eloChartShell(stacked = false) {
-  const legend = stacked
-    ? h(
-        "span.tiny.elo-chart-legend",
-        h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto",
-        h("span.elo-chart-sw.ring"), "Campeón con más partidas", h("span.elo-chart-sw.ring.otp"), "Más de OTPs",
-      )
-    : null;
+/** ``stacked``: cada barra partida en OTPs (abajo) y el resto, con leyenda; ``champs``: bajo cada elo, sus campeones
+ *  destacados (solo la del total por elo). */
+function eloChartShell(stacked = false, champs = stacked) {
+  const rings = champs ? [h("span.elo-chart-sw.ring"), "Campeón con más partidas", h("span.elo-chart-sw.ring.otp"), "Más de OTPs"] : [];
+  const legend = stacked ? h("span.tiny.elo-chart-legend", h("span.elo-chart-sw.otp"), "OTPs", h("span.elo-chart-sw.rest"), "Resto", ...rings) : null;
   // Unos segmentos nuevos por columna: un mismo nodo solo puede estar en un sitio (compartidos, acababan todos en la
   // última columna y la primera fallaba al pintarse).
   const segments = () => (stacked ? [h("div.elo-chart-seg.rest"), h("div.elo-chart-seg.otp", { style: { height: "0%" } })] : null);
@@ -1516,7 +1512,7 @@ function eloChartShell(stacked = false) {
       h(
         "div.elo-chart-logos",
         ELO_ORDER.map((t) =>
-          h("div.elo-chart-logo", h("span", { title: TIER_LABEL[t] || t }, rankImg(t, "elo-chart-img")), stacked ? h("div.elo-chart-champs", { "data-tier": t }) : null),
+          h("div.elo-chart-logo", h("span", { title: TIER_LABEL[t] || t }, rankImg(t, "elo-chart-img")), champs ? h("div.elo-chart-champs", { "data-tier": t }) : null),
         ),
       ),
     ),
@@ -1531,26 +1527,39 @@ function setEloBar(col, pct, n) {
   label.textContent = n ? fmt.int(n) : "";
 }
 
-/** Partidas recogidas por elo desde que arrancó el recolector (``session_tiers``). Antes contaba desde la última
+/** Partidas recogidas por elo desde que arrancó el recolector (``session_tiers``), partidas en OTPs y resto con lo
+ *  guardado en la sesión por clase (``session_split``; las de un jugador aún sin decidir, con el % de su elo). Antes
+ *  era todo dorado y parecía que todas eran de OTPs (la mitad no lo eran, 25-11-2026). Antes contaba desde la última
  *  subida a GitHub y volvía a 0 al subir. Con todo el ranking se analizan los 10 jugadores de cada partida. */
-function updateEloChart(box, sessionTiers, ranking) {
-  const counts = sessionTiers || {};
-  const sig = JSON.stringify([ranking, counts]);
+function updateEloChart(box, details, ranking) {
+  const counts = details?.session_tiers || {};
+  const split = details?.session_split || null;
+  const sig = JSON.stringify([ranking, counts, split]);
   if (sig === eloSig) return;
   eloSig = sig;
+  const { byTier, estimated } = eloTotalSplit(split, details);
+  const otpOf = (t, n) => (byTier[t].n ? Math.round((n * byTier[t].otp) / byTier[t].n) : 0);
   const max = Math.max(0, ...ELO_ORDER.map((t) => counts[t] || 0));
   const total = ELO_ORDER.reduce((n, t) => n + (counts[t] || 0), 0);
+  const otpTotal = ELO_ORDER.reduce((n, t) => n + otpOf(t, counts[t] || 0), 0);
+  const approx = estimated ? "~" : "";
   const title = box.querySelector(".elo-chart-title");
-  if (title) title.textContent = `Partidas analizadas por elo: ${fmt.int(total)}`;
+  if (title) title.textContent = `Partidas analizadas por elo: ${fmt.int(total)}${split ? ` · ${approx}${fmt.int(otpTotal)} de OTPs` : ""}`;
   const sub = box.querySelector(".elo-chart-sub");
   if (sub) sub.textContent = ranking ? "todo el ranking: los 10 jugadores de cada partida (no se suben a GitHub) · desde que arrancó el recolector" : "desde que arrancó el recolector";
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });
   box.querySelectorAll(".elo-chart-col").forEach((col) => {
-    const n = counts[col.dataset.tier] || 0;
+    const t = col.dataset.tier;
+    const n = counts[t] || 0;
+    const otp = otpOf(t, n);
     setEloBar(col, max ? (100 * n) / max : 0, n);
     col.classList.toggle("top", !!max && n === max);
+    const seg = col.querySelector(".elo-chart-seg.otp");
+    if (seg) seg.style.height = n ? `${(100 * otp) / n}%` : "0%";
+    const label = TIER_LABEL[t] || t;
+    col.title = n ? `${label}: ${fmt.int(n)} · OTPs ${approx}${fmt.int(otp)} · resto ${approx}${fmt.int(n - otp)}` : label;
   });
 }
 
@@ -1611,7 +1620,16 @@ async function paintEloTotal() {
   }
 }
 
-function eloTotalSplit(d) {
+/** Parte de OTPs entre las partidas ya clasificadas de un elo (``null`` sin ninguna). */
+function tierOtpRatio(d, t) {
+  const o = d?.tiers_otp?.[t] || 0;
+  const p = d?.tiers_player?.[t] || 0;
+  return o + p ? o / (o + p) : null;
+}
+
+/** De cada elo, sus partidas y cuántas de OTPs: las aún sin clasificar se reparten con el % de su elo (sin ninguna
+ *  clasificada, el de ``fallback`` en ese elo y, si tampoco, el de todos los elos). */
+function eloTotalSplit(d, fallback = null) {
   const all = d?.tiers || {};
   const otp = d?.tiers_otp || {};
   const player = d?.tiers_player || {};
@@ -1626,7 +1644,7 @@ function eloTotalSplit(d) {
     const p = player[t] || 0;
     const unknown = Math.max(0, n - o - p);
     if (unknown) estimated = true;
-    const ratio = o + p ? o / (o + p) : overall;
+    const ratio = tierOtpRatio(d, t) ?? tierOtpRatio(fallback, t) ?? overall;
     byTier[t] = { n, otp: Math.min(n, Math.round(o + unknown * ratio)) };
   }
   return { byTier, estimated };
