@@ -593,7 +593,7 @@ def save(
     except NotInMatch:
         return False
     kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
-    before = db.one("SELECT kind FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
+    before = db.one("SELECT kind, tier, has_timeline FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
     is_new = before is None
     # Ya analizada en todo el ranking (solo en la base de datos): ahora sí va a su carpeta.
     to_files = is_new or before["kind"] == RANKING_KIND
@@ -618,6 +618,8 @@ def save(
         )
     if is_new:
         _note_live(db, dossier["tier"], kind, timeline is not None, dossier["champ"])
+    elif (before["kind"], before["tier"]) != (kind, dossier["tier"]):
+        _move_live(db, dict(before), dossier["tier"], kind, timeline is not None, dossier["champ"])
     if to_files and write_files:
         files = Files.of(svc, kind)
         if files is not None:
@@ -700,18 +702,39 @@ def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool, champ
             return
         d["games"] += 1
         d["timelines"] += int(has_timeline)
-        d["tiers"][tier or "?"] = d["tiers"].get(tier or "?", 0) + 1
-        if kind == "otp":
-            d["otp_games"] += 1
-        bucket = "player" if kind == RANKING_KIND else kind  # las de todo el ranking cuentan como «resto»
-        if bucket in ("otp", "player"):
-            by_kind = d.setdefault(f"tiers_{bucket}", {})
-            by_kind[tier or "?"] = by_kind.get(tier or "?", 0) + 1
-        if champ is not None:  # los campeones destacados de cada elo, también al momento
-            per_champ = d.setdefault("champ_counts", {"all": {}, "otp": {}})
-            for key in ("all", "otp") if kind == "otp" else ("all",):
-                champs = per_champ.setdefault(key, {}).setdefault(tier or "?", {})
-                champs[int(champ)] = champs.get(int(champ), 0) + 1
+        _bump(d, tier, kind, champ, 1)
+
+
+def _move_live(db, old: dict, tier: str | None, kind: str | None, has_timeline: bool, champ: int | None = None) -> None:
+    """Una partida ya contada que se vuelve a guardar en otro grupo o elo: de todo el ranking («resto») a OTP cuando la
+    encuentra la búsqueda de OTPs, de jugador a OTP… Se mueve en la gráfica al momento (antes solo contaban al momento
+    las nuevas y la barra amarilla no subía al buscar OTPs hasta el recuento de cada ``LIVE_RECOUNT_S``)."""
+    with _live_lock:
+        d = _live_state(db)["data"]
+        if d is None:
+            return
+        d["timelines"] = max(0, d["timelines"] + int(has_timeline) - int(bool(old.get("has_timeline"))))
+        _bump(d, old.get("tier"), old.get("kind"), champ, -1)
+        _bump(d, tier, kind, champ, 1)
+
+
+def _bump(d: dict, tier: str | None, kind: str | None, champ: int | None, step: int) -> None:
+    """Suma (o resta) una partida de ese elo y grupo en los contadores al momento (nunca por debajo de 0)."""
+
+    def add(counter: dict, key) -> None:
+        counter[key] = max(0, counter.get(key, 0) + step)
+
+    key = tier or "?"
+    add(d["tiers"], key)
+    if kind == "otp":
+        d["otp_games"] = max(0, d["otp_games"] + step)
+    bucket = "player" if kind == RANKING_KIND else kind  # las de todo el ranking cuentan como «resto»
+    if bucket in ("otp", "player"):
+        add(d.setdefault(f"tiers_{bucket}", {}), key)
+    if champ is not None:  # los campeones destacados de cada elo, también al momento
+        per_champ = d.setdefault("champ_counts", {"all": {}, "otp": {}})
+        for group in ("all", "otp") if kind == "otp" else ("all",):
+            add(per_champ.setdefault(group, {}).setdefault(key, {}), int(champ))
 
 
 def live_counts(db) -> dict:

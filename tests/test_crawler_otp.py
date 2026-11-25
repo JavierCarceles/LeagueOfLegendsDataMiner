@@ -1810,3 +1810,28 @@ def test_con_cualquier_combinacion_de_elos_todos_reciben_partidas_y_mas_los_que_
             total = sum(session.values())
             assert all(session.get(t, 0) > 0 for t in chosen), chosen
             assert all(abs(session[t] / total - shares[t]) < 0.02 for t in chosen), chosen
+
+
+def test_a_ranking_game_found_again_as_otp_moves_to_the_yellow_bar_at_once(keyed_svc):
+    """Con «todo el ranking» la partida ya contaba como «resto» (azul). Si la búsqueda de OTPs la vuelve a guardar como
+    OTP, tiene que pasar a la barra amarilla de «Partidas por elo (total)» al momento (antes, en el recuento de 5 min)."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    match = make_match("EUW1_701", puuids={1: "p-otp"})
+    otp_details.live_counts(db)  # la gráfica abierta: contadores al momento
+    assert otp_details.save_ranking_game(db, svc, match, None, "GOLD") >= 1
+    live = otp_details.live_counts(db)
+    otp, rest, total = live["tiers_otp"].get("GOLD", 0), live["tiers_player"].get("GOLD", 0), live["tiers"]["GOLD"]
+    assert rest >= 1
+    assert otp_details.save(db, svc, match, None, "p-otp", {"tier": "GOLD", "division": "I", "lp": 10}, kind="otp")
+    live = otp_details.live_counts(db)
+    assert live["tiers_otp"].get("GOLD", 0) == otp + 1 and live["tiers_player"].get("GOLD", 0) == rest - 1
+    assert live["tiers"]["GOLD"] == total and live["otp_games"] >= 1  # la misma partida: el total no cambia
+    assert live["top_champs"]["GOLD"]["otp"] == AATROX
+    # Y el recuento de la tabla da lo mismo
+    fresh = otp_details.counts(db)
+    assert fresh["tiers_otp"].get("GOLD", 0) == otp + 1 and fresh["tiers_player"].get("GOLD", 0) == rest - 1
