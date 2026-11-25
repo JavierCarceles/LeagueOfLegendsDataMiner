@@ -364,18 +364,28 @@
  },
  "workers": {
   "americas": {
-   "status": "starting",
-   "search": "running",
-   "mastery_checked": 4,
-   "targets_found": 4,
+   "status": "stopped",
+   "search": "stopped",
+   "mastery_checked": 90,
+   "targets_found": 82,
    "errors": 0,
    "last_error": null,
-   "stored": 0,
+   "stored": 55,
    "duplicates": 0,
-   "details": 0,
-   "fetched": 0,
+   "details": 52,
+   "fetched": 83,
    "rate_recent": null,
-   "timing": {},
+   "timing": {
+    "cola": 1.4,
+    "riot_listas": 3.5,
+    "esperando_descarga": 184.1,
+    "guardar_partida": 4.3,
+    "riot": 1.0,
+    "analizar_guardar": 31.0,
+    "partidas": 220.8,
+    "visitas": 226.0,
+    "n_visitas": 2
+   },
    "analisis": {
     "en_cola": 0,
     "vivo": false,
@@ -383,18 +393,28 @@
    }
   },
   "europe": {
-   "status": "starting",
-   "search": "running",
-   "mastery_checked": 5,
-   "targets_found": 4,
+   "status": "stopped",
+   "search": "stopped",
+   "mastery_checked": 125,
+   "targets_found": 118,
    "errors": 0,
    "last_error": null,
-   "stored": 0,
+   "stored": 45,
    "duplicates": 0,
-   "details": 0,
-   "fetched": 0,
+   "details": 45,
+   "fetched": 75,
    "rate_recent": null,
-   "timing": {},
+   "timing": {
+    "cola": 1.4,
+    "riot_listas": 4.5,
+    "esperando_descarga": 166.3,
+    "guardar_partida": 5.8,
+    "riot": 11.1,
+    "analizar_guardar": 35.6,
+    "partidas": 203.6,
+    "visitas": 225.7,
+    "n_visitas": 3
+   },
    "analisis": {
     "en_cola": 0,
     "vivo": false,
@@ -402,18 +422,28 @@
    }
   },
   "asia": {
-   "status": "starting",
-   "search": "running",
-   "mastery_checked": 2,
-   "targets_found": 1,
+   "status": "stopped",
+   "search": "stopped",
+   "mastery_checked": 49,
+   "targets_found": 37,
    "errors": 0,
    "last_error": null,
-   "stored": 0,
+   "stored": 22,
    "duplicates": 0,
-   "details": 0,
-   "fetched": 0,
+   "details": 21,
+   "fetched": 68,
    "rate_recent": null,
-   "timing": {},
+   "timing": {
+    "cola": 1.3,
+    "riot_listas": 11.9,
+    "esperando_descarga": 177.1,
+    "guardar_partida": 2.5,
+    "riot": 17.8,
+    "analizar_guardar": 12.9,
+    "partidas": 194.4,
+    "visitas": 225.9,
+    "n_visitas": 4
+   },
    "analisis": {
     "en_cola": 0,
     "vivo": false,
@@ -421,18 +451,28 @@
    }
   },
   "sea": {
-   "status": "starting",
-   "search": "running",
-   "mastery_checked": 4,
-   "targets_found": 4,
+   "status": "stopped",
+   "search": "stopped",
+   "mastery_checked": 74,
+   "targets_found": 71,
    "errors": 0,
    "last_error": null,
-   "stored": 0,
+   "stored": 34,
    "duplicates": 0,
-   "details": 0,
-   "fetched": 0,
+   "details": 30,
+   "fetched": 66,
    "rate_recent": null,
-   "timing": {},
+   "timing": {
+    "cola": 2.6,
+    "riot_listas": 6.4,
+    "esperando_descarga": 156.6,
+    "partidas": 177.0,
+    "guardar_partida": 3.6,
+    "riot": 30.0,
+    "analizar_guardar": 22.4,
+    "visitas": 224.7,
+    "n_visitas": 3
+   },
    "analisis": {
     "en_cola": 0,
     "vivo": false,
@@ -441,7 +481,7 @@
   }
  },
  "db": {
-  "wal_mb": 0.3,
+  "wal_mb": 28.5,
   "wal_recorte": {
    "recortes": 1,
    "fallos_seguidos": 0,
@@ -454,15 +494,45 @@
    }
   },
   "candado": {
+   "busquedas": {
+    "esperando_s": 14.1,
+    "cogido_s": 4.3,
+    "escrituras": 338
+   },
+   "crawler-sea": {
+    "esperando_s": 2.9,
+    "cogido_s": 4.8,
+    "escrituras": 103
+   },
+   "crawler-asia": {
+    "esperando_s": 1.7,
+    "cogido_s": 3.3,
+    "escrituras": 98
+   },
+   "crawler-europe": {
+    "esperando_s": 1.5,
+    "cogido_s": 6.3,
+    "escrituras": 128
+   },
+   "crawler-americas": {
+    "esperando_s": 1.0,
+    "cogido_s": 4.4,
+    "escrituras": 143
+   },
+   "crawler-stop": {
+    "esperando_s": 0.2,
+    "cogido_s": 0.4,
+    "escrituras": 1
+   },
    "game-tracker": {
     "esperando_s": 0.1,
     "cogido_s": 0.0,
     "escrituras": 1
    },
-   "busquedas": {
+   "crawler-funnel": {
     "esperando_s": 0.0,
     "cogido_s": 0.0,
-    "escrituras": 15
+    "escrituras": 2
    },
    "startup": {
     "esperando_s": 0.0,
@@ -472,10 +542,40 @@
   },
   "lentas": [
    {
+    "que": "lectura · ingest/otp_details.py:1779 write_summary · SELECT puuid, dossier FROM otp_games WHERE champ = ? AND kind = ?",
+    "veces": 11,
+    "s_total": 17.1,
+    "s_peor": 4.6
+   },
+   {
     "que": "lectura · ingest/otp_details.py:512 reclassify · SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_pro",
     "veces": 1,
     "s_total": 4.7,
     "s_peor": 4.7
+   },
+   {
+    "que": "lectura · ingest/crawler.py:636 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p",
+    "veces": 2,
+    "s_total": 2.6,
+    "s_peor": 1.9
+   },
+   {
+    "que": "lectura · api/system.py:36 _db_counts · SELECT COUNT(*) FROM players",
+    "veces": 4,
+    "s_total": 2.5,
+    "s_peor": 0.8
+   },
+   {
+    "que": "lectura · ingest/crawler.py:633 otp_rows_for_plan · SELECT p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_nam",
+    "veces": 1,
+    "s_total": 1.8,
+    "s_peor": 1.8
+   },
+   {
+    "que": "lectura · ingest/crawler.py:1618 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl.",
+    "veces": 2,
+    "s_total": 1.3,
+    "s_peor": 0.7
    },
    {
     "que": "lectura · ingest/crawler.py:517 search_funnel · SELECT p.platform, m.top, m.checked_at, o.seen, o.hits FROM mastery_ch",
@@ -484,7 +584,13 @@
     "s_peor": 1.0
    },
    {
-    "que": "lectura · ingest/crawler.py:636 otp_rows_for_plan · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p",
+    "que": "lectura · ingest/otp_details.py:433 player_info · SELECT puuid, platform, tier, division, lp, game_name, tag_line FROM p",
+    "veces": 1,
+    "s_total": 0.7,
+    "s_peor": 0.7
+   },
+   {
+    "que": "lectura · api/system.py:37 _db_counts · SELECT COUNT(*) FROM players WHERE is_seed = 1",
     "veces": 1,
     "s_total": 0.7,
     "s_peor": 0.7
@@ -494,10 +600,24 @@
     "veces": 1,
     "s_total": 0.6,
     "s_peor": 0.6
+   },
+   {
+    "que": "lectura · coach/store.py:52 get_profile · SELECT * FROM my_profile WHERE id = 1",
+    "veces": 1,
+    "s_total": 0.6,
+    "s_peor": 0.6
+   },
+   {
+    "que": "lectura · ingest/crawler.py:2166 _other_target · SELECT top FROM mastery_checks WHERE puuid IN (?,?,?,?,?,?,?,?,?)",
+    "veces": 1,
+    "s_total": 0.5,
+    "s_peor": 0.5
    }
   ]
  },
- "found_by_tier": {},
+ "found_by_tier": {
+  "PLATINUM": 1538
+ },
  "ratelimit": {
   "americas": {
    "windows": [
@@ -509,16 +629,18 @@
     {
      "limit": 100,
      "seconds": 120,
-     "used": 89
+     "used": 94
     }
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 47.8,
+   "llamadas_min_recolector": 47.8,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 553
+   }
   },
   "asia": {
    "windows": [
@@ -530,16 +652,18 @@
     {
      "limit": 100,
      "seconds": 120,
-     "used": 87
+     "used": 93
     }
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 47.5,
+   "llamadas_min_recolector": 47.5,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 548
+   }
   },
   "br1": {
    "windows": [
@@ -556,11 +680,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 23
+   }
   },
   "eun1": {
    "windows": [
@@ -577,11 +703,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 27
+   }
   },
   "europe": {
    "windows": [
@@ -593,16 +721,19 @@
     {
      "limit": 100,
      "seconds": 120,
-     "used": 89
+     "used": 92
     }
    ],
    "foreign": 0,
-   "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "rate_limited": 3,
+   "llamadas_min": 44.9,
+   "llamadas_min_recolector": 44.4,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 514,
+    "bloqueo_429": 23
+   }
   },
   "euw1": {
    "windows": [
@@ -614,16 +745,18 @@
     {
      "limit": 100,
      "seconds": 120,
-     "used": 1
+     "used": 0
     }
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.4,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 28
+   }
   },
   "jp1": {
    "windows": [
@@ -640,11 +773,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.3,
+   "llamadas_min_recolector": 6.3,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 20
+   }
   },
   "kr": {
    "windows": [
@@ -661,11 +796,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 21
+   }
   },
   "la1": {
    "windows": [
@@ -682,11 +819,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 19
+   }
   },
   "la2": {
    "windows": [
@@ -703,11 +842,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 3.9,
+   "llamadas_min_recolector": 3.9,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 11
+   }
   },
   "me1": {
    "windows": [
@@ -724,11 +865,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 24
+   }
   },
   "na1": {
    "windows": [
@@ -745,11 +888,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 23
+   }
   },
   "oc1": {
    "windows": [
@@ -766,11 +911,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 17
+   }
   },
   "ru": {
    "windows": [
@@ -787,11 +934,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 26
+   }
   },
   "sea": {
    "windows": [
@@ -803,16 +952,18 @@
     {
      "limit": 100,
      "seconds": 120,
-     "used": 84
+     "used": 94
     }
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 47.3,
+   "llamadas_min_recolector": 47.3,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 498
+   }
   },
   "sg2": {
    "windows": [
@@ -829,11 +980,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 19
+   }
   },
   "tr1": {
    "windows": [
@@ -850,11 +1003,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 6.6,
+   "llamadas_min_recolector": 6.6,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 24
+   }
   },
   "tw2": {
    "windows": [
@@ -871,11 +1026,13 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 3.2,
+   "llamadas_min_recolector": 3.2,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 7
+   }
   },
   "vn2": {
    "windows": [
@@ -892,54 +1049,566 @@
    ],
    "foreign": 0,
    "rate_limited": 0,
-   "llamadas_min": null,
-   "llamadas_min_recolector": null,
+   "llamadas_min": 3.2,
+   "llamadas_min_recolector": 3.2,
    "max_min_recolector": 49.5,
    "reserva_pct": 1,
-   "espera_s": {}
+   "espera_s": {
+    "ritmo": 10
+   }
   }
  },
  "rate": {
   "since_start": null,
   "recent": null
  },
- "reparto_elo": {},
- "visitas_por_elo": {},
- "cola_por_elo": {},
- "cola_por_region": {},
+ "reparto_elo": {
+  "PLATINUM": {
+   "parte_pct": 100.0,
+   "recientes_pct": 98.0,
+   "analizadas": 9799
+  }
+ },
+ "visitas_por_elo": {
+  "PLATINUM": {
+   "visitas": 12,
+   "analizadas": 122,
+   "nuevas": 156,
+   "por_visita": 10.2,
+   "min_por_visita": 1.3,
+   "completo_pct": 17
+  }
+ },
+ "cola_por_elo": {
+  "PLATINUM": {
+   "nuevos": 1366,
+   "partidas_nuevas": 62,
+   "historial": 81,
+   "sin_analisis": 1
+  }
+ },
+ "cola_por_region": {
+  "asia": {
+   "PLATINUM": [
+    173,
+    17,
+    19,
+    0
+   ]
+  },
+  "sea": {
+   "PLATINUM": [
+    368,
+    18,
+    24,
+    1
+   ]
+  },
+  "americas": {
+   "PLATINUM": [
+    370,
+    16,
+    17,
+    0
+   ]
+  },
+  "europe": {
+   "PLATINUM": [
+    455,
+    11,
+    21,
+    0
+   ]
+  }
+ },
  "sin_candidatos": {},
- "ultimas_visitas": [],
+ "ultimas_visitas": [
+  {
+   "region": "asia",
+   "at": 1795646900,
+   "plataforma": "KR",
+   "elo": "PLATINUM",
+   "analizadas": 7,
+   "s": 69.3,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 9,
+   "revisadas": 21,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "sea",
+   "at": 1795646915,
+   "plataforma": "SEA",
+   "elo": "PLATINUM",
+   "analizadas": 1,
+   "s": 84.0,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 8,
+   "revisadas": 21,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "americas",
+   "at": 1795646919,
+   "plataforma": "NA",
+   "elo": "PLATINUM",
+   "analizadas": 16,
+   "s": 87.7,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 17,
+   "revisadas": 34,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "europe",
+   "at": 1795646954,
+   "plataforma": "EUNE",
+   "elo": "PLATINUM",
+   "analizadas": 27,
+   "s": 123.0,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 33,
+   "revisadas": 41,
+   "fin": "historial completo"
+  },
+  {
+   "region": "asia",
+   "at": 1795646965,
+   "plataforma": "KR",
+   "elo": "PLATINUM",
+   "analizadas": 7,
+   "s": 64.2,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 7,
+   "revisadas": 20,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "sea",
+   "at": 1795646983,
+   "plataforma": "TW",
+   "elo": "PLATINUM",
+   "analizadas": 4,
+   "s": 67.1,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 11,
+   "revisadas": 21,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "europe",
+   "at": 1795647003,
+   "plataforma": "EUNE",
+   "elo": "PLATINUM",
+   "analizadas": 1,
+   "s": 48.4,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 5,
+   "revisadas": 16,
+   "fin": "historial completo"
+  },
+  {
+   "region": "asia",
+   "at": 1795647029,
+   "plataforma": "KR",
+   "elo": "PLATINUM",
+   "analizadas": 0,
+   "s": 63.8,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 1,
+   "revisadas": 21,
+   "fin": "pocas con esos campeones"
+  },
+  {
+   "region": "europe",
+   "at": 1795647057,
+   "plataforma": "EUW",
+   "elo": "PLATINUM",
+   "analizadas": 7,
+   "s": 54.3,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 7,
+   "revisadas": 18,
+   "fin": "detenido"
+  },
+  {
+   "region": "asia",
+   "at": 1795647057,
+   "plataforma": "JP",
+   "elo": "PLATINUM",
+   "analizadas": 4,
+   "s": 28.6,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 5,
+   "revisadas": 6,
+   "fin": "detenido"
+  },
+  {
+   "region": "sea",
+   "at": 1795647057,
+   "plataforma": "TW",
+   "elo": "PLATINUM",
+   "analizadas": 13,
+   "s": 73.6,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 15,
+   "revisadas": 24,
+   "fin": "detenido"
+  },
+  {
+   "region": "americas",
+   "at": 1795647057,
+   "plataforma": "NA",
+   "elo": "PLATINUM",
+   "analizadas": 35,
+   "s": 138.3,
+   "mas_atrasado": "PLATINUM",
+   "hay_de_ese": true,
+   "tipo": "nuevo",
+   "nuevas": 38,
+   "revisadas": 49,
+   "fin": "detenido"
+  }
+ ],
  "diagnostico": {
-  "busquedas": {
-   "muestras": 45,
-   "en": {
-    "esperando turno de la key de Riot": 49,
-    "consultando o escribiendo la base de datos": 31,
-    "esperando a la red (Riot, OP.GG, GitHub)": 20
-   },
-   "lineas": {
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 49,
-    "ingest/crawler.py:1169 _discover → db.py:query": 31,
-    "riot/client.py:72 request → ssl.py:read": 18,
-    "riot/client.py:72 request → socket.py:getaddrinfo": 2
-   }
-  },
-  "db-checkpoint": {
-   "muestras": 15,
-   "en": {
-    "esperando un candado (base de datos, ficheros)": 100
-   },
-   "lineas": {
-    "data/db.py:516 run → threading.py:wait": 100
-   }
-  },
-  "MainThread": {
-   "muestras": 15,
+  "videos-frames": {
+   "muestras": 4626,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "windows_events.py _poll": 100
+    "videos/frames.py:142 every": 62,
+    "thread.py _worker": 11,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 8,
+    "videos/frames.py:143 every": 7,
+    "videos/frames.py:535 read": 3,
+    "videos/frames.py:656 ring_icons": 1
+   }
+  },
+  "crawler-dl-sea": {
+   "muestras": 1245,
+   "en": {
+    "esperando turno de la key de Riot": 69,
+    "esperando a la red (Riot, OP.GG, GitHub)": 24,
+    "otro": 6
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 69,
+    "riot/client.py:72 request → ssl.py:read": 20,
+    "thread.py _worker": 6,
+    "riot/client.py:72 request → response.py:decompress": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 2,
+    "riot/client.py:72 request → request.py:getproxies_registry": 0
+   }
+  },
+  "crawler-dl-asia": {
+   "muestras": 1245,
+   "en": {
+    "esperando turno de la key de Riot": 77,
+    "esperando a la red (Riot, OP.GG, GitHub)": 21,
+    "otro": 2
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 77,
+    "riot/client.py:72 request → ssl.py:read": 16,
+    "riot/client.py:72 request → response.py:decompress": 3,
+    "thread.py _worker": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1
+   }
+  },
+  "crawler-dl-europe": {
+   "muestras": 1245,
+   "en": {
+    "esperando turno de la key de Riot": 78,
+    "otro": 12,
+    "esperando a la red (Riot, OP.GG, GitHub)": 10
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 78,
+    "thread.py _worker": 12,
+    "riot/client.py:72 request → ssl.py:read": 6,
+    "riot/client.py:72 request → response.py:decompress": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1
+   }
+  },
+  "crawler-dl-americas": {
+   "muestras": 1245,
+   "en": {
+    "esperando turno de la key de Riot": 82,
+    "esperando a la red (Riot, OP.GG, GitHub)": 17,
+    "otro": 1
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 82,
+    "riot/client.py:72 request → ssl.py:read": 13,
+    "riot/client.py:72 request → response.py:decompress": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1,
+    "riot/client.py:72 request → request.py:getproxies_registry": 0
+   }
+  },
+  "busquedas": {
+   "muestras": 6289,
+   "en": {
+    "parado esperando trabajo": 88,
+    "esperando turno de la key de Riot": 8,
+    "esperando a la red (Riot, OP.GG, GitHub)": 3,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:2508 _search_step → threading.py:wait": 88,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 8,
+    "riot/client.py:72 request → ssl.py:read": 2,
+    "ingest/crawler.py:1345 _check_mastery → db.py:write": 1,
+    "ingest/crawler.py:1169 _discover → db.py:query": 0,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
+   }
+  },
+  "db-checkpoint": {
+   "muestras": 435,
+   "en": {
+    "esperando un candado (base de datos, ficheros)": 99,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "data/db.py:516 run → threading.py:wait": 99,
+    "data/db.py:486 _run_checkpoint": 0,
+    "data/db.py:531 wal_mb → __init__.py:stat": 0
+   }
+  },
+  "MainThread": {
+   "muestras": 435,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "windows_events.py _poll": 94,
+    "windows_events.py send": 1,
+    "windows_events.py recv_into": 1,
+    "windows_events.py recv": 1,
+    "windows_events.py finish_socket_func": 1,
+    "budget.py:105 send_wrapper → windows_events.py:send": 1
+   }
+  },
+  "elo-profile": {
+   "muestras": 423,
+   "en": {
+    "comprimiendo o escribiendo ficheros": 93,
+    "otro": 6
+   },
+   "lineas": {
+    "coach/elo_profile.py:210 _read_file → gzip.py:read": 76,
+    "coach/elo_profile.py:209 _read_file → gzip.py:__init__": 9,
+    "coach/elo_profile.py:209 _read_file → gzip.py:_close": 3,
+    "coach/elo_profile.py:220 _read_file": 3,
+    "coach/elo_profile.py:149 _files → glob.py:scandir": 3,
+    "coach/elo_profile.py:264 records → __init__.py:stat": 3
+   }
+  },
+  "videos-campeon": {
+   "muestras": 234,
+   "en": {
+    "otro": 88,
+    "esperando un candado (base de datos, ficheros)": 12
+   },
+   "lineas": {
+    "videos/frames.py:551 _scan": 59,
+    "thread.py _worker": 28,
+    "videos/frames.py:508 _templates": 12,
+    "videos/frames.py:513 _templates": 1
+   }
+  },
+  "otp-summaries": {
+   "muestras": 184,
+   "en": {
+    "otro": 61,
+    "consultando o escribiendo la base de datos": 28,
+    "comprimiendo o escribiendo ficheros": 10,
+    "esperando un candado (base de datos, ficheros)": 1
+   },
+   "lineas": {
+    "coach/store.py:25 unpack": 49,
+    "ingest/otp_details.py:1779 write_summary → db.py:query": 26,
+    "coach/store.py:25 unpack → decoder.py:raw_decode": 4,
+    "coach/store.py:25 unpack → decoder.py:decode": 3,
+    "coach/store.py:25 unpack → _weakrefset.py:_remove": 3,
+    "ingest/otp_details.py:1248 _numeric_block": 3
+   }
+  },
+  "videos": {
+   "muestras": 422,
+   "en": {
+    "parado esperando trabajo": 66,
+    "otro": 30,
+    "esperando a la red (Riot, OP.GG, GitHub)": 3
+   },
+   "lineas": {
+    "videos/frames.py:768 sample_pass → threading.py:wait": 61,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 8,
+    "videos/frames.py:280 find_camera": 3,
+    "videos/frames.py:562 _add_scans → threading.py:wait": 3,
+    "videos/frames.py:197 _search_corner": 3,
+    "videos/youtube.py:253 run → ssl.py:read": 2
+   }
+  },
+  "crawler-sea": {
+   "muestras": 421,
+   "en": {
+    "parado esperando trabajo": 69,
+    "esperando turno de la key de Riot": 12,
+    "consultando o escribiendo la base de datos": 5,
+    "analizando partidas": 4,
+    "esperando a la red (Riot, OP.GG, GitHub)": 4,
+    "comprimiendo o escribiendo ficheros": 4,
+    "esperando un candado (base de datos, ficheros)": 2,
+    "otro": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:862 take → threading.py:wait": 69,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 12,
+    "riot/client.py:72 request → ssl.py:read": 3,
+    "ingest/otp_details.py:1671 _player_dir → __init__.py:is_dir": 2,
+    "coach/navgrid.py:206 _expand": 1,
+    "ingest/crawler.py:2861 otp_rows_cached": 1
+   }
+  },
+  "web": {
+   "muestras": 1104,
+   "en": {
+    "parado esperando trabajo": 89,
+    "consultando o escribiendo la base de datos": 8,
+    "otro": 2,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "threading.py wait": 89,
+    "api/system.py:36 _db_counts → db.py:one": 4,
+    "api/system.py:37 _db_counts → db.py:one": 1,
+    "config.py:23 _env_values → main.py:_get_stream": 1,
+    "api/system.py:34 _db_counts → db.py:one": 1,
+    "proactor_events.py _write_to_self": 1
+   }
+  },
+  "crawler-europe": {
+   "muestras": 421,
+   "en": {
+    "parado esperando trabajo": 74,
+    "analizando partidas": 9,
+    "esperando turno de la key de Riot": 6,
+    "consultando o escribiendo la base de datos": 5,
+    "comprimiendo o escribiendo ficheros": 4,
+    "esperando un candado (base de datos, ficheros)": 1,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1,
+    "otro": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:862 take → threading.py:wait": 74,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 6,
+    "coach/navgrid.py:206 _expand": 3,
+    "coach/navgrid.py:209 _expand": 2,
+    "coach/navgrid.py:123 _line_clear": 1,
+    "riot/client.py:72 request → ssl.py:read": 1
+   }
+  },
+  "crawler-asia": {
+   "muestras": 421,
+   "en": {
+    "parado esperando trabajo": 77,
+    "esperando turno de la key de Riot": 12,
+    "analizando partidas": 5,
+    "consultando o escribiendo la base de datos": 2,
+    "esperando a la red (Riot, OP.GG, GitHub)": 2,
+    "otro": 1,
+    "esperando un candado (base de datos, ficheros)": 1,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:862 take → threading.py:wait": 77,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 12,
+    "riot/client.py:72 request → ssl.py:read": 1,
+    "coach/navgrid.py:123 _line_clear": 1,
+    "ingest/crawler.py:2220 _skip_for_player → db.py:write": 1,
+    "coach/navgrid.py:206 _expand": 1
+   }
+  },
+  "Thread-40 (": {
+   "muestras": 91,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-39 (": {
+   "muestras": 91,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "crawler-americas": {
+   "muestras": 421,
+   "en": {
+    "parado esperando trabajo": 81,
+    "analizando partidas": 9,
+    "comprimiendo o escribiendo ficheros": 3,
+    "consultando o escribiendo la base de datos": 3,
+    "esperando un candado (base de datos, ficheros)": 2,
+    "esperando turno de la key de Riot": 1,
+    "otro": 1,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:862 take → threading.py:wait": 81,
+    "coach/navgrid.py:206 _expand": 3,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 1,
+    "coach/navgrid.py:209 _expand": 1,
+    "coach/navgrid.py:164 _heuristic": 1,
+    "coach/navgrid.py:123 _line_clear": 1
+   }
+  },
+  "draft-live": {
+   "muestras": 435,
+   "en": {
+    "parado esperando trabajo": 94,
+    "esperando a la red (Riot, OP.GG, GitHub)": 3,
+    "consultando o escribiendo la base de datos": 2,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "draft_live.py:447 _run → threading.py:wait": 94,
+    "draft_live.py:89 get_prefs → db.py:one": 2,
+    "lcu.py:93 _lockfile → __init__.py:open": 1,
+    "lcu.py:127 _request → ssl.py:do_handshake": 1,
+    "lcu.py:127 _request → utils.py:get_netrc_auth": 0,
+    "lcu.py:127 _request → connection.py:create_connection": 0
    }
   },
   "startup": {
@@ -954,15 +1623,14 @@
     "videos/store.py:70 _data → __init__.py:open": 8
    }
   },
-  "web": {
-   "muestras": 61,
+  "crawler-rows": {
+   "muestras": 7,
    "en": {
-    "parado esperando trabajo": 95,
-    "consultando o escribiendo la base de datos": 5
+    "consultando o escribiendo la base de datos": 100
    },
    "lineas": {
-    "threading.py wait": 95,
-    "api/system.py:36 _db_counts → db.py:one": 5
+    "ingest/crawler.py:633 otp_rows_for_plan → db.py:query": 57,
+    "ingest/crawler.py:636 otp_rows_for_plan → db.py:query": 43
    }
   },
   "crawler-funnel": {
@@ -977,72 +1645,89 @@
     "ingest/crawler.py:534 _funnel_bucket": 33
    }
   },
-  "crawler-sea": {
-   "muestras": 3,
-   "en": {
-    "esperando un candado (base de datos, ficheros)": 100
-   },
-   "lineas": {
-    "ingest/crawler.py:2861 otp_rows_cached": 100
-   }
-  },
-  "crawler-asia": {
-   "muestras": 3,
-   "en": {
-    "consultando o escribiendo la base de datos": 100
-   },
-   "lineas": {
-    "ingest/crawler.py:636 otp_rows_for_plan → db.py:query": 67,
-    "ingest/crawler.py:633 otp_rows_for_plan → db.py:query": 33
-   }
-  },
-  "crawler-europe": {
-   "muestras": 3,
-   "en": {
-    "esperando un candado (base de datos, ficheros)": 100
-   },
-   "lineas": {
-    "ingest/crawler.py:2861 otp_rows_cached": 100
-   }
-  },
-  "crawler-americas": {
-   "muestras": 3,
-   "en": {
-    "esperando un candado (base de datos, ficheros)": 100
-   },
-   "lineas": {
-    "ingest/crawler.py:2861 otp_rows_cached": 100
-   }
-  },
-  "elo-profile": {
+  "otp-relocate": {
    "muestras": 3,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "coach/elo_profile.py:149 _files → glob.py:scandir": 100
+    "coach/store.py:25 unpack": 100
    }
   },
-  "videos": {
+  "Thread-38 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-37 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "crawler-stop": {
+   "muestras": 3,
+   "en": {
+    "otro": 67,
+    "consultando o escribiendo la base de datos": 33
+   },
+   "lineas": {
+    "ingest/crawler.py:3194 _after_stop": 67,
+    "ingest/crawler.py:3174 _after_stop → db.py:write": 33
+   }
+  },
+  "Thread-21 (": {
    "muestras": 2,
    "en": {
-    "otro": 50,
-    "esperando a la red (Riot, OP.GG, GitHub)": 50
+    "otro": 100
    },
    "lineas": {
-    "videos/frames.py:27 <module> → <frozen importlib._bootstrap_external>:_path_stat": 50,
-    "videos/youtube.py:253 run → ssl.py:_create": 50
+    "subprocess.py _readerthread": 100
    }
   },
-  "draft-live": {
-   "muestras": 15,
+  "Thread-20 (": {
+   "muestras": 2,
    "en": {
-    "parado esperando trabajo": 93,
-    "esperando a la red (Riot, OP.GG, GitHub)": 7
+    "otro": 100
    },
    "lineas": {
-    "draft_live.py:447 _run → threading.py:wait": 93,
-    "lcu.py:127 _request → connection.py:create_connection": 7
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-31 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "lol-client-watch": {
+   "muestras": 435,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:494 _watch_loop → threading.py:wait": 100,
+    "lcu.py:93 _lockfile → __init__.py:open": 0
+   }
+  },
+  "game-tracker": {
+   "muestras": 435,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:398 _sleep → threading.py:wait": 100,
+    "coach/store.py:52 get_profile → db.py:one": 0
    }
   },
   "Thread-8 (": {
@@ -1063,8 +1748,89 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-14 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-13 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-32 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-42 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-41 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-46 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-45 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "25012": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "socket.py _real_close": 100
+   }
+  },
+  "5076": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "socket.py _real_close": 100
+   }
+  },
   "mis-partidas": {
-   "muestras": 15,
+   "muestras": 435,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1073,16 +1839,17 @@
    }
   },
   "tier-calibrator": {
-   "muestras": 15,
+   "muestras": 435,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/calibrate.py:61 _run → threading.py:wait": 100
+    "coach/calibrate.py:75 _run → threading.py:wait": 74,
+    "coach/calibrate.py:61 _run → threading.py:wait": 26
    }
   },
   "warm-planner": {
-   "muestras": 15,
+   "muestras": 435,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1091,7 +1858,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 45,
+   "muestras": 1305,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1100,7 +1867,7 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 15,
+   "muestras": 435,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1109,7 +1876,7 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 15,
+   "muestras": 435,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1118,7 +1885,7 @@
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 30,
+   "muestras": 870,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1127,7 +1894,7 @@
    }
   },
   "warm-opgg-web": {
-   "muestras": 30,
+   "muestras": 870,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1135,31 +1902,14 @@
     "warmer.py:177 _work → threading.py:wait": 100
    }
   },
-  "lol-client-watch": {
-   "muestras": 15,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:494 _watch_loop → threading.py:wait": 100
-   }
-  },
-  "game-tracker": {
-   "muestras": 15,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:398 _sleep → threading.py:wait": 100
-   }
-  },
   "updater": {
-   "muestras": 3,
+   "muestras": 423,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "updater.py:137 _loop → threading.py:wait": 100
+    "updater.py:137 _loop → threading.py:wait": 98,
+    "autopush.py:91 _git → threading.py:join": 2
    }
   },
   "autopush-check": {
@@ -1172,7 +1922,7 @@
    }
   },
   "rofl": {
-   "muestras": 3,
+   "muestras": 423,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1181,12 +1931,13 @@
    }
   },
   "track-check": {
-   "muestras": 2,
+   "muestras": 422,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/track_check_job.py:71 _wait → threading.py:wait": 100
+    "coach/track_check_job.py:71 _wait → threading.py:wait": 78,
+    "coach/track_check_job.py:84 _execute → threading.py:join": 22
    }
   }
  }
