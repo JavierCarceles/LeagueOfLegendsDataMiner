@@ -40,6 +40,10 @@ IDLE_S = 15
 MAX_FRAMES_DURATION_S = 3 * 3600  # directos larguísimos: solo transcripción
 MIN_FREE_BYTES = 3 * 1024**3
 MIN_DURATION_S = 90  # los shorts no sirven para analizar
+# Un canal o una lista sin límite: como mucho sus 500 vídeos más recientes. Un canal de repeticiones tenía 90.010: yt-dlp
+# pasaba casi una hora leyendo 3.000 páginas y la cola habría crecido a ~25 MB (se reescribe en cada cambio y se sube a
+# GitHub), con vídeos para años. Para más, vuelve a añadirlo cuando acaben.
+MAX_SOURCE_VIDEOS = 500
 TEMP_PREFIX = "tempu-video-"  # carpetas temporales de antes (se borran al arrancar)
 WORK_DIR = "tempu-videos"  # en la carpeta temporal del sistema: una carpeta de trabajo por vídeo
 WORK_KEEP_S = 3 * 86_400  # un vídeo a medias que no se retoma en 3 días: su carpeta se borra
@@ -114,6 +118,9 @@ class VideoCollector:
         cerrar la app (mientras juegas se sigue pausando solo)."""
         _clean_temp()
         self.store.reset_working()
+        trimmed = self.store.trim_sources(MAX_SOURCE_VIDEOS)
+        if trimmed:
+            log.info("Vídeos: %d vídeos de canales sin límite pasaban de los %d más recientes: fuera de la cola.", trimmed, MAX_SOURCE_VIDEOS)
         _clean_work({v["id"] for v in self.store.videos(PENDING, limit=1_000_000)})
         if self.store.paused:
             self.store.set_paused(False)
@@ -254,7 +261,7 @@ class VideoCollector:
             elif source["tipo"] == "busqueda":
                 entries = youtube.search(source["valor"], int(opts.get("n") or 10), self.root)
             else:
-                entries = youtube.expand(source["valor"], opts.get("limite"), self.root)
+                entries = youtube.expand(source["valor"], opts.get("limite") or MAX_SOURCE_VIDEOS, self.root)
         except youtube.VideoError as exc:
             self._error(f"No se pudo leer «{source['valor']}»: {exc}", exc.kind)
             if exc.kind != "limite":
