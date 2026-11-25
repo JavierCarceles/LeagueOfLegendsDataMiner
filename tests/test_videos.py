@@ -496,9 +496,17 @@ def test_review_flags_suspicious_results(tmp_path, capsys):
     }
     assert review.check(good) == []
     issues = " | ".join(review.check(bad))
-    for text in ("poca transcripción", "traducido", "«es»", "partida muy corta", "saltos", "apartadas", "recuadro de la cámara",
-                 "sin campeón"):
+    for text in ("poca transcripción", "traducido", "«es»", "partida muy corta", "apartadas", "recuadro de la cámara"):
         assert text in issues
+    # Clips sueltos de un vídeo explicativo (minimapa claro): ni partida dudosa, ni saltos, ni falta el campeón
+    clips = {**bad["frames"], "minimapa": {"parecido": 0.61}, "camara_px": [80, 44], "reloj_apartadas": [],
+             "camara": [[t, 1, 1] for t in range(0, 30, 2)]}
+    assert review.check({**good, "frames": clips}) == []
+    # Con más partida, los saltos del reloj y el campeón que no sale sí se avisan
+    long_game = {**clips, "segundos_con_partida": 600, "camara": [[t, 1, 1] for t in range(0, 600, 2)],
+                 "reloj": [[t * 10, (t % 2) * 900] for t in range(10)]}
+    issues = " | ".join(review.check({**good, "frames": long_game}))
+    assert "saltos" in issues and "sin campeón" in issues
     assert review.check({"duracion": 300}) == ["sin transcripción", "sin datos de frames"]
     # La orden solo lee lo recogido (sin herramientas de vídeo ni cambios)
     store = VideoStore(tmp_path / "videos")
