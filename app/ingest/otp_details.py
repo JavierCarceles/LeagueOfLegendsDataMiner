@@ -936,6 +936,45 @@ def relocate(svc, pairs: list[tuple[str, int]]) -> int:
     return moved
 
 
+def reclassify_player(db, puuid: str) -> list[tuple[str, int]]:
+    """``reclassify`` de un jugador al terminar de revisarlo, no solo al abrir la app: sus primeras partidas se guardan
+    antes de saber lo que juega (menos de ``OTP_SHARE_MIN_SEEN`` revisadas) y se decidían por la maestría, con un mínimo
+    de ``OTP_MIN_POINTS``. Buscando OTPs de 50.000 puntos en Bronce y Plata casi todas iban a «resto» (barra azul) hasta
+    reiniciar. Pasan a OTP o a jugador con la gráfica del total al día; devuelve las parejas que cambian de carpeta."""
+    seen = db.scalar("SELECT seen FROM otp_progress WHERE puuid = ?", (puuid,))
+    if int(seen or 0) < OTP_SHARE_MIN_SEEN:
+        return []
+    rows = db.query(
+        "SELECT champ, kind, tier, COUNT(*) AS n FROM otp_games WHERE puuid = ? AND kind IN ('otp', 'player') GROUP BY champ, kind, tier",
+        (puuid,),
+    )
+    kinds: dict[int, str] = {}
+    changed = []
+    for r in rows:
+        champ = int(r["champ"])
+        if champ not in kinds:
+            kinds[champ] = classify(db, puuid, champ)
+        if kinds[champ] != r["kind"]:
+            changed.append((kinds[champ], r["kind"], champ, r["tier"], int(r["n"])))
+    if not changed:
+        return []
+    with db.write() as conn:
+        conn.executemany(
+            "UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ? AND kind = ?",
+            sorted({(new, puuid, champ, old) for new, old, champ, _, _ in changed}),
+        )
+    with _live_lock:
+        d = _live_state(db)["data"]
+        if d is not None:
+            for new, old, champ, tier, n in changed:
+                _bump(d, tier, old, champ, -n)
+                _bump(d, tier, new, champ, n)
+    to_otp = sum(n for new, _, _, _, n in changed if new == "otp")
+    log.info("%s: %d partidas pasan a OTP y %d a otros jugadores por lo que juega.", puuid[:8], to_otp,
+             sum(n for *_, n in changed) - to_otp)
+    return sorted({(puuid, champ) for _, _, champ, _, _ in changed})
+
+
 def rebuild_all(svc) -> None:
     """Regenera las dos carpetas (OTPs y otros jugadores) desde la base de datos (si una falla, la otra sigue)."""
     for kind in KIND_DIRS:

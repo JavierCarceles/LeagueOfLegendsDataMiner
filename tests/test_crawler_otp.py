@@ -1835,3 +1835,30 @@ def test_a_ranking_game_found_again_as_otp_moves_to_the_yellow_bar_at_once(keyed
     # Y el recuento de la tabla da lo mismo
     fresh = otp_details.counts(db)
     assert fresh["tiers_otp"].get("GOLD", 0) == otp + 1 and fresh["tiers_player"].get("GOLD", 0) == rest - 1
+
+
+def test_games_saved_before_knowing_what_he_plays_move_to_the_yellow_bar_when_his_review_ends(keyed_svc):
+    """Buscando OTPs de 50.000 puntos en Bronce y Plata: sus primeras partidas se guardan antes de tener 20 revisadas y
+    sin 100.000 puntos se marcaban «resto» (azul) hasta reiniciar la app. Al terminar de revisarlo, si la mitad de lo
+    que juega es ese campeón, pasan a OTP (barra amarilla) al momento."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    otp_details.live_counts(db)  # la gráfica abierta: contadores al momento
+    for i in range(12):
+        match = make_match(f"EUW1_80{i:02d}", puuids={1: "p-low"})
+        assert otp_details.save(db, svc, match, None, "p-low", {"tier": "SILVER", "division": "II", "lp": 40})
+    live = otp_details.live_counts(db)
+    assert live["tiers_player"].get("SILVER", 0) == 12 and live["tiers_otp"].get("SILVER", 0) == 0
+    assert otp_details.reclassify_player(db, "p-low") == []  # aún sin 20 partidas revisadas: no se sabe
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-low', '420', 0, 20, 12, 0)")
+    assert otp_details.reclassify_player(db, "p-low") == [("p-low", AATROX)]
+    live = otp_details.live_counts(db)
+    assert live["tiers_otp"].get("SILVER", 0) == 12 and live["tiers_player"].get("SILVER", 0) == 0
+    assert live["tiers"]["SILVER"] == 12 and live["otp_games"] == 12
+    assert db.scalar("SELECT COUNT(*) FROM otp_games WHERE puuid = 'p-low' AND kind = 'otp'") == 12
+    assert otp_details.reclassify_player(db, "p-low") == []  # ya está bien
