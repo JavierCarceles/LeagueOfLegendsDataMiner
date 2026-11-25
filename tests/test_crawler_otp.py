@@ -1862,3 +1862,24 @@ def test_games_saved_before_knowing_what_he_plays_move_to_the_yellow_bar_when_hi
     assert live["tiers"]["SILVER"] == 12 and live["otp_games"] == 12
     assert db.scalar("SELECT COUNT(*) FROM otp_games WHERE puuid = 'p-low' AND kind = 'otp'") == 12
     assert otp_details.reclassify_player(db, "p-low") == []  # ya está bien
+
+
+def test_a_short_but_complete_history_is_enough_to_judge_an_otp(keyed_svc):
+    """En Bronce y Plata muchos juegan 10-15 partidas por temporada y nunca llegaban a 20 revisadas: con su historial del
+    periodo entero revisado, bastan 10 para decir si es OTP (son todas las que tiene, no una muestra)."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    for i in range(8):
+        match = make_match(f"EUW1_81{i:02d}", puuids={1: "p-few"})
+        assert otp_details.save(db, svc, match, None, "p-few", {"tier": "BRONZE", "division": "I", "lp": 5})
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-few', '420', 0, 12, 8, 0)")
+    assert otp_details.reclassify_player(db, "p-few") == []  # 12 revisadas y quedan más: aún no se sabe
+    with db.write() as conn:
+        conn.execute("UPDATE otp_progress SET back_done_at = 1, back_done_reason = 'end' WHERE puuid = 'p-few'")
+    assert otp_details.reclassify_player(db, "p-few") == [("p-few", AATROX)]  # todas las que tiene: 8 de 12
+    assert otp_details.judgeable(9, "end") is False and otp_details.judgeable(19, "share") is False

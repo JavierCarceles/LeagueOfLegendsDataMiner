@@ -1083,7 +1083,7 @@ function playersEditor(cfg, changed) {
       editHint(
         cfg.focus === "games"
           ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados (con ese mínimo de puntos) y se guarda toda partida suya en la que alguien lo juegue en esa línea."
-          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta, así que cuánto lo juega se comprueba con sus partidas: tras revisar 20, si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
+          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta y solo sirve para encontrar candidatos: si es OTP lo dice lo que juega, con sus partidas. Tras revisar 20 (o todas las del periodo si tiene menos, desde 10), si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
       ),
     );
   };
