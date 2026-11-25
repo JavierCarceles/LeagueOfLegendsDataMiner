@@ -140,7 +140,8 @@ class Updater:
                 return
             try:
                 self._confirm_update()
-                self.tick()
+                if self.tick() == "restarting":
+                    return  # la app se está cerrando: otra vuelta (el aviso de la subida de datos) pedía otro reinicio
             except Exception:  # vigilar GitHub no puede tumbar la app
                 log.exception("Actualización automática: fallo inesperado")
 
@@ -163,6 +164,9 @@ class Updater:
     def tick(self) -> str:
         """Una vuelta: ¿hay código nuevo en GitHub y es buen momento para aplicarlo? Devuelve qué pasó."""
         from app import autopush
+
+        if self.state["status"] == "restarting":
+            return "restarting"  # ya pedido: la app se está cerrando
 
         auto = autopush.AutoPush.of(self.svc)
         if auto is None or not enabled() or auto.state.get("git_ok") is False:

@@ -597,3 +597,17 @@ def test_unlimited_channels_keep_their_500_latest_videos(tmp_path):
     assert {f"c{i:010d}" for i in (0, 1, 2, 5)} <= ids and "c0000000007" not in ids
     assert {f"o{i:010d}" for i in range(4)} <= ids and {f"b{i:010d}" for i in range(6)} <= ids  # con límite o búsquedas: igual
     assert C.MAX_SOURCE_VIDEOS == 500
+
+
+def test_processed_videos_are_listed_before_a_long_queue(tmp_path):
+    """Con más vídeos en cola que el límite de la lista, los procesados siguen saliendo (antes los tapaban)."""
+    from app.videos.store import VideoStore
+
+    store = VideoStore(tmp_path)
+    store.add_videos([{"id": "hechohecho1"}])
+    store.start("hechohecho1")
+    store.done("hechohecho1", {"titulo": "Guía"})
+    store.add_videos([{"id": f"cola{i:07d}"} for i in range(10)])  # entran después: más recientes
+    store.start("cola0000009")
+    listed = [v["id"] for v in store.videos(limit=3)]
+    assert listed[0] == "cola0000009" and listed[1] == "hechohecho1"
