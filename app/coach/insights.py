@@ -335,6 +335,9 @@ TAG_LABELS = {
     "baron_buff": "Con la mejora del barón",
     "bounty": "Recompensa regalada",
     "duel_behind": "Duelo en desventaja",
+    "seen_ward": "Visto por un ward rival",
+    "lens_unused": "Con la lente sin usar",
+    "lens_cd": "Con la lente en recarga",
 }
 
 

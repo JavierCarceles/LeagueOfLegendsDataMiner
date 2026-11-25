@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import copy
+import re
 from collections import Counter
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -86,6 +88,19 @@ def test_map_is_symmetric_and_overextension_uses_turrets():
 
 
 # ------------------------------------------------------------------- análisis
+def test_every_death_cause_has_a_label():
+    """Cada causa de muerte que marca el análisis tiene su nombre en «Dónde y cómo mueres» y en las repeticiones (si no,
+    la web enseñaba la clave interna: «seen_ward», «lens_unused»…)."""
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "app" / "coach" / "analyzer.py").read_text(encoding="utf-8")
+    causes = {tag for line in source.splitlines() if "tags.append(" in line for tag in re.findall(r'"([a-z_]+)"', line)}
+    assert {"seen_ward", "lens_unused", "lens_cd", "gank"} <= causes
+    assert causes <= set(insights.TAG_LABELS)
+    replays = (root / "web" / "js" / "views" / "replays.js").read_text(encoding="utf-8")
+    block = replays.split("const TAG_LABEL = {", 1)[1].split("};", 1)[0]
+    assert causes <= set(re.findall(r"^\s+([a-z_]+): \[", block, flags=re.MULTILINE))
+
+
 def test_deaths_are_classified(scenario):
     _, _, a = scenario
     deaths = {d["t"]: d for d in a["deaths"]}

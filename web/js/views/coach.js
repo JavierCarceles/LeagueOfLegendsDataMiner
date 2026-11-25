@@ -1288,7 +1288,8 @@ function deathsCard(s) {
     const k = deathKind(p.tags);
     kinds[k] = (kinds[k] || 0) + 1;
   }
-  const context = ["fight_won", "fight_even", "traded", "game_end"];
+  // Con contexto: no son el error (la lente en recarga: la usaste y aun así te vieron).
+  const context = ["fight_won", "fight_even", "traded", "game_end", "lens_cd"];
   const tagRows = Object.entries(d.tags || {})
     .filter(([k]) => k !== "early" && !context.includes(k))
     .slice(0, 7)
