@@ -524,6 +524,9 @@ def test_review_flags_suspicious_results(tmp_path, capsys):
                  "reloj": [[t * 10, (t % 2) * 900] for t in range(10)]}
     issues = " | ".join(review.check({**good, "frames": long_game}))
     assert "saltos" in issues and "sin campeón" in issues and "apartadas" in issues
+    # Una repetición acelerada (×2-×5, como las de los coaches en modo espectador) no son saltos
+    replay = [[t * 10, 60 + 30 * t + (10 if t % 2 else 0)] for t in range(30)]  # 20-40 s de partida cada 10 s de vídeo
+    assert review.clock_jumps(replay) == 0 and review.clock_jumps([[0, 300], [10, 100], [20, 900]]) == 2
     assert review.check({"duracion": 300}) == ["sin transcripción", "sin datos de frames"]
     # La orden solo lee lo recogido (sin herramientas de vídeo ni cambios)
     store = VideoStore(tmp_path / "videos")
