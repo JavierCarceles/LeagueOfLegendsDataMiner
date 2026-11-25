@@ -413,27 +413,31 @@ def test_clock_reader_falls_back_per_frame():
     assert vf.ClockReader(vf.Clock(vf.load_digits()), None).hud is None
 
 
-def test_outdated_gameplay_videos_are_redone(tmp_path):
+def test_outdated_videos_are_redone(tmp_path):
     from types import SimpleNamespace
 
-    from app.videos.collector import FRAMES_VERSION, VideoCollector
+    from app.videos.collector import FRAMES_VERSION, VERSION, VideoCollector
 
     svc = SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path, pause_in_game=False), tracker=None)
     collector = VideoCollector(svc)
     store = collector.store
-    store.add_videos([{"id": "aaaaaaaaaaa"}, {"id": "bbbbbbbbbbb"}, {"id": "ccccccccccc"}, {"id": "ddddddddddd"}])
+    ids = ["aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"]
+    store.add_videos([{"id": vid} for vid in ids])
     results = {
-        "aaaaaaaaaaa": {"frames": {"partida": True}},  # partida analizada con la versión anterior: se rehace
-        "bbbbbbbbbbb": {"frames": {"partida": False}},  # sin partida: no hace falta
-        "ccccccccccc": {"frames": None},  # recogido sin frames (plan B): se rehace
-        "ddddddddddd": {"frames": {"partida": True}, "version_frames": FRAMES_VERSION},  # ya al día
+        "aaaaaaaaaaa": {"version": VERSION, "frames": {"partida": True}},  # partida con frames de antes: se rehace
+        "bbbbbbbbbbb": {"version": VERSION, "frames": {"partida": False}},  # sin partida y al día: no hace falta
+        "ccccccccccc": {"version": VERSION, "frames": None},  # recogido sin frames (plan B): se rehace
+        "ddddddddddd": {"version": VERSION, "version_frames": FRAMES_VERSION, "frames": {"partida": True}},  # al día
+        "eeeeeeeeeee": {"version": VERSION - 1, "frames": {"partida": False}},  # versión anterior: todo se rehace
     }
     for vid, data in results.items():
         store.save_result(vid, data)
         store.done(vid, {})
-    assert collector._requeue_outdated() == 2
+    assert collector._requeue_outdated() == 3
     states = {vid: store.get(vid)["estado"] for vid in results}
-    assert states == {"aaaaaaaaaaa": "pendiente", "bbbbbbbbbbb": "hecho", "ccccccccccc": "pendiente", "ddddddddddd": "hecho"}
+    assert states == {"aaaaaaaaaaa": "pendiente", "bbbbbbbbbbb": "hecho", "ccccccccccc": "pendiente",
+                      "ddddddddddd": "hecho", "eeeeeeeeeee": "pendiente"}
+    assert collector._requeue_outdated() == 0  # los pendientes no se tocan más
 
 
 def test_champion_from_ability_icons():
@@ -527,3 +531,20 @@ def test_clock_drops_lone_misreads_but_keeps_real_jumps():
     # Dos malas casi seguidas: la buena de en medio (793) se queda
     twice = [[890, 763], [900, 773], [910, 417], [920, 793], [930, 397], [940, 813], [950, 823]]
     assert vf.clean_clock(twice) == ([[890, 763], [900, 773], [920, 793], [940, 813], [950, 823]], [[910, 417], [930, 397]])
+
+
+def test_autostart_resumes_after_manual_pause(tmp_path, monkeypatch):
+    """Al abrir la app sigue solo, como el buscador de partidas: la pausa a mano dura hasta cerrar la app."""
+    from types import SimpleNamespace
+
+    from app.videos import collector as C
+
+    monkeypatch.setattr(C, "_clean_temp", lambda: None)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path, pause_in_game=False), tracker=None)
+    collector = C.VideoCollector(svc)
+    collector.store.add_videos([{"id": "aaaaaaaaaaa"}])
+    collector.store.set_paused(True)
+    started = []
+    monkeypatch.setattr(collector, "start", lambda: started.append(True))
+    collector.autostart()
+    assert not collector.store.paused and collector.paused_reason() is None and started == [True]

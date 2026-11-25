@@ -40,7 +40,7 @@ const LIMIT_OPTS = [
 ];
 const STATE_LABEL = { pendiente: "En cola", procesando: "Procesando", hecho: "Recogido", error: "Error", descartado: "Descartado" };
 const STATE_PILL = { pendiente: "pill", procesando: "pill-gold", hecho: "pill-good", error: "pill-bad", descartado: "pill-warn" };
-const PAUSE_LABEL = { manual: "En pausa", en_partida: "En pausa mientras juegas", youtube_frena: "YouTube está frenando: espero 30 min" };
+const PAUSE_LABEL = { manual: "En pausa hasta cerrar la app", en_partida: "En pausa mientras juegas", youtube_frena: "YouTube está frenando: espero 30 min" };
 const SOURCE_LABEL = { video: "Vídeo", lista: "Lista", canal: "Canal", busqueda: "Búsqueda" };
 const PRESETS = [
   { rol: "jungla", tema: "rutas", label: "Rutas de jungla" },
@@ -236,7 +236,7 @@ function statusCard(s) {
     "button.btn.btn-sm",
     {
       type: "button",
-      title: paused ? "Seguir recogiendo vídeos" : "Pausar: lo recogido se sube a GitHub (el vídeo a medias, al acabar)",
+      title: paused ? "Seguir recogiendo vídeos" : "Pausar hasta cerrar la app (al abrirla sigue solo): lo recogido se sube a GitHub",
       onclick: async () => {
         try {
           await api.post("/api/videos/pause", { pausado: !paused });

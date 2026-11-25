@@ -41,10 +41,13 @@ MIN_DURATION_S = 90  # los shorts no sirven para analizar
 TEMP_PREFIX = "tempu-video-"
 LANGS = ("es", "en")
 CDN = "https://ddragon.leagueoflegends.com/cdn"
-VERSION = 1
+# Sube cuando hay que rehacer todo lo recogido: al arrancar la app, todos los vídeos hechos con una versión anterior
+# vuelven a la cola y se rehacen solos. 2: todo lo recogido antes del 25-11-2026 (campeón, reloj, metadatos y subtítulos
+# con lo último).
+VERSION = 2
 # Sube cuando cambia lo que se saca de los frames: los vídeos con partida (o recogidos sin frames) se rehacen solos al
 # arrancar la app. 2: reloj frame a frame (plantillas u OCR), campeón conservador, sin partidas falsas ni duplicados.
-# 3: campeón por los iconos de sus habilidades (cada 30 s: vídeos con varias partidas) y lecturas sueltas del reloj aparte.
+# 3: campeón por los iconos de sus habilidades (cada 10 s: vídeos con varias partidas) y lecturas sueltas del reloj aparte.
 FRAMES_VERSION = 3
 
 # Búsquedas guiadas (rol y tema) en los dos idiomas.
@@ -103,22 +106,22 @@ class VideoCollector:
 
     # ------------------------------------------------------------------ control
     def autostart(self) -> None:
-        """Al arrancar la app: si hay algo pendiente y no lo pausaste, sigue solo."""
+        """Al arrancar la app sigue solo si hay algo pendiente, como el buscador de partidas: la pausa a mano dura hasta
+        cerrar la app (mientras juegas se sigue pausando solo)."""
         _clean_temp()
         self.store.reset_working()
+        if self.store.paused:
+            self.store.set_paused(False)
+            log.info("Vídeos: la pausa era de la sesión anterior; el recolector sigue solo.")
         self._requeue_outdated()
         counts = self.store.counts()
         if counts.get("pendiente") or counts.get("fuentes_pendientes"):
             self.start()
 
     def _requeue_outdated(self) -> int:
-        """Vídeos con partida (o sin frames) analizados con una versión anterior: vuelven a la cola, los primeros."""
-        stale = []
-        for video in self.store.videos(DONE, limit=1_000_000):
-            data = self.store.load_result(video["id"]) or {}
-            frames = data.get("frames")
-            if int(data.get("version_frames") or 0) < FRAMES_VERSION and (frames is None or frames.get("partida")):
-                stale.append(video["id"])
+        """Lo recogido con una versión anterior vuelve a la cola, lo primero (ver :func:`_outdated`)."""
+        stale = [video["id"] for video in self.store.videos(DONE, limit=1_000_000)
+                 if _outdated(self.store.load_result(video["id"]) or {})]
         if stale:
             self.store.requeue(stale)
             log.info("Vídeos: %d vídeos analizados con una versión anterior vuelven a la cola para rehacerlos.", len(stale))
@@ -609,6 +612,15 @@ def _date(raw: str | None) -> str | None:
     if raw and len(raw) == 8 and raw.isdigit():
         return f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
     return raw
+
+
+def _outdated(data: dict) -> bool:
+    """¿Hay que rehacerlo? Todo lo recogido con un ``VERSION`` anterior; con un ``FRAMES_VERSION`` anterior, solo los
+    vídeos con partida o recogidos sin frames (los que son solo explicación no cambian)."""
+    if int(data.get("version") or 0) < VERSION:
+        return True
+    frames = data.get("frames")
+    return int(data.get("version_frames") or 0) < FRAMES_VERSION and (frames is None or bool(frames.get("partida")))
 
 
 def _summary(data: dict) -> dict:
