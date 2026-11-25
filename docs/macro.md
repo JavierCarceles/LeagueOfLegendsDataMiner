@@ -965,6 +965,11 @@ jugador con 10 o más (mediana por jugador), la desviación de sus muertes baja 
 las muertes de su 20 % de partidas peores, de 11-12,7 a 8,7-10,3. La desviación del CS/min sube con el elo (no sirve) y
 la de los errores graves solo baja en jungla (0,55 → 0,40).
 
-Sin hacer: C-2 (larvas o dragón según la prioridad a las 8:00) necesita la posición de los 10 jugadores a esa hora, que
-los dossiers no guardan (solo la tuya y la de tu rival de línea): habría que añadirlo al análisis y validarlo con las
-partidas nuevas. C-10 (recompensas de objetivo) sin el umbral público solo se mide con la diferencia de oro.
+**C-2, larvas o dragón según la prioridad** (en el análisis, `analyzer._grubs_priority` y `_noprio_deaths`): necesita
+el CS de las 10 líneas en ese momento, que los dossiers no guardan, así que va en el análisis de cada partida nueva desde
+el 25-11-2026 (sin cambiar la versión del análisis: re-analizar todo reescribiría ~800 MB de ficheros). Mide las larvas
+según la prioridad de top y mid (`grubs_{prio,mixed,noprio}_{n,won}`, como los dragones con mid y bot) y tus muertes
+junto al foso en los 45 s antes de que el rival coja un dragón o unas larvas sin prioridad vuestra
+(`obj_noprio_deaths`). En «Prioridad de línea y objetivos» salen tus números; la referencia por elo, cuando haya
+partidas nuevas de OTPs con ellas (validarlo antes de enseñarlo como error). C-10 (recompensas de objetivo) sin el
+umbral público solo se mide con la diferencia de oro.

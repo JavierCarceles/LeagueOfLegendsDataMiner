@@ -1465,6 +1465,7 @@ function priorityCard(s) {
     ),
     h("div.small", { style: { marginTop: "8px" } }, h("b", "Dragones que cogéis")),
     h("div.col", { style: { gap: "6px" } }, rows),
+    p.grubs ? grubsBlock(p.grubs) : null,
     h("div.divider"),
     h("div.small", h("b", "Primera torre")),
     firstTowerLine(ft),
@@ -1475,6 +1476,20 @@ function priorityCard(s) {
       `El CS dice quién tiene la línea: en Challenger, con tu top a +10 CS a los 10 vuestra torre de top cae antes el ${p.lane_tower.ahead[0]} % de las veces, y a −10 solo el ${p.lane_tower.behind[0]} % (mid ${p.lane_tower.ahead[1]} / ${p.lane_tower.behind[1]} %, bot ${p.lane_tower.ahead[2]} / ${p.lane_tower.behind[2]} %). Datos de 1.818 partidas de junglas OTP.`,
     ),
     learnBox(p.learn),
+  );
+}
+
+/** Larvas según la prioridad de top y mid (a las 8:00, larvas o dragón según quién tenga cada lado) y las muertes
+ * peleando un objetivo sin prioridad. Sin referencia por elo todavía: solo lo traen las partidas analizadas desde el 25-11-2026. */
+function grubsBlock(g) {
+  const deaths = g.noprio_deaths === 1 ? "1 vez" : `${g.noprio_deaths} veces`;
+  return h(
+    "div.col",
+    { style: { gap: "6px", marginTop: "10px" } },
+    h("div.small", h("b", "Larvas que cogéis"), h("span.tiny.muted", ` (${g.games} partidas)`)),
+    g.rows.map((r) => tagBar(r.label, r.pct ?? 0, 100, r.n ? `${r.won} de ${r.n} (${r.pct} %)` : "ningunas larvas así en tus partidas", prioTone(r.key))),
+    h(`div.tiny${g.noprio_deaths ? ".bad" : ".muted"}`, `Moriste junto al foso sin prioridad y el rival se llevó el dragón o las larvas ${deaths}.`),
+    h("div.tiny.muted", "A las 8:00, larvas si tenéis prioridad en top y mid; dragón si la tenéis en mid y bot. La referencia por elo saldrá cuando haya partidas nuevas de OTPs con esta medida."),
   );
 }
 

@@ -3105,6 +3105,43 @@ def _priority_stats(g: _Game, metrics: dict) -> None:
     metrics["first_tower_ours"] = int(towers[0]["owner"] != g.team) if towers else None
     ours = next((b["t"] for b in towers if b["owner"] != g.team), None)
     metrics["our_first_tower_min"] = round(ours / 60_000, 1) if ours is not None else None
+    _grubs_priority(g, metrics)
+    metrics["obj_noprio_deaths"] = _noprio_deaths(g)
+
+
+PRIO_KEY = {"ours": "prio", "mixed": "mixed", "theirs": "noprio"}
+NOPRIO_DEATH_MS = 45_000  # tu muerte y el objetivo para el rival en los 45 s siguientes: una jugada
+NOPRIO_NEAR = 3_000  # cerca del foso
+
+
+def _grubs_priority(g: _Game, metrics: dict) -> None:
+    """C-2 (``macro/macro_internet_por_elo.md``): las larvas (la primera, que es cuando se pelean) según la prioridad de
+    top y mid, como los dragones con mid y bot. Desde el 25-11-2026, sin cambiar la versión del análisis: solo las
+    partidas nuevas lo traen (se compara por elo cuando haya bastantes)."""
+    for key in PRIO_KEY.values():
+        metrics[f"grubs_{key}_n"] = metrics[f"grubs_{key}_won"] = 0
+    first = next((o for o in g.objectives if o["kind"] == "grubs"), None)
+    if first is None or g.is_afk(g.me["pid"], first["t"]):
+        return
+    prio = _priority(g, "grubs", first["t"])
+    if prio:
+        key = PRIO_KEY[prio["state"]]
+        metrics[f"grubs_{key}_n"] = 1
+        metrics[f"grubs_{key}_won"] = int(first["team"] == g.team)
+
+
+def _noprio_deaths(g: _Game) -> int:
+    """C-2: tus muertes junto al foso en los 45 s antes de que el rival coja un dragón o unas larvas para los que no
+    teníais prioridad (las dos líneas de ese lado por detrás en CS): pelear sin prioridad y perderlo."""
+    n = 0
+    for k in g.kills:
+        if k["victim"] != g.me["pid"] or not k.get("pos"):
+            continue
+        lost = next((o for o in g.objectives if o["kind"] in ("dragon", "grubs") and o["team"] != g.team
+                     and k["t"] <= o["t"] <= k["t"] + NOPRIO_DEATH_MS and geo.dist(k["pos"], clk.pit_of(o["kind"])) <= NOPRIO_NEAR), None)
+        if lost is not None and (_priority(g, lost["kind"], lost["t"]) or {}).get("state") == "theirs":
+            n += 1
+    return n
 
 
 def _contributed(mine: dict) -> bool:

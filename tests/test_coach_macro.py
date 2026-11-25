@@ -395,6 +395,20 @@ def test_priority_stats_per_game():
     assert m["first_tower_ours"] == 0 and m["our_first_tower_min"] is None  # solo cae la torre de top azul
 
 
+def test_grubs_by_priority_and_deaths_fighting_without_it():
+    """C-2: las larvas (las de la partida de prueba caen a las 6:20 para el rojo) según la prioridad de top y mid, y morir
+    junto al foso sin prioridad justo antes de que se las lleve el rival."""
+    behind = {(1, 6): {"minionsKilled": 10}, (3, 6): {"minionsKilled": 10}}  # tu top y tu mid muy por detrás
+    death_at_pit = [kill(360_000, 7, 1, BARON)]
+    a = run(death_at_pit, behind)
+    m = a["metrics"]
+    assert (m["grubs_noprio_n"], m["grubs_noprio_won"], m["grubs_prio_n"], m["grubs_mixed_n"]) == (1, 0, 0, 0)
+    assert m["obj_noprio_deaths"] == 1
+    even = run(death_at_pit)["metrics"]  # con las líneas sin una ventaja clara no es «sin prioridad»
+    assert even["grubs_noprio_n"] == 0 and even["obj_noprio_deaths"] == 0
+    assert run([], behind)["metrics"]["obj_noprio_deaths"] == 0  # sin morir allí
+
+
 def test_priority_summary_aggregates_your_dragons_and_first_tower():
     def game(i, win, prio, noprio, first):
         return {"match_id": f"EUW1_{i}", "queue": 420, "role": "JUNGLE", "champ": 64, "win": win, "has_timeline": True,
@@ -433,3 +447,23 @@ def test_duel_behind_is_a_jungle_weakness_with_its_reference():
     assert "deaths_duel_behind" in insights.RULE_BY_METRIC["deaths_solo"]["skip_if"]
     assert [r["metric"] for r in insights.RULES].index("deaths_duel_behind") < [r["metric"] for r in insights.RULES].index("deaths_solo")
     assert rule["goal"][0] == "<="
+
+
+def test_priority_summary_adds_your_grubs_only_from_new_games():
+    """Las larvas por prioridad salen con 5 partidas que lo traigan (las analizadas antes del 25-11-2026 no lo tienen)."""
+    def game(i, grubs=None, won=0, deaths=0):
+        m = {"drag_prio_n": 0, "drag_prio_won": 0, "drag_mixed_n": 0, "drag_mixed_won": 0, "drag_noprio_n": 0, "drag_noprio_won": 0}
+        if grubs:
+            for key in ("prio", "mixed", "noprio"):
+                m[f"grubs_{key}_n"] = int(key == grubs)
+                m[f"grubs_{key}_won"] = won if key == grubs else 0
+            m["obj_noprio_deaths"] = deaths
+        return {"match_id": f"EUW1_{i}", "queue": 420, "role": "JUNGLE", "champ": 64, "win": True, "has_timeline": True, "metrics": m}
+
+    old = [game(i) for i in range(5)]
+    assert insights.priority_summary(old)["grubs"] is None
+    new = [game(10, "prio", 1), game(11, "prio", 1), game(12, "noprio", 0, deaths=2), game(13, "mixed", 1), game(14, "mixed", 0)]
+    g = insights.priority_summary(old + new)["grubs"]
+    rows = {r["key"]: r for r in g["rows"]}
+    assert g["games"] == 5 and g["noprio_deaths"] == 2
+    assert (rows["prio"]["won"], rows["prio"]["n"], rows["prio"]["pct"]) == (2, 2, 100) and rows["noprio"]["pct"] == 0
