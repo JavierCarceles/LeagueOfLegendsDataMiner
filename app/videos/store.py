@@ -287,10 +287,12 @@ class VideoStore:
         return {"por_hora": round(per_hour, 1), "horas": round(pending / per_hour, 1), "muestra": len(chain)}
 
     def videos(self, state: str | None = None, limit: int = 300) -> list[dict]:
-        """Los vídeos más recientes primero (los que se están procesando, arriba)."""
+        """El que se está procesando, luego los ya procesados (hechos, con error o descartados) y al final la cola, cada
+        grupo del más reciente al más antiguo. Así los procesados no se quedan fuera del límite cuando entran cientos de
+        vídeos nuevos en la cola (los 500 de un canal los empujaban fuera de la lista de la web)."""
         with self.lock:
             items = [dict(v) for v in self._data()["videos"].values() if state in (None, "", v.get("estado"))]
-        items.sort(key=lambda v: (v.get("estado") != WORKING, -(v.get("fin") or v.get("alta") or 0)))
+        items.sort(key=lambda v: (v.get("estado") != WORKING, v.get("estado") == PENDING, -(v.get("fin") or v.get("alta") or 0)))
         return items[: max(1, limit)]
 
     def get(self, vid: str) -> dict | None:
