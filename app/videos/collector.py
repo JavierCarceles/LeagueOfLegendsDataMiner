@@ -170,7 +170,10 @@ class VideoCollector:
     def _loop(self) -> None:
         log.info("Vídeos: recolector en marcha.")
         while not self.stop_event.is_set():
-            if self.paused_reason():
+            reason = self.paused_reason()
+            if reason:
+                if reason == "manual" and self.collected_since_push:
+                    self._push()  # al parar, lo recogido sube ya (y el vídeo que acabe después, en una subida en cola)
                 self._sleep(IDLE_S)
                 continue
             if not deps.ensure_base():
@@ -472,17 +475,18 @@ class VideoCollector:
             log.warning("Vídeos: %s", message[:300])
 
     def _push(self) -> None:
-        """Sube lo recogido a GitHub con el resto de ``data/`` (si la subida automática está activada)."""
+        """Sube lo recogido a GitHub con el resto de ``data/`` (en cola si ya hay una subida en marcha)."""
         try:
             from app import autopush
 
             auto = autopush.AutoPush.of(self.svc)
-            if auto is None or autopush.every() <= 0:
+            if auto is None or autopush.every() <= 0 or auto.state.get("git_ok") is False:
                 return
-            if auto.start():
-                log.info("Vídeos: subiendo a GitHub los %d vídeos recogidos.", self.collected_since_push)
-                self.collected_since_push = 0
-        except Exception:
+            started = auto.start()
+            log.info("Vídeos: %s los %d vídeos recogidos.", "subiendo a GitHub" if started else "en cola para subir a GitHub",
+                     self.collected_since_push)
+            self.collected_since_push = 0
+        except Exception:  # subir no puede parar la recogida
             log.exception("Vídeos: no se pudo pedir la subida a GitHub")
 
 

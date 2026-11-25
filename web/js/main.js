@@ -2,7 +2,7 @@
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
 import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
-import { errorBox, h, icon, mount, select } from "./ui.js";
+import { errorBox, fmt, h, icon, mount, select, toast } from "./ui.js";
 
 const VIEWS = [
   { id: "progreso", label: "Mi progreso", icon: "target", section: "Tú", noFilters: true, load: () => import("./views/coach.js") },
@@ -144,6 +144,7 @@ async function refreshStatus() {
     pill.lastChild.textContent = text;
     renderProfilePill(status.tracker);
     renderDataPill(status.warmer);
+    renderPushPill(status.push);
   } catch {
     /* el servidor puede estar arrancando */
   }
@@ -230,6 +231,46 @@ function renderDataPill(w) {
   el.className = `status-pill data-pill ${cls}`;
   mount(el, cls === "busy" ? h("span.spinner.sm") : h("span.dot"), h("span", text));
   el.title = title;
+}
+
+// ------------------------------------------------------------------ subir a GitHub
+/** Un solo botón para subir todo (partidas, vídeos, registros). Mientras sube se ve el paso y si hay otra en cola. */
+let pushPollTimer = null;
+function renderPushPill(p) {
+  const el = document.getElementById("push-pill");
+  if (!el) return;
+  el.classList.toggle("hidden", !p?.enabled);
+  if (!p?.enabled) return;
+  clearTimeout(pushPollTimer);
+  if (p.running) {
+    const step = p.step ? ` ${p.step.n}/${p.step.of}` : "";
+    el.className = "status-pill push-pill busy";
+    mount(el, h("span.spinner.sm"), h("span", `Subiendo${step}${p.queued ? " · 1 en cola" : ""}`));
+    el.title = p.step ? `Subiendo a GitHub: ${p.step.label}` : "Subiendo a GitHub";
+    pushPollTimer = setTimeout(() => void refreshStatus(), 3000); // ver avanzar los pasos
+    return;
+  }
+  const failed = !!p.last_error || p.git_ok === false;
+  el.className = `status-pill push-pill${failed ? " warn" : ""}`;
+  mount(el, icon("upload"), h("span", "Subir a GitHub"));
+  el.title = pushPillTitle(p, failed);
+}
+
+function pushPillTitle(p, failed) {
+  if (p.git_ok === false) return `No se puede subir: ${p.git || "git no está listo"}`;
+  if (failed) return `La última subida falló: ${p.last_error}`;
+  const last = p.last_push_at ? ` Última subida ${fmt.ago(p.last_push_at)}.` : "";
+  return `Sube ya a GitHub todo lo recogido (partidas, vídeos y registros).${last}`;
+}
+
+async function pushNow() {
+  try {
+    const res = await api.post("/api/system/push");
+    toast(res.started ? "Subiendo a GitHub…" : "Hay una subida en marcha: esta va en cola y sale en cuanto acabe.", "success");
+  } catch (err) {
+    toast(`No se pudo subir: ${err.message || err}`, "error", 8000);
+  }
+  void refreshStatus();
 }
 
 // ------------------------------------------------------------------ datos pendientes
@@ -407,6 +448,7 @@ async function boot() {
   });
   document.getElementById("key-pill").onclick = () => (location.hash = "#/datos");
   document.getElementById("data-pill").onclick = () => (location.hash = "#/datos");
+  document.getElementById("push-pill").onclick = () => void pushNow();
   const ft = document.getElementById("filters-toggle");
   ft.append(icon("filter"), h("span", "Filtros"));
   ft.onclick = () => document.body.classList.toggle("filters-open");

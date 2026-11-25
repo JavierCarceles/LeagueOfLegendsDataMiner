@@ -397,16 +397,13 @@ def otps_by_tier(champ: int = Query(..., description="Id del campeón"), svc=Dep
 
 @router.post("/otps/push", responses={409: {"description": "La subida automática está desactivada o git no puede subir"}})
 def otps_push_now(svc=Depends(svc_from)):
-    """«Subir ahora»: commit «datos» y push de lo recogido, sin esperar a las 2.000 partidas."""
-    from app.autopush import AutoPush
+    """Commit «datos» y push de lo recogido ya (o en cola si hay otra subida en marcha). La web usa /api/system/push."""
+    from app import autopush
 
-    auto = AutoPush.of(svc)
-    if auto is None or not auto.public().get("enabled"):
-        raise HTTPException(409, "La subida automática está desactivada (AUTO_PUSH_GAMES=0).")
-    if auto.state.get("git_ok") is False:
-        raise HTTPException(409, f"No se puede subir: {auto.state.get('git')}")
-    started = auto.start()
-    return {"started": started, "autopush": auto.public()}
+    try:
+        return autopush.push_now(svc)
+    except autopush.PushUnavailable as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/otps/files/rebuild", responses={409: {"description": "Aún no hay partidas analizadas minuto a minuto"}})
