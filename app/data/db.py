@@ -320,6 +320,9 @@ CREATE TABLE IF NOT EXISTS otp_games (
     PRIMARY KEY (match_id, puuid)
 );
 CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
+-- Los recuentos de «Partidas por elo (total)» y de la sección OTPs (``otp_details.counts``) salen solo de este índice:
+-- sin él, cada recuento leía la tabla entera con sus análisis (10 s en el PC del usuario cada 5 minutos).
+CREATE INDEX IF NOT EXISTS idx_otp_games_counts ON otp_games(tier, champ, kind, puuid, has_timeline);
 
 -- Todo el ranking: los 10 jugadores analizados de cada partida en un solo bloque xz, con lo común a los 10 aparte (sin
 -- pérdidas; ~33 KB por partida frente a ~107 KB con un análisis comprimido por jugador). Sus filas de otp_games

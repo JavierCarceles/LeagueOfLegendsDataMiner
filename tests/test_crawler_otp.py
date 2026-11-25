@@ -1883,3 +1883,18 @@ def test_a_short_but_complete_history_is_enough_to_judge_an_otp(keyed_svc):
         conn.execute("UPDATE otp_progress SET back_done_at = 1, back_done_reason = 'end' WHERE puuid = 'p-few'")
     assert otp_details.reclassify_player(db, "p-few") == [("p-few", AATROX)]  # todas las que tiene: 8 de 12
     assert otp_details.judgeable(9, "end") is False and otp_details.judgeable(19, "share") is False
+
+
+def test_the_total_by_elo_is_counted_from_an_index_not_the_whole_table(keyed_svc):
+    """Los recuentos de «Partidas por elo (total)» no leen la tabla con los análisis (10 s cada 5 min en el PC del
+    usuario): todas sus consultas salen del índice ``idx_otp_games_counts``."""
+    db = keyed_svc.db
+    queries = [
+        "SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players, SUM(has_timeline) AS timelines FROM otp_games",
+        "SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier",
+        "SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'",
+        "SELECT tier, champ, kind, COUNT(*) AS n FROM otp_games GROUP BY tier, champ, kind",
+    ]
+    for sql in queries:
+        plan = " ".join(str(r[-1]) for r in db.query("EXPLAIN QUERY PLAN " + sql))
+        assert "COVERING INDEX idx_otp_games_counts" in plan, (sql, plan)
