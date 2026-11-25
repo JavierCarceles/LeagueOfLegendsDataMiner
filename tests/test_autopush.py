@@ -464,3 +464,32 @@ def test_esperar_a_los_resumenes(monkeypatch):
     t0 = _time.monotonic()
     assert otp_details.wait_summaries(object(), timeout=5)
     assert _time.monotonic() - t0 >= 0.25 and not t.is_alive()
+
+
+def test_una_subida_pedida_mientras_sube_va_en_cola(repos, monkeypatch):
+    """Parar el recolector y el de vídeos seguidos: la segunda subida no se pierde, sale al acabar la primera."""
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None, shutdown_event=threading.Event())
+    auto = autopush.AutoPush(svc, repo=repos.a)
+    gate = threading.Event()
+    runs = []
+
+    def fake_run(wait_summaries=False):
+        runs.append(wait_summaries)
+        if len(runs) == 1:
+            gate.wait(10)
+
+    monkeypatch.setattr(auto, "_run", fake_run)
+    assert auto.start() is True
+    assert auto.start(wait_summaries=True) is False and auto.public()["queued"] is True
+    assert auto.start() is False  # pedir otra más no la duplica: una en cola basta (sube todo lo nuevo)
+    gate.set()
+    auto.thread.join(10)
+    assert runs == [False, True]
+    assert auto.public()["running"] is False and auto.public()["queued"] is False
+
+
+def test_subir_ya_avisa_si_esta_desactivado(repos, monkeypatch):
+    monkeypatch.setattr(autopush, "every", lambda: 0)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None, shutdown_event=threading.Event())
+    with pytest.raises(autopush.PushUnavailable):
+        autopush.push_now(svc)

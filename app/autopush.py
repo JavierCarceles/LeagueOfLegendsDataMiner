@@ -233,6 +233,9 @@ class AutoPush:
         self.path = self.data_dir / STATE_FILE
         self.lock = threading.Lock()
         self.thread: threading.Thread | None = None
+        self.busy = False  # una subida en marcha (o la de la cola a punto de empezar)
+        self.queued = False  # se pidió otra mientras subía: sale al terminar la actual
+        self.queued_wait = False
         self.state = self._load()
 
     @classmethod
@@ -265,7 +268,7 @@ class AutoPush:
 
     def public(self) -> dict:
         n = every()
-        return {"enabled": n > 0, "every": n, "running": bool(self.thread and self.thread.is_alive()), **self.state}
+        return {"enabled": n > 0, "every": n, "running": self.busy, "queued": self.queued, **self.state}
 
     def note_game(self, tier: str | None = None, analyzed: bool = False) -> None:
         """Una partida nueva guardada por el recolector (``tier``: el elo, para la gráfica de «Datos y API»; vuelve a
@@ -307,14 +310,41 @@ class AutoPush:
         return self.public()
 
     def start(self, wait_summaries: bool = False) -> bool:
-        """Sube en segundo plano. ``wait_summaries``: antes, que terminen los resúmenes por campeón (al detener el
-        recolector se rehacen todos; si no, se escribían después del commit y quedaban 40-50 ficheros sin subir)."""
+        """Sube en segundo plano (``True``). Si ya hay una subida en marcha, deja otra en cola que sale en cuanto acabe
+        (``False``): al parar el recolector y el de vídeos seguidos, se sube lo de los dos. ``wait_summaries``: antes,
+        que terminen los resúmenes por campeón (al detener el recolector se rehacen todos; si no, se escribían después
+        del commit y quedaban 40-50 ficheros sin subir)."""
         with self.lock:
-            if self.thread is not None and self.thread.is_alive():
+            if self.busy:
+                self.queued = True
+                self.queued_wait = self.queued_wait or wait_summaries
                 return False
-            self.thread = threading.Thread(target=self._run, args=(wait_summaries,), name="autopush", daemon=True)
+            self.busy = True
+            self.thread = threading.Thread(target=self._loop, args=(wait_summaries,), name="autopush", daemon=True)
             self.thread.start()
             return True
+
+    def _loop(self, wait_summaries: bool) -> None:
+        """La subida pedida y, si mientras tanto se pidió otra, también esa (con lo nuevo que haya)."""
+        again = True
+        while again:
+            try:
+                self._run(wait_summaries)
+            finally:
+                again, wait_summaries = self._next_round()
+            if again:
+                log.info("Subida a GitHub: había otra en cola; subo también lo nuevo.")
+
+    def _next_round(self) -> tuple[bool, bool]:
+        """¿Otra subida en cola? (no si se está cerrando la app). Si no, se libera para la siguiente."""
+        stop = getattr(self.svc, "shutdown_event", None)
+        with self.lock:
+            again = self.queued and not (stop is not None and stop.is_set())
+            wait = self.queued_wait
+            self.queued = self.queued_wait = False
+            if not again:
+                self.busy = False
+            return again, wait
 
     def _fresh_funnel(self) -> None:
         """El estado de la búsqueda (``data/otps/_busqueda.json``) al momento: si no, se sube uno de hasta 5 min antes."""
@@ -499,6 +529,21 @@ def note_game(svc, tier: str | None = None, analyzed: bool = False) -> None:
         if not _warned:
             _warned = True
             log.exception("Subida automática a GitHub: no se pudo contar la partida")
+
+
+class PushUnavailable(RuntimeError):
+    """No se puede subir (desactivado o git no está listo): el mensaje es para la web."""
+
+
+def push_now(svc) -> dict:
+    """«Subir a GitHub» de arriba: ya, o en cola si hay otra subida en marcha (sale al terminar)."""
+    auto = AutoPush.of(svc)
+    if auto is None or every() <= 0:
+        raise PushUnavailable("La subida automática está desactivada (AUTO_PUSH_GAMES=0).")
+    if auto.state.get("git_ok") is False:
+        raise PushUnavailable(f"No se puede subir: {auto.state.get('git')}")
+    started = auto.start()
+    return {"started": started, "queued": not started, "autopush": auto.public()}
 
 
 def start(svc) -> None:

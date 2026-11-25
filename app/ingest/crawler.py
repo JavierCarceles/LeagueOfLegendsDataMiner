@@ -3174,6 +3174,8 @@ class Crawler:
             otp_details.flush(self.svc)  # por si alguna región no llegó a pedirlos: todos los resúmenes, antes de subir
             if auto.start(wait_summaries=True):
                 log.info("Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).")
+            else:
+                log.info("Recolector detenido: hay otra subida a GitHub en marcha; lo recogido sale en cuanto acabe (en cola).")
         # subir es un extra: detener ya está hecho
         except Exception:  # noqa: BLE001
             log.exception("No se pudo subir a GitHub al detener el recolector")

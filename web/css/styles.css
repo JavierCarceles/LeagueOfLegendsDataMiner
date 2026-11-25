@@ -832,6 +832,9 @@ button.chip { font: inherit; font-size: 12.5px; min-height: 30px; }
 
 /* ---------------------------------------------------------------- barra superior */
 .data-pill.busy .spinner { width: 12px; height: 12px; }
+.push-pill .spinner { width: 12px; height: 12px; }
+.push-pill.busy { color: var(--gold-2); border-color: rgba(214, 181, 109, 0.35); }
+.push-pill svg { width: 14px; height: 14px; }
 .data-pill.busy { color: var(--gold-2); border-color: rgba(214, 181, 109, 0.35); }
 .pending-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .pending-chip .spinner { width: 12px; height: 12px; }
@@ -1030,7 +1033,7 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
   .filters .filter { flex: 1 1 140px; }
   .filters .select { width: 100%; }
   /* En el chip de «Completando datos» el último span es el spinner (el texto va suelto): se oculta solo el texto. */
-  .data-pill span:last-child, #key-pill span:last-child { display: none; }
+  .data-pill span:last-child, #key-pill span:last-child, .push-pill span:last-child { display: none; }
   .card-title .tiny.muted { display: none; }
   .pending-chip { font-size: 0; gap: 0; }
   .status-pill { padding: 6px 9px; }
@@ -1100,7 +1103,7 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
   .status-pill, .profile-pill { flex: 0 1 auto; min-width: 0; overflow: hidden; }
 }
 @media (min-width: 861px) and (max-width: 1180px) {
-  .data-pill span:last-child, #key-pill span:last-child { display: none; } /* solo el punto de estado (el texto va en el title) */
+  .data-pill span:last-child, #key-pill span:last-child, .push-pill span:last-child { display: none; } /* solo el punto de estado (el texto va en el title) */
 }
 
 /* Rejillas de vistas concretas (antes con estilos en línea que ignoraban el tamaño de pantalla). */

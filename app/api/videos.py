@@ -74,14 +74,3 @@ def collected(vid: str, svc: Svc):
     if data is None:
         raise HTTPException(404, "Todavía no hay datos de ese vídeo")
     return data
-
-
-@router.post("/push")
-def push(svc: Svc):
-    """Sube ya lo recogido a GitHub (con el resto de ``data/``)."""
-    from app import autopush
-
-    auto = autopush.AutoPush.of(svc)
-    if auto is None:
-        raise ValueError("La subida automática no está disponible")
-    return {"started": auto.start()}

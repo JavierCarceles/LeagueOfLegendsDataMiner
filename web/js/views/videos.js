@@ -158,7 +158,7 @@ function addedText(sources) {
 async function submit(button, input, override = {}) {
   const data = { ...form, ...override };
   if (!data.texto.trim() && !data.rol && !data.tema && !data.campeon.trim()) {
-    toast("Escribe un enlace o qué buscar, o elige un rol o un tema", "warn");
+    toast("Escribe un enlace o qué buscar, o elige un rol o un tema", "error");
     return;
   }
   button.disabled = true;
@@ -172,7 +172,7 @@ async function submit(button, input, override = {}) {
       por_idioma: Number(data.por_idioma),
       limite: data.limite ? Number(data.limite) : null,
     });
-    toast(addedText(res.fuentes), "good");
+    toast(addedText(res.fuentes), "success");
     if (!override.rol && !override.tema) {
       form.texto = "";
       input.value = "";
@@ -180,7 +180,7 @@ async function submit(button, input, override = {}) {
     lastCounts = "";
     await poll();
   } catch (err) {
-    toast(err.message || String(err), "bad");
+    toast(err.message || String(err), "error");
   } finally {
     button.disabled = false;
   }
@@ -236,38 +236,22 @@ function statusCard(s) {
     "button.btn.btn-sm",
     {
       type: "button",
+      title: paused ? "Seguir recogiendo vídeos" : "Pausar: lo recogido se sube a GitHub (el vídeo a medias, al acabar)",
       onclick: async () => {
         try {
           await api.post("/api/videos/pause", { pausado: !paused });
           await poll();
         } catch (err) {
-          toast(err.message || String(err), "bad");
+          toast(err.message || String(err), "error");
         }
       },
     },
     icon(paused ? "play" : "pause"),
     paused ? "Reanudar" : "Pausar",
   );
-  const push = h(
-    "button.btn.btn-sm.btn-ghost",
-    {
-      type: "button",
-      title: "Sube ya a GitHub lo recogido (con el resto de data/)",
-      onclick: async () => {
-        try {
-          const res = await api.post("/api/videos/push");
-          toast(res.started ? "Subiendo a GitHub…" : "Ya hay una subida en marcha", "good");
-        } catch (err) {
-          toast(err.message || String(err), "bad");
-        }
-      },
-    },
-    icon("upload"),
-    "Subir a GitHub ahora",
-  );
   return h(
     "section.card",
-    h("h3.card-title.video-head", icon("activity"), "Recolector", h("span.spacer"), stateLine(s), toggle, push),
+    h("h3.card-title.video-head", icon("activity"), "Recolector", h("span.spacer"), stateLine(s), toggle),
     toolsNotice(s.herramientas),
     h(
       "div.kpis",
@@ -314,7 +298,7 @@ async function act(promise) {
     lastCounts = "";
     await poll();
   } catch (err) {
-    toast(err.message || String(err), "bad");
+    toast(err.message || String(err), "error");
   }
 }
 

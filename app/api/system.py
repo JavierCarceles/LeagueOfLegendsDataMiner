@@ -83,7 +83,31 @@ def status(svc=Depends(svc_from)):
             "lcu": lcu_available(),
         },
         "guides_dir": str(svc.settings.coachings_dir),
+        "push": _push_brief(svc),
     }
+
+
+def _push_brief(svc) -> dict | None:
+    """Lo que necesita el botón «Subir a GitHub» de arriba: si sube, el paso, si hay otra en cola y el último error."""
+    from app.autopush import AutoPush
+
+    auto = AutoPush.of(svc)
+    if auto is None:
+        return None
+    p = auto.public()
+    keys = ("enabled", "running", "queued", "step", "last_push_at", "last_error", "git_ok", "git", "pending")
+    return {k: p.get(k) for k in keys}
+
+
+@router.post("/system/push", responses={409: {"description": "La subida está desactivada o git no puede subir"}})
+def push(svc=Depends(svc_from)):
+    """«Subir a GitHub» (botón de arriba): todo lo de data/ ya, o en cola si hay otra subida en marcha."""
+    from app import autopush
+
+    try:
+        return autopush.push_now(svc)
+    except autopush.PushUnavailable as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/system/riot-key", responses={400: {"description": "La API key no tiene el formato RGAPI-…"}})

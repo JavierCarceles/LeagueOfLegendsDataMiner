@@ -139,6 +139,14 @@ class Services:
             self.videos.autostart()
         except Exception:
             log.exception("No se pudo reanudar el recolector de vídeos")
+        # Validación de la reconstrucción de recorridos con tus partidas: sola, unos minutos después de abrir
+        # (data/registro/track_check.txt, con fecha y versión: se ve si mejora con cada cambio del análisis).
+        try:
+            from app.coach import track_check_job
+
+            track_check_job.start(self)
+        except Exception:
+            log.exception("No se pudo programar la validación de recorridos")
         self.check_key_on_startup()
 
     def check_key_on_startup(self) -> None:
