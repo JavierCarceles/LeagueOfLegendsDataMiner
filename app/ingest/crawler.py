@@ -1805,7 +1805,19 @@ class RegionWorker(threading.Thread):
         finally:
             self._prefetch.drop()
             self._save_progress(v, final=True)
+            self._reclassify(v)
         self._end_visit(v, self.state["stored"] - stored_before)
+
+    def _reclassify(self, v: _OtpVisit) -> None:
+        """Con su historial revisado, sus partidas ya guardadas pasan a OTP o a jugador por lo que juega (las primeras
+        se guardan antes de saberlo); si cambian de carpeta, se mueven en segundo plano."""
+        try:
+            moved = otp_details.reclassify_player(self.svc.db, v.puuid)
+        except Exception:  # reclasificar no puede tumbar la visita: al abrir la app se vuelve a hacer
+            log.debug("No se pudo reclasificar a %s", v.puuid[:8], exc_info=True)
+            return
+        if moved:
+            threading.Thread(target=otp_details.relocate, args=(self.svc, moved), name="otp-relocate", daemon=True).start()
 
     def _start_visit(self, row) -> _OtpVisit:
         """Empieza una visita: la apunta como visitada y carga su progreso (de cero si es nuevo o cambió la búsqueda)."""

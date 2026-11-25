@@ -127,6 +127,32 @@ def test_perfil_por_elo_y_tus_errores_frente_a_cada_elo(tmp_path):
     assert rec["items"][0]["elo"] == {"PLATINUM": 100.0, "CHALLENGER": 100.0} and rec["items"][0]["separates"] is True
 
 
+def test_el_perfil_por_elo_solo_relee_los_ficheros_que_cambian(tmp_path, monkeypatch):
+    """Lo de cada fichero de partidas se guarda con su tamaño y fecha: al rehacer el perfil solo se leen los nuevos o
+    cambiados (con ~50.000 partidas, de ~55 s a ~5 s), y el perfil sale igual."""
+    for tier in ("PLATINUM", "CHALLENGER"):
+        folder = tmp_path / "otps" / "Hecarim" / "JUNGLE" / f"euw1_{tier}_abcdefgh"
+        folder.mkdir(parents=True)
+        with gzip.open(folder / "partidas.jsonl.gz", "wt", encoding="utf-8") as fh:
+            for _ in range(35):
+                fh.write(json.dumps(_dossier(tier, 2)) + "\n")
+    cache = tmp_path / ".cache" / "partidas.json.gz"
+    first = elo_profile.build(tmp_path, cache_path=cache)
+    read = []
+    real = elo_profile._read_file
+    monkeypatch.setattr(elo_profile, "_read_file", lambda f, throttle: read.append(f.parent.name) or real(f, throttle))
+    again = elo_profile.build(tmp_path, cache_path=cache)
+    assert read == [] and again["roles"] == first["roles"] and again["champs"] == first["champs"]
+    changed = tmp_path / "otps" / "Hecarim" / "JUNGLE" / "euw1_CHALLENGER_abcdefgh" / "partidas.jsonl.gz"
+    with gzip.open(changed, "at", encoding="utf-8") as fh:
+        fh.write(json.dumps(_dossier("CHALLENGER", 0)) + "\n")
+    third = elo_profile.build(tmp_path, cache_path=cache)
+    assert read == ["euw1_CHALLENGER_abcdefgh"] and third["roles"]["JUNGLE"]["CHALLENGER"]["games"] == 36
+    monkeypatch.setattr(elo_profile, "_code_signature", lambda: "otras reglas")  # reglas nuevas: no vale lo guardado
+    elo_profile.build(tmp_path, cache_path=cache)
+    assert len(read) == 3
+
+
 def test_tipo_que_no_separa_elos_pesa_la_mitad():
     tiers = {
         "PLATINUM": {"types": {"death_isolated": {"pct": 40, "per_game": 0.5}, "death_solo": {"pct": 40, "per_game": 0.45}}},
