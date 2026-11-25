@@ -383,6 +383,20 @@ class CrawlerConfig:
 
         return any(int(e[0]) in targets and int(e[1]) >= self.min_mastery and active(e) for e in top[:3])
 
+    def own_champs(self, top: list, sourced=(), now: int | None = None) -> set[int]:
+        """Buscando OTPs: los campeones por los que este jugador es candidato (de los elegidos, entre sus 3 con más
+        puntos con el mínimo de maestría y jugados en el periodo, o por los que sale en la tabla de los mejores). Solo
+        cuentan y se bajan con timeline sus partidas con ellos: con «todos los campeones» se bajaban todas las suyas
+        (acababan en «resto») y su parte con los elegidos salía siempre al 100 %, así que nunca se dejaba a nadie."""
+        targets = set(self.targets)
+        cutoff = self.active_since(now)
+        own = {int(c) for c in sourced if int(c) in targets}
+        for e in (top or [])[:3]:
+            last = int(e[2]) if len(e) > 2 and e[2] else None
+            if int(e[0]) in targets and int(e[1]) >= self.min_mastery and (last is None or last >= cutoff):
+                own.add(int(e[0]))
+        return own
+
     def share_ok(self, seen: int | None, hits: int | None) -> bool:
         """Con sus partidas revisadas: ¿juega esos campeones lo bastante? (Sin muestra aún, se le da el beneficio de
         la duda.) Solo filtra buscando especialistas con un mínimo de partidas."""
@@ -1822,13 +1836,25 @@ class RegionWorker(threading.Thread):
         if moved:
             threading.Thread(target=otp_details.relocate, args=(self.svc, moved), name="otp-relocate", daemon=True).start()
 
+    def _own_champs(self, row) -> set[int] | None:
+        """Sus campeones de candidato (``CrawlerConfig.own_champs``) buscando OTPs; ``None`` en los demás modos."""
+        cfg = self.config
+        if cfg.focus != "otp":
+            return None
+        try:
+            top = [e for e in json.loads(_field(row, "top") or "[]") if len(e) >= 2]
+        except (TypeError, ValueError):
+            top = []
+        own = cfg.own_champs(top, sourced_champs(row) if "sourced" in row.keys() else ())  # noqa: SIM118
+        return own or None
+
     def _start_visit(self, row) -> _OtpVisit:
         """Empieza una visita: la apunta como visitada y carga su progreso (de cero si es nuevo o cambió la búsqueda)."""
         cfg = self.config
         kw = {"priority": Priority.LOW, "stop": self.stop_event}
         platform, puuid = row["platform"], row["puuid"]
         self._visited[puuid] = time.time()
-        player = {"id": row["id"], "puuid": puuid, "tier": row["tier"]}
+        player = {"id": row["id"], "puuid": puuid, "tier": row["tier"], "champs": self._own_champs(row)}
         queue_id = None if cfg.include_flex else QUEUE_SOLO
         list_key, config_key = self._list_key(), otp_config_key(cfg)
         depth_start, season_major = self._depth()
@@ -2172,7 +2198,8 @@ class RegionWorker(threading.Thread):
     def _keep(self, record, mine, player, got: Ingested) -> tuple[bool, list]:
         """¿Se guarda la partida? Y, buscando por partidas, las ventanas con las que encaja."""
         cfg = self.config
-        got.mine_target = mine is not None and cfg.is_target(mine.champ, mine.role)
+        own = _field(player, "champs")  # buscando OTPs: solo sus campeones de candidato
+        got.mine_target = mine is not None and cfg.is_target(mine.champ, mine.role) and (not own or mine.champ in own)
         if cfg.patterns:
             # Buscando por partidas: toda partida bajada se guarda en la base de datos (sirve para todo lo demás, y una
             # ventana nueva la encuentra sin volver a bajarla); como resultado, solo las que encajan.
