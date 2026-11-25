@@ -48,6 +48,7 @@ from app.coach import clocks as clk
 from app.coach import geometry as geo
 from app.coach import navgrid
 from app.coach import rule_metrics
+from app.coach import typical_paths
 from app.coach.items import Inventory, ItemCatalog, season
 from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 
@@ -750,6 +751,8 @@ class _Game:
             anchors[pid].extend(spots)
         for pid, spots in infer_ward_kills(self, anchors).items():
             anchors[pid].extend(spots)
+        for pid, spots in infer_typical(self, anchors).items():
+            anchors[pid].extend(spots)
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
         # Corregidos (vueltas a base, teletransportes) y andando por donde se puede: rodeando los muros salvo los
         # campeones que los saltan (``navgrid``). Todo lo que usa posiciones (roams, contraganks, zonas) va por ahí.
@@ -885,7 +888,8 @@ class _Game:
 # Puntos de paso: 0 frame (exacto, cada minuto) · 1 evento propio (kill, objetivo, torre) · 2 en la fuente (compra o
 # reaparición) · 3 muerte · 4 «se queda aquí y salta» (vuelta a base o teletransporte) · 5 a distancia de combate de una
 # muerte (hizo o recibió daño; aproximado) · 6 campamento de jungla · 7 ruta rodeando muros · 8 farmeando en una línea ·
-# 9 pelea sin muerte (deducida del daño a campeones del minuto).
+# 9 pelea sin muerte (deducida del daño a campeones del minuto) · 10 rompiendo un ward rival · 11 recorrido típico (en
+# mitad de un tramo, apartado como suele la gente: ``typical_paths``).
 ANCHOR_BASE, ANCHOR_DEATH, ANCHOR_HOLD, ANCHOR_NEAR = 2, 3, 4, 5
 EXACT_ANCHOR_KINDS = (0, 1, ANCHOR_BASE, ANCHOR_DEATH)  # posiciones que da Riot (el resto se deducen)
 RECALL_MS = 8_000 + 1_000  # canalización de la vuelta a base y un segundo hasta comprar
@@ -1385,6 +1389,48 @@ def _enemy_ward_spots(g, tracks: dict[int, list], killer: int, t: int, kind: str
             if life is None or t - wt <= life:
                 spots.append(interpolate(tracks[pid], wt))
     return spots
+
+
+# ---------------------------------------------------------------- recorridos típicos
+# Entre dos puntos conocidos nadie va en línea recta: en mitad de cada tramo se le aparta como se aparta de media la
+# gente con su rol, en esa fase y entre esas zonas (``typical_paths``, aprendido de ~48.000 partidas de todos los elos).
+ANCHOR_TYPICAL = 11
+TYPICAL_MIN_GAP_MS = 20_000  # tramos más cortos: casi no hay sitio para apartarse
+TYPICAL_SKIP = (ANCHOR_BASE, ANCHOR_DEATH, ANCHOR_HOLD)  # vueltas a base, muertes y saltos van aparte (``_reconstruct``)
+
+
+def infer_typical(g, anchors: dict[int, list]) -> dict[int, list[tuple[int, int, int, int]]]:
+    """El punto medio de cada tramo, apartado como suele (si es andable y le da tiempo a su velocidad)."""
+    out: dict[int, list] = {}
+    if not g.has_timeline:
+        return out
+    for pid, items in anchors.items():
+        info = g.players.get(pid) or {}
+        track = sorted(items)
+        for a, b in zip(track, track[1:]):
+            spot = _typical_spot(g, pid, info, a, b)
+            if spot is not None:
+                out.setdefault(pid, []).append(spot)
+    return out
+
+
+def _typical_spot(g, pid: int, info: dict, a, b) -> tuple[int, int, int, int] | None:
+    if b[0] - a[0] < TYPICAL_MIN_GAP_MS or a[3] in TYPICAL_SKIP or b[3] in TYPICAL_SKIP:
+        return None
+    t = (a[0] + b[0]) // 2
+    if g.is_dead(pid, t):
+        return None
+    off = typical_paths.offset(info.get("role"), info.get("team"), t, (a[1], a[2]), (b[1], b[2]), 0.5)
+    if off is None:
+        return None
+    p = ((a[1] + b[1]) / 2 + off[0], (a[2] + b[2]) / 2 + off[1])
+    if not navgrid.walkable(p):
+        return None
+    i = max(1, min(len(g.ts) - 1, bisect.bisect_right(g.ts, t)))
+    speed = _move_speed(g, pid, i)
+    if geo.dist((a[1], a[2]), p) / (t - a[0]) > speed or geo.dist(p, (b[1], b[2])) / (b[0] - t) > speed:
+        return None
+    return (t, int(p[0]), int(p[1]), ANCHOR_TYPICAL)
 
 
 MOVE_STEP_MS = 5_000

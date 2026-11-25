@@ -23,7 +23,7 @@ from app.coach import geometry as geo
 FAR = 4_000  # «fallo grande»: más lejos que esto de donde estaba de verdad (el mapa mide ~15.000)
 
 
-DEDUCED = (A.ANCHOR_CAMP, A.ANCHOR_FIGHT, A.ANCHOR_WARD)  # se deducen otra vez sin el punto quitado
+DEDUCED = (A.ANCHOR_CAMP, A.ANCHOR_FIGHT, A.ANCHOR_WARD, A.ANCHOR_TYPICAL)  # se deducen otra vez sin el punto quitado
 
 
 def cases(match: dict, timeline: dict, pid: int, catalog=None, camps: bool = True, fights: bool = True):
@@ -47,6 +47,7 @@ def cases(match: dict, timeline: dict, pid: int, catalog=None, camps: bool = Tru
             if fights:
                 rest = sorted(rest + A.infer_fights(g, {**base, p: rest}).get(p, []))
                 rest = sorted(rest + A.infer_ward_kills(g, {**base, p: rest}).get(p, []))
+                rest = sorted(rest + A.infer_typical(g, {**base, p: rest}).get(p, []))
             yield fountain, rest, t, (x, y)
 
 
@@ -98,7 +99,7 @@ def validate_jungle(files: list[Path], catalog=None, max_minute: int = 15) -> di
             continue
         spans += getattr(g, "camp_minutes", 0)
         misses += getattr(g, "camp_misses", 0)
-        base = {p: [a for a in raw if a[3] != A.ANCHOR_CAMP] for p, raw in g.raw_anchors.items()}
+        base = {p: [a for a in raw if a[3] not in (A.ANCHOR_CAMP, A.ANCHOR_TYPICAL)] for p, raw in g.raw_anchors.items()}
         for p, info in g.players.items():
             if not info.get("smite"):
                 continue
@@ -140,6 +141,12 @@ def validate_fights(files: list[Path], catalog=None) -> dict:
     return _validate_hidden(files, A.ANCHOR_FIGHT, A.infer_fights, _dealt_damage, catalog)
 
 
+def validate_typical(files: list[Path], catalog=None) -> dict:
+    """Se esconde la posición del minuto (la de Riot) de cualquier jugador vivo y se reconstruye con y sin los recorridos
+    típicos (``typical_paths``)."""
+    return _validate_hidden(files, A.ANCHOR_TYPICAL, A.infer_typical, lambda g, p, i: i >= 2, catalog)
+
+
 def validate_ward_kills(files: list[Path], catalog=None) -> dict:
     """Lo mismo con quien rompió un ward rival en ese minuto o en el siguiente: con y sin colocarle junto al ward."""
     return _validate_hidden(files, A.ANCHOR_WARD, A.infer_ward_kills, _broke_ward, catalog)
@@ -162,7 +169,7 @@ def _validate_hidden(files: list[Path], kind: int, infer, applies, catalog=None)
         g = _load_game(f, catalog)
         if g is None:
             continue
-        base = {p: [a for a in raw if a[3] != kind] for p, raw in g.raw_anchors.items()}
+        base = {p: [a for a in raw if a[3] not in (kind, A.ANCHOR_TYPICAL)] for p, raw in g.raw_anchors.items()}
         for p, info in g.players.items():
             fountain = geo.FOUNTAIN.get(info["team"])
             for i in range(1, len(g.ts) - 1):
@@ -299,6 +306,8 @@ def main() -> int:
         ("1b) Posición del minuto escondida a quien pegó a campeones sin kill que lo explique (peleas sin muerte):",
          validate_fights(files), ("Sin peleas", "Con peleas")),
         ("1c) Posición del minuto escondida a quien rompió un ward rival:", validate_ward_kills(files), ("Sin wards", "Con wards")),
+        ("1d) Posición del minuto escondida a cualquiera (recorridos típicos aprendidos de las partidas guardadas):",
+         validate_typical(files), ("Sin típicos", "Con típicos")),
     ):
         print(title)
         for name, label in zip(("without", "with"), labels):

@@ -92,3 +92,37 @@ def test_los_10_analisis_de_una_partida_comparten_la_reconstruccion():
     for d in dossiers:  # el recorrido propio de cada uno es el de la reconstrucción compartida
         pid = d["analysis"]["me"]
         assert [tuple(a[:3]) for a in d["track"]["a"]] == [(round(t / 1000, 1), x, y) for t, x, y, _ in shared["anchors"][pid]]
+
+
+def test_los_recorridos_tipicos_apartan_el_punto_medio_de_cada_tramo_como_suele_la_gente(monkeypatch):
+    from app.coach import typical_paths as TP
+
+    start, end = JUNGLE, (5000, 7000)
+    blue = TP.key("JUNGLE", 90_000, start, end, 0.5)
+    monkeypatch.setattr(TP, "table", lambda: {blue: (300.0, -200.0)})
+    assert TP.offset("JUNGLE", 100, 90_000, start, end, 0.5) == (300.0, -200.0)
+    # Un rojo se ve como si jugara de azul: su tramo en espejo usa la misma casilla y el desvío vuelve en espejo.
+    red_start, red_end = geo.mirror(start), geo.mirror(end)
+    assert TP.offset("JUNGLE", 200, 90_000, red_start, red_end, 0.5) == (-300.0, 200.0)
+    assert TP.offset(None, 100, 90_000, start, end, 0.5) is None
+
+    g = game({})
+    g.players[2]["role"] = "JUNGLE"
+    track = {2: [(60_000, *start, 0), (120_000, *end, 0)]}
+    [(t, x, y, kind)] = A.infer_typical(g, track)[2]
+    mid = ((start[0] + end[0]) / 2, (start[1] + end[1]) / 2)
+    assert (t, kind) == (90_000, A.ANCHOR_TYPICAL) and (x, y) == (int(mid[0] + 300), int(mid[1] - 200))
+
+
+def test_los_recorridos_tipicos_no_tocan_vueltas_a_base_muertes_ni_tramos_cortos(monkeypatch):
+    from app.coach import typical_paths as TP
+
+    monkeypatch.setattr(TP, "offset", lambda *a, **k: (300.0, -200.0))
+    g = game({})
+    g.players[2]["role"] = "JUNGLE"
+    short = {2: [(60_000, *JUNGLE, 0), (70_000, 4000, 8000, 0)]}
+    assert A.infer_typical(g, short) == {}
+    for kind in (A.ANCHOR_BASE, A.ANCHOR_DEATH, A.ANCHOR_HOLD):
+        assert A.infer_typical(g, {2: [(60_000, *JUNGLE, 0), (120_000, 5000, 7000, kind)]}) == {}
+    monkeypatch.setattr(TP, "offset", lambda *a, **k: (9000.0, 0.0))  # 9.000 unidades en 12 s: imposible andando
+    assert A.infer_typical(g, {2: [(60_000, *JUNGLE, 0), (84_000, 5000, 7000, 0)]}) == {}
