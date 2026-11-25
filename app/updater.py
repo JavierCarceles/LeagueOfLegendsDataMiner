@@ -82,6 +82,8 @@ class Updater:
         self.thread: threading.Thread | None = None
         self.seen: tuple[str, float] | None = None  # (commit remoto nuevo, desde cuándo se ve)
         self.failed: tuple[str, float] | None = None  # (commit remoto que no se pudo aplicar, cuándo): no antes de RETRY_S
+        self.loaded: str | None = None  # el commit del código que cargó esta app al arrancar
+        self.wake = threading.Event()  # una subida de datos acaba de hacer pull: mirar ya, sin esperar a la vuelta
         self.state: dict = {"status": "idle", "detail": None, "remote": None, "at": None}
 
     @classmethod
@@ -114,12 +116,21 @@ class Updater:
         info = self.last_update() or {}
         if info.get("status") in ("installed", "ok") and time.time() - float(info.get("at") or 0) < 600:
             log.info("Actualizado a la versión %s de GitHub.", str(info.get("to") or "?")[:9])
+        self.loaded = self._head()
         self.thread = threading.Thread(target=self._loop, name="updater", daemon=True)
         self.thread.start()
 
+    def poke(self) -> None:
+        """Mirar ya (lo llama la subida de datos tras su pull: puede haber traído código nuevo)."""
+        self.wake.set()
+
     def _loop(self) -> None:
         stop = self.svc.shutdown_event
-        while not stop.wait(CHECK_EVERY_S):
+        while not stop.is_set():
+            self.wake.wait(CHECK_EVERY_S)
+            self.wake.clear()
+            if stop.is_set():
+                return
             try:
                 self._confirm_update()
                 self.tick()
@@ -156,10 +167,21 @@ class Updater:
             return "offline"
         if remote == head or self._contains(head, remote):
             self.seen = None
+            return self._loaded_changed(head)
+        return self._new_remote(head, remote)
+
+    def _loaded_changed(self, head: str) -> str:
+        """Lo de GitHub ya está en este ordenador, pero el código en disco puede no ser el que cargó la app: lo trae el
+        pull de cualquier subida de datos (o un pull a mano). Entonces se reinicia igual que con una versión nueva."""
+        if not self.loaded or head == self.loaded:
             if self.state["status"] not in ("idle", "failed"):
                 self._set("idle")
             return "same"
-        return self._new_remote(head, remote)
+        paths = self._diff(self.loaded, head)
+        if not needs_restart(paths):
+            self.loaded = head  # solo datos o documentación: nada que recargar
+            return "same"
+        return self._gate(head, time.time()) or self._install(self.loaded, head, head, paths)
 
     def _new_remote(self, head: str, remote: str) -> str:
         """Hay commits nuevos en GitHub: esperar a que dejen de llegar, ver si son código y aplicarlos."""
@@ -175,16 +197,20 @@ class Updater:
         if not needs_restart(paths):
             self._set("idle", "lo nuevo de GitHub no es código: llega con la siguiente subida de datos", remote=remote)
             return "no_code"
-        if self.failed is not None and self.failed[0] == remote and now - self.failed[1] < RETRY_S:
-            return "backoff"  # el mismo que acaba de fallar; uno nuevo (un arreglo) se prueba ya
+        return self._gate(remote, now) or self.apply(head, remote, paths)
+
+    def _gate(self, key: str, now: float) -> str | None:
+        """Por qué aún no se aplica una versión (``backoff``, ``manual`` o ``waiting``); ``None`` si ya se puede."""
+        if self.failed is not None and self.failed[0] == key and now - self.failed[1] < RETRY_S:
+            return "backoff"  # la misma que acaba de fallar; una nueva (un arreglo) se prueba ya
         if not restart.available():
-            self._set("manual", "hay una versión nueva en GitHub: cierra y vuelve a abrir la app (run.py) para usarla", remote=remote)
+            self._set("manual", "hay una versión nueva: cierra y vuelve a abrir la app (run.py) para usarla", remote=key)
             return "manual"
         busy = self._busy()
         if busy:
-            self._set("waiting", busy, remote=remote)
+            self._set("waiting", busy, remote=key)
             return "waiting"
-        return self.apply(head, remote, paths)
+        return None
 
     # ------------------------------------------------------------------ git
     def _head(self) -> str | None:
@@ -211,6 +237,10 @@ class Updater:
     def _fetch(self) -> None:
         remote, branch = self._upstream()
         _git(self.repo, "fetch", "-q", remote, branch, timeout=600)
+
+    def _diff(self, a: str, b: str) -> list[str]:
+        out = _git(self.repo, "diff", "--name-only", a, b)
+        return [p.strip() for p in out.stdout.splitlines() if p.strip()]
 
     def _changed(self, head: str) -> list[str]:
         """Ficheros que cambian en GitHub desde lo último común (lo de este ordenador no cuenta)."""
@@ -250,13 +280,18 @@ class Updater:
             new_head = self._head() or head
         if not self._contains(new_head, remote):
             return self._failed(remote, f"no se pudo bajar la versión nueva: {auto.state.get('last_error') or 'git pull falló'}")
+        return self._install(self.loaded or head, new_head, remote, paths)
+
+    def _install(self, old: str, new: str, key: str, paths: list[str]) -> str:
+        """El código ``new`` ya está en disco (antes corría ``old``): si carga, se reinicia la app con él; si no, vuelta
+        atrás."""
         problem = None if any(p in REQUIREMENTS for p in paths) else self._import_error()
         if problem:
-            return self._revert(head, new_head, remote, problem)
-        self._write_update({"status": "installed", "from": head, "to": new_head, "remote": remote, "at": time.time()})
-        _append_log(self.data_dir, f"Versión {new_head[:9]} instalada (antes {head[:9]}); reinicio la app.")
-        self._set("restarting", "versión nueva instalada: reiniciando la app", remote=remote)
-        restart.request(f"versión nueva de GitHub ({new_head[:9]})")
+            return self._revert(old, new, key, problem)
+        self._write_update({"status": "installed", "from": old, "to": new, "remote": key, "at": time.time()})
+        _append_log(self.data_dir, f"Versión {new[:9]} instalada (antes {old[:9]}); reinicio la app.")
+        self._set("restarting", "versión nueva instalada: reiniciando la app", remote=key)
+        restart.request(f"versión nueva de GitHub ({new[:9]})")
         return "restarting"
 
     def _failed(self, remote: str, why: str) -> str:
