@@ -4650,3 +4650,152 @@
 2026-11-25 02:50:04 INFO    crawler-europe tempu.crawler: Recolector europe detenido. Guardadas 70 partidas.
 2026-11-25 02:50:05 INFO    crawler-stop tempu.crawler: Recolector detenido en 1 s.
 2026-11-25 02:50:05 INFO    crawler-stop tempu.crawler: Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).
+2026-11-25 02:50:12 INFO    autopush tempu.autopush: Datos subidos a GitHub (246 partidas nuevas, rama main).
+2026-11-25 02:50:21 INFO    MainThread tempu.app: Apagando…
+2026-11-25 15:49:41 INFO    MainThread tempu.crawler: Reparto por elo: se sigue con las últimas 3000 partidas analizadas de la sesión anterior (IRON 444, BRONZE 522, SILVER 456, GOLD 479, PLATINUM 425, EMERALD 309, DIAMOND 47, MASTER 50, GRANDMASTER 190, CHALLENGER 78).
+2026-11-25 15:49:41 INFO    MainThread tempu.app: Tempu Drafter 2.0.0 arrancando…
+2026-11-25 15:49:41 INFO    startup tempu.ddragon: Data Dragon 16.23.1 cargado (173 campeones).
+2026-11-25 15:49:47 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 4.8 s
+2026-11-25 15:49:53 WARNING game-tracker tempu.progreso: Seguimiento de partidas en pausa: Riot no reconoce la API key (401 Unknown apikey)
+2026-11-25 15:49:53 INFO    MainThread tempu.http: Petición lenta: POST /api/draft/suggest-batch tardó 11.1 s
+2026-11-25 15:50:04 INFO    db-checkpoint tempu.db: WAL sin recortar (lecturas largas en curso): 0.0 MB → 0.0 MB en 11.0 s
+2026-11-25 15:50:06 INFO    MainThread tempu.http: Petición lenta: GET /api/crawler/otps/live tardó 19.6 s
+2026-11-25 15:50:09 INFO    warm-planner tempu.precarga: Precarga en marcha: 2846 tareas (345 esenciales). Las vistas se abren al instante con lo que ya hay.
+2026-11-25 15:50:24 INFO    key-recheck tempu.app: Riot todavía no acepta la key (Riot no reconoce la API key (401 Unknown apikey)). Vuelvo a probar en breve…
+2026-11-25 15:50:54 INFO    key-recheck tempu.app: Riot ya acepta la API key: lista para usar.
+2026-11-25 15:52:20 INFO    elo-profile tempu.elo-profile: Perfil de errores por elo: 46333 partidas en 131.5 s.
+2026-11-25 15:56:57 INFO    warm-opgg-mcp-0 tempu.precarga: Precarga completa: 2846 tareas al día.
+2026-11-25 16:00:13 INFO    warm-opgg-mcp-0 tempu.precarga: Precarga completa: 2846 tareas al día.
+2026-11-25 16:04:19 INFO    MainThread tempu.crawler: Reparto por elo: se sigue con las últimas 3000 partidas analizadas de la sesión anterior (IRON 444, BRONZE 522, SILVER 456, GOLD 479, PLATINUM 425, EMERALD 309, DIAMOND 47, MASTER 50, GRANDMASTER 190, CHALLENGER 78).
+2026-11-25 16:04:19 INFO    MainThread tempu.app: Tempu Drafter 2.0.0 arrancando…
+2026-11-25 16:04:19 INFO    startup tempu.ddragon: Data Dragon 16.23.1 cargado (173 campeones).
+2026-11-25 16:04:20 INFO    warm-planner tempu.precarga: Precarga en marcha: 2846 tareas (345 esenciales). Las vistas se abren al instante con lo que ya hay.
+2026-11-25 16:04:20 INFO    warm-opgg-mcp-0 tempu.precarga: Precarga completa: 2846 tareas al día.
+2026-11-25 16:04:39 ERROR   MainThread tempu.app: Error inesperado en /api/videos/add
+Traceback (most recent call last):
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\telemetry\_asgi.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\_body_limit.py", line 80, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Informatica\PROYECTOS\BACKEND\LOL\LeagueOfLegendsDataMiner\app\budget.py", line 109, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\routing.py", line 683, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 2929, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 1916, in handle
+    await self.original_router.handle(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 3015, in handle
+    await included_router._handle_selected(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 1945, in _handle_selected
+    await original_route.handle(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 1373, in handle
+    await effective_context.app(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 175, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 161, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 762, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\routing.py", line 383, in run_endpoint_function
+    return await run_in_threadpool(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+        _run_sync_endpoint, function=dependant.call, arguments=values
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\starlette\concurrency.py", line 34, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\anyio\_backends\_asyncio.py", line 2779, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\anyio\_backends\_asyncio.py", line 1124, in run
+    result = context.run(func, *args)
+  File "C:\Users\User\AppData\Local\TempuDrafter\venv-py314\Lib\site-packages\fastapi\telemetry\_api.py", line 244, in _run_sync_endpoint
+    return function(**arguments)
+  File "C:\Informatica\PROYECTOS\BACKEND\LOL\LeagueOfLegendsDataMiner\app\api\videos.py", line 46, in add
+    sources = svc.videos.add(body.texto, body.rol, body.tema, body.campeon, langs, body.por_idioma, body.limite, body.min_minutos)
+  File "C:\Informatica\PROYECTOS\BACKEND\LOL\LeagueOfLegendsDataMiner\app\videos\collector.py", line 126, in add
+    from app.videos.youtube import classify  # sin yt-dlp: solo mira el texto
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Informatica\PROYECTOS\BACKEND\LOL\LeagueOfLegendsDataMiner\app\videos\youtube.py", line 19, in <module>
+    import yt_dlp
+ModuleNotFoundError: No module named 'yt_dlp'
+2026-11-25 16:06:54 INFO    AnyIO worker thread tempu.videos: Vídeos: recolector en pausa.
+2026-11-25 16:06:56 INFO    AnyIO worker thread tempu.videos: Vídeos: recolector reanudado.
+2026-11-25 16:06:56 INFO    videos tempu.videos: Vídeos: recolector en marcha.
+2026-11-25 16:06:56 INFO    videos tempu.videos: Vídeos: instalando las herramientas (yt-dlp, OpenCV, Deno)… solo la primera vez.
+2026-11-25 16:07:24 INFO    videos tempu.videos: Vídeos: herramientas instaladas.
+2026-11-25 16:07:34 INFO    videos tempu.videos: Búsqueda con yt-dlp fallida ([0;31mERROR:[0m query "jungla guía macro league of legends" page 1: Failed to parse JSON (caused by JSONDecodeError("Expecting value in '': line 1 column 1 (char 0)")); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U); pruebo con la página de resultados.
+2026-11-25 16:07:35 INFO    videos tempu.videos: Vídeos: «jungla guía macro league of legends» → 19 vídeos (19 nuevos en la cola).
+2026-11-25 16:08:02 INFO    videos tempu.videos: Vídeos: yt-dlp falló con PO03svR74cw ([0;31mERROR:[0m [youtube] PO03svR74cw: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , fillin); sigo con oEmbed.
+2026-11-25 16:08:03 INFO    videos tempu.videos: Vídeos: recogido «Los 10 pasos para llegar a Master en la jungla» (transcripción: youtube-transcript-api).
+2026-11-25 16:08:50 INFO    videos tempu.videos: Vídeos: yt-dlp falló con ZpcQUrd3v7Q ([0;31mERROR:[0m [youtube] ZpcQUrd3v7Q: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , fillin); sigo con oEmbed.
+2026-11-25 16:08:51 INFO    videos tempu.videos: Vídeos: recogido «Deja de Perder Partidas: Aprende MACRO de Jungla REAL | La Mentalidad de ganar sin equipo lol 2026» (transcripción: youtube-transcript-api).
+2026-11-25 16:09:04 INFO    AnyIO worker thread tempu.videos: Vídeos: recolector en pausa.
+2026-11-25 16:09:45 INFO    MainThread tempu.app: Apagando…
+2026-11-25 16:09:45 INFO    videos tempu.videos: Vídeos: recolector parado.
+2026-11-25 16:16:06 INFO    MainThread tempu.crawler: Reparto por elo: se sigue con las últimas 3000 partidas analizadas de la sesión anterior (IRON 444, BRONZE 522, SILVER 456, GOLD 479, PLATINUM 425, EMERALD 309, DIAMOND 47, MASTER 50, GRANDMASTER 190, CHALLENGER 78).
+2026-11-25 16:16:06 INFO    MainThread tempu.app: Tempu Drafter 2.0.0 arrancando…
+2026-11-25 16:16:06 INFO    startup tempu.ddragon: Data Dragon 16.23.1 cargado (173 campeones).
+2026-11-25 16:16:07 INFO    warm-planner tempu.precarga: Precarga en marcha: 2846 tareas (345 esenciales). Las vistas se abren al instante con lo que ya hay.
+2026-11-25 16:16:07 INFO    warm-opgg-mcp-1 tempu.precarga: Precarga completa: 2846 tareas al día.
+2026-11-25 16:16:11 INFO    videos tempu.videos: Vídeos: recolector en marcha.
+2026-11-25 16:16:20 INFO    MainThread tempu.http: Petición lenta: GET /api/crawler/otps/live tardó 8.0 s
+2026-11-25 16:16:27 INFO    crawler-americas tempu.crawler: Recolector americas iniciado (NA, BR, LAN, LAS).
+2026-11-25 16:16:27 INFO    crawler-europe tempu.crawler: Recolector europe iniciado (EUW, EUNE, TR, RU, ME).
+2026-11-25 16:16:27 INFO    crawler-asia tempu.crawler: Recolector asia iniciado (KR, JP).
+2026-11-25 16:16:27 INFO    crawler-americas tempu.crawler: Reparto por elo (todo el ranking, región americas): parte de las partidas nuevas IRON 13.0 % (2900 analizadas), BRONZE 11.6 % (3129 analizadas), SILVER 13.3 % (2855 analizadas), GOLD 13.5 % (2828 analizadas), PLATINUM 13.0 % (2893 analizadas), EMERALD 11.7 % (3107 analizadas), DIAMOND 3.3 % (17513 analizadas), MASTER 5.9 % (5484 analizadas), GRANDMASTER 9.9 % (3504 analizadas), CHALLENGER 4.7 % (7094 analizadas).
+2026-11-25 16:16:27 INFO    crawler-sea tempu.crawler: Recolector sea iniciado (OCE, SEA, TW, VN).
+2026-11-25 16:16:27 INFO    crawler-europe tempu.crawler: Reparto por elo (todo el ranking, región europe): parte de las partidas nuevas IRON 13.0 % (2900 analizadas), BRONZE 11.6 % (3129 analizadas), SILVER 13.3 % (2855 analizadas), GOLD 13.5 % (2828 analizadas), PLATINUM 13.0 % (2893 analizadas), EMERALD 11.7 % (3107 analizadas), DIAMOND 3.3 % (17513 analizadas), MASTER 5.9 % (5484 analizadas), GRANDMASTER 9.9 % (3504 analizadas), CHALLENGER 4.7 % (7094 analizadas).
+2026-11-25 16:16:27 INFO    AnyIO worker thread tempu.crawler: Recolector en marcha en 4 regiones en paralelo.
+2026-11-25 16:16:27 INFO    crawler-sea tempu.crawler: Reparto por elo (todo el ranking, región sea): parte de las partidas nuevas IRON 13.0 % (2900 analizadas), BRONZE 11.6 % (3129 analizadas), SILVER 13.3 % (2855 analizadas), GOLD 13.5 % (2828 analizadas), PLATINUM 13.0 % (2893 analizadas), EMERALD 11.7 % (3107 analizadas), DIAMOND 3.3 % (17513 analizadas), MASTER 5.9 % (5484 analizadas), GRANDMASTER 9.9 % (3504 analizadas), CHALLENGER 4.7 % (7094 analizadas).
+2026-11-25 16:16:27 INFO    crawler-asia tempu.crawler: Reparto por elo (todo el ranking, región asia): parte de las partidas nuevas IRON 13.0 % (2900 analizadas), BRONZE 11.6 % (3129 analizadas), SILVER 13.3 % (2855 analizadas), GOLD 13.5 % (2828 analizadas), PLATINUM 13.0 % (2893 analizadas), EMERALD 11.7 % (3107 analizadas), DIAMOND 3.3 % (17513 analizadas), MASTER 5.9 % (5484 analizadas), GRANDMASTER 9.9 % (3504 analizadas), CHALLENGER 4.7 % (7094 analizadas).
+2026-11-25 16:17:49 INFO    crawler-asia tempu.crawler: KR · GOLD: 17 partidas nuevas de 17 (total región: 17).
+2026-11-25 16:18:03 INFO    crawler-europe tempu.crawler: EUW · GOLD: 25 partidas nuevas de 25 (total región: 25).
+2026-11-25 16:18:21 INFO    crawler-asia tempu.autopush: Subida a GitHub: 100 de 2000 partidas nuevas.
+2026-11-25 16:18:42 INFO    crawler-americas tempu.crawler: NA · GOLD: 30 partidas nuevas de 30 (total región: 30).
+2026-11-25 16:18:51 INFO    crawler-sea tempu.crawler: OCE · GOLD: 30 partidas nuevas de 30 (total región: 30).
+2026-11-25 16:19:10 INFO    crawler-asia tempu.crawler: KR · SILVER: 19 partidas nuevas de 19 (total región: 36).
+2026-11-25 16:19:18 INFO    crawler-americas tempu.crawler: NA · IRON: 8 partidas nuevas de 9 (total región: 38).
+2026-11-25 16:19:51 INFO    crawler-europe tempu.crawler: EUW · PLATINUM: 28 partidas nuevas de 30 (total región: 53).
+2026-11-25 16:20:06 INFO    crawler-europe tempu.autopush: Subida a GitHub: 200 de 2000 partidas nuevas.
+2026-11-25 16:20:31 INFO    crawler-americas tempu.crawler: NA · GRANDMASTER: 18 partidas nuevas de 30 (total región: 56).
+2026-11-25 16:21:14 INFO    crawler-sea tempu.crawler: OCE · EMERALD: 30 partidas nuevas de 30 (total región: 60).
+2026-11-25 16:21:19 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 2.4 s
+2026-11-25 16:21:29 INFO    crawler-asia tempu.crawler: KR · BRONZE: 30 partidas nuevas de 30 (total región: 66).
+2026-11-25 16:21:37 INFO    crawler-europe tempu.crawler: EUW · IRON: 28 partidas nuevas de 30 (total región: 81).
+2026-11-25 16:21:55 INFO    crawler-asia tempu.autopush: Subida a GitHub: 300 de 2000 partidas nuevas.
+2026-11-25 16:21:55 INFO    crawler-europe tempu.crawler: Recolector europe detenido. Guardadas 86 partidas.
+2026-11-25 16:21:55 INFO    crawler-americas tempu.crawler: Recolector americas detenido. Guardadas 76 partidas.
+2026-11-25 16:21:55 INFO    crawler-asia tempu.crawler: Recolector asia detenido. Guardadas 71 partidas.
+2026-11-25 16:21:55 INFO    crawler-sea tempu.crawler: Recolector sea detenido. Guardadas 68 partidas.
+2026-11-25 16:21:56 INFO    crawler-stop tempu.crawler: Recolector detenido en 1 s.
+2026-11-25 16:21:56 INFO    crawler-stop tempu.crawler: Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).
