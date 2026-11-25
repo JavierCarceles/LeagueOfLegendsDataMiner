@@ -5,7 +5,7 @@ partidas por elo (`docs/macro.md`) y lo que se podría medir. Se amplía con cad
 tiene ~800 vídeos más). Las transcripciones son automáticas: los números de cada vídeo son los que dice el coach, sin
 comprobar, salvo donde pone «nuestros datos».
 
-**Tanda 1** (25-11-2026): 17 vídeos en español (y uno en inglés), casi todos de jungla. PochiPoom (6), Dishake (4),
+**Tanda 1** (25-11-2026): 18 vídeos en español (y uno en inglés), casi todos de jungla. PochiPoom (7), Dishake (4),
 maurogarih (2), LoLen4Minutos (2), El Blu LoL, Samuelux y Donbeshi. Cuatro tienen partida en pantalla (Volibear, Kayn,
 Kha'Zix y Vi).
 
@@ -42,7 +42,10 @@ pelear el primero; tirar inhibidores (LoLen4Minutos: solo si son dos o acaban la
 3. **Base tras una pelea ganada**: tras una pelea en la que tu equipo mata a 2 o más sin perder a nadie, ¿vuelves a base
    y cae una estructura antes de que reaparezcan?
 4. **Oleadas al final**: CS de súbditos del jungla frente a campamentos después del 20.
-5. **Invadir con prioridad**: los campamentos rivales ya se miden; falta si se hacen con prioridad de las líneas de ese
+5. **Support y jungla juntos en el mid game** (PochiPoom, mid game [23:37]): tiempo a menos de ~2.000 entre los dos
+   después del 14. Con tus partidas sí se puede (hay recorridos de los 10); con las de los OTPs no (solo guardan su
+   posición y la de su rival de línea), así que no habría referencia por elo.
+6. **Invadir con prioridad**: los campamentos rivales ya se miden; falta si se hacen con prioridad de las líneas de ese
    lado (y cuántas veces se muere invadiendo).
 
 ## Vídeo a vídeo
@@ -111,6 +114,17 @@ Smite rojo [2:36]; no cambies el trinket amarillo en la primera base [3:21].
 **¿Qué es el tempo?** · PochiPoom · 2023 · [cLJUJrfrWn4](https://youtu.be/cLJUJrfrWn4). No pelees dos veces seguidas sin
 pasar por base [14:45]; no pelees con más de 1.100 de oro encima [17:35]; si el rival tiene el dragón, haz otra jugada
 [8:06]; empuja la oleada antes de rotar [12:15]; el carry que gana marca el ritmo [18:20].
+
+**Guía de macro de mid game para SoloQ** · PochiPoom · 2026 · [_8ES_bbI8zg](https://youtu.be/_8ES_bbI8zg). El mid game
+va de la primera torre al ~25: ponerte más fuerte que el rival antes de las peleas finales [0:00]. Reparto estándar: la
+bot a mid, el top al lado contrario del objetivo, el jungla farmeando y con su support [1:53]. Todo es «push and move»:
+empuja y haz algo (base, placas, roam, visión, presión en la niebla, campamento) [4:00] [7:45]; la oleada que empuja es
+la que tienes que recoger, y tras estrellarla en su torre la siguiente rebota hacia ti [4:55] [6:52]. El «shift»:
+estrellas tu oleada, haces la de otra línea y vuelves (3 oleadas por 2, y tu equipo con tiempo para rotar) [11:33].
+Controla la zona 30-40 s antes del objetivo [15:27]; el retake, tirando habilidades a los arbustos antes de wardearlos
+[16:29]. Un dragón que no se puede ganar se cambia por otra jugada: «un dragón no luchado es mucho mejor que un dragón
+que pierdes y te mueres» [18:28], salvo el punto de alma [20:29]. Support y jungla juntos: en su análisis de equipos
+pro, más tiempo juntos iba con más victorias [23:37]; ADC sin su support o su jungla delante, cero interacción [24:35].
 
 **El macro aburrido pero necesario** · Dishake · 2026 · [r10CTY-1VR4](https://youtu.be/r10CTY-1VR4). Antes de un
 objetivo, empuja oleadas → limpia tu jungla → empuja otra → visión [3:30] [10:36]; wards profundos (15 s de aviso) [5:38];
