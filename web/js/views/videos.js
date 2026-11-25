@@ -286,6 +286,11 @@ function pills(v) {
     const champ = r.campeon ? ` · ${r.campeon}` : "";
     out.push(h("span.pill.pill-gold", { title: `${fmt.int(r.reloj)} lecturas del reloj, ${fmt.int(r.camara)} de la cámara` }, `Partida ${fmt.duration(r.segundos_partida)}${champ}`));
   }
+  const issues = r.revision || [];
+  if (issues.length) {
+    const label = issues.length === 1 ? "1 aviso" : `${issues.length} avisos`;
+    out.push(h("span.pill.pill-warn", { title: issues.join("\n") }, icon("alert"), label));
+  }
   return out;
 }
 
@@ -320,15 +325,24 @@ function videoRow(v) {
       h("a.video-title", { href: `https://www.youtube.com/watch?v=${v.id}`, target: "_blank", rel: "noopener" }, v.titulo || v.resumen?.titulo || v.id),
       h("div.small.muted", [v.resumen?.canal || v.canal, fmt.duration(v.duracion || v.resumen?.duracion)].filter((x) => x && x !== "—").join(" · ")),
       v.error ? h("div.small.video-error", v.error) : null,
+      (v.resumen?.revision || []).length ? h("div.small.video-warn", v.resumen.revision.join(" · ")) : null,
     ),
     h("div.video-pills", h(`span.pill.${STATE_PILL[v.estado] || "pill"}`, STATE_LABEL[v.estado] || v.estado), pills(v)),
     h("div.video-actions", actions(v)),
   );
 }
 
-function group(id, title, items, open) {
+function group(id, title, items, open, extra = "") {
   if (!items.length) return null;
-  return collapsible(`videos.${id}`, title, () => h("div.video-list", items.map(videoRow)), { open, summary: `${fmt.int(items.length)} vídeos` });
+  const count = `${fmt.int(items.length)} vídeos`;
+  const summary = extra ? `${count} · ${extra}` : count;
+  return collapsible(`videos.${id}`, title, () => h("div.video-list", items.map(videoRow)), { open, summary });
+}
+
+/** «3 con avisos»: los recogidos que la revisión automática marca para mirarlos. */
+function warned(items) {
+  const n = items.filter((v) => (v.resumen?.revision || []).length).length;
+  return n ? `${fmt.int(n)} con avisos` : "";
 }
 
 function sourceRow(s) {
@@ -351,7 +365,7 @@ function listCards(data) {
   return h(
     "div.stack",
     group("cola", [icon("clock"), "En cola"], queued, true),
-    group("hechos", [icon("check"), "Recogidos"], done, false),
+    group("hechos", [icon("check"), "Recogidos"], done, false, warned(done)),
     group("errores", [icon("alert"), "Con error o descartados"], failed, false),
     (data.fuentes || []).length
       ? collapsible("videos.fuentes", [icon("link"), "Fuentes añadidas"], () => h("div.video-list", data.fuentes.map(sourceRow)), { summary: `${fmt.int(data.fuentes.length)}` })

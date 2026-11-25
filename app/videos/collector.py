@@ -24,8 +24,7 @@ import requests
 
 from app import hardware
 from app.logbus import add_videos_log, get_logger
-from app.videos import deps
-from app.videos.review import champion_names
+from app.videos import deps, review
 from app.videos.store import DONE, PENDING, VideoStore
 
 log = get_logger("videos")
@@ -634,11 +633,12 @@ def _summary(data: dict) -> dict:
         "transcripcion": text.get("metodo"),
         "trozos": len(text.get("segmentos") or []),
         "partida": bool(frames.get("partida")),
-        "campeon": champion_names(frames) or None,
+        "campeon": review.champion_names(frames) or None,
         "segundos_partida": frames.get("segundos_con_partida"),
         "reloj": len(frames.get("reloj") or []),
         "camara": len(frames.get("camara") or []),
         "avisos": len(data.get("avisos") or []),
+        "revision": review.check(data),  # lo que parece mal, para mirarlo (ver app.videos.review)
     }
 
 

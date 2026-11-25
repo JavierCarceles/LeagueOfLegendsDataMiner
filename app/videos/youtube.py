@@ -66,6 +66,8 @@ class _Logger:
         self.detail = detail
 
     def debug(self, msg: str) -> None:
+        if msg.startswith("[download] Downloading item "):  # «item 34 of 50» al leer un canal: 50 líneas sin nada
+            return
         if self.detail or not msg.startswith("[debug] "):
             log.debug("yt-dlp: %s", msg)
 
@@ -102,6 +104,7 @@ def options(data_dir: Path | None = None, **extra) -> dict:
         "extractor_retries": 2,
         "fragment_retries": 5,
         "logger": _Logger(),
+        "color": "never",  # sin códigos de color de la consola de Windows en el registro y en los errores
         # Sin brotli: es lo que más se diferencia de las peticiones que sí funcionan (y no se pierde nada).
         "http_headers": {"Accept-Encoding": "gzip, deflate"},
     }
