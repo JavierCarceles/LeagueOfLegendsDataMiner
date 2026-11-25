@@ -329,6 +329,8 @@ def _player_entry(pid: int, p: dict, role: str | None, team: int) -> dict:
         "name": p.get("riotIdGameName") or p.get("summonerName") or "",
         "tag": p.get("riotIdTagline") or "",
         "smite": SMITE in (_num(p.get("summoner1Id")), _num(p.get("summoner2Id"))),
+        # Monstruos de la jungla rival que mató en toda la partida (exacto, de Riot; None si no viene)
+        "enemy_camps": (p.get("challenges") or {}).get("enemyJungleMonsterKills"),
     }
 
 
@@ -1057,7 +1059,10 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     last = (out.get(pid) or [None])[-1]
     if c[-1] - c[0] < CAMP_CS and last and t0 - last[0] <= 2 * CAMP_CLEAR_MS and geo.dist(p0, last[1:3]) <= NEAR_CAMP_REST:
         return  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
-    best = _camp_route(sites, killed, (p0, p1), t1, min(k, CAMP_MAX))
+    # Sin ningún monstruo de la jungla rival en toda la partida (dato exacto de Riot), sus campamentos no se le ponen.
+    own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
+    candidates = [s for s in sites if s[0].startswith(f"{g.players[pid]['team']}_")] if own_only else sites
+    best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX))
     fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
     if fits is None:
         g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
