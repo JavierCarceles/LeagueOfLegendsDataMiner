@@ -144,7 +144,11 @@ CREATE TABLE IF NOT EXISTS participants (
     runes          TEXT,
     PRIMARY KEY (match_id, pid)
 );
-CREATE INDEX IF NOT EXISTS idx_participants_player ON participants(player_id);
+-- Por jugador, con el campeón, el rol y la partida dentro del índice: el recolector pregunta por 400 jugadores a la vez
+-- qué partidas suyas con los campeones buscados faltan por analizar (``_lacking_details``), y con solo player_id cada
+-- fila se leía de la tabla (36 columnas): 1,7 s por consulta en el PC del usuario. Sustituye a idx_participants_player.
+CREATE INDEX IF NOT EXISTS idx_participants_player_champ ON participants(player_id, champ, role, match_id);
+DROP INDEX IF EXISTS idx_participants_player;
 -- Búsqueda por partidas: las ya guardadas con un campeón (en su rol) sin recorrer toda la tabla.
 CREATE INDEX IF NOT EXISTS idx_participants_champ ON participants(champ, role);
 
@@ -320,6 +324,9 @@ CREATE TABLE IF NOT EXISTS otp_games (
     PRIMARY KEY (match_id, puuid)
 );
 CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
+-- Los recuentos de «Partidas por elo (total)» y de la sección OTPs (``otp_details.counts``) salen solo de este índice:
+-- sin él, cada recuento leía la tabla entera con sus análisis (10 s en el PC del usuario cada 5 minutos).
+CREATE INDEX IF NOT EXISTS idx_otp_games_counts ON otp_games(tier, champ, kind, puuid, has_timeline);
 
 -- Todo el ranking: los 10 jugadores analizados de cada partida en un solo bloque xz, con lo común a los 10 aparte (sin
 -- pérdidas; ~33 KB por partida frente a ~107 KB con un análisis comprimido por jugador). Sus filas de otp_games

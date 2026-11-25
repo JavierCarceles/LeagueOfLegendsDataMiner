@@ -1862,3 +1862,55 @@ def test_games_saved_before_knowing_what_he_plays_move_to_the_yellow_bar_when_hi
     assert live["tiers"]["SILVER"] == 12 and live["otp_games"] == 12
     assert db.scalar("SELECT COUNT(*) FROM otp_games WHERE puuid = 'p-low' AND kind = 'otp'") == 12
     assert otp_details.reclassify_player(db, "p-low") == []  # ya está bien
+
+
+def test_a_short_but_complete_history_is_enough_to_judge_an_otp(keyed_svc):
+    """En Bronce y Plata muchos juegan 10-15 partidas por temporada y nunca llegaban a 20 revisadas: con su historial del
+    periodo entero revisado, bastan 10 para decir si es OTP (son todas las que tiene, no una muestra)."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    for i in range(8):
+        match = make_match(f"EUW1_81{i:02d}", puuids={1: "p-few"})
+        assert otp_details.save(db, svc, match, None, "p-few", {"tier": "BRONZE", "division": "I", "lp": 5})
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-few', '420', 0, 12, 8, 0)")
+    assert otp_details.reclassify_player(db, "p-few") == []  # 12 revisadas y quedan más: aún no se sabe
+    with db.write() as conn:
+        conn.execute("UPDATE otp_progress SET back_done_at = 1, back_done_reason = 'end' WHERE puuid = 'p-few'")
+    assert otp_details.reclassify_player(db, "p-few") == [("p-few", AATROX)]  # todas las que tiene: 8 de 12
+    assert otp_details.judgeable(9, "end") is False and otp_details.judgeable(19, "share") is False
+
+
+def test_the_total_by_elo_is_counted_from_an_index_not_the_whole_table(keyed_svc):
+    """Los recuentos de «Partidas por elo (total)» no leen la tabla con los análisis (10 s cada 5 min en el PC del
+    usuario): todas sus consultas salen del índice ``idx_otp_games_counts``."""
+    db = keyed_svc.db
+    queries = [
+        "SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players, SUM(has_timeline) AS timelines FROM otp_games",
+        "SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier",
+        "SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'",
+        "SELECT tier, champ, kind, COUNT(*) AS n FROM otp_games GROUP BY tier, champ, kind",
+    ]
+    for sql in queries:
+        plan = " ".join(str(r[-1]) for r in db.query("EXPLAIN QUERY PLAN " + sql))
+        assert "COVERING INDEX idx_otp_games_counts" in plan, (sql, plan)
+
+
+def test_games_lacking_analysis_are_found_from_an_index_not_the_table(keyed_svc):
+    """«Qué partidas de estos 400 jugadores con los campeones buscados faltan por analizar» sale del índice (1,7 s por
+    consulta en el PC del usuario cuando leía cada fila de ``participants``)."""
+    from app.ingest.crawler import CrawlerConfig, target_sql
+
+    cfg = CrawlerConfig(champions=[AATROX], focus="otp", champion_roles={AATROX: ["TOP"]}).validated()
+    cond, params = target_sql(cfg, "p")
+    sql = (
+        "SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl.id = p.player_id "
+        "LEFT JOIN otp_games o ON o.match_id = p.match_id AND o.puuid = pl.puuid "
+        f"WHERE p.player_id IN (?, ?, ?) AND {cond} AND o.match_id IS NULL"
+    )
+    plan = " ".join(str(r[-1]) for r in keyed_svc.db.query("EXPLAIN QUERY PLAN " + sql, (1, 2, 3, *params)))
+    assert "COVERING INDEX idx_participants_player_champ" in plan, plan

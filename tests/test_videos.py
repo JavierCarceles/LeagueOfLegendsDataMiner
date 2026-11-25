@@ -413,6 +413,22 @@ def test_clock_reader_falls_back_per_frame():
     assert vf.ClockReader(vf.Clock(vf.load_digits()), None).hud is None
 
 
+def test_queue_pace_uses_the_last_videos_collected_in_a_row(tmp_path):
+    """Ritmo y lo que le queda a la cola con los últimos vídeos recogidos seguidos: un hueco de más de media hora (app
+    cerrada o en pausa) corta la muestra para no dar un ritmo falso."""
+    store = VideoStore(tmp_path / "videos")
+    ids = [f"v{i:010d}" for i in range(12)]
+    store.add_videos([{"id": vid} for vid in ids])
+    assert store.pace() is None
+    t = 1_000_000.0
+    for i, vid in enumerate(ids[:2]):  # ayer, antes de cerrar la app
+        store.update(vid, estado="hecho", inicio=t + i * 240, fin=t + i * 240 + 240)
+    t += 86_400
+    for i, vid in enumerate(ids[2:6]):  # hoy: 4 vídeos de 4 minutos seguidos
+        store.update(vid, estado="hecho", inicio=t + i * 240, fin=t + i * 240 + 240)
+    assert store.pace() == {"por_hora": 15.0, "horas": 0.4, "muestra": 4}  # quedan 6: 24 minutos
+
+
 def test_outdated_videos_are_redone(tmp_path):
     from types import SimpleNamespace
 
@@ -496,17 +512,21 @@ def test_review_flags_suspicious_results(tmp_path, capsys):
     }
     assert review.check(good) == []
     issues = " | ".join(review.check(bad))
-    for text in ("poca transcripción", "traducido", "«es»", "partida muy corta", "apartadas", "recuadro de la cámara"):
+    for text in ("poca transcripción", "traducido", "«es»", "partida muy corta", "recuadro de la cámara"):
         assert text in issues
-    # Clips sueltos de un vídeo explicativo (minimapa claro): ni partida dudosa, ni saltos, ni falta el campeón
-    clips = {**bad["frames"], "minimapa": {"parecido": 0.61}, "camara_px": [80, 44], "reloj_apartadas": [],
+    # Clips sueltos de un vídeo explicativo (minimapa claro): ni partida dudosa, ni saltos, ni lecturas apartadas, ni falta
+    # el campeón (el reloj salta entre cortes: «8 trucos de jungla», 86 s de partida, 6 lecturas apartadas)
+    clips = {**bad["frames"], "minimapa": {"parecido": 0.61}, "camara_px": [80, 44],
              "camara": [[t, 1, 1] for t in range(0, 30, 2)]}
     assert review.check({**good, "frames": clips}) == []
-    # Con más partida, los saltos del reloj y el campeón que no sale sí se avisan
+    # Con más partida, los saltos del reloj, las lecturas apartadas y el campeón que no sale sí se avisan
     long_game = {**clips, "segundos_con_partida": 600, "camara": [[t, 1, 1] for t in range(0, 600, 2)],
                  "reloj": [[t * 10, (t % 2) * 900] for t in range(10)]}
     issues = " | ".join(review.check({**good, "frames": long_game}))
-    assert "saltos" in issues and "sin campeón" in issues
+    assert "saltos" in issues and "sin campeón" in issues and "apartadas" in issues
+    # Una repetición acelerada (×2-×5, como las de los coaches en modo espectador) no son saltos
+    replay = [[t * 10, 60 + 30 * t + (10 if t % 2 else 0)] for t in range(30)]  # 20-40 s de partida cada 10 s de vídeo
+    assert review.clock_jumps(replay) == 0 and review.clock_jumps([[0, 300], [10, 100], [20, 900]]) == 2
     assert review.check({"duracion": 300}) == ["sin transcripción", "sin datos de frames"]
     # La orden solo lee lo recogido (sin herramientas de vídeo ni cambios)
     store = VideoStore(tmp_path / "videos")

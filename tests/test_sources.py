@@ -231,6 +231,27 @@ def test_lolalytics_parses_tier_list_and_counters(db, dd, monkeypatch):
     assert counters == {other: (200, 110)}
 
 
+def test_lolalytics_parses_team_synergies(db, dd, monkeypatch):
+    """``ep=build-team``: el WR del campeón con cada compañero de cada línea (una petición para todas)."""
+    lola = Lolalytics(db, dd)
+    champ = next(iter(dd.champions))
+    other = next(c for c in dd.champions if c != champ)
+    calls = []
+
+    def fake_get(params):
+        calls.append(params["ep"])
+        return {
+            "team_h": ["id", "wr", "d1", "d2", "pr", "n"],
+            "team": {"jungle": [[other, 54.0, 1.2, 0.4, 3.1, 1000], ["roto"], [champ, 50.0, 0, 0, 1, 0]], "middle": [], "otra": [[other, 60, 0, 0, 1, 5]]},
+        }
+
+    monkeypatch.setattr(lola, "_get", fake_get)
+    assert lola.synergies(champ, "TOP", "JUNGLE", "emerald_plus", "global", "26.23") == {other: (1000, 540)}
+    assert lola.synergies(champ, "TOP", "MID", "emerald_plus", "global", "26.23") == {}
+    assert lola.synergies(champ, "TOP", "NADA", "emerald_plus", "global", "26.23") is None
+    assert calls == ["build-team"]  # la segunda línea sale de la misma descarga (caché)
+
+
 def test_lolalytics_rejects_unknown_scope(db, dd):
     lola = Lolalytics(db, dd)
     assert lola.tier_list("TOP", "nope", "global", "26.23") is None

@@ -1083,7 +1083,7 @@ function playersEditor(cfg, changed) {
       editHint(
         cfg.focus === "games"
           ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados (con ese mínimo de puntos) y se guarda toda partida suya en la que alguien lo juegue en esa línea."
-          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta, así que cuánto lo juega se comprueba con sus partidas: tras revisar 20, si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
+          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta y solo sirve para encontrar candidatos: si es OTP lo dice lo que juega, con sus partidas. Tras revisar 20 (o todas las del periodo si tiene menos, desde 10), si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
       ),
     );
   };
@@ -1791,7 +1791,7 @@ let opggForm = { tier: "emerald_plus", region: "global" };
 let sourcesSig = null;
 const SOURCE_INFO = {
   opgg: { label: "OP.GG", what: "Counters, tier list, guías de matchup, builds y sinergias (web + API oficial para apps)." },
-  lolalytics: { label: "Lolalytics", what: "Segunda fuente de tier list y counters: se combina con OP.GG sin contar dos veces las mismas partidas." },
+  lolalytics: { label: "Lolalytics", what: "Segunda fuente de tier list, counters y sinergias: se combina con OP.GG sin contar dos veces las mismas partidas." },
   patchnotes: { label: "Notas de parche (Riot)", what: "Cambios de campeones y objetos de las últimas versiones, con mejoras y debilitaciones." },
 };
 
@@ -1822,6 +1822,14 @@ function renderSources(src) {
 }
 
 /** Errores de una fuente: en pausa (la web pidió esperar), con errores o sin ellos. */
+/** Elo de OP.GG en español: «emerald_plus» → «Esmeralda+», «all» → «Todos los elos». */
+function opggTierLabel(t) {
+  if (t === "all") return "Todos los elos";
+  const plus = t.endsWith("_plus");
+  const base = TIER_LABEL[t.replace("_plus", "").toUpperCase()] || t;
+  return plus ? `${base}+` : base;
+}
+
 function sourceErrors(stats) {
   const title = stats?.last_error || "";
   if (stats?.circuit_open_for > 0) {
@@ -1843,7 +1851,7 @@ function opggSyncControls(opgg) {
   };
   return h(
     "div.row-wrap",
-    select((opgg.tiers || []).map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (ch) => ch.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
+    select((opgg.tiers || []).map((t) => ({ value: t, label: opggTierLabel(t) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
     select((opgg.regions || []).map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
     running
       ? h("button.btn.btn-danger.btn-sm", { onclick: stopSync }, icon("stop"), "Parar")

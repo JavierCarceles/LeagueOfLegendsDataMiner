@@ -66,6 +66,9 @@ OTP_MIN_POINTS = 100_000
 # La maestría es de toda la vida de la cuenta y engaña (300 K con un campeón y 130 K con el siguiente no es ser OTP).
 OTP_MIN_SHARE = 0.5
 OTP_SHARE_MIN_SEEN = 20
+# Si ya se revisó todo su historial del periodo buscado, basta con menos: son todas las que tiene, no una muestra (en
+# Bronce y Plata muchos juegan 10-15 partidas por temporada y nunca llegaban a 20: se quedaban sin juzgar, por la maestría).
+OTP_SHARE_MIN_SEEN_COMPLETE = 10
 LAYOUT_VERSION = 4  # formato de la carpeta: si cambia, se regenera desde la base de datos (2: objetos según el rival; 3: resúmenes sin partidas con AFK; 4: los que no son OTP, a otra carpeta)
 # Campeones que se curan mucho (los que justifican Heridas graves): para separar los objetos de los OTPs contra ellos.
 HEAVY_HEAL = {
@@ -430,12 +433,12 @@ def player_info(db, puuid: str) -> dict:
 def play_share(db, puuid: str, champ: int) -> tuple[int, float] | None:
     """(partidas revisadas, parte con ese campeón) de un jugador del recolector, o ``None`` sin muestra suficiente."""
     try:
-        row = db.one("SELECT seen FROM otp_progress WHERE puuid = ?", (puuid,))
+        row = db.one("SELECT seen, back_done_reason FROM otp_progress WHERE puuid = ?", (puuid,))
     # BD sin la tabla: tests o versión vieja
     except Exception:  # noqa: BLE001
         return None
     seen = int((row["seen"] if row else 0) or 0)
-    if seen < OTP_SHARE_MIN_SEEN:
+    if not judgeable(seen, row["back_done_reason"] if row else None):
         return None
     stored = int(
         db.scalar(
@@ -449,10 +452,16 @@ def play_share(db, puuid: str, champ: int) -> tuple[int, float] | None:
     return seen, min(1.0, max(stored, analysed) / seen)
 
 
+def judgeable(seen: int, done_reason: str | None) -> bool:
+    """¿Hay partidas revisadas para juzgar lo que juega? 20, o 10 si ya no tiene más en el periodo (historial completo)."""
+    return seen >= (OTP_SHARE_MIN_SEEN_COMPLETE if done_reason == "end" else OTP_SHARE_MIN_SEEN)
+
+
 def classify(db, puuid: str, champ: int) -> str:
     """``otp`` si ese jugador es OTP de ese campeón; si no, ``player``.
 
-    Con al menos ``OTP_SHARE_MIN_SEEN`` partidas suyas revisadas, por lo que juega: la mitad o más con ese campeón.
+    Con partidas suyas revisadas suficientes (``judgeable``: 20, o 10 con el historial completo), por lo que juega: la
+    mitad o más con ese campeón.
     Sin esa muestra, por su maestría guardada (principal con 1,5 veces los puntos del segundo) o la tabla de los mejores
     de OP.GG. Sin nada, ``player``: ante la duda, no ensucia los datos de OTPs."""
     share = play_share(db, puuid, champ)
@@ -477,8 +486,9 @@ def reclassify(db) -> list[tuple[str, int]]:
     try:
         pairs = db.query(
             "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
-            "WHERE o.seen >= ? AND g.kind IN ('otp', 'player')",  # las de todo el ranking se quedan solo en la base de datos
-            (OTP_SHARE_MIN_SEEN,),
+            "WHERE (o.seen >= ? OR (o.back_done_reason = 'end' AND o.seen >= ?)) "
+            "AND g.kind IN ('otp', 'player')",  # las de todo el ranking se quedan solo en la base de datos
+            (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE),
         )
     # BD vieja sin otp_progress
     except Exception:  # noqa: BLE001
@@ -938,11 +948,11 @@ def relocate(svc, pairs: list[tuple[str, int]]) -> int:
 
 def reclassify_player(db, puuid: str) -> list[tuple[str, int]]:
     """``reclassify`` de un jugador al terminar de revisarlo, no solo al abrir la app: sus primeras partidas se guardan
-    antes de saber lo que juega (menos de ``OTP_SHARE_MIN_SEEN`` revisadas) y se decidían por la maestría, con un mínimo
+    antes de saber lo que juega (ver ``judgeable``) y se decidían por la maestría, con un mínimo
     de ``OTP_MIN_POINTS``. Buscando OTPs de 50.000 puntos en Bronce y Plata casi todas iban a «resto» (barra azul) hasta
     reiniciar. Pasan a OTP o a jugador con la gráfica del total al día; devuelve las parejas que cambian de carpeta."""
-    seen = db.scalar("SELECT seen FROM otp_progress WHERE puuid = ?", (puuid,))
-    if int(seen or 0) < OTP_SHARE_MIN_SEEN:
+    prog = db.one("SELECT seen, back_done_reason FROM otp_progress WHERE puuid = ?", (puuid,))
+    if prog is None or not judgeable(int(prog["seen"] or 0), prog["back_done_reason"]):
         return []
     rows = db.query(
         "SELECT champ, kind, tier, COUNT(*) AS n FROM otp_games WHERE puuid = ? AND kind IN ('otp', 'player') GROUP BY champ, kind, tier",

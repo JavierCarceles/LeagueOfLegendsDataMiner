@@ -81,13 +81,17 @@ def _lane_jobs(svc, ev: Evidence, role: str, a: int | None, b: int | None) -> li
     return jobs
 
 
-def _team_synergy_jobs(svc, team: dict[str, int]) -> list:
-    """Descargas de las sinergias de las parejas con más peso del equipo."""
-    return [
+def _team_synergy_jobs(svc, ev: Evidence, team: dict[str, int]) -> list:
+    """Descargas de las sinergias: en OP.GG, las parejas con más peso del equipo; en Lolalytics, una por campeón (trae
+    las de todas las líneas)."""
+    jobs = [
         lambda a=r1, c=team[r1], b=r2: svc.opgg.synergies(c, a, b)
         for r1, r2 in ROLE_PAIRS
         if (r1, r2) in KEY_PAIRS and team.get(r1) and team.get(r2)
     ]
+    if ev.use_lola and len(team) > 1:
+        jobs += [lambda r=role, c=champ: ev.lola_team(r, c) for role, champ in team.items()]
+    return jobs
 
 
 def _prefetch(svc, ev: Evidence, ally: dict[str, int], enemy: dict[str, int]) -> None:
@@ -98,7 +102,7 @@ def _prefetch(svc, ev: Evidence, ally: dict[str, int], enemy: dict[str, int]) ->
     for role in ROLES:
         jobs.extend(_lane_jobs(svc, ev, role, ally.get(role), enemy.get(role)))
     for team in (ally, enemy):
-        jobs.extend(_team_synergy_jobs(svc, team))
+        jobs.extend(_team_synergy_jobs(svc, ev, team))
     jobs.extend(lambda r=role: ev.tier_list(r) for role in ROLES)
     svc.opgg.prefetch(jobs, timeout=25)
 
@@ -118,7 +122,7 @@ def _synergy_terms(ev: Evidence, team: dict[str, int]) -> list[dict]:
                 "wr": pct(safe_div(s["wins"], s["games"])),
                 "wr_adj": pct(s["adjusted"]),
                 "expected": pct(s["expected"]),
-                "sources": {"opgg": _source(*s["ext"]), "own": _source(*s["own"])},
+                "sources": {"opgg": _source(*s["opgg"]), "lolalytics": _source(*s["lola"]), "own": _source(*s["own"])},
                 "logit": s["logit"],
                 "var": s["var"],
             }

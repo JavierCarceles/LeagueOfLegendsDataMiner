@@ -101,6 +101,8 @@ const ICONS = {
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   upload: '<path d="M12 20V8M7 13l5-5 5 5M4 4h16"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  video: '<rect x="2" y="5" width="20" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/>',
 };
 
 /** Sustituye «{champ:ID}» (textos del análisis) por el nombre del campeón. */
@@ -239,6 +241,10 @@ export function sourceBadges(sources) {
   if (!sources) return null;
   const out = [];
   if (sources.opgg) out.push(h("span.src.src-opgg", { title: `OP.GG: ${fmt.pct(sources.opgg.wr)} en ${fmt.int(sources.opgg.games)} partidas` }, h("b", fmt.compact(sources.opgg.games))));
+  if (sources.lolalytics) {
+    const lola = sources.lolalytics;
+    out.push(h("span.src.src-lola", { title: `Lolalytics: ${fmt.pct(lola.wr)} en ${fmt.int(lola.games)} partidas` }, h("b", fmt.compact(lola.games))));
+  }
   if (sources.own) out.push(h("span.src.src-own", { title: `Tu base de datos: ${fmt.pct(sources.own.wr)} en ${fmt.int(sources.own.games)} partidas` }, h("b", fmt.compact(sources.own.games))));
   return out.length ? h("span.row-wrap", { style: { gap: "4px" } }, out) : h("span.tiny.faint", "estimado");
 }

@@ -398,17 +398,42 @@ class Evidence:
         }
 
     def synergy_counts(self, r1: str, c1: int, r2: str, c2: int, fetch: bool = False) -> dict:
+        """Partidas/victorias de la pareja por fuente: tu BD, OP.GG, Lolalytics y las dos webs juntas (``ext``: WR
+        ponderado y como muestra la mayor, porque se solapan, como en los counters)."""
         own = self.svc.agg.synergy(self.f, r1, c1, r2, c2) if self.use_own else (0, 0)
-        ext = (0, 0)
+        opgg = lola = (0, 0)
         if self.scope:
-            data = self.svc.opgg.synergies(c1, r1, r2, allow_fetch=fetch)
-            if data and c2 in data:
-                ext = data[c2]
-            else:
-                data = self.svc.opgg.synergies(c2, r2, r1, allow_fetch=False)
-                if data and c1 in data:
-                    ext = data[c1]
-        return {"own": own, "ext": ext}
+            opgg = self._opgg_synergy(r1, c1, r2, c2, fetch)
+            if self.use_lola:
+                lola = self._lola_synergy(r1, c1, r2, c2, fetch)
+        ext = (combine_web({c2: opgg} if opgg[0] else {}, {c2: lola} if lola[0] else {}) or {}).get(c2, (0, 0))
+        return {"own": own, "ext": ext, "opgg": opgg, "lola": lola}
+
+    def _opgg_synergy(self, r1: str, c1: int, r2: str, c2: int, fetch: bool) -> tuple[int, int]:
+        """La pareja en OP.GG, desde cualquiera de los dos campeones."""
+        data = self.svc.opgg.synergies(c1, r1, r2, allow_fetch=fetch)
+        if data and c2 in data:
+            return data[c2]
+        data = self.svc.opgg.synergies(c2, r2, r1, allow_fetch=False)
+        return data[c1] if data and c1 in data else (0, 0)
+
+    def _lola_synergy(self, r1: str, c1: int, r2: str, c2: int, fetch: bool) -> tuple[int, int]:
+        """La pareja en Lolalytics (las versiones del ámbito juntas), desde cualquiera de los dos campeones."""
+        lola = self.svc.lolalytics
+        for a, ra, b, rb, allow in ((c1, r1, c2, r2, fetch), (c2, r2, c1, r1, False)):
+            merged = self._merge_patches(
+                lambda c, r, t, reg, p, allow_fetch, rb=rb: lola.synergies(c, r, rb, t, reg, p, allow_fetch=allow_fetch), ra, a, allow
+            )
+            if merged and b in merged:
+                return merged[b]
+        return (0, 0)
+
+    def lola_team(self, role: str, champ: int) -> None:
+        """Descarga las sinergias de Lolalytics del campeón (una petición por versión trae las de todas las líneas)."""
+        if not (self.use_lola and self.scope):
+            return
+        for patch in self.scope.patches:
+            self.svc.lolalytics.team(champ, role, self.scope.tier, self.scope.region, patch)
 
     def observed_base(self, role: str, champ: int) -> float:
         """WR general apenas encogido (k=50): lo que de verdad rinde en estos datos.
@@ -431,6 +456,8 @@ class Evidence:
             "wins": wins,
             "own": counts["own"],
             "ext": counts["ext"],
+            "opgg": counts["opgg"],
+            "lola": counts["lola"],
             "expected": expected,
             "adjusted": adjusted,
             "logit": logit(adjusted) - logit(expected),

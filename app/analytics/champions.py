@@ -133,6 +133,9 @@ def _partner_synergies(svc, ev: Evidence, f: Filters, role: str, champ: int, par
     partners = set(svc.agg.partners(f, role, champ, partner_role)) if ev.use_own else set()
     if ev.scope:
         partners |= set(svc.opgg.synergies(champ, role, partner_role, allow_fetch=False) or {})
+    if ev.use_lola and ev.scope:
+        for patch in ev.scope.patches:
+            partners |= set(svc.lolalytics.synergies(champ, role, partner_role, ev.scope.tier, ev.scope.region, patch, allow_fetch=False) or {})
     items = []
     for partner in partners:
         s = ev.synergy(role, champ, partner_role, partner)
@@ -145,7 +148,7 @@ def _partner_synergies(svc, ev: Evidence, f: Filters, role: str, champ: int, par
                 "wr": pct(safe_div(s["wins"], s["games"])),
                 "wr_adj": pct(s["adjusted"]),
                 "delta": round((s["adjusted"] - s["expected"]) * 100, 2),
-                "sources": {"opgg": _source(*s["ext"]), "own": _source(*s["own"])},
+                "sources": {"opgg": _source(*s["opgg"]), "lolalytics": _source(*s["lola"]), "own": _source(*s["own"])},
             }
         )
     items.sort(key=lambda x: x["delta"], reverse=True)
@@ -155,7 +158,8 @@ def _partner_synergies(svc, ev: Evidence, f: Filters, role: str, champ: int, par
 def _synergies(svc, ev: Evidence, f: Filters, role: str, champ: int) -> dict:
     """Sinergias del campeón con cada uno de los otros roles."""
     if ev.scope:
-        svc.opgg.prefetch([lambda pr=pr: svc.opgg.synergies(champ, role, pr) for pr in ROLES if pr != role], timeout=15)
+        jobs = [lambda pr=pr: svc.opgg.synergies(champ, role, pr) for pr in ROLES if pr != role]
+        svc.opgg.prefetch([*jobs, lambda: ev.lola_team(role, champ)], timeout=15)
     return {pr: _partner_synergies(svc, ev, f, role, champ, pr) for pr in ROLES if pr != role}
 
 

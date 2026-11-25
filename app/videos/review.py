@@ -11,8 +11,11 @@ from itertools import pairwise
 MIN_CHUNKS_PER_MIN = 0.5  # un trozo de texto (~12 s) cada 2 minutos como poco
 MIN_GAME_S = 60  # menos partida que esto en todo el vídeo…
 SURE_MAP_SCORE = 0.55  # …con el minimapa por debajo de esto: ¿un falso positivo? (los de verdad dan 0,55-0,71)
-LONG_GAME_S = 120  # con menos partida (clips sueltos de un vídeo explicativo) los saltos del reloj y no tener campeón son normales
+LONG_GAME_S = 120  # con menos partida (clips sueltos de un vídeo explicativo), saltos del reloj, lecturas apartadas y no tener campeón son normales
 CLOCK_STEP_S = 10  # el reloj se lee cada 10 s de partida
+# Lo más rápido que puede correr el reloj frente al vídeo sin ser un salto: repeticiones aceleradas (×2, ×4) y cortes
+# cortos. El mismo margen que da por buenas las lecturas al limpiar el reloj (``frames._follows``).
+MAX_CLOCK_SPEED = 6
 CLOCK_MIN_RATIO = 0.35
 CAMERA_MIN_RATIO = 0.25  # posiciones de cámara por muestra de partida (una cada 2 s)
 
@@ -56,7 +59,8 @@ def _check_frames(data: dict) -> list[str]:
         issues.append(f"partida muy corta ({round(game)} s en todo el vídeo) y minimapa dudoso ({score:.2f}): ¿falso positivo?")
     issues += _check_clock(frames.get("reloj") or [], game)
     odd = len(frames.get("reloj_apartadas") or [])
-    if odd > max(3, 0.15 * len(frames.get("reloj") or [])):
+    # En clips sueltos (poca partida) el reloj salta entre cortes y se apartan lecturas buenas: no dice nada.
+    if game >= LONG_GAME_S and odd > max(3, 0.15 * len(frames.get("reloj") or [])):
         issues.append(f"muchas lecturas sueltas del reloj apartadas ({odd}): ¿el OCR lee otro texto de la pantalla?")
     issues += _check_camera(frames, game)
     if frames.get("hud") == "jugador" and not frames.get("campeon") and game >= LONG_GAME_S:
@@ -76,11 +80,12 @@ def _check_clock(clock: list, game: float) -> list[str]:
 
 
 def clock_jumps(clock: list) -> int:
-    """Lecturas seguidas en las que el reloj del juego no avanza como el vídeo (ni pausa ni ritmo normal)."""
+    """Lecturas seguidas en las que el reloj del juego no avanza como el vídeo: hacia atrás (rebobinado o mala lectura) o
+    más deprisa de lo que corre una repetición acelerada (corte de edición o mala lectura). Pausas y ×2-×4, no."""
     bad = 0
     for (t1, g1), (t2, g2) in pairwise(clock):
         video, game = t2 - t1, g2 - g1
-        if video > 0 and not 0 <= game <= video * 1.5 + 2:
+        if video > 0 and not -2 <= game <= video * MAX_CLOCK_SPEED + 2:
             bad += 1
     return bad
 

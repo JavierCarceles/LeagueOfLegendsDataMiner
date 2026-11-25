@@ -9,7 +9,7 @@ from __future__ import annotations
 from app.analytics import champions, regions
 from app.analytics.evidence import Evidence
 from app.analytics.filters import Filters
-from tests.factories import AATROX, DARIUS, GAREN, FakeOpgg, install_opgg, make_match, opgg_row, store_payloads
+from tests.factories import AATROX, DARIUS, GAREN, LEE_SIN, FakeOpgg, install_opgg, make_match, opgg_row, store_payloads
 
 
 def own_top_matches(svc, n: int = 20):
@@ -65,3 +65,36 @@ def test_region_detail_with_opgg_only_champions_does_not_crash(svc):
     res = regions.region_detail(svc, Filters(), "all")
     popular = [c["champ"] for c in res["meta"]["TOP"]["popular"]]
     assert set(popular) == {AATROX, DARIUS, GAREN}
+
+
+class _Lola:
+    """Lolalytics falso: solo sinergias (lo demás, vacío)."""
+
+    enabled = True
+
+    def __init__(self, team=None):
+        self._team = team or {}
+
+    def tier_list(self, *args, **kwargs):
+        return {}
+
+    def counters(self, *args, **kwargs):
+        return {}
+
+    def synergies(self, champ, role, partner_role, tier, region, patch, allow_fetch=True):
+        return self._team.get((champ, role, partner_role))
+
+
+def test_synergies_combine_opgg_and_lolalytics_without_counting_twice(svc):
+    """Las dos webs miden las mismas partidas: WR ponderado y como muestra la mayor (como en los counters). Con solo
+    Lolalytics (OP.GG sin esa pareja) también cuenta, mirando desde el compañero si hace falta."""
+    install_opgg(svc, FakeOpgg(synergies={(AATROX, "TOP", "JUNGLE"): {LEE_SIN: (500, 270)}}))
+    svc.lolalytics = _Lola({(AATROX, "TOP", "JUNGLE"): {LEE_SIN: (1000, 500)}})
+    s = Evidence(svc, Filters()).synergy("TOP", AATROX, "JUNGLE", LEE_SIN)
+    assert s["opgg"] == (500, 270) and s["lola"] == (1000, 500)
+    assert s["ext"] == (1000, 513)  # 770 victorias de 1.500 partidas, en una muestra de 1.000
+    install_opgg(svc, FakeOpgg())
+    svc.lolalytics = _Lola({(LEE_SIN, "JUNGLE", "TOP"): {AATROX: (800, 440)}})
+    s = Evidence(svc, Filters()).synergy("TOP", AATROX, "JUNGLE", LEE_SIN)
+    assert s["opgg"] == (0, 0) and s["ext"] == (800, 440) and s["games"] == 800
+    assert Evidence(svc, Filters(), "opgg").synergy("TOP", AATROX, "JUNGLE", LEE_SIN)["ext"] == (0, 0)  # «Solo OP.GG»
