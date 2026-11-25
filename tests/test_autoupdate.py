@@ -116,6 +116,7 @@ def test_code_pulled_by_a_normal_data_push_also_restarts(repos, monkeypatch, res
     assert up.tick() == "restarting" and restarted == ["stop"]
     info = json.loads((repos.win / "data" / ".update.json").read_text())
     assert info["from"] == loaded and info["to"] == git(repos.win, "rev-parse", "HEAD")
+    assert up.tick() == "restarting" and restarted == ["stop"]  # otra vuelta mientras se cierra: no lo pide dos veces
 
 
 @needs_git
