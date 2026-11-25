@@ -9,8 +9,10 @@ Sirve para dos cosas:
 * **Referencias por campeón** para ``champ_checks`` (orden de habilidades, primera compra y ritmo del primer objeto de
   los OTPs de Diamante en adelante).
 
-Leer ~15.000 partidas lleva unos segundos: se hace en segundo plano, se guarda en ``data/.cache/errores_por_elo.json`` y
-se rehace sola cuando cambian los ficheros (como mucho cada ``REBUILD_EVERY_S``).
+Leer ~50.000 partidas lleva más de un minuto (80 s en un Mac, más en un PC modesto): se hace en segundo plano, se guarda
+en ``data/.cache/errores_por_elo.json`` y se rehace sola cuando cambian los ficheros (como mucho cada
+``REBUILD_EVERY_S``). Lo que sale de cada fichero de partidas se guarda aparte (``RECORDS_CACHE``, con su tamaño y su
+fecha): al rehacerlo solo se leen los ficheros nuevos o que han cambiado.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
+import sys
 import threading
 import time
 from collections import Counter, defaultdict
@@ -30,6 +34,7 @@ log = get_logger("elo-profile")
 
 VERSION = 8  # 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
+RECORDS_CACHE = Path(".cache") / "errores_por_elo_partidas.json.gz"  # lo de cada fichero de partidas (ver _FileCache)
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
 # quitaba CPU. Cada 3 h basta (el perfil por elo apenas cambia con unas pocas partidas más).
@@ -170,39 +175,121 @@ def _record(d: dict, role: str | None, player: str) -> dict | None:
     return rec
 
 
-def _folder_dossiers(data_dir: Path):
-    """(dossier, rol de la carpeta, jugador) de cada partida de las carpetas de OTPs y de jugadores."""
-    for f in _files(data_dir):
-        role, player = f.parent.parent.name, f.parent.name
+def _game_key(d: dict) -> tuple:
+    """Una partida de un jugador: para no contar dos veces la de la búsqueda por partidas que ya está en una carpeta."""
+    return d.get("match_id"), d.get("team"), d.get("champ")
+
+
+def _read_file(f: Path, throttle: bool) -> tuple[list[dict], list[tuple], bool]:
+    """(registros, claves de sus partidas, se leyó entero) de un fichero de partidas de un jugador con un campeón."""
+    role, player = f.parent.parent.name, f.parent.name
+    recs: list[dict] = []
+    keys: list[tuple] = []
+    try:
+        with gzip.open(f, "rt", encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    d = json.loads(line)
+                except ValueError:
+                    continue  # una línea a medio escribir
+                keys.append(_game_key(d))
+                rec = _record(d, role, player)
+                if rec is not None:
+                    recs.append(rec)
+                if throttle and len(keys) % YIELD_EVERY == 0:
+                    time.sleep(0.005)
+    except (OSError, EOFError):  # gzip.BadGzipFile deriva de OSError; en Windows, también un fichero bloqueado
+        log.debug("No se pudo leer %s", f, exc_info=True)
+        return recs, keys, False
+    return recs, keys, True
+
+
+def _code_signature() -> str:
+    """Firma del código que convierte una partida en registro: con reglas nuevas, lo guardado de cada fichero no vale."""
+    from app.coach import geometry, insights
+
+    h = hashlib.sha1(str(VERSION).encode(), usedforsecurity=False)  # firma de la caché, no seguridad
+    for mod in (sys.modules[__name__], insights, champ_checks, route_macro, rule_metrics, geometry):
         try:
-            with gzip.open(f, "rt", encoding="utf-8") as fh:
-                for line in fh:
-                    try:
-                        yield json.loads(line), role, player
-                    except ValueError:
-                        continue  # una línea a medio escribir
-        except (OSError, EOFError):  # gzip.BadGzipFile deriva de OSError
-            log.debug("No se pudo leer %s", f, exc_info=True)
+            h.update(Path(mod.__file__).read_bytes())
+        except (OSError, TypeError):
+            h.update(mod.__name__.encode())
+    return h.hexdigest()
 
 
-def _all_dossiers(data_dir: Path):
-    """Las carpetas y, una vez cada uno, los 10 jugadores de la búsqueda por partidas (``data/busquedas``)."""
+class _FileCache:
+    """Los registros de cada fichero de partidas con su tamaño y su fecha: al rehacer el perfil solo se vuelven a leer los
+    ficheros nuevos o que han cambiado (con ~50.000 partidas, de 80 s a unos segundos). Se guarda en disco (``path``)
+    y no en memoria: ~100 MB de registros que solo hacen falta mientras se calcula."""
+
+    def __init__(self, path: Path | None) -> None:
+        self.path = path
+        self.code = _code_signature()
+        self.old: dict[str, list] = {}
+        self.new: dict[str, list] = {}
+        self.hits = 0
+        if path is None:
+            return
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, EOFError, ValueError):
+            return
+        if isinstance(data, dict) and data.get("code") == self.code:
+            self.old = data.get("files") or {}
+
+    def records(self, f: Path, throttle: bool) -> tuple[list[dict], list[tuple]]:
+        """Los de ``f``: los guardados si no ha cambiado; si no, se lee (y se guarda si se pudo leer entero)."""
+        try:
+            st = f.stat()
+            sig = [st.st_size, st.st_mtime_ns]
+        except OSError:
+            sig = None
+        hit = self.old.get(str(f))
+        if sig is not None and hit and hit[0] == sig:
+            self.hits += 1
+            recs = hit[1]
+            for r in recs:
+                r["mistakes"] = [tuple(m) for m in r.get("mistakes") or []]
+            self.new[str(f)] = hit
+            return recs, [tuple(k) for k in hit[2]]
+        recs, keys, whole = _read_file(f, throttle)
+        if sig is not None and whole:
+            self.new[str(f)] = [sig, recs, keys]
+        return recs, keys
+
+    def save(self) -> None:
+        """Guarda lo de esta pasada (los ficheros que ya no están se olvidan); nada si no ha cambiado ninguno."""
+        if self.path is None or (self.hits == len(self.new) and self.new.keys() == self.old.keys()):
+            return
+        tmp = self.path.with_name(self.path.name + ".tmp")
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            # json.dumps (codificador en C) y no json.dump al fichero: este va trozo a trozo en Python y tarda 5 veces más.
+            text = json.dumps({"code": self.code, "files": self.new}, ensure_ascii=False, separators=(",", ":"))
+            with gzip.open(tmp, "wt", encoding="utf-8", compresslevel=3) as fh:
+                fh.write(text)
+            os.replace(tmp, self.path)
+        except (OSError, TypeError, ValueError):  # sin caché, la próxima vez se vuelve a leer todo
+            log.debug("No se pudo guardar la caché de partidas del perfil por elo", exc_info=True)
+
+
+def _records(data_dir: Path, throttle: bool = False, cache: _FileCache | None = None):
+    """Cada partida de cada jugador con lo que usa el perfil (las que tienen timeline y análisis fiable): las de las
+    carpetas y, una vez cada uno, los 10 jugadores de la búsqueda por partidas (``data/busquedas``)."""
     from app.ingest import patterns
 
+    cache = cache or _FileCache(None)
     seen: set[tuple] = set()
-    for d, role, player in _folder_dossiers(data_dir):
-        seen.add((d.get("match_id"), d.get("team"), d.get("champ")))
-        yield d, role, player
-    for player, d in patterns.iter_dossiers(data_dir):
-        if (d.get("match_id"), d.get("team"), d.get("champ")) not in seen:  # si no, ya estaba en la carpeta de su campeón
-            yield d, d.get("role"), player
-
-
-def _records(data_dir: Path, throttle: bool = False):
-    """Cada partida de cada jugador con lo que usa el perfil (las que tienen timeline y análisis fiable)."""
+    for f in _files(data_dir):
+        recs, keys = cache.records(f, throttle)
+        seen.update(keys)
+        yield from recs
     read = 0
-    for d, role, player in _all_dossiers(data_dir):
-        rec = _record(d, role, player)
+    for player, d in patterns.iter_dossiers(data_dir):
+        if _game_key(d) in seen:  # ya estaba en la carpeta de su campeón
+            continue
+        rec = _record(d, d.get("role"), player)
         if rec is None:
             continue
         read += 1
@@ -211,10 +298,13 @@ def _records(data_dir: Path, throttle: bool = False):
         yield rec
 
 
-def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False) -> dict:
-    """Lee todas las partidas guardadas y devuelve el perfil de errores por rol, elo y campeón."""
+def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False, cache_path: Path | None = None) -> dict:
+    """Lee todas las partidas guardadas y devuelve el perfil de errores por rol, elo y campeón. Con ``cache_path``, lo
+    de cada fichero que no ha cambiado sale de ahí en vez de volver a leerlo."""
     t0 = time.monotonic()
-    records = list(_records(Path(data_dir), throttle))
+    cache = _FileCache(cache_path)
+    records = list(_records(Path(data_dir), throttle, cache))
+    cache.save()
     champ_refs = _champ_refs(records, catalog)
     roles, champs = _aggregate(records, champ_refs, catalog, champ_name)
     out = {
@@ -232,7 +322,8 @@ def build(data_dir: Path, catalog=None, champ_name=None, throttle: bool = False)
     # Referencias de campeones sin partidas propias en ningún elo con muestra (pero sí de Diamante+).
     for (c, role), ref in champ_refs.items():
         out["champs"].setdefault(f"{c}:{role}", {"tiers": {}, "ref": ref})
-    log.info("Perfil de errores por elo: %d partidas en %.1f s.", len(records), time.monotonic() - t0)
+    log.info("Perfil de errores por elo: %d partidas en %.1f s (%d de %d ficheros sin cambios).", len(records), time.monotonic() - t0,
+             cache.hits, len(cache.new))
     return out
 
 
@@ -368,7 +459,7 @@ class EloProfile:
             dd = getattr(self.svc, "dd", None)
             catalog = getattr(dd, "item_catalog", None)
             name = (lambda c: dd.name(int(c))) if dd is not None and hasattr(dd, "name") else None
-            data = build(self.data_dir, catalog if catalog else None, name, throttle=True)
+            data = build(self.data_dir, catalog if catalog else None, name, throttle=True, cache_path=self.data_dir / RECORDS_CACHE)
             self.data, self.sig = data, sig
             self.path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.path.with_suffix(".json.tmp")
