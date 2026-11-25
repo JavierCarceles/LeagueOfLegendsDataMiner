@@ -927,3 +927,25 @@ suya:
 - **Al arrancar, ~3 min sin visitar a nadie:** la lista de jugadores, leída vacía al arrancar, se reutilizaba 2 min, y
   la región sin trabajo esperaba 30 s. Ahora una lista vacía se vuelve a leer a los 15 s, y mientras se buscan jugadores
   la región vuelve a mirar cada 15 s. En la fase 2 se empezó a visitar en los primeros 30 s.
+
+## P) Macro de internet por elo: lo que se mide ya (25-11-2026, `macro/macro_internet_por_elo.md`, `app/coach/macro_habits.py`)
+
+Investigación de otro chat (fuentes, mecánicas de 2026 y 14 detecciones propuestas, C-1 a C-14). Ninguna se enseña como
+error: van como hábitos en «Cómo te mueves por el mapa», comparados con cada elo, como los roams. Validadas con las
+48.229 partidas con timeline de `data/otps` y `data/partidas_campeon` (medias por elo, Hierro-Bronce → Aspirante):
+
+| Detección | Medida | Jungla | Top | Mid | ADC | Support | ¿Se enseña? |
+|---|---|---|---|---|---|---|---|
+| C-1 | Objetivos de tu equipo que acaban en torre o inhibidor (90 s; 3 min tras el barón), % | 31,8 → 35,0 | 30,5 → 34,1 | 30,7 → 33,4 | 31,1 → 37,9 | 30,2 → 39,3 | Sí, los 5 roles (poco, pero siempre hacia arriba) |
+| C-4 | Minuto del primer full clear (24 de CS) | 4,15 → 3,50 | | | | | Sí (jungla) |
+| C-4 | Minuto de la primera vuelta a base sin haber muerto | 4,70 → 3,44 | | | | | Sí (jungla) |
+| C-6 | Minutos parado del 4 al 14 (sin CS, kills ni objetivos, vivo y fuera de base) | 0,27 → 0,05 | | | | | Sí (jungla) |
+| C-5 | Farsight (trinket azul) cada 10 min | 0,02 → 0,05 | 0,02 → 0,50 | 0,17 → 0,89 | 0,26 → 0,95 | 0,0 | Sí (top, mid y ADC) |
+| C-14 | Muertes bajo su torre ≤ 10 s después de una kill de tu equipo allí | 0,10 → 0,11 | 0,06 → 0,11 | 0,07 → 0,07 | 0,06 → 0,13 | 0,05 → 0,06 | No: no separa elos (en elo alto se divea más) |
+
+Con tu campeón, las referencias son las de sus OTPs: con Hecarim (Platino → Aspirante) el full clear y la primera vuelta no
+cambian con el elo (3,3-3,4 min) y salen sin flecha. Sin hacer aún (necesitan datos que el análisis no guarda o más
+trabajo): C-2 (larvas o dragón según la prioridad a las 8:00), C-3 (dispersión de las peleas, métrica de equipo), C-7
+(muerte ante el pico de poder del rival: haría falta el nivel y los objetos del que te mata), C-8 (placas mientras tu rival
+roamea), C-9 (la muerte cara antes de un objetivo con la tabla de reaparición: hoy lo cubre en parte «objetivos rivales
+estando tú muerto»), C-10 (recompensas de objetivo: su umbral no es público), C-11 a C-13.

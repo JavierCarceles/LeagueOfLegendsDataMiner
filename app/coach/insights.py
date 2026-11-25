@@ -1068,8 +1068,18 @@ ROUTE_ROWS = [
     ("rm_ward_enemy_jg10", "Wards en la jungla rival antes del 10 (seguir al jungla rival)", ("JUNGLE", "SUPPORT"), ""),
     ("rm_ward_enemy_jg_pct", "Wards en la jungla rival (antes del 14, de todos los tuyos)", ("TOP", "JUNGLE", "SUPPORT"), "%"),
     ("rm_ward_lane_pct", "Wards en tu línea (antes del 14, de todos los tuyos)", ("SUPPORT",), "%"),
+    # De macro/macro_internet_por_elo.md (validado el 25-11-2026 con 48.229 partidas, Hierro-Bronce → Aspirante): jungla,
+    # full clear 4,15 → 3,5 min, primera vuelta a base 4,7 → 3,4 y minutos parado del 4 al 14 0,27 → 0,05; Farsight cada
+    # 10 min, top 0,02 → 0,50, mid 0,17 → 0,89 y ADC 0,26 → 0,95 (jungla y support no lo usan); objetivos de tu equipo
+    # que acaban en torre o inhibidor, 31 % → 35 % (poco, pero siempre hacia arriba). Medido y sin diferencia (no sale):
+    # morir bajo su torre justo después de una kill de tu equipo allí (el «disparo de más» de un dive), 0,06-0,11 en todos.
+    ("rm_obj_convert_pct", "Objetivos de tu equipo que acaban en torre o inhibidor (90 s; 3 min tras el barón)", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), "%"),
+    ("rm_jg_clear_min", "Minuto en que acabas el primer full clear (24 de CS)", ("JUNGLE",), ""),
+    ("rm_first_back_min", "Minuto de tu primera vuelta a base (sin haber muerto)", ("JUNGLE",), ""),
+    ("rm_jg_idle_min", "Minutos parado del 4 al 14 (sin CS, kills ni objetivos)", ("JUNGLE",), ""),
+    ("rm_farsight10", "Farsight (trinket azul) cada 10 min", ("TOP", "MID", "ADC"), ""),
 ]
-VISION_KEYS = {"rm_wards_pre14", "rm_obj_ward_pct", "rm_pink_obj", "rm_ward_enemy_jg10", "rm_ward_enemy_jg_pct", "rm_ward_lane_pct"}
+VISION_KEYS = {"rm_wards_pre14", "rm_obj_ward_pct", "rm_pink_obj", "rm_ward_enemy_jg10", "rm_ward_enemy_jg_pct", "rm_ward_lane_pct", "rm_farsight10"}
 
 
 def _move_value(mv: dict | None, phase: str, field: str) -> float | None:

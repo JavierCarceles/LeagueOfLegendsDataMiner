@@ -14,6 +14,7 @@ Funciona igual con tus partidas (el análisis guardado) y con las de los OTPs (s
 from __future__ import annotations
 
 from app.coach import geometry as geo
+from app.coach import macro_habits
 from app.coach.analyzer import interpolate
 
 EARLY_MS = 14 * 60_000
@@ -67,9 +68,13 @@ def features(
     team: int | None = None,
     wards: list | None = None,
     objectives: list | None = None,
+    buildings: list | None = None,
+    backs: list | None = None,
 ) -> dict:
     """Métricas de una partida. ``anchors`` en ms; ``kills``: [segundo, matador, víctima, x, y, asistentes];
-    ``wards``: los tuyos, [segundo, tipo]; ``objectives``: [segundo, tipo, equipo, x, y]."""
+    ``wards``: los tuyos, [segundo, tipo]; ``objectives``: [segundo, tipo, equipo, x, y]; ``buildings``: [segundo,
+    equipo dueño, tipo, línea, x, y]; ``backs``: tus vueltas a base. Con ellos, también los hábitos de
+    ``macro_habits``."""
     if len(anchors) < 5 or not role:
         return {}
     times = [a[0] for a in anchors]
@@ -88,6 +93,12 @@ def features(
     out.update(_vision(pos, team, wards, objectives))
     if role == "SUPPORT" and adc:
         out["rm_adc_alone_deaths"] = _adc_alone_deaths(pos, kills, adc)
+    out.update(
+        macro_habits.habits(
+            me=me, team=team, role=role, kills=kills, objectives=objectives, buildings=buildings, cs=cs, backs=backs,
+            wards=wards, minutes=times[-1] / 60_000, pos=pos, dead=dead,
+        )
+    )
     return out
 
 
@@ -255,37 +266,45 @@ def _objective_pit(o: list) -> tuple:
     return geo.PITS["dragon" if o[1] in ("dragon", "elder") else "baron"]
 
 
+def _adc_of(a: dict, team: int | None) -> int | None:
+    """El ADC de tu equipo (su participante), para el support."""
+    return next((p.get("pid") for p in a.get("players") or [] if p.get("team") == team and p.get("role") == "ADC"), None)
+
+
+def _track(track: dict) -> tuple[list, list]:
+    """(anclas en ms, muertes en ms) de un recorrido guardado."""
+    anchors = [(int(x[0] * 1000), x[1], x[2], x[3]) for x in track.get("a") or []]
+    dead = [(int(x[0] * 1000), int(x[1] * 1000)) for x in track.get("dead") or []]
+    return anchors, dead
+
+
 def from_analysis(a: dict) -> dict:
     """Desde un análisis guardado (tus partidas): su repetición (recorridos y kills) y sus series de CS."""
     replay = a.get("replay") or {}
     me = a.get("me")
-    track = (replay.get("tracks") or {}).get(str(me)) or {}
-    anchors = [(int(x[0] * 1000), x[1], x[2], x[3]) for x in track.get("a") or []]
-    dead = [(int(d[0] * 1000), int(d[1] * 1000)) for d in track.get("dead") or []]
+    anchors, dead = _track((replay.get("tracks") or {}).get(str(me)) or {})
     team = a.get("team")
-    adc = next((p.get("pid") for p in a.get("players") or [] if p.get("team") == team and p.get("role") == "ADC"), None)
     series = a.get("series") or {}
     return features(
         anchors, dead, replay.get("kills") or [], me=me, role=a.get("role"), ally_jungler=a.get("ally_jungler"),
-        enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=series.get("cs"), opp_cs=series.get("opp_cs"), team=team,
-        wards=a.get("my_wards"), objectives=replay.get("objectives"),
+        enemy_jungler=a.get("enemy_jungler"), adc=_adc_of(a, team), cs=series.get("cs"), opp_cs=series.get("opp_cs"),
+        team=team, wards=a.get("my_wards"), objectives=replay.get("objectives"), buildings=replay.get("buildings"),
+        backs=(a.get("build") or {}).get("backs"),
     )
 
 
 def from_dossier(d: dict) -> dict:
     """Desde el dossier de un OTP (``data/otps``): su recorrido, las kills del mapa y su CS y el de su rival."""
     a = d.get("analysis") or {}
-    track = d.get("track") or {}
-    anchors = [(int(x[0] * 1000), x[1], x[2], x[3]) for x in track.get("a") or []]
-    dead = [(int(x[0] * 1000), int(x[1] * 1000)) for x in track.get("dead") or []]
+    anchors, dead = _track(d.get("track") or {})
     team = a.get("team")
-    adc = next((p.get("pid") for p in a.get("players") or [] if p.get("team") == team and p.get("role") == "ADC"), None)
-    cs = [f.get("cs") for f in d.get("frames") or []]
-    opp = [f.get("cs") for f in d.get("opponent_frames") or []]
+    map_events = d.get("map_events") or {}
     return features(
-        anchors, dead, (d.get("map_events") or {}).get("kills") or [], me=a.get("me"), role=d.get("role") or a.get("role"),
-        ally_jungler=a.get("ally_jungler"), enemy_jungler=a.get("enemy_jungler"), adc=adc, cs=cs, opp_cs=opp, team=team,
-        wards=(d.get("events") or {}).get("wards_placed"), objectives=(d.get("map_events") or {}).get("objectives"),
+        anchors, dead, map_events.get("kills") or [], me=a.get("me"), role=d.get("role") or a.get("role"),
+        ally_jungler=a.get("ally_jungler"), enemy_jungler=a.get("enemy_jungler"), adc=_adc_of(a, team),
+        cs=[f.get("cs") for f in d.get("frames") or []], opp_cs=[f.get("cs") for f in d.get("opponent_frames") or []],
+        team=team, wards=(d.get("events") or {}).get("wards_placed"), objectives=map_events.get("objectives"),
+        buildings=map_events.get("buildings"), backs=(a.get("build") or {}).get("backs"),
     )
 
 
@@ -293,4 +312,4 @@ KEYS = (
     "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
     "rm_adc_alone_deaths", "rm_roam_lane", "rm_roam_river", "rm_roam_own_jg", "rm_roam_enemy_jg", "rm_wards_pre14",
     "rm_ward_lane_pct", "rm_ward_river_pct", "rm_ward_enemy_jg_pct", "rm_ward_enemy_jg10", "rm_pink_obj", "rm_obj_ward_pct",
-)
+) + macro_habits.KEYS
