@@ -462,17 +462,38 @@ def judgeable(seen: int, done_reason: str | None) -> bool:
 
 
 def classify(db, puuid: str, champ: int) -> str:
-    """``otp`` si ese jugador es OTP de ese campeón; si no, ``player``.
+    """``otp`` si ese jugador es OTP de ese campeón; si no, ``player`` (ver ``classify_ex``)."""
+    return classify_ex(db, puuid, champ)[0]
+
+
+def classify_ex(db, puuid: str, champ: int) -> tuple[str, bool]:
+    """(``otp`` o ``player``, ¿es definitivo?).
 
     Con partidas suyas revisadas suficientes (``judgeable``: 20, o 10 con el historial completo), por lo que juega: la
-    mitad o más con ese campeón.
-    Sin esa muestra, por su maestría guardada (principal con 1,5 veces los puntos del segundo) o la tabla de los mejores
-    de OP.GG. Sin nada, ``player``: ante la duda, no ensucia los datos de OTPs."""
+    mitad o más con ese campeón; o si está en la tabla de los mejores de OP.GG. Definitivo.
+    Sin esa muestra, por su maestría guardada (principal con 1,5 veces los puntos del segundo; sin nada, ``player``: ante
+    la duda, no ensucia los datos de OTPs). Provisional mientras se le sigue revisando: la gráfica del total por elo lo
+    cuenta como sin clasificar hasta saberlo (``_note_provisional``); con su historial ya completo, definitivo."""
     share = play_share(db, puuid, champ)
     if share is not None:
-        return "otp" if share[1] >= OTP_MIN_SHARE else "player"
+        return ("otp" if share[1] >= OTP_MIN_SHARE else "player"), True
     if db.scalar("SELECT 1 FROM otp_sources WHERE puuid = ? AND champ = ? LIMIT 1", (puuid, champ)):
-        return "otp"
+        return "otp", True
+    return _by_mastery(db, puuid, champ), _history_done(db, puuid)
+
+
+def _history_done(db, puuid: str) -> bool:
+    """¿Ya no queda nada suyo por revisar (historial completo) o no lo revisa el recolector? Entonces lo que se decida
+    por su maestría ya no va a cambiar."""
+    try:
+        row = db.one("SELECT back_done_at FROM otp_progress WHERE puuid = ?", (puuid,))
+    except Exception:  # noqa: BLE001 - BD sin la tabla: tests o versión vieja
+        return True
+    return row is None or row["back_done_at"] is not None
+
+
+def _by_mastery(db, puuid: str, champ: int) -> str:
+    """Sin partidas suficientes: OTP si ese campeón es su principal con ``OTP_MIN_POINTS`` y 1,5 veces el segundo."""
     raw = db.scalar("SELECT top FROM mastery_checks WHERE puuid = ?", (puuid,))
     try:
         top = [e for e in json.loads(raw or "[]") if len(e) >= 2]
@@ -606,7 +627,9 @@ def save(
         dossier = build_dossier(match, timeline, puuid, catalog_for(svc, match), elo=elo)
     except NotInMatch:
         return False
-    kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
+    final = kind in KIND_DIRS
+    if not final:
+        kind, final = classify_ex(db, puuid, dossier["champ"])
     before = db.one("SELECT kind, tier, has_timeline FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
     is_new = before is None
     # Ya analizada en todo el ranking (solo en la base de datos): ahora sí va a su carpeta.
@@ -630,10 +653,7 @@ def save(
                 now_s(), kind,
             ),
         )
-    if is_new:
-        _note_live(db, dossier["tier"], kind, timeline is not None, dossier["champ"])
-    elif (before["kind"], before["tier"]) != (kind, dossier["tier"]):
-        _move_live(db, dict(before), dossier["tier"], kind, timeline is not None, dossier["champ"])
+    _count_live(db, puuid, dossier, before, (kind, final), timeline is not None)
     if to_files and write_files:
         files = Files.of(svc, kind)
         if files is not None:
@@ -732,6 +752,52 @@ def _move_live(db, old: dict, tier: str | None, kind: str | None, has_timeline: 
         _bump(d, tier, kind, champ, 1)
 
 
+def _count_live(db, puuid: str, dossier: dict, before, decided: tuple[str, bool], has_timeline: bool) -> None:
+    """La partida recién guardada en los contadores de la gráfica: nueva, o movida si ya estaba con otra clase o elo.
+    ``decided``: (clase, ¿definitiva?); con una provisional cuenta como sin clasificar hasta saber qué juega."""
+    kind, final = decided
+    live_kind = kind if final else None
+    if before is not None and (before["kind"], before["tier"]) == (kind, dossier["tier"]):
+        return  # la misma partida, igual que estaba
+    if before is None:
+        _note_live(db, dossier["tier"], live_kind, has_timeline, dossier["champ"])
+    else:
+        _move_live(db, dict(before), dossier["tier"], live_kind, has_timeline, dossier["champ"])
+    if not final:
+        _note_provisional(db, puuid, dossier["champ"], dossier["tier"], kind)
+
+
+def _note_provisional(db, puuid: str, champ: int, tier: str | None, kind: str) -> None:
+    """Una partida guardada con una clase provisional (aún no se sabe si es OTP: ``classify_ex``) cuenta en la gráfica
+    como sin clasificar, que la web reparte con el % de OTPs de su elo: así el amarillo crece con el total en vez de
+    quedarse quieto (antes entraban como «resto» hasta acabar de revisar al jugador). Se apunta para pasarla a su clase
+    al decidirla (``_settle_live``)."""
+    with _live_lock:
+        pending = _live_state(db).setdefault("provisional", {}).setdefault(puuid, {})
+        key = (int(champ), tier or "?", kind)
+        pending[key] = pending.get(key, 0) + 1
+
+
+def _settle_live(db, puuid: str, kinds: dict[int, str], changed: list[tuple]) -> None:
+    """Al decidir qué es un jugador (fin de su revisión): lo ya contado con una clase se mueve si cambia (``changed``:
+    nueva, vieja, campeón, elo, partidas) y lo contado como sin clasificar pasa a la suya (``kinds`` por campeón; si no
+    está, la que se guardó)."""
+    with _live_lock:
+        st = _live_state(db)
+        pending = (st.get("provisional") or {}).pop(puuid, None) or {}
+        d = st["data"]
+        if d is None:
+            return
+        for new, old, champ, tier, n in changed:
+            counted = n - pending.get((int(champ), tier or "?", old), 0)  # las provisionales no estaban en «old»
+            if counted > 0:
+                _bump(d, tier, old, champ, -counted)
+                _bump(d, tier, new, champ, counted)
+        for (champ, tier, stored), n in pending.items():
+            _bump(d, tier, None, champ, -n)
+            _bump(d, tier, kinds.get(champ, stored), champ, n)
+
+
 def _bump(d: dict, tier: str | None, kind: str | None, champ: int | None, step: int) -> None:
     """Suma (o resta) una partida de ese elo y grupo en los contadores al momento (nunca por debajo de 0)."""
 
@@ -782,7 +848,12 @@ def champ_tier_counts(db, champ: int) -> dict:
     """Partidas analizadas de un campeón por elo: todas, de OTPs y de otros jugadores (el buscador de la gráfica del
     total por elo de «Datos y API»; las sin clasificar cuentan solo en ``tiers``)."""
     out: dict[str, dict[str, int]] = {"tiers": {}, "tiers_otp": {}, "tiers_player": {}}
-    for r in db.query("SELECT tier, kind, COUNT(*) AS n FROM otp_games WHERE champ = ? GROUP BY tier, kind", (int(champ),)):
+    rows = db.query(
+        f"SELECT g.tier, CASE WHEN {PROVISIONAL_SQL} = 1 THEN NULL ELSE g.kind END AS kind, COUNT(*) AS n "
+        "FROM otp_games g WHERE g.champ = ? GROUP BY 1, 2",
+        (*PROVISIONAL_ARGS, int(champ)),
+    )
+    for r in rows:
         tier, n = r["tier"] or "?", int(r["n"])
         out["tiers"][tier] = out["tiers"].get(tier, 0) + n
         bucket = "player" if r["kind"] == RANKING_KIND else r["kind"]  # las de todo el ranking, «resto»
@@ -791,12 +862,29 @@ def champ_tier_counts(db, champ: int) -> dict:
     return out
 
 
+# Partidas con una clase aún provisional (``classify_ex``): de un jugador al que se sigue revisando, sin partidas
+# suficientes para saber qué juega ni estar en las tablas de OTPs. En la gráfica, sin clasificar como en vivo.
+PROVISIONAL_SQL = (
+    "CASE WHEN g.kind IN ('otp', 'player') "
+    "AND NOT EXISTS (SELECT 1 FROM otp_sources s WHERE s.puuid = g.puuid AND s.champ = g.champ) "
+    "AND EXISTS (SELECT 1 FROM otp_progress o WHERE o.puuid = g.puuid AND o.back_done_at IS NULL "
+    "AND o.seen < ? AND NOT (o.back_done_reason = 'end' AND o.seen >= ?)) THEN 1 ELSE 0 END"
+)
+PROVISIONAL_ARGS = (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE)
+
+
 def _tier_breakdown(db) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, dict[int, int]]]]:
     """Para la gráfica del total por elo de «Datos y API»: de cada elo, las partidas de OTPs y de otros jugadores (las
-    aún sin clasificar se reparten con el % de su elo) y las de cada campeón: de todas (``all``) y de OTPs (``otp``)."""
+    aún sin clasificar, o con clase provisional, se reparten con el % de su elo) y las de cada campeón: de todas (``all``)
+    y de OTPs (``otp``)."""
     by_kind: dict[str, dict[str, int]] = {"otp": {}, "player": {}}
     per_champ: dict[str, dict[str, dict[int, int]]] = {"all": {}, "otp": {}}
-    for r in db.query("SELECT tier, champ, kind, COUNT(*) AS n FROM otp_games GROUP BY tier, champ, kind"):
+    rows = db.query(
+        f"SELECT g.tier, g.champ, CASE WHEN {PROVISIONAL_SQL} = 1 THEN NULL ELSE g.kind END AS kind, COUNT(*) AS n "
+        "FROM otp_games g GROUP BY 1, 2, 3",
+        PROVISIONAL_ARGS,
+    )
+    for r in rows:
         tier, champ, n = r["tier"] or "?", int(r["champ"]), int(r["n"])
         bucket = "player" if r["kind"] == RANKING_KIND else r["kind"]  # las de todo el ranking, «resto»
         if bucket in by_kind:
@@ -976,8 +1064,10 @@ def reclassify_player(db, puuid: str) -> list[tuple[str, int]]:
     antes de saber lo que juega (ver ``judgeable``) y se decidían por la maestría, con un mínimo
     de ``OTP_MIN_POINTS``. Buscando OTPs de 50.000 puntos en Bronce y Plata casi todas iban a «resto» (barra azul) hasta
     reiniciar. Pasan a OTP o a jugador con la gráfica del total al día; devuelve las parejas que cambian de carpeta."""
-    prog = db.one("SELECT seen, back_done_reason FROM otp_progress WHERE puuid = ?", (puuid,))
+    prog = db.one("SELECT seen, back_done_reason, back_done_at FROM otp_progress WHERE puuid = ?", (puuid,))
     if prog is None or not judgeable(int(prog["seen"] or 0), prog["back_done_reason"]):
+        if prog is None or prog["back_done_at"] is not None:
+            _settle_live(db, puuid, {}, [])  # ya no hay más que revisar: lo provisional se queda como se guardó
         return []
     rows = db.query(
         "SELECT champ, kind, tier, COUNT(*) AS n FROM otp_games WHERE puuid = ? AND kind IN ('otp', 'player') GROUP BY champ, kind, tier",
@@ -991,19 +1081,15 @@ def reclassify_player(db, puuid: str) -> list[tuple[str, int]]:
             kinds[champ] = classify(db, puuid, champ)
         if kinds[champ] != r["kind"]:
             changed.append((kinds[champ], r["kind"], champ, r["tier"], int(r["n"])))
+    if changed:
+        with db.write() as conn:
+            conn.executemany(
+                "UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ? AND kind = ?",
+                sorted({(new, puuid, champ, old) for new, old, champ, _, _ in changed}),
+            )
+    _settle_live(db, puuid, kinds, changed)
     if not changed:
         return []
-    with db.write() as conn:
-        conn.executemany(
-            "UPDATE otp_games SET kind = ? WHERE puuid = ? AND champ = ? AND kind = ?",
-            sorted({(new, puuid, champ, old) for new, old, champ, _, _ in changed}),
-        )
-    with _live_lock:
-        d = _live_state(db)["data"]
-        if d is not None:
-            for new, old, champ, tier, n in changed:
-                _bump(d, tier, old, champ, -n)
-                _bump(d, tier, new, champ, n)
     to_otp = sum(n for new, _, _, _, n in changed if new == "otp")
     log.info("%s: %d partidas pasan a OTP y %d a otros jugadores por lo que juega.", puuid[:8], to_otp,
              sum(n for *_, n in changed) - to_otp)
