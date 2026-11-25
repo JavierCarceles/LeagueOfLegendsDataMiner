@@ -1864,6 +1864,56 @@ def test_games_saved_before_knowing_what_he_plays_move_to_the_yellow_bar_when_hi
     assert otp_details.reclassify_player(db, "p-low") == []  # ya está bien
 
 
+def test_games_of_a_player_still_under_review_count_as_unclassified_so_the_yellow_keeps_its_share(keyed_svc):
+    """Mientras se revisa a un jugador sin 20 partidas, su clase es provisional: sus partidas cuentan como sin clasificar
+    (la web las reparte con el % de OTPs de su elo) y el amarillo crece con el total. Antes entraban en azul («resto») y
+    el amarillo se quedaba quieto mientras la barra crecía. Al acabar de revisarlo pasan a su clase, en vivo y en el
+    recuento de cada 5 min."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    with db.write() as conn:  # el recolector lo está revisando: 5 partidas vistas, historial sin acabar
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-mid', '420', 0, 5, 5, 0)")
+    otp_details.live_counts(db)  # la gráfica abierta: contadores al momento
+    for i in range(12):
+        match = make_match(f"EUW1_81{i:02d}", puuids={1: "p-mid"})
+        assert otp_details.save(db, svc, match, None, "p-mid", {"tier": "SILVER", "division": "II", "lp": 40})
+    for counted in (otp_details.live_counts(db), otp_details.counts(db)):  # en vivo y en el recuento, lo mismo
+        assert counted["tiers"]["SILVER"] == 12
+        assert counted["tiers_player"].get("SILVER", 0) == 0 and counted["tiers_otp"].get("SILVER", 0) == 0
+    with db.write() as conn:
+        conn.execute("UPDATE otp_progress SET seen = 20 WHERE puuid = 'p-mid'")
+    assert otp_details.reclassify_player(db, "p-mid") == [("p-mid", AATROX)]
+    live = otp_details.live_counts(db)
+    assert live["tiers_otp"]["SILVER"] == 12 and live["tiers_player"].get("SILVER", 0) == 0 and live["tiers"]["SILVER"] == 12
+    assert otp_details.counts(db)["tiers_otp"]["SILVER"] == 12
+    assert otp_details.classify_ex(db, "p-mid", AATROX) == ("otp", True)
+
+
+def test_a_finished_review_without_enough_games_keeps_the_class_it_was_saved_with(keyed_svc):
+    """Con el historial completo y menos de 10 partidas no se puede juzgar: lo provisional se queda como se guardó (ya no
+    va a cambiar), también en la gráfica."""
+    from types import SimpleNamespace
+
+    from app.ingest import otp_details
+
+    db = keyed_svc.db
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('p-few', '420', 0, 4, 4, 0)")
+    otp_details.live_counts(db)
+    for i in range(4):
+        assert otp_details.save(db, svc, make_match(f"EUW1_82{i:02d}", puuids={1: "p-few"}), None, "p-few", {"tier": "BRONZE", "division": "I", "lp": 1})
+    assert otp_details.live_counts(db)["tiers_player"].get("BRONZE", 0) == 0  # aún provisional
+    with db.write() as conn:
+        conn.execute("UPDATE otp_progress SET back_done_at = 1, back_done_reason = 'end' WHERE puuid = 'p-few'")
+    assert otp_details.reclassify_player(db, "p-few") == []
+    assert otp_details.live_counts(db)["tiers_player"]["BRONZE"] == 4 and otp_details.counts(db)["tiers_player"]["BRONZE"] == 4
+
+
 def test_a_short_but_complete_history_is_enough_to_judge_an_otp(keyed_svc):
     """En Bronce y Plata muchos juegan 10-15 partidas por temporada y nunca llegaban a 20 revisadas: con su historial del
     periodo entero revisado, bastan 10 para decir si es OTP (son todas las que tiene, no una muestra)."""
