@@ -123,7 +123,7 @@ class VideoCollector:
     def add(self, text: str, role: str = "", topic: str = "", champion: str = "", langs: tuple[str, ...] = ("es", "en"),
             per_query: int = 10, limit: int | None = 50, min_minutes: float = 3, start: bool = True) -> list[dict]:
         """Añade un enlace (vídeo, lista, canal) o una búsqueda; el hilo la convierte en vídeos (``start``: arrancarlo)."""
-        from app.videos.youtube import classify  # sin yt-dlp: solo mira el texto
+        from app.videos.links import classify  # sin yt-dlp: funciona antes de instalar las herramientas
 
         options = {"min_minutos": min_minutes}
         kind, value = classify(text) if text.strip() else ("busqueda", "")

@@ -35,8 +35,25 @@ COACH_VIDEOS = "https://www.youtube.com/@CoachK/videos"
     ],
 )
 def test_classify_links(text, expected):
-    youtube = pytest.importorskip("app.videos.youtube")
-    assert youtube.classify(text) == expected
+    from app.videos.links import classify
+
+    assert classify(text) == expected
+
+
+def test_add_works_before_tools_are_installed(tmp_path, monkeypatch):
+    """En un Windows recién actualizado yt-dlp aún no está (se instala después de añadir): «Añadir» no puede necesitarlo."""
+    import sys
+    from types import SimpleNamespace
+
+    import app.videos
+    from app.videos.collector import VideoCollector
+
+    monkeypatch.setitem(sys.modules, "yt_dlp", None)
+    monkeypatch.delitem(sys.modules, "app.videos.youtube", raising=False)
+    monkeypatch.delattr(app.videos, "youtube", raising=False)
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path, pause_in_game=False), tracker=None)
+    sources = VideoCollector(svc).add("youtube.com/@maurogarih", start=False)
+    assert [(s["tipo"], s["valor"]) for s in sources] == [("canal", "https://www.youtube.com/@maurogarih/videos")]
 
 
 def test_error_kinds():
