@@ -410,6 +410,18 @@ def test_plan_lines_tell_the_jungler_where_to_gank_and_which_objectives_to_play(
     assert builds.team_priorities(team) == {"dragon": "theirs", "top_side": "ours"}
 
 
+def test_objectives_do_not_promise_priority_with_a_lane_still_without_rival():
+    """Draft a medias: top gana su línea pero mid aún no tiene rival; no se puede decir «tenéis prioridad» arriba."""
+    team = {"tempo": None, "early": 50.0, "late": 50.0, "lanes": {"TOP": 1, "JUNGLE": 0, "MID": 0, "ADC": -1, "SUPPORT": 0}}
+    mine = {"TOP": "Darius", "JUNGLE": "Hecarim", "ADC": "Jinx"}
+    theirs = {"TOP": "Garen", "JUNGLE": "Lee Sin", "ADC": "Kai'Sa"}
+    lines = {l["topic"]: l["text"] for l in builds._plan_lines(team, "JUNGLE", mine, theirs)}
+    assert "Larvas y heraldo: top gana su línea y mid aún sin rival; tendréis prioridad si mid no pierde la suya." in lines["Objetivos"]
+    assert lines["Objetivos"].startswith("Dragón: mid aún sin rival y ADC pierde su línea; no tendréis prioridad salvo que mid gane la suya.")
+    empty = {l["topic"]: l["text"] for l in builds._plan_lines(team, "JUNGLE", {"JUNGLE": "Hecarim"}, {"JUNGLE": "Lee Sin"})}
+    assert empty["Objetivos"].startswith("Dragón: mid y ADC aún sin rival; se sabrá al elegirlos.")
+
+
 def test_tempo_never_says_winning_when_behind_in_both_phases():
     behind = builds._tempo_line({"tempo": "late", "early": 39.0, "late": 43.0})[0]["text"]
     assert behind.startswith("Vuestro draft va por detrás en cualquier duración, pero sufre menos si la partida se alarga (39 % antes del 25, 43 % pasado el 35)")
@@ -433,7 +445,7 @@ def test_lanes_without_both_champions_are_unknown_not_even():
     theirs = {"JUNGLE": "Lee Sin", "MID": "Syndra"}  # top y bot aún sin elegir
     lines = {l["topic"]: l["text"] for l in builds._plan_lines(team, "JUNGLE", mine, theirs)}
     assert lines["Ganks"] == "Ganquea mid (Ahri contra Syndra): ganan su línea y con tu ayuda hacen bola de nieve; top y ADC: aún sin rival."
-    assert "(mid gana su línea y ADC aún sin rival)" in lines["Objetivos"]
+    assert lines["Objetivos"].startswith("Dragón: mid gana su línea y ADC aún sin rival; tendréis prioridad si ADC no pierde la suya.")
     top = {l["topic"]: l["text"] for l in builds._plan_lines(team, "TOP", mine, theirs)}
     assert top["Línea"].startswith("Aún no se sabe tu rival de línea")
 
