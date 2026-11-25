@@ -80,6 +80,7 @@ def _updater(repos, monkeypatch, import_error: str | None = None) -> updater.Upd
     auto.repo = repos.win
     auto.state["git_ok"] = True
     up = updater.Updater(svc, repo=repos.win)
+    up.loaded = up._head()  # el código que «cargó» la app (lo hace start())
     monkeypatch.setattr(up, "_import_error", lambda: import_error)
     return up
 
@@ -100,6 +101,34 @@ def test_code_from_github_is_pulled_with_the_data_and_the_app_restarts(repos, mo
     info = json.loads((repos.win / "data" / ".update.json").read_text())
     assert info["status"] == "installed" and info["from"] == before and git(repos.win, "merge-base", "--is-ancestor", new, info["to"]) == ""
     assert "nueva.json" in git(repos.remote, "ls-tree", "-r", "--name-only", "main", "data")  # los datos, subidos
+
+
+@needs_git
+def test_code_pulled_by_a_normal_data_push_also_restarts(repos, monkeypatch, restarted):
+    """El pull de una subida de datos cualquiera (al parar el recolector, por ejemplo) trae el código: la app no puede
+    seguir con el de antes. A la siguiente vuelta del actualizador se reinicia igual."""
+    up = _updater(repos, monkeypatch)
+    loaded = up.loaded
+    _mac_pushes(repos)
+    (repos.win / "data" / "nueva.json").write_text("{}")
+    autopush.push_data(repos.win, repos.win / "data")  # la subida de datos de siempre: su pull trae el código
+    assert git(repos.win, "rev-parse", "HEAD") != loaded
+    assert up.tick() == "restarting" and restarted == ["stop"]
+    info = json.loads((repos.win / "data" / ".update.json").read_text())
+    assert info["from"] == loaded and info["to"] == git(repos.win, "rev-parse", "HEAD")
+
+
+@needs_git
+def test_docs_pulled_by_a_data_push_do_not_restart(repos, monkeypatch, restarted):
+    up = _updater(repos, monkeypatch)
+    (repos.mac / "docs").mkdir()
+    (repos.mac / "docs" / "videos.md").write_text("conclusiones\n")
+    git(repos.mac, "add", ".")
+    git(repos.mac, "commit", "-qm", "docs")
+    git(repos.mac, "push", "-q")
+    (repos.win / "data" / "nueva.json").write_text("{}")
+    autopush.push_data(repos.win, repos.win / "data")
+    assert up.tick() == "same" and restarted == [] and up.loaded == git(repos.win, "rev-parse", "HEAD")
 
 
 @needs_git

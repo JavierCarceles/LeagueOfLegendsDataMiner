@@ -639,6 +639,16 @@ class AutoPush:
 
         return [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
 
+    def _poke_updater(self) -> None:
+        try:
+            from app.updater import Updater  # aquí: evita un import circular
+
+            updater = Updater.of(self.svc)
+            if updater is not None:
+                updater.poke()
+        except Exception:  # noqa: BLE001 - avisar al actualizador no puede estropear una subida
+            log.debug("No se pudo avisar al actualizador", exc_info=True)
+
     def run_now(self) -> bool:
         """Sube ya y espera a que acabe (``updater``: su pull trae el código nuevo). ``False`` si había otra en marcha."""
         with self.lock:
@@ -709,6 +719,7 @@ class AutoPush:
                 # se sube): en data/ no había nada nuevo.
                 self.state.update(last_result="nothing")
             self._save()
+        self._poke_updater()  # el pull pudo traer código nuevo: que la app se reinicie con él ya, sin esperar
         if result["pushed"]:
             log.info("Datos subidos a GitHub (%d partidas, %d jugadores y %d vídeos nuevos; rama %s).", counted["pending"],
                      counted["players_pending"], counted["videos_pending"], result["branch"])
