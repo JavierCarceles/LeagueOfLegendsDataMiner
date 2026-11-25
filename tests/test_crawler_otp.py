@@ -1964,3 +1964,25 @@ def test_games_lacking_analysis_are_found_from_an_index_not_the_table(keyed_svc)
     )
     plan = " ".join(str(r[-1]) for r in keyed_svc.db.query("EXPLAIN QUERY PLAN " + sql, (1, 2, 3, *params)))
     assert "COVERING INDEX idx_participants_player_champ" in plan, plan
+
+
+def test_otp_search_judges_each_candidate_by_his_own_champion():
+    """Con «todos los campeones», cada candidato se juzga por el campeón por el que lo es: solo esas partidas cuentan
+    (y se bajan con timeline). Antes contaban todas las suyas: su parte salía siempre al 100 % y nunca se le dejaba, y
+    sus partidas con otros campeones acababan en «resto»."""
+    from types import SimpleNamespace
+
+    from app.ingest.crawler import RegionWorker
+
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["PLATINUM"], focus="otp", champions=[AATROX, DARIUS, GAREN], min_mastery=50_000)
+    assert cfg.own_champs([[AATROX, 60_000], [DARIUS, 20_000], [GAREN, 55_000, 1]]) == {AATROX}  # Garen: no lo juega ya
+    assert cfg.own_champs([[DARIUS, 10_000]], sourced={DARIUS}) == {DARIUS}  # de la tabla de los mejores
+    worker = SimpleNamespace(config=cfg, state={"target_games": 0}, _other_target=lambda *_: False)
+    player = {"puuid": "p", "champs": {AATROX}}
+    for champ, expected in ((AATROX, True), (DARIUS, False)):
+        got = SimpleNamespace(mine_target=None)
+        keep, _ = RegionWorker._keep(worker, SimpleNamespace(), SimpleNamespace(champ=champ, role="TOP"), player, got)
+        assert got.mine_target is expected and keep is expected
+    got = SimpleNamespace(mine_target=None)
+    RegionWorker._keep(worker, SimpleNamespace(), SimpleNamespace(champ=DARIUS, role="TOP"), {"puuid": "p", "champs": None}, got)
+    assert got.mine_target is True  # sin campeones propios (otros modos): como antes
