@@ -9,7 +9,9 @@ from __future__ import annotations
 from itertools import pairwise
 
 MIN_CHUNKS_PER_MIN = 0.5  # un trozo de texto (~12 s) cada 2 minutos como poco
-MIN_GAME_S = 60  # menos partida que esto en todo el vídeo: ¿un falso positivo?
+MIN_GAME_S = 60  # menos partida que esto en todo el vídeo…
+SURE_MAP_SCORE = 0.55  # …con el minimapa por debajo de esto: ¿un falso positivo? (los de verdad dan 0,55-0,71)
+LONG_GAME_S = 120  # con menos partida (clips sueltos de un vídeo explicativo) los saltos del reloj y no tener campeón son normales
 CLOCK_STEP_S = 10  # el reloj se lee cada 10 s de partida
 CLOCK_MIN_RATIO = 0.35
 CAMERA_MIN_RATIO = 0.25  # posiciones de cámara por muestra de partida (una cada 2 s)
@@ -49,14 +51,15 @@ def _check_frames(data: dict) -> list[str]:
         return []
     game = float(frames.get("segundos_con_partida") or 0)
     issues = []
-    if game < MIN_GAME_S:
-        issues.append(f"partida muy corta ({round(game)} s en todo el vídeo): ¿falso positivo?")
+    score = float((frames.get("minimapa") or {}).get("parecido") or 0)
+    if game < MIN_GAME_S and score < SURE_MAP_SCORE:
+        issues.append(f"partida muy corta ({round(game)} s en todo el vídeo) y minimapa dudoso ({score:.2f}): ¿falso positivo?")
     issues += _check_clock(frames.get("reloj") or [], game)
     odd = len(frames.get("reloj_apartadas") or [])
     if odd > max(3, 0.15 * len(frames.get("reloj") or [])):
         issues.append(f"muchas lecturas sueltas del reloj apartadas ({odd}): ¿el OCR lee otro texto de la pantalla?")
     issues += _check_camera(frames, game)
-    if frames.get("hud") == "jugador" and not frames.get("campeon"):
+    if frames.get("hud") == "jugador" and not frames.get("campeon") and game >= LONG_GAME_S:
         issues.append("HUD de jugador sin campeón reconocido (solo se da si es seguro)")
     return issues
 
@@ -67,7 +70,7 @@ def _check_clock(clock: list, game: float) -> list[str]:
     if expected >= 3 and len(clock) / expected < CLOCK_MIN_RATIO:
         issues.append(f"reloj poco leído ({len(clock)} de unas {round(expected)} lecturas)")
     jumps = clock_jumps(clock)
-    if len(clock) >= 4 and jumps / (len(clock) - 1) > 0.5:
+    if game >= LONG_GAME_S and len(clock) >= 4 and jumps / (len(clock) - 1) > 0.5:
         issues.append(f"reloj con muchos saltos ({jumps} de {len(clock) - 1}): cortes de edición, rebobinados del coach o malas lecturas")
     return issues
 

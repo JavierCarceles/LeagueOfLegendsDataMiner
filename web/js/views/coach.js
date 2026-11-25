@@ -644,7 +644,7 @@ function kpisCard(s) {
       k("cs_min", "CS/min"),
       k("vision_min", "Visión/min"),
       k("kp", "Part. en kills"),
-      k("idle_pct", "Minutos vacíos"),
+      k("time_dead_pct", "Tiempo muerto"),
     ),
   );
 }
@@ -1237,13 +1237,19 @@ function alertsText(n) {
   return `${n} ${n === 1 ? "aviso" : "avisos"}`;
 }
 
+/** «estas 30 partidas» o, si alguna no tiene un análisis fiable (sin timeline, AFK…), «27 de estas 30 partidas». */
+function gamesText(s) {
+  const reliable = s.reliable_games ?? s.games;
+  return reliable < s.games ? `${reliable} de estas ${s.games} partidas (las de análisis fiable)` : `estas ${s.games} partidas`;
+}
+
 function noWeaknessText(s, recurring) {
   const tier = TIER_LABEL[s.target_tier] || s.target_tier;
   const rows = s.metrics || [];
   const better = rows.filter((m) => m.status === "good").length;
   const head = better
-    ? `Ninguna de tus medias está claramente por debajo de ${tier} en estas ${s.reliable_games ?? s.games} partidas, y en ${better} de ${rows.length} estás por encima`
-    : `Tus medias están al nivel de ${tier} en estas ${s.reliable_games ?? s.games} partidas`;
+    ? `Ninguna de tus medias está claramente por debajo de ${tier} en ${gamesText(s)}, y en ${better} de ${rows.length} estás por encima`
+    : `Tus medias están al nivel de ${tier} en ${gamesText(s)}`;
   return head + pendingText(s, recurring) + (s.target_hint ? "" : " Sube tu elo objetivo para exigirte más.");
 }
 

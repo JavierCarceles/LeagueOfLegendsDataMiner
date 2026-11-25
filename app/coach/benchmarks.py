@@ -78,8 +78,8 @@ METRICS: dict[str, Metric] = {
         Metric("deaths_unspent_gold", "Muertes con oro para tu build sin gastar", "lower", "tiempo", decimals=2, count=True),
         Metric("time_dead_pct", "Tiempo muerto", "lower", "tiempo", unit="%", floor=3),
         Metric("gold_hoard_min", "Minutos de más con oro útil sin gastar", "lower", "tiempo", decimals=1),
-        # Suelo de 10 puntos: los junglas casi nunca tienen minutos vacíos (siempre hay campamentos), así que su media
-        # calibrada es ~0 % y sin suelo un solo minuto vacío salía como punto débil.
+        # Suelo de 10 puntos: casi nadie tiene minutos vacíos (en 33.000 partidas de OTPs de Bronce a Aspirante, el 96-100 %
+        # de las partidas de cada rol y elo tienen 0 %), así que sin suelo un solo minuto vacío salía como punto débil.
         Metric("idle_pct", "Minutos vacíos desde el 15", "lower", "tiempo", unit="%", floor=10),
         Metric("cs_min", "CS por minuto", "higher", "farm", decimals=2, roles=("TOP", "JUNGLE", "MID", "ADC")),
         Metric("cs10", "CS a los 10", "higher", "farm", decimals=0, roles=("TOP", "JUNGLE", "MID", "ADC")),
@@ -112,8 +112,11 @@ METRICS: dict[str, Metric] = {
 # y 2.500), pasadas a Esmeralda con los factores de abajo, solo donde la referencia anterior se desviaba más de un 25 %:
 # las orientativas eran estimaciones y en muertes justo antes de un objetivo, antes del 14 o por el jungla rival pedían
 # la mitad de lo que hace de verdad un Diamante (falsos puntos débiles), y en muertes aisladas, oro sin gastar o en su
-# jungla eran demasiado permisivas. Minutos vacíos, oro sin gastar y R tardía tienen un mínimo (3 %, 0,2 y 0,05): la
-# media de Diamante es casi 0 y un solo minuto saldría como punto débil.
+# jungla eran demasiado permisivas. Oro sin gastar y R tardía tienen un mínimo (0,2 y 0,05): la media de Diamante es casi 0
+# y un solo minuto saldría como punto débil. Minutos vacíos: 0,2 % en todos los roles (25-11-2026, OTPs de data/otps y
+# data/partidas_campeon: media de Esmeralda 0,04-0,21 %, de Bronce 0,23-0,50 %, y el 96-100 % de las partidas con 0 %). Con
+# el 3-5 % de antes todo el mundo salía «mejor que la referencia» y la nota de fundamentos subía ~0,3 puntos sin motivo;
+# del punto débil se encarga el suelo de 10 puntos de la métrica.
 BASE: dict[str, dict[str, float | None]] = {
     # Revisado con 119 partidas de 11 OTPs de top de Aspirante (data/otps, noviembre de 2026; sobre todo Fiora, Urgot,
     # Warwick e Irelia): mueren antes del 14 2,45 veces (la referencia era 1,3), por el jungla rival 0,93 (0,5), por gank
@@ -123,7 +126,7 @@ BASE: dict[str, dict[str, float | None]] = {
     "TOP": {
         "deaths_to_jungler_pre14": 0.95, "deaths_ganked": 1.0, "deaths_no_vision_pre14": 0.5, "deaths_overextended": 0.8,
         "deaths_pre14": 2.45, "deaths": 5.4, "deaths_solo": 1.49, "deaths_enemy_jungle": 0.28, "deaths_isolated_late": 0.78,
-        "deaths_unspent_gold": 0.11, "time_dead_pct": 10.5, "gold_hoard_min": 0.2, "idle_pct": 3,
+        "deaths_unspent_gold": 0.11, "time_dead_pct": 10.5, "gold_hoard_min": 0.2, "idle_pct": 0.2,
         "cs_min": 7.1, "cs10": 71, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 400,
         "vision_min": 0.65, "wards_pre14": 4, "control_wards": 0.78,
         "obj_participation": 28, "obj_lost_dead": 0.44, "obj_lost_far": 0.3, "deaths_before_objective": 1.04,
@@ -136,7 +139,7 @@ BASE: dict[str, dict[str, float | None]] = {
     "JUNGLE": {
         "deaths_to_jungler_pre14": None, "deaths_ganked": None, "deaths_no_vision_pre14": 0.3, "deaths_overextended": None,
         "deaths_pre14": 2.0, "deaths": 5.7, "deaths_solo": 0.3, "deaths_duel_behind": 0.12, "deaths_enemy_jungle": 0.55, "deaths_isolated_late": 0.35,
-        "deaths_unspent_gold": 0.3, "time_dead_pct": 9.8, "gold_hoard_min": 0.3, "idle_pct": 5,
+        "deaths_unspent_gold": 0.3, "time_dead_pct": 9.8, "gold_hoard_min": 0.3, "idle_pct": 0.2,
         "cs_min": 6.9, "cs10": 69, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 445,
         "vision_min": 1.1, "wards_pre14": 5, "control_wards": 2.8,
         "obj_participation": 82, "obj_lost_dead": 0.45, "obj_lost_far": 0.4, "deaths_before_objective": 1.1,
@@ -146,7 +149,7 @@ BASE: dict[str, dict[str, float | None]] = {
     "MID": {
         "deaths_to_jungler_pre14": 0.86, "deaths_ganked": 0.79, "deaths_no_vision_pre14": 0.27, "deaths_overextended": 0.4,
         "deaths_pre14": 2.38, "deaths": 5.0, "deaths_solo": 1.0, "deaths_enemy_jungle": 0.27, "deaths_isolated_late": 0.65,
-        "deaths_unspent_gold": 0.13, "time_dead_pct": 11.2, "gold_hoard_min": 0.2, "idle_pct": 3,
+        "deaths_unspent_gold": 0.13, "time_dead_pct": 11.2, "gold_hoard_min": 0.2, "idle_pct": 0.2,
         "cs_min": 7.5, "cs10": 75, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 410,
         "vision_min": 0.75, "wards_pre14": 4, "control_wards": 1.5,
         "obj_participation": 33, "obj_lost_dead": 0.43, "obj_lost_far": 0.5, "deaths_before_objective": 1.14,
@@ -155,7 +158,7 @@ BASE: dict[str, dict[str, float | None]] = {
     "ADC": {
         "deaths_to_jungler_pre14": 0.79, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.16, "deaths_overextended": 0.67,
         "deaths_pre14": 2.93, "deaths": 5.6, "deaths_solo": 0.45, "deaths_enemy_jungle": 0.23, "deaths_isolated_late": 0.44,
-        "deaths_unspent_gold": 0.17, "time_dead_pct": 11.0, "gold_hoard_min": 0.2, "idle_pct": 3,
+        "deaths_unspent_gold": 0.17, "time_dead_pct": 11.0, "gold_hoard_min": 0.2, "idle_pct": 0.2,
         "cs_min": 7.9, "cs10": 76, "cs_diff10": 0, "gold_diff15": 0, "gold_min": 430,
         "vision_min": 0.7, "wards_pre14": 4, "control_wards": 0.66,
         "obj_participation": 38, "obj_lost_dead": 0.3, "obj_lost_far": 0.3, "deaths_before_objective": 1.09,
@@ -164,7 +167,7 @@ BASE: dict[str, dict[str, float | None]] = {
     "SUPPORT": {
         "deaths_to_jungler_pre14": 0.9, "deaths_ganked": 0.7, "deaths_no_vision_pre14": 0.14, "deaths_overextended": 0.4,
         "deaths_pre14": 2.81, "deaths": 6.0, "deaths_solo": 0.18, "deaths_enemy_jungle": 0.31, "deaths_isolated_late": 0.24,
-        "deaths_unspent_gold": 0.03, "time_dead_pct": 8.5, "gold_hoard_min": 0.2, "idle_pct": 3,
+        "deaths_unspent_gold": 0.03, "time_dead_pct": 8.5, "gold_hoard_min": 0.2, "idle_pct": 0.2,
         "cs_min": None, "cs10": None, "cs_diff10": None, "gold_diff15": 0, "gold_min": 270,
         "vision_min": 2.3, "wards_pre14": 12, "control_wards": 9.1,
         "obj_participation": 46, "obj_lost_dead": 0.3, "obj_lost_far": 0.3, "deaths_before_objective": 1.16,

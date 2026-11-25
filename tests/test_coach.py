@@ -742,3 +742,18 @@ def test_lejos_del_objetivo_con_la_posicion_dudosa_hace_falta_margen():
         assert any("far" in mo["tags"] and "dragón" in mo["title"] for mo in a["moments"])
     finally:
         mp.undo()
+
+
+def test_idle_reference_gives_no_free_points():
+    """Casi nadie tiene minutos vacíos (25-11-2026: el 96-100 % de las partidas de OTPs de cada rol y elo tienen 0 %).
+    Con la referencia de antes (3-5 %) un 0 % salía en verde y la nota de fundamentos subía ~0,3 puntos sin motivo."""
+    from app.coach.benchmarks import ROLES, static_refs
+    from app.coach.insights import _dev_status, deviation, fundamentals_score
+
+    for role in ROLES:
+        refs = static_refs(role, "EMERALD")
+        assert refs["idle_pct"] <= 0.5
+        assert _dev_status(deviation("idle_pct", 0.0, refs["idle_pct"])) == "ok"
+        assert fundamentals_score({**refs, "idle_pct": 0.0}, refs, role) == fundamentals_score(refs, refs, role) == 5.0
+        # Un 15 % de minutos vacíos de media sí es un punto débil
+        assert _dev_status(deviation("idle_pct", 15.0, refs["idle_pct"])) == "bad"
