@@ -239,6 +239,10 @@ export function sourceBadges(sources) {
   if (!sources) return null;
   const out = [];
   if (sources.opgg) out.push(h("span.src.src-opgg", { title: `OP.GG: ${fmt.pct(sources.opgg.wr)} en ${fmt.int(sources.opgg.games)} partidas` }, h("b", fmt.compact(sources.opgg.games))));
+  if (sources.lolalytics) {
+    const lola = sources.lolalytics;
+    out.push(h("span.src.src-lola", { title: `Lolalytics: ${fmt.pct(lola.wr)} en ${fmt.int(lola.games)} partidas` }, h("b", fmt.compact(lola.games))));
+  }
   if (sources.own) out.push(h("span.src.src-own", { title: `Tu base de datos: ${fmt.pct(sources.own.wr)} en ${fmt.int(sources.own.games)} partidas` }, h("b", fmt.compact(sources.own.games))));
   return out.length ? h("span.row-wrap", { style: { gap: "4px" } }, out) : h("span.tiny.faint", "estimado");
 }

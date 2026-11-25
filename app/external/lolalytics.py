@@ -9,6 +9,8 @@ protección y a ritmo tranquilo (≈1 petición/s), con caché en SQLite.
 * **Counters** de un campeón en su línea: WR contra cada rival y nº de partidas.
 * **Builds**: todas las builds completas de un campeón en su línea (``build-itemset``), de las que se sacan los
   objetos que se le compran y su WR (para recomendar la build según el draft).
+* **Sinergias**: WR de un campeón con cada compañero de cada línea (``build-team``): segunda fuente, junto a OP.GG,
+  para las parejas del draft y de la ficha de campeón.
 
 Las muestras de OP.GG y Lolalytics salen de la misma población (partidas
 clasificatorias de Riot) y se solapan, así que no se suman a ciegas: al
@@ -164,6 +166,33 @@ class Lolalytics(CachedSource):
         return {int(k): (v[0], v[1]) for k, v in data.items()}
 
 
+    def team(self, champ: int, role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> dict[str, dict[int, tuple[int, int]]] | None:
+        """Sinergias del campeón con cada compañero de cada línea (``ep=build-team``, una petición para todas):
+        ``{línea de Lolalytics: {compañero: (partidas, victorias de los dos)}}``."""
+        scope = self._scope(tier, region)
+        slug = self.slug(champ)
+        if scope is None or role not in LANES or not slug:
+            return None
+        lane = LANES[role]
+        version = game_version(patch)
+        key = f"{champ}|{lane}|{scope[0]}|{scope[1]}|{version}|equipo"
+
+        def fetch():
+            data = self._get({"ep": "build-team", "patch": version, "c": slug, "lane": lane, "tier": scope[0], "region": scope[1]})
+            return _team_rows(data.get("team_h"), data.get("team")) or None
+
+        data = self._cached("lola_team", key, self._ttl(patch), fetch, allow_fetch)
+        if not data:
+            return None
+        return {ln: {int(k): (v[0], v[1]) for k, v in rows.items()} for ln, rows in data.items()}
+
+    def synergies(self, champ: int, role: str, partner_role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> dict[int, tuple[int, int]] | None:
+        """{compañero en ``partner_role``: (partidas, victorias)} del campeón en su línea (``None`` sin datos)."""
+        if partner_role not in LANES:
+            return None
+        data = self.team(champ, role, tier, region, patch, allow_fetch)
+        return None if data is None else data.get(LANES[partner_role], {})
+
     def item_sets(self, champ: int, role: str, tier: str, region: str, patch: str, allow_fetch: bool = True) -> dict | None:
         """Objetos que se le compran a un campeón en su línea, sacados de todas sus builds completas.
 
@@ -226,6 +255,38 @@ class Lolalytics(CachedSource):
         return {"kind": kind, "keystone": int(pri[0]), "primary": primary, "secondary": secondary,
                 "ids": [int(i) for i in pri + sec], "shards": [int(i) for i in mod], "games": page.get("n"),
                 "wr": page.get("wr"), "share": round(page["n"] / total, 3) if total and page.get("n") else None}
+
+
+TEAM_COLUMNS = ("id", "wr", "d1", "d2", "pr", "n")  # cabecera de ``team`` en ``ep=build-team`` (viene en ``team_h``)
+
+
+def _team_rows(header, team) -> dict[str, dict[str, list[int]]]:
+    """``team`` de ``ep=build-team`` (``{línea: [[id, wr, d1, d2, pr, n], …]}``) como ``{línea: {compañero: [partidas,
+    victorias]}}``; las victorias salen del WR de la pareja (``wr`` en %)."""
+    if not isinstance(team, dict):
+        return {}
+    cols = list(header) if isinstance(header, list) else list(TEAM_COLUMNS)
+    if not {"id", "wr", "n"} <= set(cols):
+        return {}
+    i_id, i_wr, i_n = cols.index("id"), cols.index("wr"), cols.index("n")
+    out: dict[str, dict[str, list[int]]] = {}
+    for lane, rows in team.items():
+        if lane in LANES.values() and isinstance(rows, list):
+            out[lane] = _team_lane(rows, i_id, i_wr, i_n)
+    return out
+
+
+def _team_lane(rows: list, i_id: int, i_wr: int, i_n: int) -> dict[str, list[int]]:
+    """Las parejas de una línea con partidas (las filas rotas se saltan)."""
+    out = {}
+    for row in rows:
+        try:
+            cid, wr, games = int(row[i_id]), float(row[i_wr]), int(row[i_n])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if games > 0:
+            out[str(cid)] = [games, round(games * wr / 100)]
+    return out
 
 
 SETS_KEPT = 1500  # builds de 5 objetos que se guardan por campeón y línea (Hecarim jungla: 2.663 distintas, 5.881 partidas)

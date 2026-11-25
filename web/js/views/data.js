@@ -1791,7 +1791,7 @@ let opggForm = { tier: "emerald_plus", region: "global" };
 let sourcesSig = null;
 const SOURCE_INFO = {
   opgg: { label: "OP.GG", what: "Counters, tier list, guías de matchup, builds y sinergias (web + API oficial para apps)." },
-  lolalytics: { label: "Lolalytics", what: "Segunda fuente de tier list y counters: se combina con OP.GG sin contar dos veces las mismas partidas." },
+  lolalytics: { label: "Lolalytics", what: "Segunda fuente de tier list, counters y sinergias: se combina con OP.GG sin contar dos veces las mismas partidas." },
   patchnotes: { label: "Notas de parche (Riot)", what: "Cambios de campeones y objetos de las últimas versiones, con mejoras y debilitaciones." },
 };
 
