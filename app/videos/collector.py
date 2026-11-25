@@ -10,6 +10,7 @@ Se pausa mientras juegas (como la precarga), espera entre vídeos para no enfada
 
 from __future__ import annotations
 
+import contextlib
 import random
 import shutil
 import tempfile
@@ -314,7 +315,7 @@ class VideoCollector:
         except Exception as exc:  # noqa: BLE001 - sin Data Dragon no hay minimapa, pero el resto vale
             notes.append(f"frames: sin herramientas ({exc})")
             return None
-        from app.videos import frames as F
+        from app.videos import frames as vf
         from app.videos import youtube
 
         small = self._download(vid, folder / "sonda", notes, youtube.PROBE_FORMATS, "¿es una partida? (copia pequeña)")
@@ -323,7 +324,7 @@ class VideoCollector:
         box, _ = _probe_file(small, duration, tools)
         if box is None:
             small.unlink(missing_ok=True)
-            return {"partida": False, "metodo": "sonda 360p", "probados": F.PROBE_FRAMES}
+            return {"partida": False, "metodo": "sonda 360p", "probados": vf.PROBE_FRAMES}
         big = self._download(vid, folder / "video", notes, youtube.VIDEO_FORMATS, "descargando el vídeo (se borra al terminar)")
         path = big or small
         if big is not None:
@@ -334,26 +335,26 @@ class VideoCollector:
             path.unlink(missing_ok=True)
 
     def _full_pass(self, path: Path, duration: float, tools, method: str) -> dict | None:
-        from app.videos import frames as F
+        from app.videos import frames as vf
 
         self._step_label("frames: calibrando minimapa, reloj y cámara")
         box, probe_frames = _probe_file(path, duration, tools)
         if box is None:
-            return {"partida": False, "metodo": method, "probados": F.PROBE_FRAMES}
-        champion = F.vote_champion(tools.portraits, probe_frames[:6]) if tools.portraits else None
+            return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
+        champion = vf.vote_champion(tools.portraits, probe_frames[:6]) if tools.portraits else None
         if champion:
             champion["nombre"] = self._champ_name(champion["clave"])
         clock_ok = tools.clock.calibrate(probe_frames)
-        cam = F.camera_size([F.white_mask(box.crop(f)) for f in probe_frames], box.size)
+        cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
         self._step_label("frames", 0.0)
-        reader = F.Frames(str(path))
+        reader = vf.Frames(str(path))
         try:
-            collected = F.sample_pass(reader, box, cam, tools, duration, self._should_stop_frames, lambda p: self._step_label("frames", p))
+            collected = vf.sample_pass(reader, box, cam, tools, duration, self._should_stop_frames, lambda p: self._step_label("frames", p))
         finally:
             reader.close()
         if self.stop_event.is_set():
             return None
-        return F.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p")
+        return vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p")
 
     def _should_stop_frames(self) -> bool:
         """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar, esperar a que acabe."""
@@ -389,14 +390,14 @@ class VideoCollector:
         if self.tools is not None:
             return self.tools
 
-        from app.videos import frames as F
+        from app.videos import frames as vf
 
         dd = self.svc.dd
         if not dd.version:
             dd.load()
         img_dir = Path(dd.cache_dir) / str(dd.version) / "img"
         map_path = self._cached(img_dir / "map11.png", f"{CDN}/{dd.version}/img/map/map11.png")
-        map_bgr = F.read_image(map_path)
+        map_bgr = vf.read_image(map_path)
         if map_bgr is None:
             raise OSError("map11.png dañado")
         icons = {}
@@ -405,10 +406,10 @@ class VideoCollector:
                 path = self._cached(img_dir / "champion" / f"{champ['key']}.png", f"{CDN}/{dd.version}/img/champion/{champ['key']}.png")
             except OSError:
                 continue
-            img = F.read_image(path)
+            img = vf.read_image(path)
             if img is not None:
                 icons[champ["key"]] = img
-        self.tools = F.Tools(F.MapMatcher(map_bgr), F.Clock(F.load_digits()), F.Portraits(icons) if icons else None)
+        self.tools = vf.Tools(vf.MapMatcher(map_bgr), vf.Clock(vf.load_digits()), vf.Portraits(icons) if icons else None)
         return self.tools
 
     @staticmethod
@@ -460,19 +461,17 @@ def _clean_temp(older_than_s: float = 600) -> None:
     base = Path(tempfile.gettempdir())
     now = time.time()
     for path in base.glob(f"{TEMP_PREFIX}*"):
-        try:
+        with contextlib.suppress(OSError):
             if path.is_dir() and now - path.stat().st_mtime > older_than_s:
                 shutil.rmtree(path, ignore_errors=True)
-        except OSError:
-            continue
 
 
 def _probe_file(path: Path, duration: float, tools):
-    from app.videos import frames as F
+    from app.videos import frames as vf
 
-    reader = F.Frames(str(path))
+    reader = vf.Frames(str(path))
     try:
-        return F.probe(reader, duration, tools)
+        return vf.probe(reader, duration, tools)
     finally:
         reader.close()
 

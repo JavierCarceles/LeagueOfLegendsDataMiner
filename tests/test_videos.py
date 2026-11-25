@@ -10,23 +10,28 @@ from app.videos import store as S
 from app.videos.collector import build_queries
 from app.videos.store import VideoStore
 
+VID = "8jnpy90gy1w"
+LUX = "lux support"
+ADD = "/api/videos/add"
+COACH_VIDEOS = "https://www.youtube.com/@CoachK/videos"
+
 
 # ---------------------------------------------------------------------- enlaces
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("https://www.youtube.com/watch?v=8jnpy90gy1w", ("video", "8jnpy90gy1w")),
-        ("youtube.com/watch?v=8jnpy90gy1w&list=PL123&t=40s", ("video", "8jnpy90gy1w")),
-        ("https://youtu.be/8jnpy90gy1w?t=12", ("video", "8jnpy90gy1w")),
-        ("https://www.youtube.com/shorts/8jnpy90gy1w", ("video", "8jnpy90gy1w")),
-        ("https://m.youtube.com/live/8jnpy90gy1w", ("video", "8jnpy90gy1w")),
-        ("8jnpy90gy1w", ("video", "8jnpy90gy1w")),
+        (f"https://www.youtube.com/watch?v={VID}", ("video", VID)),
+        (f"youtube.com/watch?v={VID}&list=PL123&t=40s", ("video", VID)),
+        (f"https://youtu.be/{VID}?t=12", ("video", VID)),
+        (f"https://www.youtube.com/shorts/{VID}", ("video", VID)),
+        (f"https://m.youtube.com/live/{VID}", ("video", VID)),
+        (VID, ("video", VID)),
         ("https://www.youtube.com/playlist?list=PLabc_DEF", ("lista", "https://www.youtube.com/playlist?list=PLabc_DEF")),
-        ("https://www.youtube.com/@CoachK/videos", ("canal", "https://www.youtube.com/@CoachK/videos")),
-        ("https://www.youtube.com/@CoachK", ("canal", "https://www.youtube.com/@CoachK/videos")),
+        (COACH_VIDEOS, ("canal", COACH_VIDEOS)),
+        ("https://www.youtube.com/@CoachK", ("canal", COACH_VIDEOS)),
         ("https://www.youtube.com/channel/UC1234567890123456789012", ("canal", "https://www.youtube.com/channel/UC1234567890123456789012/videos")),
-        ("https://www.youtube.com/results?search_query=lux+support", ("busqueda", "lux support")),
-        ("lux support", ("busqueda", "lux support")),
+        ("https://www.youtube.com/results?search_query=lux+support", ("busqueda", LUX)),
+        (LUX, ("busqueda", LUX)),
     ],
 )
 def test_classify_links(text, expected):
@@ -46,7 +51,7 @@ def test_error_kinds():
 def test_build_queries_both_languages():
     queries = build_queries("", role="jungla", topic="rutas", champion="Lee Sin")
     assert queries == [("es", "Lee Sin jungla rutas de jungla league of legends"), ("en", "Lee Sin jungle jungle pathing league of legends")]
-    assert build_queries("lux support", langs=("en",)) == [("en", "lux support league of legends")]
+    assert build_queries(LUX, langs=("en",)) == [("en", f"{LUX} league of legends")]
     assert build_queries("lol jungle tips", langs=("en",)) == [("en", "lol jungle tips")]
     assert build_queries("", langs=("es",)) == []
 
@@ -54,7 +59,7 @@ def test_build_queries_both_languages():
 # ---------------------------------------------------------------------- cola
 def test_queue_flow(tmp_path):
     store = VideoStore(tmp_path)
-    source = store.add_source("busqueda", "lux support", {"n": 5})
+    source = store.add_source("busqueda", LUX, {"n": 5})
     assert store.next_source()["id"] == source["id"]
     added = store.add_videos([{"id": "aaaaaaaaaaa", "title": "Uno", "duration": 600}, {"id": "bbbbbbbbbbb"}, {"id": "aaaaaaaaaaa"}], source)
     assert added == 2
@@ -147,30 +152,30 @@ def _fake_map(np, cv2):
 def test_minimap_located_and_presence():
     np = pytest.importorskip("numpy")
     cv2 = pytest.importorskip("cv2")
-    from app.videos import frames as F
+    from app.videos import frames as vf
 
     world = _fake_map(np, cv2)
     frame = np.full((1080, 1920, 3), 40, np.uint8)
     frame[760:1070, 1600:1910] = cv2.resize(world, (310, 310), interpolation=cv2.INTER_AREA)
-    maps = F.MapMatcher(world)
+    maps = vf.MapMatcher(world)
     box = maps.locate(frame)
     assert box is not None and box.corner == "derecha"
     assert abs(box.x - 1600) <= 3 and abs(box.y - 760) <= 3 and abs(box.size - 310) <= 3
     assert maps.presence(frame, box) > 0.9
-    assert maps.presence(np.full_like(frame, 40), box) < F.PRESENT_SCORE
+    assert maps.presence(np.full_like(frame, 40), box) < vf.PRESENT_SCORE
     assert maps.locate(np.full_like(frame, 40)) is None
     # Coordenadas del juego: abajo a la izquierda es la base azul.
-    assert box.to_game(0, box.size) == (F.MAP_MIN, F.MAP_MIN)
-    assert F.consensus([box, box, box]).x == box.x
-    assert F.consensus([box, box]) is None
+    assert box.to_game(0, box.size) == (vf.MAP_MIN, vf.MAP_MIN)
+    assert vf.consensus([box, box, box]).x == box.x
+    assert vf.consensus([box, box]) is None
 
 
 def test_clock_ocr_reads_mm_ss():
     np = pytest.importorskip("numpy")
     pytest.importorskip("cv2")
-    from app.videos import frames as F
+    from app.videos import frames as vf
 
-    digits = F.load_digits()
+    digits = vf.load_digits()
     frame = np.full((1080, 1920, 3), 25, np.uint8)
     x = 1861
     for i, d in enumerate("1234"):
@@ -178,20 +183,20 @@ def test_clock_ocr_reads_mm_ss():
             x += 4  # los dos puntos
         frame[9:21, x:x + 9] = digits[int(d)][:, :, None]
         x += 9
-    assert F.Clock(digits).read(frame) == 12 * 60 + 34
+    assert vf.Clock(digits).read(frame) == 12 * 60 + 34
 
 
 def test_camera_box_and_segments():
     np = pytest.importorskip("numpy")
     cv2 = pytest.importorskip("cv2")
-    from app.videos import frames as F
+    from app.videos import frames as vf
 
     minimap = np.full((300, 300, 3), 60, np.uint8)
     cv2.rectangle(minimap, (100, 120), (180, 164), (255, 255, 255), 1)
-    u, v, score, cover = F.find_camera(F.white_mask(minimap), 81, 45)
+    u, v, score, cover = vf.find_camera(vf.white_mask(minimap), 81, 45)
     assert abs(u - 140) <= 2 and abs(v - 142) <= 2 and cover > 0.9 and score > 0.5
     present = [(t * 2.0, 0.6) for t in range(30)] + [(60.0 + t * 2.0, 0.0) for t in range(20)] + [(100.0 + t * 2.0, 0.6) for t in range(5)]
-    assert F.segments(present) == [[0.0, 58.0]]
+    assert vf.segments(present) == [[0.0, 58.0]]
 
 
 # ---------------------------------------------------------------------- API
@@ -213,11 +218,11 @@ def client(tmp_path, monkeypatch):
 
 
 def test_api_add_and_list(client):
-    res = client.post("/api/videos/add", json={"texto": "https://youtu.be/8jnpy90gy1w"})
+    res = client.post(ADD, json={"texto": f"https://youtu.be/{VID}"})
     assert res.status_code == 200 and res.json()["fuentes"][0]["tipo"] == "video"
-    res = client.post("/api/videos/add", json={"texto": "", "rol": "support", "tema": "vision", "idiomas": ["en"], "por_idioma": 3})
+    res = client.post(ADD, json={"texto": "", "rol": "support", "tema": "vision", "idiomas": ["en"], "por_idioma": 3})
     assert [s["valor"] for s in res.json()["fuentes"]] == ["support vision warding guide league of legends"]
-    assert client.post("/api/videos/add", json={"texto": ""}).status_code == 400
+    assert client.post(ADD, json={"texto": ""}).status_code == 400
     status = client.get("/api/videos/status").json()
     assert status["cuentas"]["fuentes_pendientes"] == 2 and "jungla" in status["roles"]
     listing = client.get("/api/videos/list").json()
