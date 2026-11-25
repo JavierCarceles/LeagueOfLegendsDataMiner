@@ -246,3 +246,104 @@ def test_api_add_and_list(client):
     assert len(listing["fuentes"]) == 2 and listing["videos"] == []
     assert client.delete("/api/videos/zzzzzzzzzzz").status_code == 404
     assert client.post("/api/videos/pause", json={"pausado": True}).json()["pausa"] == "manual"
+
+
+# ---------------------------------------------------------------------- registro e instalación
+def test_videos_log_keeps_every_detail(tmp_path):
+    """Todo el detalle del recolector (también DEBUG: lo que dice yt-dlp) va a data/registro/videos_vivo.log."""
+    import logging
+
+    from app import logbus
+
+    logbus.add_videos_log(tmp_path)
+    log = logging.getLogger("tempu.videos")
+    log.debug("yt-dlp: [youtube] detalle")
+    log.warning("Vídeos: algo falló")
+    for handler in log.handlers:
+        handler.flush()
+    text = (tmp_path / "registro" / logbus.VIDEOS_LIVE_LOG).read_text(encoding="utf-8")
+    assert "detalle" in text and "algo falló" in text
+    other = tmp_path / "otra"
+    logbus.add_videos_log(other)  # otra carpeta de datos: el registro se va con ella (un solo fichero abierto)
+    assert sum(1 for h in log.handlers if getattr(h, "_tempu_videos", None)) == 1
+    assert logbus.copy_tail(tmp_path / "registro" / logbus.VIDEOS_LIVE_LOG, tmp_path / "copia.log", max_bytes=120)
+    assert (tmp_path / "copia.log").read_text(encoding="utf-8").endswith("algo falló\n")
+
+
+def test_run_installs_video_tools_without_blocking_the_app(tmp_path, monkeypatch):
+    """run.py instala requirements-videos.txt al arrancar; si falla, la app arranca igual y el motivo queda en el registro."""
+    import subprocess
+
+    import run
+
+    req = tmp_path / "requirements-videos.txt"
+    req.write_text("yt-dlp\n", encoding="utf-8")
+    monkeypatch.setattr(run, "VIDEO_REQUIREMENTS", req)
+    monkeypatch.setattr(run, "VIDEO_LOG", tmp_path / "registro" / "videos_vivo.log")
+    calls = []
+
+    def fake_pip(python, requirements, code=1):
+        calls.append(requirements)
+        return subprocess.CompletedProcess([], code, stdout="ERROR: sin red")
+
+    monkeypatch.setattr(run, "_pip_install", fake_pip)
+    run.ensure_video_requirements(tmp_path, tmp_path / "python")  # no lanza: la app sigue
+    assert calls == [req] and not (tmp_path / run.VIDEO_STAMP).exists()
+    assert "sin red" in run.VIDEO_LOG.read_text(encoding="utf-8")
+    monkeypatch.setattr(run, "_pip_install", lambda python, requirements: fake_pip(python, requirements, 0))
+    run.ensure_video_requirements(tmp_path, tmp_path / "python")
+    assert (tmp_path / run.VIDEO_STAMP).exists()
+    run.ensure_video_requirements(tmp_path, tmp_path / "python")  # ya instalado: no vuelve a llamar a pip
+    assert len(calls) == 2
+
+
+def test_ytdlp_tries_other_connections_and_remembers(monkeypatch):
+    """Si YouTube le da a yt-dlp respuestas vacías (Windows, 25-11-2026), prueba otras formas de conectarse y recuerda la buena."""
+    youtube = pytest.importorskip("app.videos.youtube")
+    yt_dlp = pytest.importorskip("yt_dlp")
+    seen = []
+
+    class FakeYDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download=False):
+            seen.append(self.opts.get("proxy"))
+            if self.opts.get("proxy") != "":
+                raise yt_dlp.utils.DownloadError("ERROR: [youtube] x: Failed to extract any player response")
+            return {"id": "x", "title": "ok"}
+
+    monkeypatch.setattr(youtube.yt_dlp, "YoutubeDL", FakeYDL)
+    monkeypatch.setitem(youtube._state, "preferred", {})
+    assert youtube.video_info(VID)["title"] == "ok"
+    assert seen == [None, ""] and youtube._state["preferred"] == {"proxy": ""}
+    assert youtube.video_info(VID)["title"] == "ok" and seen[-1] == ""  # a la primera con la que funcionó
+    with pytest.raises(youtube.VideoError) as err:  # un vídeo privado no se reintenta
+        monkeypatch.setattr(FakeYDL, "extract_info", lambda self, url, download=False: (_ for _ in ()).throw(
+            yt_dlp.utils.DownloadError("ERROR: Private video")))
+        youtube.video_info(VID)
+    assert err.value.kind == "final"
+
+
+def test_dubbed_video_uses_the_original_audio_language():
+    """Con doblajes automáticos YouTube decía «ar» de un vídeo en español: manda la pista de audio original."""
+    transcript = pytest.importorskip("app.videos.transcript")
+    json3 = [{"ext": "json3"}]
+    info = {
+        "language": "ar",
+        "formats": [
+            {"acodec": "opus", "language": "ar", "format_note": "Arabic, low", "language_preference": -1},
+            {"acodec": "opus", "language": "es-US", "format_note": "Spanish (US) original (default), low", "language_preference": 10},
+            {"acodec": "none", "language": "en"},
+        ],
+        "automatic_captions": {"ar-orig": json3, "en-US-orig": json3, "es-orig": json3, "pt-BR-orig": json3, "es": json3},
+    }
+    assert transcript.original_language(info) == "es"
+    order = [(kind, lang) for kind, lang, _ in transcript.candidate_tracks(info)]
+    assert order == [("auto", "es"), ("doblaje", "en-US"), ("doblaje", "ar"), ("doblaje", "pt-BR")]

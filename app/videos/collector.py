@@ -20,7 +20,7 @@ from pathlib import Path
 
 import requests
 
-from app.logbus import get_logger
+from app.logbus import add_videos_log, get_logger
 from app.videos import deps
 from app.videos.store import PENDING, VideoStore
 
@@ -81,6 +81,7 @@ class VideoCollector:
         self.svc = svc
         self.root = Path(svc.settings.data_dir) / DIR_NAME
         self.store = VideoStore(self.root)
+        add_videos_log(svc.settings.data_dir)  # todo el detalle en data/registro/videos_vivo.log (→ videos.log en GitHub)
         self.stop_event = threading.Event()
         self.wake = threading.Event()
         self.thread: threading.Thread | None = None
@@ -308,9 +309,10 @@ class VideoCollector:
 
     def _check_language(self, queued: dict, info: dict) -> None:
         """De una búsqueda solo interesan vídeos en español o inglés (un enlace pegado a mano entra siempre)."""
+        from app.videos.transcript import original_language
         from app.videos.youtube import VideoError
 
-        spoken = str(info.get("language") or "").split("-")[0].lower()
+        spoken = original_language(info)
         source = next((s for s in self.store.sources() if s.get("id") == queued.get("fuente")), None)
         if spoken and spoken not in LANGS and source is not None and source.get("tipo") == "busqueda":
             raise VideoError(f"Vídeo en otro idioma ({spoken}): solo se recogen en español o inglés", "final")
@@ -520,12 +522,19 @@ def _metadata(vid: str, info: dict) -> dict:
         "duracion": info.get("duration"),
         "vistas": info.get("view_count"),
         "likes": info.get("like_count"),
-        "idioma": info.get("language"),
+        "idioma": _spoken(info),
+        "idioma_youtube": info.get("language"),
         "etiquetas": (info.get("tags") or [])[:40],
         "descripcion": (info.get("description") or "")[:6000],
         "capitulos": chapters,
         "recogido": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def _spoken(info: dict) -> str | None:
+    from app.videos.transcript import original_language
+
+    return original_language(info) or None
 
 
 def _date(raw: str | None) -> str | None:

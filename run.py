@@ -5,8 +5,9 @@ Hace todo solo, sin instalar nada a mano:
 
 1. Comprueba que tienes Python 3.10 o superior (recomendado 3.14).
 2. La primera vez crea su entorno de Python (en Windows en ``%LOCALAPPDATA%\\TempuDrafter``, fuera de la carpeta
-   del proyecto y de OneDrive; en macOS/Linux en ``.venv``) e instala las dependencias. Después solo las reinstala
-   si cambia ``requirements.txt``. Si el entorno quedó a medias (ventana cerrada a mitad, antivirus…), lo repara.
+   del proyecto y de OneDrive; en macOS/Linux en ``.venv``) e instala las dependencias, también las de la sección
+   «Vídeos» (``requirements-videos.txt``; si esas fallan, la app arranca igual). Después solo las reinstala si cambian.
+   Si el entorno quedó a medias (ventana cerrada a mitad, antivirus…), lo repara.
 3. Se relanza dentro de ese entorno y arranca la web; el navegador se abre solo cuando está lista.
 4. Si la app ya está abierta (o arrancando), solo abre el navegador: nunca hay dos copias con la misma base de datos.
 
@@ -37,8 +38,13 @@ ROOT = Path(__file__).resolve().parent
 # En una constante (y no ``os.name == "nt"`` en cada sitio): así el editor analiza las dos ramas en cualquier sistema.
 WINDOWS = os.name == "nt"
 REQUIREMENTS = ROOT / "requirements.txt"
+# Herramientas de la sección «Vídeos» (yt-dlp, OpenCV, Deno, voz a texto): también al arrancar, pero si fallan la app
+# arranca igual (la sección lo reintenta sola) y el motivo queda en el registro de vídeos que se sube a GitHub.
+VIDEO_REQUIREMENTS = ROOT / "requirements-videos.txt"
+VIDEO_LOG = ROOT / "data" / "registro" / "videos_vivo.log"
 INSIDE = "TEMPU_DRAFTER_ENV"  # marca del proceso relanzado dentro del entorno
 REQ_STAMP = ".tempu-requirements"  # huella de requirements.txt instalada
+VIDEO_STAMP = ".tempu-requirements-videos"  # y la de requirements-videos.txt
 # 0 normal; -2/-15 y 130/143 señales en POSIX; 0xC000013A Ctrl+C o cerrar la ventana en Windows.
 CLEAN_EXIT_CODES = {0, -2, -15, 130, 143, 3221225786, -1073741510}
 # Las llamadas a la propia app (127.0.0.1) nunca deben pasar por el proxy del sistema.
@@ -149,22 +155,30 @@ def ensure_venv(path: Path) -> Path:
     return python
 
 
-def _requirements_digest() -> str:
-    data = REQUIREMENTS.read_bytes() + f"|{sys.version_info[0]}.{sys.version_info[1]}".encode()
+def _requirements_digest(requirements: Path = REQUIREMENTS) -> str:
+    data = requirements.read_bytes() + f"|{sys.version_info[0]}.{sys.version_info[1]}".encode()
     return hashlib.sha256(data).hexdigest()
+
+
+def _installed(stamp: Path, digest: str) -> bool:
+    try:
+        return stamp.read_text(encoding="utf-8").strip() == digest
+    except OSError:
+        return False
+
+
+def _pip_install(python: Path, requirements: Path) -> subprocess.CompletedProcess:
+    cmd = [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-input", "-q", "-r", str(requirements)]
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", check=False)
 
 
 def ensure_requirements(path: Path, python: Path) -> None:
     stamp = path / REQ_STAMP
     digest = _requirements_digest()
-    try:
-        if stamp.read_text(encoding="utf-8").strip() == digest:
-            return
-    except OSError:
-        pass
+    if _installed(stamp, digest):
+        return
     say("Instalando dependencias (solo cuando cambian)…")
-    cmd = [str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-input", "-q", "-r", str(REQUIREMENTS)]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", check=False)
+    result = _pip_install(python, REQUIREMENTS)
     if result.returncode != 0:
         raise RuntimeError(
             "No se pudieron instalar las dependencias:\n"
@@ -172,6 +186,35 @@ def ensure_requirements(path: Path, python: Path) -> None:
             + "\nRevisa tu conexión a internet (o el proxy/antivirus) y vuelve a ejecutar run.py."
         )
     stamp.write_text(digest, encoding="utf-8")
+
+
+def ensure_video_requirements(path: Path, python: Path) -> None:
+    """``requirements-videos.txt`` al arrancar (solo cuando cambia). Si falla, la app arranca igual: se avisa aquí y en
+    ``data/registro/videos_vivo.log`` (su final se sube a GitHub como ``videos.log``)."""
+    if not VIDEO_REQUIREMENTS.exists():
+        return
+    stamp = path / VIDEO_STAMP
+    digest = _requirements_digest(VIDEO_REQUIREMENTS)
+    if _installed(stamp, digest):
+        return
+    say("Instalando las herramientas de vídeo: yt-dlp, OpenCV, Deno y voz a texto (solo cuando cambian, unos minutos)…")
+    result = _pip_install(python, VIDEO_REQUIREMENTS)
+    if result.returncode != 0:
+        say("No se pudieron instalar las herramientas de vídeo: la app arranca igual y se reintenta al volver a abrirla.")
+        _video_log("WARNING", "Instalación de requirements-videos.txt fallida al arrancar:\n" + result.stdout[-2500:])
+        return
+    stamp.write_text(digest, encoding="utf-8")
+    _video_log("INFO", "Herramientas de vídeo instaladas al arrancar (requirements-videos.txt).")
+
+
+def _video_log(level: str, text: str) -> None:
+    """Una línea en el registro de vídeos (antes de que arranque la app, que luego sigue escribiendo en él)."""
+    try:
+        VIDEO_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(VIDEO_LOG, "a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {level:<7s} run.py: {text}\n")
+    except OSError:
+        pass
 
 
 def _venv_in_use(path: Path) -> bool:
@@ -231,6 +274,7 @@ def bootstrap(argv: list[str]) -> int:
         with _SetupLock(lock_dir / f"{path.name.lstrip('.')}.lock"):
             python = ensure_venv(path)
             ensure_requirements(path, python)
+            ensure_video_requirements(path, python)
     except (RuntimeError, OSError) as exc:
         return _fail(f"{exc}")
     _remove_old_project_venv(path)
@@ -464,6 +508,7 @@ def main() -> int:
             ensure_requirements(path, Path(sys.executable))
         except RuntimeError as exc:
             return _fail(str(exc))
+        ensure_video_requirements(path, Path(sys.executable))
     try:
         from app.config import settings
     except ImportError as exc:

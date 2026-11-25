@@ -110,6 +110,7 @@ def setup_logging() -> None:
         return
     root.setLevel(logging.INFO)
     console = logging.StreamHandler()
+    console.setLevel(logging.INFO)  # el detalle (DEBUG) del recolector de vídeos va solo a su fichero
     console.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s", "%H:%M:%S"))
     root.addHandler(console)
     root.addHandler(BusHandler(bus))
@@ -122,6 +123,12 @@ LOG_FILE_BYTES = 1_000_000  # ``data/registro/app_vivo.log`` y 2 anteriores: ~3 
 # cada subida se copia su final a ``app.log``, que es el que se sube.
 LIVE_LOG = "app_vivo.log"
 LOG_SNAPSHOT_BYTES = 1_000_000
+# Lo mismo para el recolector de vídeos, con todo el detalle (también lo que dice yt-dlp): ``videos_vivo.log`` y, antes de
+# cada subida, su final en ``videos.log``.
+VIDEOS_LIVE_LOG = "videos_vivo.log"
+VIDEOS_LOG = "videos.log"
+LOG_FORMAT = "%(asctime)s %(levelname)-7s %(threadName)s %(name)s: %(message)s"
+LOG_DATE = "%Y-%m-%d %H:%M:%S"
 
 
 def _safe_rotating_handler(path, max_bytes: int, backups: int):
@@ -174,9 +181,59 @@ def add_file_log(data_dir) -> None:
     except OSError:
         return
     handler.setLevel(logging.INFO)
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(threadName)s %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+    handler.setFormatter(logging.Formatter(LOG_FORMAT, LOG_DATE))
     handler._tempu_file = True  # type: ignore[attr-defined]
     root.addHandler(handler)
+
+
+def add_videos_log(data_dir) -> None:
+    """Registro completo del recolector de vídeos en ``data/registro/videos_vivo.log`` (todo, también lo que dice yt-dlp y
+    los errores con dónde fallaron). Antes de cada subida su final se copia a ``videos.log``, que va a GitHub."""
+    from pathlib import Path
+
+    path = str(Path(data_dir) / "registro" / VIDEOS_LIVE_LOG)
+    logger = logging.getLogger("tempu.videos")
+    for old in [h for h in logger.handlers if getattr(h, "_tempu_videos", None)]:
+        if old._tempu_videos == path:  # type: ignore[attr-defined]
+            return
+        logger.removeHandler(old)  # otra carpeta de datos (tests, línea de órdenes): el registro va con los datos
+        old.close()
+    try:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        handler = _safe_rotating_handler(path, LOG_FILE_BYTES, 2)
+    except OSError:
+        return
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter(LOG_FORMAT, LOG_DATE))
+    handler._tempu_videos = path  # type: ignore[attr-defined]
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+
+def copy_tail(live, target, max_bytes: int | None = None) -> bool:
+    """Copia el final de un registro vivo (y del anterior si acaba de rotar) a ``target``, desde una línea entera."""
+    from pathlib import Path
+
+    max_bytes = LOG_SNAPSHOT_BYTES if max_bytes is None else max_bytes
+    live, target = Path(live), Path(target)
+    if not live.exists():
+        return False
+    tail, total = b"", 0
+    for path in (live.with_name(live.name + ".1"), live):
+        if not path.exists():
+            continue
+        size = path.stat().st_size
+        total += size
+        with open(path, "rb") as fh:
+            fh.seek(max(0, size - max_bytes))
+            tail += fh.read()
+    tail = tail[-max_bytes:]
+    if total > len(tail):
+        tail = tail.split(b"\n", 1)[-1]
+    tmp = target.with_name(target.name + ".tmp")
+    tmp.write_bytes(tail)
+    tmp.replace(target)
+    return True
 
 
 def get_logger(name: str) -> logging.Logger:
