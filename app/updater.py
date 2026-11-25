@@ -63,6 +63,13 @@ def needs_restart(paths: list[str]) -> bool:
     return any(p and not p.startswith(NO_RESTART) and p not in NO_RESTART_FILES for p in paths)
 
 
+def _names(out: str) -> list[str]:
+    """Rutas de ``git … --name-only -z``: sin las comillas y los códigos con los que git escribe las rutas con letras no
+    inglesas (los nombres coreanos o vietnamitas de los jugadores): con ellas, ``data/…`` parecía código y la app se
+    reiniciaba en cada subida de datos."""
+    return [p for p in out.split("\0") if p]
+
+
 def _git(repo: Path, *args: str, timeout: int = 120) -> subprocess.CompletedProcess:
     from app.autopush import _git as git  # mismo git que la subida (sin ventanas en Windows, sin pedir contraseña)
 
@@ -239,15 +246,13 @@ class Updater:
         _git(self.repo, "fetch", "-q", remote, branch, timeout=600)
 
     def _diff(self, a: str, b: str) -> list[str]:
-        out = _git(self.repo, "diff", "--name-only", a, b)
-        return [p.strip() for p in out.stdout.splitlines() if p.strip()]
+        return _names(_git(self.repo, "diff", "--name-only", "-z", a, b).stdout)
 
     def _changed(self, head: str) -> list[str]:
         """Ficheros que cambian en GitHub desde lo último común (lo de este ordenador no cuenta)."""
         remote, branch = self._upstream()
         self._fetch()
-        out = _git(self.repo, "diff", "--name-only", f"{head}...{remote}/{branch}")
-        return [p.strip() for p in out.stdout.splitlines() if p.strip()]
+        return _names(_git(self.repo, "diff", "--name-only", "-z", f"{head}...{remote}/{branch}").stdout)
 
     # ------------------------------------------------------------------ cuándo
     def _busy(self) -> str | None:
