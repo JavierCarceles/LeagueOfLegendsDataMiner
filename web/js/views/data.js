@@ -1822,6 +1822,14 @@ function renderSources(src) {
 }
 
 /** Errores de una fuente: en pausa (la web pidió esperar), con errores o sin ellos. */
+/** Elo de OP.GG en español: «emerald_plus» → «Esmeralda+», «all» → «Todos los elos». */
+function opggTierLabel(t) {
+  if (t === "all") return "Todos los elos";
+  const plus = t.endsWith("_plus");
+  const base = TIER_LABEL[t.replace("_plus", "").toUpperCase()] || t;
+  return plus ? `${base}+` : base;
+}
+
 function sourceErrors(stats) {
   const title = stats?.last_error || "";
   if (stats?.circuit_open_for > 0) {
@@ -1843,7 +1851,7 @@ function opggSyncControls(opgg) {
   };
   return h(
     "div.row-wrap",
-    select((opgg.tiers || []).map((t) => ({ value: t, label: t.replace("_plus", "+").replace(/^./, (ch) => ch.toUpperCase()) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
+    select((opgg.tiers || []).map((t) => ({ value: t, label: opggTierLabel(t) })), opggForm.tier, (v) => (opggForm.tier = v), "select select-sm"),
     select((opgg.regions || []).map((r) => ({ value: r.id, label: r.label })), opggForm.region, (v) => (opggForm.region = v), "select select-sm"),
     running
       ? h("button.btn.btn-danger.btn-sm", { onclick: stopSync }, icon("stop"), "Parar")
