@@ -411,6 +411,8 @@ def summary(
             "recent": [_row(g, refs) for g in games[:60]],
             # Tus campeones frente a sus OTPs (data/otps) en tu elo objetivo y en el más alto que haya.
             "otp_compare": otp_compare.compare(svc, games, profile["target_tier"]),
+            # Sin el perfil por elo aún (se calcula en segundo plano): la nota de «¿Listo?» todavía no cuenta tus errores.
+            "elo_pending": bool(prof and prof.pending()),
             "all_roles": sorted({p["role"] for p in store.champion_pool(svc.db, puuids) if p["role"]}),
         }
     )

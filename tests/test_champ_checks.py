@@ -174,6 +174,23 @@ def test_elos_con_pocas_partidas_no_deciden_si_un_error_separa_elos():
     assert e["closest"] == "PLATINUM"  # 4 por partida: el más cercano sería Bronce, pero tiene pocas
 
 
+def test_el_perfil_por_elo_dice_si_aun_se_esta_calculando(tmp_path):
+    """La primera vez el perfil tarda (lee todas las partidas): «Mi progreso» lo avisa y vuelve a pedirlo hasta tenerlo."""
+    import threading
+    from types import SimpleNamespace
+
+    prof = elo_profile.EloProfile(SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path)))
+    assert prof.pending() is False  # ni datos ni cálculo en marcha
+    gate = threading.Event()
+    prof.thread = threading.Thread(target=gate.wait, daemon=True)
+    prof.thread.start()
+    assert prof.pending() is True
+    prof.data = {"roles": {}}
+    assert prof.pending() is False  # ya hay uno (aunque se esté rehaciendo)
+    gate.set()
+    prof.thread.join(1)
+
+
 def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
     services = keyed_svc
     """Resúmenes de un formato anterior (sin datos para las comprobaciones por campeón): se rehacen del análisis

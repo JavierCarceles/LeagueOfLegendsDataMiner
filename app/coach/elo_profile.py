@@ -342,6 +342,10 @@ class EloProfile:
             self.refresh()
         return self.data
 
+    def pending(self) -> bool:
+        """¿Aún no hay perfil y se está calculando? (la primera vez, o tras cambiar de versión, tarda un minuto o más)."""
+        return self.data is None and self.thread is not None and self.thread.is_alive()
+
     def refresh(self, force: bool = False) -> None:
         now = time.time()
         built = (self.data or {}).get("built_at") or 0

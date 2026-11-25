@@ -56,6 +56,11 @@ export async function render(container, args = []) {
 
 const busy = (el) => el?.contains(document.activeElement) && document.activeElement !== document.body;
 
+// Mientras se calcula el perfil por elo (la primera vez tarda un minuto): cuándo se pidió el resumen, para volver a
+// pedirlo cada 15 s hasta tenerlo (0 = ya está).
+let eloPendingAt = 0;
+const ELO_RETRY_MS = 15000;
+
 async function refresh(full) {
   let data;
   try {
@@ -78,7 +83,8 @@ async function refresh(full) {
   if (!busy(headEl)) mount(headEl, profileCard(data));
   const c = data.tracker.counts;
   const count = c.ready + c.partial + c.pending;
-  if ((full || count !== lastCount) && !busy(bodyEl)) {
+  const eloRetry = eloPendingAt > 0 && Date.now() - eloPendingAt > ELO_RETRY_MS;
+  if ((full || count !== lastCount || eloRetry) && !busy(bodyEl)) {
     lastCount = count;
     await loadSummary(data);
   }
@@ -89,6 +95,7 @@ async function loadSummary(data) {
   try {
     const s = await api.get("/api/coach/summary", { queue: prefs.queue, role: prefs.role, last: prefs.last });
     if (!root || mode !== "summary" || !fresh()) return;
+    eloPendingAt = s.elo_pending ? Date.now() : 0;
     mount(bodyEl, summaryView(s, data));
   } catch (err) {
     mount(bodyEl, errorBox(err));
@@ -602,6 +609,9 @@ function readinessCard(s) {
           r.errors ? ` · errores ${fmt.num(r.errors.mine, 1)} por partida (${ELO_LABEL[r.errors.tier] || r.errors.tier}: ${fmt.num(r.errors.target, 1)})` : "",
           ` · propósitos cumplidos ${r.goals_rate !== null ? r.goals_rate + " %" : "— (añade alguno)"} · últimas ${r.games} partidas`,
         ),
+        s.elo_pending
+          ? h("div.tiny.muted", icon("refresh"), " Calculando tus errores frente a cada elo (la primera vez tarda un minuto): la nota se completará sola.")
+          : null,
       ),
     ),
   );
