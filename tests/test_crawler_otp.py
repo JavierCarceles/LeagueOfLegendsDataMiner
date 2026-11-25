@@ -1898,3 +1898,19 @@ def test_the_total_by_elo_is_counted_from_an_index_not_the_whole_table(keyed_svc
     for sql in queries:
         plan = " ".join(str(r[-1]) for r in db.query("EXPLAIN QUERY PLAN " + sql))
         assert "COVERING INDEX idx_otp_games_counts" in plan, (sql, plan)
+
+
+def test_games_lacking_analysis_are_found_from_an_index_not_the_table(keyed_svc):
+    """«Qué partidas de estos 400 jugadores con los campeones buscados faltan por analizar» sale del índice (1,7 s por
+    consulta en el PC del usuario cuando leía cada fila de ``participants``)."""
+    from app.ingest.crawler import CrawlerConfig, target_sql
+
+    cfg = CrawlerConfig(champions=[AATROX], focus="otp", champion_roles={AATROX: ["TOP"]}).validated()
+    cond, params = target_sql(cfg, "p")
+    sql = (
+        "SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl.id = p.player_id "
+        "LEFT JOIN otp_games o ON o.match_id = p.match_id AND o.puuid = pl.puuid "
+        f"WHERE p.player_id IN (?, ?, ?) AND {cond} AND o.match_id IS NULL"
+    )
+    plan = " ".join(str(r[-1]) for r in keyed_svc.db.query("EXPLAIN QUERY PLAN " + sql, (1, 2, 3, *params)))
+    assert "COVERING INDEX idx_participants_player_champ" in plan, plan
