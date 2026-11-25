@@ -1548,7 +1548,22 @@ def priority_summary(games: list[dict]) -> dict | None:
         "ref": PRIORITY_REFS["first_tower"],
     }
     return {"games": len(pool), "dragons": rows, "first_tower": tower, "lane_tower": PRIORITY_REFS["lane_tower"],
-            "learn": learn.topic("objectives")}
+            "grubs": _grubs_summary(pool), "learn": learn.topic("objectives")}
+
+
+def _grubs_summary(pool: list[dict]) -> dict | None:
+    """C-2: tus larvas según la prioridad de top y mid y tus muertes peleando un objetivo sin prioridad (solo partidas
+    analizadas desde el 25-11-2026: las de antes no lo traen)."""
+    games = [g for g in pool if g["metrics"].get("grubs_prio_n") is not None]
+    if len(games) < PRIORITY_MIN_GAMES:
+        return None
+    rows = []
+    for key, label in (("prio", "Con prioridad en top y mid"), ("mixed", "Prioridad repartida"), ("noprio", "Sin prioridad en top y mid")):
+        n = sum(g["metrics"].get(f"grubs_{key}_n") or 0 for g in games)
+        won = sum(g["metrics"].get(f"grubs_{key}_won") or 0 for g in games)
+        rows.append({"key": key, "label": label, "n": n, "won": won, "pct": round(won / n * 100) if n else None})
+    deaths = sum(g["metrics"].get("obj_noprio_deaths") or 0 for g in games)
+    return {"games": len(games), "rows": rows, "noprio_deaths": deaths}
 
 
 def evaluate_goals(goals: list[dict], games: list[dict]) -> list[dict]:
