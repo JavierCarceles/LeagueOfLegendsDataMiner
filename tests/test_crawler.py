@@ -154,7 +154,8 @@ def test_crawler_config_validation():
     cfg = CrawlerConfig(platforms=["EUW1", "kr", "xx1", "euw1"], tiers=["challenger", "gold", "bogus"], matches_per_player=1, recrawl_hours=0).validated()
     assert cfg.platforms == ["euw1", "kr"]
     assert cfg.tiers == ["GOLD", "CHALLENGER"]
-    assert (cfg.matches_per_player, cfg.recrawl_hours) == (5, 1.0)
+    assert (cfg.matches_per_player, cfg.recrawl_hours) == (5, 0.0)  # 0: nunca se vuelve a por sus partidas nuevas
+    assert CrawlerConfig(recrawl_hours=0.5).validated().recrawl_hours == 1.0
     with pytest.raises(ValueError):
         CrawlerConfig(platforms=["xx1"]).validated()
     with pytest.raises(ValueError):

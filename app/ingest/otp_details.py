@@ -62,10 +62,11 @@ GAMES_FILE = "partidas.jsonl.gz"  # en la carpeta de cada jugador: una línea po
 GAMES_GLOB = "partidas*.jsonl.gz"
 SHARD_NAME = "partidas-{}.jsonl.gz"
 FORMAT_MARKER = ".formato"  # en la raíz de cada carpeta: la versión de su formato (``LAYOUT_VERSION``)
-# Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, con al menos estos puntos y
-# 1,5 veces los del segundo; o estar en la tabla de los mejores de ese campeón (OP.GG).
+# Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, 1,5 veces los puntos del segundo
+# (lo que el buscador llama OTP; desde el 26-11-2026 sin pedir 100.000 puntos, solo un mínimo para cuentas nuevas); o
+# estar en la tabla de los mejores de ese campeón (OP.GG); o jugarlo la mitad o más de sus partidas revisadas.
 OTP_RATIO = 1.5
-OTP_MIN_POINTS = 100_000
+OTP_MIN_POINTS = 10_000
 # Con partidas suyas revisadas, lo que manda es lo que juega: OTP si al menos la mitad de ellas son con ese campeón.
 # La maestría es de toda la vida de la cuenta y engaña (300 K con un campeón y 130 K con el siguiente no es ser OTP).
 OTP_MIN_SHARE = 0.5
@@ -473,17 +474,19 @@ def classify(db, puuid: str, champ: int) -> str:
 def classify_ex(db, puuid: str, champ: int) -> tuple[str, bool]:
     """(``otp`` o ``player``, ¿es definitivo?).
 
-    Con partidas suyas revisadas suficientes (``judgeable``: 20, o 10 con el historial completo), por lo que juega: la
-    mitad o más con ese campeón; o si está en la tabla de los mejores de OP.GG. Definitivo.
-    Sin esa muestra, por su maestría guardada (principal con 1,5 veces los puntos del segundo; sin nada, ``player``: ante
-    la duda, no ensucia los datos de OTPs). Provisional mientras se le sigue revisando: la gráfica del total por elo lo
-    cuenta como sin clasificar hasta saberlo (``_note_provisional``); con su historial ya completo, definitivo."""
+    OTP, definitivo: ese campeón es su principal muy por encima del segundo (``_by_mastery``: lo que el buscador llama
+    OTP), está en la tabla de los mejores de OP.GG o, con partidas suyas revisadas suficientes (``judgeable``: 20, o 10
+    con el historial completo), juega la mitad o más con él. Con esa muestra y nada de eso, jugador (definitivo). Sin
+    muestra, jugador provisional mientras se le sigue revisando: la gráfica del total por elo lo cuenta como sin
+    clasificar hasta saberlo (``_note_provisional``); con su historial ya completo, definitivo."""
+    if _by_mastery(db, puuid, champ) == "otp" or db.scalar(
+        "SELECT 1 FROM otp_sources WHERE puuid = ? AND champ = ? LIMIT 1", (puuid, champ)
+    ):
+        return "otp", True
     share = play_share(db, puuid, champ)
     if share is not None:
         return ("otp" if share[1] >= OTP_MIN_SHARE else "player"), True
-    if db.scalar("SELECT 1 FROM otp_sources WHERE puuid = ? AND champ = ? LIMIT 1", (puuid, champ)):
-        return "otp", True
-    return _by_mastery(db, puuid, champ), _history_done(db, puuid)
+    return "player", _history_done(db, puuid)
 
 
 def _history_done(db, puuid: str) -> bool:
@@ -516,8 +519,10 @@ def reclassify(db) -> list[tuple[str, int]]:
         pairs = db.query(
             "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
             "WHERE (o.seen >= ? OR (o.back_done_reason = 'end' AND o.seen >= ?) OR o.back_done_reason = 'share') "
-            "AND g.kind IN ('otp', 'player')",  # las de todo el ranking se quedan solo en la base de datos
-            (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE),
+            "AND g.kind IN ('otp', 'player') "  # las de todo el ranking se quedan solo en la base de datos
+            # y quien ya es OTP por su maestría aunque no tenga partidas revisadas (lo que el buscador llama OTP)
+            f"UNION SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g WHERE g.kind = 'player' AND {RATIO_OTP_SQL}",
+            (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE, *RATIO_OTP_ARGS),
         )
     # BD vieja sin otp_progress
     except Exception:  # noqa: BLE001
@@ -920,13 +925,20 @@ def champ_tier_counts(db, champ: int) -> dict:
 
 # Partidas con una clase aún provisional (``classify_ex``): de un jugador al que se sigue revisando, sin partidas
 # suficientes para saber qué juega ni estar en las tablas de OTPs. En la gráfica, sin clasificar como en vivo.
+# Quién es OTP por su maestría (``_by_mastery``) en SQL, con ``RATIO_OTP_ARGS``; ``g`` es la partida.
+RATIO_OTP_SQL = (
+    "EXISTS (SELECT 1 FROM mastery_checks m WHERE m.puuid = g.puuid AND json_extract(m.top, '$[0][0]') = g.champ "
+    "AND json_extract(m.top, '$[0][1]') >= ? AND json_extract(m.top, '$[0][1]') >= ? * COALESCE(json_extract(m.top, '$[1][1]'), 0))"
+)
+RATIO_OTP_ARGS = (OTP_MIN_POINTS, OTP_RATIO)
 PROVISIONAL_SQL = (
     "CASE WHEN g.kind IN ('otp', 'player') "
-    "AND NOT EXISTS (SELECT 1 FROM otp_sources s WHERE s.puuid = g.puuid AND s.champ = g.champ) "
     "AND EXISTS (SELECT 1 FROM otp_progress o WHERE o.puuid = g.puuid AND o.back_done_at IS NULL "
-    "AND o.seen < ? AND NOT (o.back_done_reason = 'end' AND o.seen >= ?)) THEN 1 ELSE 0 END"
+    "AND o.seen < ? AND NOT (o.back_done_reason = 'end' AND o.seen >= ?)) "
+    "AND NOT EXISTS (SELECT 1 FROM otp_sources s WHERE s.puuid = g.puuid AND s.champ = g.champ) "
+    f"AND NOT {RATIO_OTP_SQL} THEN 1 ELSE 0 END"
 )
-PROVISIONAL_ARGS = (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE)
+PROVISIONAL_ARGS = (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE, *RATIO_OTP_ARGS)
 
 
 def _tier_breakdown(db) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, dict[int, int]]]]:

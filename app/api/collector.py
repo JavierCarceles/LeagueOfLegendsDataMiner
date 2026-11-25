@@ -71,6 +71,11 @@ class CrawlerBody(BaseModel):
     only_target_games: bool = True
     otp_depth: str = Field("season", pattern="^(30|90|180|season|365|all)$", description="Periodo: cuenta quien jugó el campeón en él y se bajan sus partidas de ese periodo")
     games_per_otp: int = Field(30, ge=0, le=1000, description="Partidas por OTP mientras se buscan más (0 = sin tope)")
+    queues: list[str] = Field(default_factory=list, description="Colas: solo, flex y normal (vacío: SoloQ, y Flex con include_flex)")
+    otp_rule: str = Field(
+        "ratio", pattern="^(share|ratio)$",
+        description="Qué es un OTP: ratio (su campeón principal, muy por encima del segundo) o share (la mitad o más de sus partidas)",
+    )
     champion_roles: dict[str, list[str]] = Field(default_factory=dict, description="Rol buscado de cada campeón (id o nombre → roles); sin entrada = cualquiera")
     patterns: list[dict] = Field(
         default_factory=list,
@@ -233,6 +238,7 @@ def _search_config(cfg, cap: int) -> dict:
         "champion_roles": {str(c): r for c, r in cfg.champion_roles.items()},
         "lines": cfg.roles,
         "focus": cfg.focus,
+        "otp_rule": cfg.otp_rule,
         "min_mastery": cfg.min_mastery,
         "min_share": cfg.min_share,
         "otp_depth": cfg.otp_depth,
