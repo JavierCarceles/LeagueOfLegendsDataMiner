@@ -1,22 +1,22 @@
 {
- "at": 1795631326,
+ "at": 1795631365,
  "diagnostico": {
   "videos-frames": {
-   "muestras": 7398,
+   "muestras": 8298,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "videos/frames.py:141 every": 76,
-    "videos/frames.py:147 every": 19,
-    "videos/frames.py:139 every": 3,
+    "videos/frames.py:141 every": 75,
+    "videos/frames.py:147 every": 18,
+    "videos/frames.py:139 every": 2,
+    "thread.py _worker": 2,
     "videos/frames.py:425 read → onnxruntime_inference_collection.py:run": 1,
-    "thread.py _worker": 1,
     "videos/frames.py:124 __init__": 0
    }
   },
   "db-checkpoint": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "esperando un candado (base de datos, ficheros)": 100
    },
@@ -25,7 +25,7 @@
    }
   },
   "MainThread": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "otro": 100
    },
@@ -44,108 +44,111 @@
    }
   },
   "videos": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
-    "parado esperando trabajo": 75,
-    "esperando a la red (Riot, OP.GG, GitHub)": 22,
-    "otro": 2
+    "parado esperando trabajo": 96,
+    "otro": 2,
+    "esperando a la red (Riot, OP.GG, GitHub)": 2
    },
    "lineas": {
-    "videos/frames.py:741 sample_pass → threading.py:wait": 74,
-    "videos/youtube.py:252 run → ssl.py:read": 21,
+    "videos/frames.py:741 sample_pass → threading.py:wait": 89,
+    "videos/collector.py:224 _sleep → threading.py:wait": 5,
     "videos/frames.py:561 _add_scans → threading.py:wait": 2,
+    "videos/youtube.py:252 run → ssl.py:read": 2,
     "videos/frames.py:425 read → onnxruntime_inference_collection.py:run": 1,
-    "videos/frames.py:196 _search_corner": 1,
-    "videos/youtube.py:252 run → connection.py:create_connection": 0
+    "videos/frames.py:196 _search_corner": 1
+   }
+  },
+  "otp-counts": {
+   "muestras": 8,
+   "en": {
+    "consultando o escribiendo la base de datos": 100
+   },
+   "lineas": {
+    "ingest/otp_details.py:812 counts → db.py:one": 50,
+    "ingest/otp_details.py:785 _tier_breakdown → db.py:query": 50
    }
   },
   "autopush": {
-   "muestras": 76,
+   "muestras": 12,
    "en": {
-    "parado esperando trabajo": 67,
-    "otro": 33
+    "parado esperando trabajo": 58,
+    "otro": 42
    },
    "lineas": {
-    "autopush.py:60 _git → threading.py:join": 42,
-    "autopush.py:101 _read_progress": 33,
-    "ingest/otp_details.py:1748 wait_summaries → threading.py:join": 25
-   }
-  },
-  "otp-summaries": {
-   "muestras": 19,
-   "en": {
-    "otro": 74,
-    "comprimiendo o escribiendo ficheros": 26
-   },
-   "lineas": {
-    "coach/store.py:25 unpack": 26,
-    "coach/store.py:25 unpack → decoder.py:decode": 26,
-    "ingest/otp_details.py:1615 write_summary": 11,
-    "ingest/otp_details.py:1088 _numeric_block": 11,
-    "ingest/otp_details.py:1183 _role_block": 5,
-    "ingest/otp_details.py:1087 _numeric_block": 5
-   }
-  },
-  "Thread-135 (": {
-   "muestras": 15,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-134 (": {
-   "muestras": 15,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-131 (": {
-   "muestras": 13,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-130 (": {
-   "muestras": 13,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
+    "autopush.py:60 _git → threading.py:join": 58,
+    "autopush.py:101 _read_progress": 42
    }
   },
   "web": {
-   "muestras": 1001,
+   "muestras": 933,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "threading.py wait": 100,
-    "api/system.py:34 _db_counts → db.py:one": 0,
-    "config.py:23 _env_values → main.py:_get_stream": 0,
-    "api/system.py:35 _db_counts → db.py:one": 0
+    "api/system.py:35 _db_counts → db.py:one": 0,
+    "api/system.py:34 _db_counts → db.py:one": 0
+   }
+  },
+  "Thread-162 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-161 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
    }
   },
   "draft-live": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "draft_live.py:447 _run → threading.py:wait": 100,
-    "draft_live.py:89 get_prefs → db.py:one": 0,
-    "lcu.py:109 _credentials → __init__.py:as_dict": 0
+    "lcu.py:109 _credentials → __init__.py:as_dict": 0,
+    "lcu.py:109 _credentials → _pswindows.py:convert_oserror": 0
    }
   },
-  "Thread-121 (": {
+  "Thread-170 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-169 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "game-tracker": {
+   "muestras": 520,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:396 _sleep → threading.py:wait": 100,
+    "coach/store.py:52 get_profile → db.py:one": 0
+   }
+  },
+  "Thread-156 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -154,7 +157,7 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "Thread-120 (": {
+  "Thread-155 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -163,7 +166,7 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "Thread-133 (": {
+  "Thread-158 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -172,43 +175,7 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "Thread-132 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-141 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-140 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-143 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-142 (": {
+  "Thread-157 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -218,7 +185,7 @@
    }
   },
   "rofl": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -227,7 +194,7 @@
    }
   },
   "mis-partidas": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -236,7 +203,7 @@
    }
   },
   "tier-calibrator": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -245,7 +212,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -254,7 +221,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1674,
+   "muestras": 1560,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -263,7 +230,7 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -272,7 +239,7 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -281,7 +248,7 @@
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 1116,
+   "muestras": 1040,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -290,7 +257,7 @@
    }
   },
   "warm-opgg-web": {
-   "muestras": 1116,
+   "muestras": 1040,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -299,7 +266,7 @@
    }
   },
   "lol-client-watch": {
-   "muestras": 558,
+   "muestras": 520,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -307,17 +274,8 @@
     "coach/tracker.py:492 _watch_loop → threading.py:wait": 100
    }
   },
-  "game-tracker": {
-   "muestras": 558,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:396 _sleep → threading.py:wait": 100
-   }
-  },
   "Thread": {
-   "muestras": 25,
+   "muestras": 5,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1494,6 +1452,30 @@
    "source": "precarga",
    "message": "Precarga completa: 2846 tareas al día.",
    "hora": "19:27:19"
+  },
+  {
+   "id": 147,
+   "ts": 1795631332.7063065,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (0 partidas nuevas, rama main).",
+   "hora": "19:28:52"
+  },
+  {
+   "id": 148,
+   "ts": 1795631352.2443435,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: recogido «✅ CHALLENGER TE ENSEÑA CÓMO JUGAR LA JUNGLA 🔥 GUÍA PARA PRINCIPIANTES 🏆 TODO LO QUE NECESITAS SABER» (transcripción: yt-dlp json3, partida 2154 s con Volibear).",
+   "hora": "19:29:12"
+  },
+  {
+   "id": 149,
+   "ts": 1795631365.791915,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: subiendo a GitHub los 5 vídeos recogidos.",
+   "hora": "19:29:25"
   }
  ],
  "hilos": {
@@ -1512,155 +1494,20 @@
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
-  "videos-frames_17": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_16": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_15": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_14": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_13": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_12": [
+  "AnyIO worker thread #2648": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_11": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_10": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_9": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_8": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_7": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_6": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_5": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 147, in every |     ok, frame = self.cap.retrieve()"
-  ],
-  "videos-frames_4": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_3": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_2": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_1": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
-  ],
-  "videos-frames_0": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in <lambda> |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 773, in _sample_span |     for t, frame in reader.every(STEP_S, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 141, in every |     while self.cap.grab():"
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
   "videos": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 401, in _full_pass |     collected = vf.sample_pass(str(path), box, cam, tools, duration, self._should_stop_frames,",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 741, in sample_pass |     parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 645, in result_iterator |     yield _result_or_cancel(fs.pop())",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 312, in _result_or_cancel |     return fut.result(timeout)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 203, in _loop |     self._sleep(IDLE_S)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 224, in _sleep |     self.wake.wait(seconds)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "rofl": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
