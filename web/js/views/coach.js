@@ -1281,7 +1281,7 @@ function noWeaknessText(s, recurring) {
   const rows = s.metrics || [];
   const better = rows.filter((m) => m.status === "good").length;
   const head = better
-    ? `Ninguna de tus medias está claramente por debajo de ${tier} en ${gamesText(s)}, y en ${better} de ${rows.length} estás por encima`
+    ? `Ninguna de tus medias está claramente por debajo de ${tier} en ${gamesText(s)}, y en ${better} de las ${rows.length} métricas estás por encima`
     : `Tus medias están al nivel de ${tier} en ${gamesText(s)}`;
   return head + pendingText(s, recurring) + (s.target_hint ? "" : " Sube tu elo objetivo para exigirte más.");
 }
@@ -1394,10 +1394,13 @@ function sideText(side) {
   return ` (lado ${side === "top" ? "del barón" : "del dragón"})`;
 }
 
+/** Resumen de la tarjeta: qué parte de los dragones cogéis con prioridad en mid y bot y sin ella («75 % sin ella» a secas
+ * parecía «el 75 % del tiempo sin prioridad»). */
 function priorityLine(p) {
   const pr = p.dragons.find((r) => r.key === "prio");
   const no = p.dragons.find((r) => r.key === "noprio");
-  return [pr?.pct != null ? `${pr.pct} % de dragones con prioridad` : null, no?.pct != null ? `${no.pct} % sin ella` : null].filter(Boolean).join(" · ") || null;
+  const parts = [pr?.pct == null ? null : `${pr.pct} % con prioridad`, no?.pct == null ? null : `${no.pct} % sin prioridad`].filter(Boolean);
+  return parts.length ? `Dragones que cogéis: ${parts.join(" · ")}` : null;
 }
 
 function priorityCard(s) {
@@ -1407,7 +1410,7 @@ function priorityCard(s) {
   const rows = p.dragons.map((r) =>
     h(
       "div",
-      tagBar(r.label, r.pct ?? 0, 100, r.n ? `${r.won} de ${r.n} (${r.pct} %)` : "sin dragones", prioTone(r.key)),
+      tagBar(r.label, r.pct ?? 0, 100, r.n ? `${r.won} de ${r.n} (${r.pct} %)` : "ningún dragón así en tus partidas", prioTone(r.key)),
       h("div.tiny.muted", `Referencia: ${refText(r.ref)}`),
     ),
   );
