@@ -245,7 +245,8 @@ def download(video_id: str, folder: Path, fmt: str, data_dir: Path | None = None
     folder.mkdir(parents=True, exist_ok=True)
 
     def run(variant: dict) -> None:
-        opts = options(data_dir, format=fmt, outtmpl=str(folder / "%(id)s.%(format_id)s.%(ext)s"), continuedl=False,
+        # continuedl: si la app se reinició a mitad de la descarga, sigue por donde iba (la carpeta de trabajo se queda)
+        opts = options(data_dir, format=fmt, outtmpl=str(folder / "%(id)s.%(format_id)s.%(ext)s"), continuedl=True,
                        **{**extra, **variant})
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:

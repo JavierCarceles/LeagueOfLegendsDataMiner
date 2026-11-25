@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -60,10 +62,15 @@ def _tracker_brief(svc) -> dict:
     }
 
 
+# Identifica este arranque: la web lo compara tras perder la conexión y, si cambió (la app se reinició con una versión
+# nueva de GitHub), se recarga sola para usar el JavaScript nuevo.
+BOOT_ID = f"{os.getpid()}-{int(time.time())}"
+
+
 @router.get("/ping")
 def ping():
     """Respuesta inmediata (sin tocar la base de datos): la usa run.py para saber si la app ya está abierta."""
-    return {"app": "tempu-drafter", "version": __version__}
+    return {"app": "tempu-drafter", "version": __version__, "boot": BOOT_ID}
 
 
 @router.get("/system/status")
@@ -84,7 +91,17 @@ def status(svc=Depends(svc_from)):
         },
         "guides_dir": str(svc.settings.coachings_dir),
         "push": _push_brief(svc),
+        "update": _update_brief(svc),
+        "boot": BOOT_ID,
     }
+
+
+def _update_brief(svc) -> dict | None:
+    """La actualización automática desde GitHub (``app.updater``): en qué está y la última versión instalada."""
+    from app.updater import Updater
+
+    updater = Updater.of(svc)
+    return updater.public() if updater is not None else None
 
 
 def _push_brief(svc) -> dict | None:
@@ -95,7 +112,8 @@ def _push_brief(svc) -> dict | None:
     if auto is None:
         return None
     p = auto.public()
-    keys = ("enabled", "running", "queued", "step", "last_push_at", "last_error", "git_ok", "git", "pending")
+    keys = ("enabled", "running", "queued", "step", "last_push_at", "last_error", "git_ok", "git", "pending", "players_pending",
+            "videos_pending", "repo_mb", "repo_warning")
     return {k: p.get(k) for k in keys}
 
 

@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import mimetypes
 import threading
+import time
+import traceback
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -34,6 +37,25 @@ class StaticNoCache(StaticFiles):
 
 
 def create_app(settings: Settings | None = None, run_startup: bool = True) -> FastAPI:
+    """La app de FastAPI. Si no se puede crear (una versión nueva rota), el error queda en ``data/registro/arranque.log``
+    para la vuelta atrás automática de ``run.py`` (uvicorn solo lo escribiría en la consola)."""
+    try:
+        return _create_app(settings, run_startup)
+    except Exception:
+        _startup_crash(settings or default_settings)
+        raise
+
+
+def _startup_crash(settings: Settings) -> None:
+    try:
+        path = Path(settings.data_dir) / "registro" / "arranque.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{time.strftime('%Y-%m-%d %H:%M:%S')}\n{traceback.format_exc()[-8000:]}", encoding="utf-8")
+    except OSError:
+        log.debug("No se pudo guardar el error de arranque", exc_info=True)
+
+
+def _create_app(settings: Settings | None, run_startup: bool) -> FastAPI:
     setup_logging()
     settings = settings or default_settings
     if run_startup:

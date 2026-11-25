@@ -67,10 +67,21 @@ Tests: `pip install -r tests/requirements.txt` y `python -m pytest`.
 - **Mientras juegas** (cliente de LoL abierto en este ordenador) se pausan la precarga y el recolector para no quitarte
   ancho de banda; en Windows la app corre además con prioridad baja de CPU. Al terminar la partida sigue sola.
 - **Recolector**: si lo dejas en marcha, se reanuda solo al volver a abrir la app.
-- **Subida a GitHub**: cada 2.000 partidas nuevas del recolector (`AUTO_PUSH_GAMES`) se hace solo `git add data`, un commit
-  «datos» (solo `data/`: el código a medias nunca entra), `git pull --rebase` y `git push`, en segundo plano y esperando a que
-  acabe tu partida. Nunca se fuerza: si algo choca, el commit queda en local y se reintenta a los 15 min (el aviso sale en
-  *Datos y API*). Para subir ya lo que haya: `python -m app.autopush`.
+- **Subida a GitHub**: con 2.000 partidas nuevas (`AUTO_PUSH_GAMES`), 2.000 jugadores revisados (`AUTO_PUSH_PLAYERS`) o
+  5 vídeos recogidos (`AUTO_PUSH_VIDEOS`), lo primero que llegue, y como mucho cada 6 h si hay algo pendiente, se hace solo
+  `git add data`, un commit «datos» (solo `data/`: el código a medias nunca entra), `git pull` (merge) y `git push`, en
+  segundo plano y esperando a que acabe tu partida. Nunca se fuerza: si algo choca, el commit queda en local y se reintenta
+  a los 15 min (el aviso sale en *Datos y API*). Para que el repositorio no crezca de más, los `resumen.json` de cada
+  campeón no se suben (se rehacen solos) y las partidas que llegan después de una subida van a ficheros nuevos
+  (`partidas-<n>.jsonl.gz`) en vez de reescribir los ya subidos; *Datos y API* avisa si pasa de 4 GB. Para subir ya lo que
+  haya: `python -m app.autopush`.
+- **Actualización automática**: si en GitHub hay código nuevo (subido desde otro ordenador), la app lo baja con la
+  siguiente subida de datos y **se reinicia sola sin perder nada**: nunca durante una partida ni en la selección de
+  campeones; el recolector sigue por el progreso guardado de cada jugador, el vídeo a medias por su carpeta de trabajo
+  (metadatos, transcripción, descarga y trozos de frames ya hechos) y el cupo de la API por lo que Riot aún cuenta. La
+  página se recarga sola. Si la versión nueva no carga o no arranca, vuelve sola a la anterior con un commit «Vuelta
+  atrás automática» y el error en `data/registro/actualizacion.log`, que se suben con los datos. Hace falta abrir la app
+  con `run.py` (es quien la vuelve a lanzar) y la primera vez que llega esta función, reiniciarla a mano una vez.
 - En la barra superior, *Datos al día* / *Preparando datos N %* resume el estado; el detalle está en *Datos y API*.
 
 ## De dónde salen los datos
@@ -208,7 +219,9 @@ salta ninguna protección). Todo se cachea en SQLite (`data/lol.db`).
 | `PAUSE_IN_GAME` | `1` | Pausar descargas de fondo mientras juegas. |
 | `CALIBRATE_ENABLED` | `1` | Bajar poco a poco partidas reales de tu elo objetivo para calibrar las referencias. |
 | `LOW_PRIORITY` | `1` | Windows: prioridad baja del proceso. |
-| `AUTO_PUSH_GAMES` | `500` | Cada cuántas partidas nuevas del recolector se suben los datos a GitHub (commit «datos» + push); `0` lo desactiva. |
+| `AUTO_PUSH_GAMES` | `2000` | Cada cuántas partidas nuevas del recolector se suben los datos a GitHub (commit «datos» + push); `0` desactiva la subida y la actualización automáticas. |
+| `AUTO_PUSH_PLAYERS` / `AUTO_PUSH_VIDEOS` | `2000` / `5` | Jugadores revisados o vídeos recogidos que también disparan la subida (`0`: ese disparador no sube). |
+| `AUTO_UPDATE` | `1` | Bajar el código nuevo de GitHub y reiniciar la app sola sin perder lo que hacía (`0`: no). |
 | `STATS_QUEUES` | `420,440` | Colas que alimentan tus estadísticas propias. |
 | `DDRAGON_LANG` | `es_ES` | Idioma de campeones, objetos y notas de parche. |
 | `LOL_INSTALL_DIR` | — | Carpeta de LoL si no se detecta sola (se busca en las rutas por defecto, en `RiotClientInstalls.json` del Riot Client y en el proceso del cliente abierto). |

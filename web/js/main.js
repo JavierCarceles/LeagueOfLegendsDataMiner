@@ -134,9 +134,28 @@ function renderFilters() {
 }
 
 // ------------------------------------------------------------------ estado
+let bootId = null; // arranque de la app que sirvió esta página (ver app/api/system.py)
+let updateToast = null;
+
+/** La app se reinició (versión nueva de GitHub, app/updater.py): recarga la página para usar el JavaScript nuevo. */
+function checkBoot(status) {
+  if (bootId && status.boot && status.boot !== bootId) {
+    location.reload();
+    return true;
+  }
+  bootId = bootId || status.boot;
+  const update = status.update;
+  if (update?.status === "restarting" && updateToast !== update.at) {
+    updateToast = update.at;
+    toast("Versión nueva de GitHub instalada: la app se reinicia (unos segundos) y esta página se recarga sola.", "info", 15000);
+  }
+  return false;
+}
+
 async function refreshStatus() {
   try {
     const status = await api.get("/api/system/status");
+    if (checkBoot(status)) return;
     state.status = status;
     const pill = document.getElementById("key-pill");
     let text = keyPill(pill, status.key);

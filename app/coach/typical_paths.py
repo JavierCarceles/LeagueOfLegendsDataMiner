@@ -109,7 +109,7 @@ def build(data_dir: Path, frames: bool = True) -> dict:
     sums: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
     games = 0
     for src in ("otps", "partidas_campeon"):
-        for f in sorted((data_dir / src).glob("*/*/*/partidas.jsonl.gz")):
+        for f in sorted((data_dir / src).glob("*/*/*/partidas*.jsonl.gz")):
             with gzip.open(f, "rt", encoding="utf-8") as fh:
                 for line in fh:
                     games += 1

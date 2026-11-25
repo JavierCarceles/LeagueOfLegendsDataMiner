@@ -1745,7 +1745,7 @@ function otpFilesBar(data) {
         { style: { marginTop: "4px" } },
         rebuilding
           ? `Reorganizando la carpeta… ${fmt.int(d.files.done || 0)} de ${fmt.int(d.files.total || 0)} partidas`
-          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → jugador (perfil.json y partidas.jsonl.gz, con el elo de cada partida) y un resumen.json por campeón, por rol y por elo, que se rehace solo. Las de OTPs y las de otros jugadores van por separado: las comparaciones con OTPs solo usan las de OTPs.",
+          : "Se guarda solo al bajar cada partida: una carpeta por campeón → rol → jugador (perfil.json y partidas.jsonl.gz, con el elo de cada partida; lo que llega después de subirlo a GitHub va a partidas-<n>.jsonl.gz para no volver a subir el fichero entero) y un resumen.json por campeón, por rol y por elo, que se rehace solo y no se sube. Las de OTPs y las de otros jugadores van por separado: las comparaciones con OTPs solo usan las de OTPs.",
       ),
       d.path ? h("div.tiny.muted.otp-path", h("b", "OTPs: "), d.path) : null,
       d.players_path ? h("div.tiny.muted.otp-path", h("b", "Otros jugadores: "), d.players_path) : null,
@@ -1761,12 +1761,43 @@ function runningPushText(step) {
   return `subiendo · paso ${step.n} de ${step.of}: ${step.label}${stepDetail(step)} · desde hace ${fmt.int(Math.max(0, Date.now() / 1000 - step.at))} s`;
 }
 
+/** «120 de 2.000 partidas · 3 de 2.000 jugadores · 1 de 5 vídeos nuevos»: lo que falta para cada disparador. */
+function pendingText(p) {
+  const items = [
+    `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas`,
+    p.every_players ? `${fmt.int(p.players_pending || 0)} de ${fmt.int(p.every_players)} jugadores` : null,
+    p.every_videos ? `${fmt.int(p.videos_pending || 0)} de ${fmt.int(p.every_videos)} vídeos` : null,
+  ].filter(Boolean);
+  return `${items.join(" · ")} nuevos (se sube solo al llegar a cualquiera de ellos, y como mucho cada 6 h)`;
+}
+
+/** Tamaño del repositorio en GitHub (aviso a partir de 4 GB: GitHub recomienda no pasar de 5). */
+function repoLine(p) {
+  if (!p.repo_mb) return null;
+  const gb = fmt.num(p.repo_mb / 1024, 1);
+  if (!p.repo_warning) return h("div.tiny.faint", `Repositorio: ${gb} GB (GitHub recomienda no pasar de 5 GB).`);
+  return h("div.tiny.bad", `Repositorio: ${gb} GB. GitHub recomienda no pasar de 5 GB: conviene reducir lo que se sube.`);
+}
+
+/** La última versión instalada sola desde GitHub (y si hubo que volver atrás). */
+function lastUpdateText(last) {
+  if (!last?.to) return "";
+  const back = last.status === "rolled_back" ? " (no arrancaba: se volvió a la anterior)" : "";
+  return ` · última versión instalada ${String(last.to).slice(0, 7)} ${fmt.ago(last.at)}${back}`;
+}
+
+/** Actualización automática desde GitHub (app/updater.py): en qué está. */
+function updateLine(u) {
+  if (!u?.enabled) return null;
+  const cls = u.status === "failed" ? "div.tiny.bad" : "div.tiny.faint";
+  return h(cls, `Actualización automática: ${u.detail || "al día con GitHub"}${lastUpdateText(u.last)}.`);
+}
+
 function autopushLine(p) {
   if (!p) return null;
   if (!p.enabled) return h("div.tiny.muted", { style: { marginTop: "4px" } }, h("b", "GitHub: "), "subida automática desactivada (AUTO_PUSH_GAMES=0).");
-  const left = Math.max(0, p.every - (p.pending || 0));
   const step = p.running ? p.step : null;
-  const parts = [p.running ? runningPushText(step) : `${fmt.int(p.pending || 0)} de ${fmt.int(p.every)} partidas nuevas (se suben solas en ${fmt.int(left)})`];
+  const parts = [p.running ? runningPushText(step) : pendingText(p)];
   if (!p.running && p.last_push_s) parts.push(`la última tardó ${fmt.int(p.last_push_s)} s`);
   if (p.last_push_at) parts.push(`última subida ${fmt.ago(p.last_push_at)}`);
   if (p.last_result === "nothing") parts.push("la última vez no había nada nuevo en data/ (sin campeones elegidos, las partidas solo van a la base de datos)");
@@ -1776,6 +1807,8 @@ function autopushLine(p) {
     h("b", "GitHub: "),
     parts.join(" · "),
     gitLine(p),
+    repoLine(p),
+    updateLine(p.update),
     p.last_error ? h("div.tiny.bad", { title: p.last_error }, `La última subida falló: ${p.last_error.slice(0, 160)}`) : null,
   );
 }

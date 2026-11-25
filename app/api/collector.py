@@ -370,9 +370,13 @@ def _files_state(svc) -> dict:
     files = otp_details.Files.of(svc)
     players = otp_details.Files.of(svc, "player")
     from app.autopush import AutoPush
+    from app.updater import Updater
 
     auto = AutoPush.of(svc)
     push = auto.public() if auto is not None else None
+    updater = Updater.of(svc)
+    if push is not None and updater is not None:
+        push = {**push, "update": updater.public()}
     if files is None:
         return {"path": None, "files": None, "players_path": None, "autopush": push}
     return {"path": str(files.base), "files": files.state, "players_path": str(players.base) if players is not None else None, "autopush": push}

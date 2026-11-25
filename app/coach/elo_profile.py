@@ -146,7 +146,7 @@ def _files(data_dir: Path) -> list[Path]:
     for src in SOURCES:
         base = data_dir / src
         if base.is_dir():
-            out += sorted(base.glob("*/*/*/partidas.jsonl.gz"))
+            out += sorted(base.glob("*/*/*/partidas*.jsonl.gz"))  # con los añadidos tras cada subida
     return out
 
 

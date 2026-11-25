@@ -60,7 +60,8 @@ def test_push_solo_datos_y_con_el_remoto_por_delante(repos):
 
     result = autopush.push_data(a, a / "data", [threading.RLock()])
 
-    assert result == {"committed": True, "pushed": True, "branch": "main"}
+    assert {k: result[k] for k in ("committed", "pushed", "branch")} == {"committed": True, "pushed": True, "branch": "main"}
+    assert result["committed_at"] > 0  # lo escrito después ya no va en este commit (ver otp_details: ficheros nuevos)
     # Se junta con un merge (no rebase: en Windows el rebase no podía reescribir ficheros de data/ abiertos).
     log = git(repos.remote, "log", "--format=%s", "main").splitlines()
     assert log[0].startswith("Merge") and {"datos", "código"} <= set(log[1:3])
@@ -89,7 +90,7 @@ def test_codigo_a_medias_nunca_entra_ni_se_mezcla(repos):
 
 
 def test_sin_cambios_no_hace_nada(repos):
-    assert autopush.push_data(repos.a, repos.a / "data") == {"committed": False, "pushed": False, "branch": "main"}
+    assert autopush.push_data(repos.a, repos.a / "data") == {"committed": False, "pushed": False, "branch": "main", "committed_at": None}
 
 
 def test_conflicto_no_fuerza_y_deja_el_commit_en_local(repos):
@@ -493,3 +494,58 @@ def test_subir_ya_avisa_si_esta_desactivado(repos, monkeypatch):
     svc = SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None, shutdown_event=threading.Event())
     with pytest.raises(autopush.PushUnavailable):
         autopush.push_now(svc)
+
+
+def test_lo_que_gitignore_excluye_sale_del_indice_sin_borrarse(repos):
+    """Los resumen.json se rehacen solos: al añadirlos a .gitignore (desde otro ordenador), la siguiente subida los quita
+    del índice sin borrarlos del disco y sin conflictos con el pull."""
+    a, b = repos.a, repos.b
+    (a / "data" / "Ahri").mkdir()
+    (a / "data" / "Ahri" / "resumen.json").write_text('{"v": 1}')
+    autopush.push_data(a, a / "data")
+    git(b, "pull", "-q")
+    (b / ".gitignore").write_text("data/.autopush.json\n*.tmp\ndata/*/resumen.json\n")
+    git(b, "commit", "-qam", "no subir los resúmenes")
+    git(b, "push", "-q")
+    (a / "data" / "Ahri" / "resumen.json").write_text('{"v": 2}')  # se rehízo mientras tanto
+    autopush.push_data(a, a / "data")  # el pull trae el .gitignore nuevo…
+    autopush.push_data(a, a / "data")  # …y la siguiente subida los quita del índice
+    assert (a / "data" / "Ahri" / "resumen.json").read_text() == '{"v": 2}'  # sigue en el disco
+    assert "resumen.json" not in git(repos.remote, "ls-tree", "-r", "--name-only", "main")
+
+
+def _svc(repos, **extra):
+    return SimpleNamespace(settings=SimpleNamespace(data_dir=repos.a / "data"), tracker=None, shutdown_event=threading.Event(), **extra)
+
+
+def test_cinco_videos_o_dos_mil_jugadores_tambien_suben(repos, monkeypatch):
+    monkeypatch.setenv("AUTO_PUSH_VIDEOS", "2")
+    monkeypatch.setenv("AUTO_PUSH_PLAYERS", "3")
+    auto = autopush.AutoPush(_svc(repos), repo=repos.a)
+    (repos.a / "data" / "video.json").write_text("{}")
+    auto.note_player()
+    auto.note_video()
+    assert auto.thread is None and auto.state["players_pending"] == 1 and auto.state["videos_pending"] == 1
+    auto.note_video()
+    auto.thread.join(30)
+    assert auto.state["videos_pending"] == 0 and auto.state["players_pending"] == 0 and auto.state["last_push_videos"] == 2
+    assert auto.state["last_commit_at"] > 0
+    assert git(repos.remote, "log", "-1", "--format=%s", "main") == "datos"
+
+
+def test_con_algo_pendiente_sube_cada_seis_horas(repos, monkeypatch):
+    auto = autopush.AutoPush(_svc(repos), repo=repos.a)
+    started = []
+    monkeypatch.setattr(auto, "start", lambda *a, **k: started.append(1) or True)
+    assert auto.push_if_stale() is False  # nada pendiente
+    auto.state.update(players_pending=1)
+    assert auto.push_if_stale() is False and auto.state["last_push_at"]  # primera vez: empieza a contar
+    auto.state["last_push_at"] = 1.0  # hace mucho
+    assert auto.push_if_stale() is True and started == [1]
+
+
+def test_tamano_del_repositorio(repos):
+    assert autopush.repo_mb(repos.a) is not None
+    auto = autopush.AutoPush(_svc(repos), repo=repos.a)
+    auto.state["repo_mb"] = autopush.REPO_WARN_MB + 1
+    assert auto.public()["repo_warning"] is True

@@ -1,19 +1,28 @@
-"""Subida automática de los datos a GitHub: cada N partidas nuevas del recolector, un commit «datos» y push.
+"""Subida automática de los datos a GitHub: un commit «datos» y push cuando hay bastante nuevo.
 
-El recolector escribe cada partida en ``data/otps`` o ``data/partidas_campeon``. Al llegar a ``AUTO_PUSH_GAMES``
-partidas nuevas (500 por defecto; ``0`` lo desactiva) se hace, en segundo plano y sin tocar nada fuera de ``data/``:
+Disparadores (lo primero que llegue; ``AUTO_PUSH_GAMES=0`` lo desactiva todo):
 
-1. ``git add -- data`` y ``git commit -m datos -- data`` (solo la carpeta de datos: si tienes código a medias, no entra);
-2. ``git pull --rebase --autostash`` de la rama actual (trabajas desde dos ordenadores: el remoto puede ir por delante).
-   Si tienes código modificado sin commit fuera de ``data/``, no se hace pull (podría mezclar tus cambios con los del
-   remoto): solo se intenta el push y, si el remoto va por delante, se avisa en «Datos y API» y se reintenta luego;
-3. ``git push`` normal. **Nunca se fuerza**: si el rebase choca, se aborta, el commit queda en local y se reintenta
+* ``AUTO_PUSH_GAMES`` partidas nuevas del recolector (2.000 por defecto);
+* ``AUTO_PUSH_PLAYERS`` jugadores con su historial revisado (2.000);
+* ``AUTO_PUSH_VIDEOS`` vídeos recogidos (5; y siempre al vaciar la cola de vídeos);
+* y, con algo pendiente, como mucho cada 6 h aunque no se llegue a ninguno (``push_if_stale``, desde ``updater``).
+
+Al subir, en segundo plano y sin tocar nada fuera de ``data/``:
+
+1. Lo que ``.gitignore`` ya excluye pero seguía en el índice (los ``resumen.json`` de cada campeón, que se rehacen solos
+   y eran un tercio de lo que crecía el repositorio) se quita del índice sin borrarlo del disco;
+2. ``git add -- data`` y ``git commit -m datos -- data`` (solo la carpeta de datos: si tienes código a medias, no entra);
+3. ``git pull`` (merge) de la rama actual: así llega el código nuevo que subas desde otro ordenador (``updater`` reinicia
+   la app con él). Si tienes código modificado sin commit fuera de ``data/``, no se hace pull: solo se intenta el push y,
+   si el remoto va por delante, se avisa en «Datos y API» y se reintenta luego;
+4. ``git push`` normal. **Nunca se fuerza**: si el pull choca, se aborta, el commit queda en local y se reintenta
    más tarde.
 
-Mientras juegas se espera a que acabe la partida. La cuenta de partidas pendientes se guarda en
-``data/.autopush.json`` (ignorado por git), así que sobrevive a cerrar la app.
+Mientras juegas se espera a que acabe la partida. Lo pendiente se guarda en ``data/.autopush.json`` (ignorado por git),
+así que sobrevive a cerrar o reiniciar la app. Con el repositorio por encima de 4 GB se avisa en «Datos y API» (GitHub
+recomienda no pasar de 5 GB).
 
-También se puede lanzar a mano: ``python -m app.autopush`` (sube ya lo que haya, sin esperar a las 500).
+También se puede lanzar a mano: ``python -m app.autopush`` (sube ya lo que haya, sin esperar a ningún umbral).
 """
 
 from __future__ import annotations
@@ -33,24 +42,46 @@ from app.logbus import get_logger
 log = get_logger("autopush")
 
 DEFAULT_EVERY = 2000  # 2.000 partidas nuevas entre subidas (antes 500; con ~90 partidas/min, una cada ~20 min)
+# Lo pendiente de cada disparador: (clave en el estado, variable de entorno, umbral por defecto). «pending» son las
+# partidas (el nombre de siempre en ``.autopush.json``).
+TRIGGERS = (("pending", "AUTO_PUSH_GAMES", DEFAULT_EVERY), ("players_pending", "AUTO_PUSH_PLAYERS", 2000), ("videos_pending", "AUTO_PUSH_VIDEOS", 5))
+STALE_PUSH_S = 6 * 3600  # con algo pendiente, como mucho tanto entre subidas
+REPO_WARN_MB = 4096  # GitHub recomienda no pasar de 5 GB por repositorio
 STATE_FILE = ".autopush.json"
 COMMIT_MESSAGE = "datos"
 GIT_TIMEOUT_S = 600  # un push grande con una conexión lenta
+UNTRACK_CHUNK = 200
 RETRY_AFTER_S = 15 * 60  # tras un fallo (sin red, rebase con conflictos…), no se reintenta antes
 IN_GAME_WAIT_S = 30
 
 
-def every() -> int:
-    """Partidas nuevas entre una subida y la siguiente (``AUTO_PUSH_GAMES``; 0 = desactivado)."""
-    raw = env("AUTO_PUSH_GAMES")
+def _env_int(name: str, default: int) -> int:
+    raw = env(name)
     try:
-        return max(0, int(raw)) if raw not in (None, "") else DEFAULT_EVERY
+        return max(0, int(raw)) if raw not in (None, "") else default
     except ValueError:
-        return DEFAULT_EVERY
+        return default
+
+
+def every() -> int:
+    """Partidas nuevas entre una subida y la siguiente (``AUTO_PUSH_GAMES``; 0 = subida automática desactivada)."""
+    return _env_int("AUTO_PUSH_GAMES", DEFAULT_EVERY)
+
+
+def threshold(key: str) -> int:
+    """Umbral de un disparador de ``TRIGGERS`` (0: ese disparador no sube nada)."""
+    if key == "pending":
+        return every()
+    for k, name, default in TRIGGERS:
+        if k == key:
+            return _env_int(name, default)
+    raise KeyError(key)
 
 
 class GitError(RuntimeError):
-    pass
+    def __init__(self, message: str, committed_at: float | None = None) -> None:
+        super().__init__(message)
+        self.committed_at = committed_at  # el commit «datos» se hizo (y queda en local) aunque falle el push
 
 
 def _git(repo: Path, *args: str, check: bool = True, timeout: int = GIT_TIMEOUT_S) -> subprocess.CompletedProcess:
@@ -150,26 +181,84 @@ def _check_repo(repo: Path, data_dir: Path) -> tuple[str, str]:
     return branch, rel
 
 
-def _pull(repo: Path, remote: str, remote_branch: str, progress) -> None:
+REVERT_PREFIX = "Vuelta atrás automática"  # commits de ``updater`` y ``run.py`` al volver a la versión anterior
+
+
+def _code(rel: str) -> tuple[str, ...]:
+    """Pathspec de todo lo que no son datos."""
+    return ("--", ".", f":(exclude){rel}")
+
+
+def _only_reverts(repo: Path, rel: str, ref: str) -> bool:
+    """¿Lo único de código que este ordenador tiene y GitHub no son vueltas atrás automáticas? (código propio: no)"""
+    own = _git(repo, "log", "--no-merges", "--format=%s", f"{ref}..HEAD", *_code(rel), check=False).stdout.splitlines()
+    return bool(own) and all(line.startswith(REVERT_PREFIX) for line in own)
+
+
+def _take_remote_code(repo: Path, rel: str, merging: bool) -> None:
+    """El código queda exactamente como en GitHub (``FETCH_HEAD``); los datos, como estaban (ya fusionados)."""
+    _git(repo, "restore", "--source=FETCH_HEAD", "--staged", "--worktree", *_code(rel))
+    if merging:
+        _git(repo, "commit", "-q", "--no-edit")
+    elif _git(repo, "diff", "--cached", "--quiet", check=False).returncode != 0:
+        _git(repo, "commit", "-q", "-m", "Código igual que en GitHub (el arreglo sustituye a la vuelta atrás automática)")
+
+
+def _pull(repo: Path, remote: str, remote_branch: str, progress, rel: str = "data") -> None:
+    """Pull (merge) de GitHub. Los datos se fusionan y nunca se pisan: si chocan, se aborta. En el código manda GitHub
+    cuando lo único propio de este ordenador son vueltas atrás automáticas: si mientras se subía la vuelta atrás llegó
+    un arreglo hecho sin ella, el código queda como el del arreglo (si no, quedaría a medias entre los dos)."""
     # Merge, no rebase: el rebase reescribía en disco los ficheros de data/ que la app tiene abiertos y en Windows fallaba
     # («git pull --rebase falló»). El merge solo toca lo que cambió en GitHub.
     progress("pull")
+    before = _git(repo, "rev-parse", "HEAD", check=False).stdout.strip()
     pull = _git(repo, "pull", "--no-rebase", "--no-edit", "--autostash", remote, remote_branch, check=False)
-    conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.strip()
+    conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.splitlines()
+    in_data = any(c == rel or c.startswith(f"{rel}/") for c in conflicts)
+    if conflicts and not in_data and _only_reverts(repo, rel, "FETCH_HEAD"):
+        _take_remote_code(repo, rel, merging=True)
+        return
     if pull.returncode != 0 or conflicts:
         _git(repo, "merge", "--abort", check=False)
         raise GitError(f"git pull falló (el commit queda en local): {(pull.stderr or pull.stdout).strip()[:500]}")
+    brought_code = _git(repo, "diff", "--name-only", f"{before}...FETCH_HEAD", *_code(rel), check=False).stdout.strip()
+    if before and brought_code and _only_reverts(repo, rel, "FETCH_HEAD"):
+        _take_remote_code(repo, rel, merging=False)
+
+
+def _untrack_ignored(repo: Path, rel: str) -> int:
+    """Ficheros de ``rel`` que ``.gitignore`` ya excluye pero siguen en el índice: fuera del índice (no del disco)."""
+    listed = _git(repo, "ls-files", "-ci", "--exclude-standard", "-z", "--", rel, check=False).stdout
+    files = [f for f in listed.split("\0") if f]
+    for i in range(0, len(files), UNTRACK_CHUNK):  # en tandas: la línea de órdenes de Windows tiene un límite
+        _git(repo, "rm", "--cached", "--quiet", "--ignore-unmatch", "--", *files[i : i + UNTRACK_CHUNK])
+    return len(files)
+
+
+def _commit_data(repo: Path, rel: str) -> None:
+    """Commit «datos» de lo preparado en ``rel``. Si tienes código preparado (``git add``) fuera de ahí, el commit se
+    limita a ``rel`` para no llevárselo (y entonces los ficheros que se quitaron del índice esperan a la siguiente)."""
+    others = _git(repo, "diff", "--cached", "--name-only", "--", ".", f":(exclude){rel}", check=False).stdout.strip()
+    if not others:
+        _git(repo, "commit", "-m", COMMIT_MESSAGE)
+        return
+    done = _git(repo, "commit", "-m", COMMIT_MESSAGE, "--", rel, check=False)
+    if done.returncode != 0 and "nothing" not in (done.stdout + done.stderr):
+        raise GitError(f"git commit: {(done.stderr or done.stdout).strip()[:500]}")
 
 
 def _commit_and_pull(repo: Path, rel: str, branch: str, progress) -> dict | None:
     """Commit «datos» y, con el código limpio, pull. ``None`` si no hay nada que subir; si no, lo que necesita el push."""
     progress("add")
+    _untrack_ignored(repo, rel)
     _git(repo, "add", "--", rel)
     files = _git(repo, "diff", "--cached", "--name-only", "--", rel, check=False).stdout.split("\n")
     n_files = sum(1 for f in files if f.strip())
+    committed_at = None
     if n_files:
         progress("commit", f"{n_files} ficheros")
-        _git(repo, "commit", "-m", COMMIT_MESSAGE, "--", rel)
+        committed_at = time.time()  # antes del commit: lo que se escriba después ya no va en él
+        _commit_data(repo, rel)
     upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).stdout.strip()
     remote, _, remote_branch = upstream.partition("/") if upstream else ("origin", "", branch)
     ahead = _git(repo, "rev-list", "--count", f"{upstream}..HEAD", check=False).stdout.strip() if upstream else "1"
@@ -180,8 +269,8 @@ def _commit_and_pull(repo: Path, rel: str, branch: str, progress) -> dict | None
     # avisa y se reintenta más tarde.
     code_dirty = _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}").stdout.strip()
     if not code_dirty:
-        _pull(repo, remote, remote_branch, progress)
-    return {"staged": n_files > 0, "remote": remote, "remote_branch": remote_branch, "code_dirty": code_dirty}
+        _pull(repo, remote, remote_branch, progress, rel)
+    return {"staged": n_files > 0, "remote": remote, "remote_branch": remote_branch, "code_dirty": code_dirty, "committed_at": committed_at}
 
 
 def _push_error(pushed: subprocess.CompletedProcess, code_dirty: str) -> str:
@@ -212,12 +301,49 @@ def push_data(repo: Path, data_dir: Path, locks=(), progress=None) -> dict:
         for lock in reversed(locks):
             lock.release()
     if state is None:
-        return {"committed": False, "pushed": False, "branch": branch}
+        return {"committed": False, "pushed": False, "branch": branch, "committed_at": None}
     progress("push")
     pushed = _push_streaming(repo, state["remote"], f"HEAD:{state['remote_branch']}", lambda detail: progress("push", detail))
     if pushed.returncode != 0:
-        raise GitError(_push_error(pushed, state["code_dirty"]))
-    return {"committed": state["staged"], "pushed": True, "branch": branch}
+        raise GitError(_push_error(pushed, state["code_dirty"]), state["committed_at"])
+    return {"committed": state["staged"], "pushed": True, "branch": branch, "committed_at": state["committed_at"]}
+
+
+def pull_code(repo: Path, data_dir: Path, locks=()) -> bool:
+    """Solo el pull (merge, sin commit ni push): para ``updater`` cuando no había datos que subir. ``False`` si no se
+    pudo (sin red, conflicto o código tuyo modificado sin commit: entonces no se toca nada)."""
+    try:
+        branch, rel = _check_repo(repo, data_dir)
+    except GitError:
+        return False
+    if _git(repo, "status", "--porcelain", "--untracked-files=no", "--", ".", f":(exclude){rel}", check=False).stdout.strip():
+        return False
+    upstream = _git(repo, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).stdout.strip()
+    remote, _, remote_branch = upstream.partition("/") if upstream else ("origin", "", branch)
+    for lock in locks:
+        lock.acquire()
+    try:
+        _pull(repo, remote, remote_branch, lambda *_: None, rel)
+        return True
+    except GitError as exc:
+        log.warning("No se pudo bajar el código nuevo de GitHub: %s", exc)
+        return False
+    finally:
+        for lock in reversed(locks):
+            lock.release()
+
+
+def repo_mb(repo: Path) -> float | None:
+    """Lo que ocupa el historial del repositorio (MB, como lo cuenta git en este ordenador)."""
+    try:
+        out = _git(repo, "count-objects", "-v", check=False, timeout=60).stdout
+    except GitError:
+        return None
+    sizes = dict(line.split(": ", 1) for line in out.splitlines() if ": " in line)
+    try:
+        return round((int(sizes.get("size-pack", 0)) + int(sizes.get("size", 0))) / 1024, 1)
+    except ValueError:
+        return None
 
 
 class AutoPush:
@@ -268,26 +394,71 @@ class AutoPush:
 
     def public(self) -> dict:
         n = every()
-        return {"enabled": n > 0, "every": n, "running": self.busy, "queued": self.queued, **self.state}
+        mb = self.state.get("repo_mb")
+        return {
+            "enabled": n > 0, "every": n, "running": self.busy, "queued": self.queued,
+            "every_players": threshold("players_pending"), "every_videos": threshold("videos_pending"),
+            "repo_warning": bool(mb and mb >= REPO_WARN_MB), **self.state,
+        }
+
+    def _due(self, key: str) -> bool:
+        """¿Toca subir por ese disparador? (con la cerradura cogida; nunca justo después de un fallo)."""
+        n = threshold(key)
+        return 0 < n <= int(self.state.get(key) or 0) and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
+
+    def _note(self, key: str) -> int | None:
+        """Suma uno a lo pendiente de ``key``; si toca, sube. Devuelve lo pendiente (``None`` si la subida está apagada)."""
+        if every() <= 0:
+            return None
+        with self.lock:
+            self.state[key] = pending = int(self.state.get(key) or 0) + 1
+            self._save()
+            due = self._due(key)
+        if due:
+            self.start()
+        return pending
 
     def note_game(self, tier: str | None = None, analyzed: bool = False) -> None:
         """Una partida nueva guardada por el recolector (``tier``: el elo, para la gráfica de «Datos y API»; vuelve a
         0 con cada subida a GitHub)."""
-        n = every()
         with self.lock:
             kind = "analizadas" if analyzed else "guardadas"
             tiers = self.state.setdefault("tiers", {}).setdefault(kind, {})
             key = (tier or "?").upper()
             tiers[key] = int(tiers.get(key) or 0) + 1
-            if n <= 0:
-                return
-            self.state["pending"] = pending = int(self.state.get("pending") or 0) + 1
-            self._save()
-            due = pending >= n and time.time() - float(self.state.get("last_error_at") or 0) >= RETRY_AFTER_S
-        if pending % 100 == 0 and pending < n:
-            log.info("Subida a GitHub: %d de %d partidas nuevas.", pending, n)
-        if due:
-            self.start()
+        pending = self._note("pending")
+        if pending is not None and pending % 100 == 0 and pending < every():
+            log.info("Subida a GitHub: %d de %d partidas nuevas.", pending, every())
+
+    def note_player(self) -> None:
+        """Un jugador con su historial revisado entero (``AUTO_PUSH_PLAYERS`` de ellos también disparan la subida)."""
+        self._note("players_pending")
+
+    def note_video(self) -> None:
+        """Un vídeo recogido (``AUTO_PUSH_VIDEOS`` de ellos disparan la subida)."""
+        self._note("videos_pending")
+
+    def pending_any(self) -> bool:
+        return any(int(self.state.get(k) or 0) > 0 for k, _, _ in TRIGGERS)
+
+    def push_if_stale(self) -> bool:
+        """Con algo pendiente y sin subir desde hace ``STALE_PUSH_S``, sube aunque no se llegue a ningún umbral."""
+        if every() <= 0 or self.busy or self.state.get("git_ok") is False or not self.pending_any():
+            return False
+        last = max(float(self.state.get("last_push_at") or 0), float(self.state.get("last_error_at") or 0))
+        if last and time.time() - last < STALE_PUSH_S:
+            return False
+        if not last:  # primera vez con este fichero de estado: empieza a contar ahora
+            with self.lock:
+                self.state["last_push_at"] = time.time()
+                self._save()
+            return False
+        log.info("Subida a GitHub: hay datos pendientes desde hace más de %d h; los subo.", STALE_PUSH_S // 3600)
+        return self.start()
+
+    def committed_since(self) -> float:
+        """Hora del último commit «datos» (lo escrito antes ya va en un commit: no se reescribe; ver ``otp_details``)."""
+        return float(self.state.get("last_commit_at") or 0)
 
     def check(self) -> dict:
         """Al arrancar: ¿git está instalado y esto es un repositorio con rama? Así un problema se ve en «Datos y API»
@@ -303,9 +474,12 @@ class AutoPush:
         except GitError as exc:
             self.state.update(git=str(exc), git_ok=False)
             log.warning("Subida automática a GitHub: %s", exc)
+        if self.state.get("git_ok"):
+            self.state["repo_mb"] = repo_mb(self.repo)
         with self.lock:
             self._save()
-        if self.state.get("git_ok") and every() > 0 and int(self.state.get("pending") or 0) >= every():
+            due = any(self._due(k) for k, _, _ in TRIGGERS)
+        if self.state.get("git_ok") and every() > 0 and due:
             self.start()
         return self.public()
 
@@ -458,16 +632,36 @@ class AutoPush:
         self._snapshot_log()
         self._write_log()
 
-    def _push_now(self) -> dict | None:
-        """``push_data`` con los cerrojos de los escritores; si falla, lo apunta (y se reintenta más tarde) y da ``None``."""
+    def writer_locks(self) -> list:
+        """Cerrojos de los escritores de partidas: con ellos cogidos, ``data/`` no cambia (commit y pull sin partidas a
+        medio escribir)."""
         from app.ingest.otp_details import KIND_DIRS, Files  # aquí: evita un import circular
 
-        locks = [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
+        return [f.lock for f in (Files.of(self.svc, k) for k in KIND_DIRS) if f is not None]
+
+    def run_now(self) -> bool:
+        """Sube ya y espera a que acabe (``updater``: su pull trae el código nuevo). ``False`` si había otra en marcha."""
+        with self.lock:
+            if self.busy:
+                return False
+            self.busy = True
+        try:
+            self._run()
+        finally:
+            with self.lock:
+                self.busy = False
+        return True
+
+    def _push_now(self) -> dict | None:
+        """``push_data`` con los cerrojos de los escritores; si falla, lo apunta (y se reintenta más tarde) y da ``None``."""
+        locks = self.writer_locks()
         try:
             return push_data(self.repo, self.data_dir, locks, progress=self._step)
         except GitError as exc:
             log.warning("No se pudieron subir los datos a GitHub: %s. Se reintentará en %d min.", exc, RETRY_AFTER_S // 60)
             error = str(exc)
+            if exc.committed_at:
+                self.state["last_commit_at"] = exc.committed_at
         except Exception:
             log.exception("Fallo inesperado subiendo los datos a GitHub")
             error = "fallo inesperado (ver el log)"
@@ -491,44 +685,75 @@ class AutoPush:
         if not self._wait_game_end(stop):
             return
         with self.lock:
-            counted = int(self.state.get("pending") or 0)
+            counted = {k: int(self.state.get(k) or 0) for k, _, _ in TRIGGERS}
             counted_tiers = {k: dict(v) for k, v in (self.state.get("tiers") or {}).items()}
         self._prepare_report()
         result = self._push_now()
         if result is None:
             return
         with self.lock:
-            # Las partidas que llegaron mientras se subía cuentan para la siguiente.
-            self.state["pending"] = max(0, int(self.state.get("pending") or 0) - counted)
+            # Lo que llegó mientras se subía cuenta para la siguiente.
+            for key, n in counted.items():
+                self.state[key] = max(0, int(self.state.get(key) or 0) - n)
             self._discount_tiers(counted_tiers)
             self.state.update(last_error=None, last_error_at=None, last_check_at=time.time(), last_push_s=round(time.time() - t0))
+            if result.get("committed_at"):
+                self.state["last_commit_at"] = result["committed_at"]
             if result["pushed"]:
-                self.state.update(last_push_at=time.time(), last_push_games=counted, last_result="pushed")
+                self.state.update(
+                    last_push_at=time.time(), last_push_games=counted["pending"], last_push_players=counted["players_pending"],
+                    last_push_videos=counted["videos_pending"], last_result="pushed", repo_mb=repo_mb(self.repo),
+                )
             else:
                 # Recogiendo todo el ranking (sin campeones) las partidas solo van a la base de datos (data/lol.db, que no
                 # se sube): en data/ no había nada nuevo.
                 self.state.update(last_result="nothing")
             self._save()
         if result["pushed"]:
-            log.info("Datos subidos a GitHub (%d partidas nuevas, rama %s).", counted, result["branch"])
+            log.info("Datos subidos a GitHub (%d partidas, %d jugadores y %d vídeos nuevos; rama %s).", counted["pending"],
+                     counted["players_pending"], counted["videos_pending"], result["branch"])
         else:
-            log.info("Subida a GitHub: %d partidas nuevas, pero nada nuevo en data/ (sin campeones, solo se guardan en la base de datos).", counted)
+            log.info("Subida a GitHub: %d partidas nuevas, pero nada nuevo en data/ (sin campeones, solo se guardan en la base de datos).", counted["pending"])
 
 
 _warned = False
 
 
-def note_game(svc, tier: str | None = None, analyzed: bool = False) -> None:
-    """Para el recolector: cuenta una partida nueva (no falla nunca: subir datos no puede parar la recogida)."""
+def _safe_note(svc, what: str, call) -> None:
+    """Cuenta algo nuevo sin fallar nunca: subir datos no puede parar la recogida."""
     global _warned
     try:
         auto = AutoPush.of(svc)
         if auto is not None:
-            auto.note_game(tier, analyzed)
+            call(auto)
     except Exception:
         if not _warned:
             _warned = True
-            log.exception("Subida automática a GitHub: no se pudo contar la partida")
+            log.exception("Subida automática a GitHub: no se pudo contar %s", what)
+
+
+def note_game(svc, tier: str | None = None, analyzed: bool = False) -> None:
+    """Para el recolector: cuenta una partida nueva."""
+    _safe_note(svc, "la partida", lambda auto: auto.note_game(tier, analyzed))
+
+
+def note_player(svc) -> None:
+    """Para el recolector: un jugador con su historial revisado entero."""
+    _safe_note(svc, "el jugador", lambda auto: auto.note_player())
+
+
+def note_video(svc) -> None:
+    """Para el recolector de vídeos: un vídeo recogido."""
+    _safe_note(svc, "el vídeo", lambda auto: auto.note_video())
+
+
+def committed_since(svc) -> float:
+    """Hora del último commit «datos» (0 si no hay subida automática): lo escrito antes ya no se reescribe."""
+    try:
+        auto = AutoPush.of(svc)
+        return auto.committed_since() if auto is not None and every() > 0 else 0.0
+    except Exception:  # noqa: BLE001 - sin estado, como si nunca se hubiera subido
+        return 0.0
 
 
 class PushUnavailable(RuntimeError):
@@ -566,10 +791,12 @@ def main() -> int:
         print("No hay datos nuevos que subir.")
     else:
         print(f"Datos subidos a la rama {result['branch']}.")
-        try:  # la cuenta de partidas pendientes vuelve a empezar
+        try:  # lo pendiente vuelve a empezar
             path = Path(settings.data_dir) / STATE_FILE
             state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-            state.update(pending=0, last_push_at=time.time())
+            state.update({k: 0 for k, _, _ in TRIGGERS}, last_push_at=time.time())
+            if result.get("committed_at"):
+                state["last_commit_at"] = result["committed_at"]
             path.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
         except (OSError, ValueError):
             pass

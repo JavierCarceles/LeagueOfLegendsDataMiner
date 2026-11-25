@@ -295,6 +295,45 @@ class RateLimiter:
         self._stats[host]["rate_limited"] += 1
         return retry
 
+    def export_state(self) -> dict:
+        """Las llamadas de la ventana larga de cada host (en hora del reloj), sus límites y los bloqueos por 429, para el
+        siguiente arranque: tras reiniciar la app (una versión nueva) Riot aún las cuenta, y sin esto las primeras
+        peticiones podían pasarse del límite."""
+        with self._cond:
+            now, wall = self._clock(), time.time()
+            hosts = {}
+            for host, bucket in self._app.items():
+                longest = max(bucket.windows, key=lambda w: w.seconds, default=None)
+                if longest is None:
+                    continue
+                longest.purge(now)
+                hosts[host] = {"limits": [[w.limit, w.seconds] for w in bucket.windows],
+                               "stamps": [round(wall - (now - t), 3) for t in longest.stamps]}
+            blocked = {key: round(wall + (until - now), 3) for key, until in self._blocked.items() if until > now}
+            return {"saved_at": round(wall, 3), "app": hosts, "blocked": blocked}
+
+    def import_state(self, state: dict) -> int:
+        """Carga lo de ``export_state`` del arranque anterior (lo de hace más de la ventana larga ya no cuenta). Devuelve
+        cuántas llamadas siguen contando."""
+        loaded = 0
+        with self._cond:
+            now, wall = self._clock(), time.time()
+            for host, info in (state.get("app") or {}).items():
+                limits = [(int(a), int(b)) for a, b in info.get("limits") or []] or list(self._default_limits)
+                bucket = self._app[host] = _Bucket(limits)
+                longest = max(seconds for _, seconds in limits)
+                # max(0, …): las marcas van redondeadas al milisegundo (una de este mismo instante puede salir «del futuro»)
+                ages = sorted((max(0.0, wall - float(t)) for t in info.get("stamps") or []), reverse=True)
+                stamps = [now - age for age in ages if age <= longest + MARGIN]
+                for window in bucket.windows:
+                    window.stamps.extend(t for t in stamps if t > now - window.seconds - MARGIN)
+                loaded += len(stamps)
+            for key, until in (state.get("blocked") or {}).items():
+                if float(until) > wall:
+                    self._blocked[key] = now + float(until) - wall
+            self._cond.notify_all()
+        return loaded
+
     def snapshot(self) -> dict[str, dict]:
         with self._cond:
             now = self._clock()

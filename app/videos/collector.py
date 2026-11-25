@@ -2,10 +2,13 @@
 
 Por cada fuente pendiente (canal, lista, búsqueda) saca sus vídeos; por cada vídeo pendiente guarda metadatos,
 transcripción y, si es una partida, los datos de los frames (ver :mod:`app.videos.frames`). Todo lo descargado va
-a una carpeta temporal que se borra al acabar cada vídeo, pase lo que pase.
+a la carpeta de trabajo del vídeo (en la carpeta temporal del sistema, fuera del proyecto) con lo ya hecho en
+``estado.json``: si la app se cierra o se reinicia a mitad (una versión nueva de GitHub), el vídeo sigue por ahí
+(metadatos, transcripción, descargas y trozos de frames ya analizados). Al acabar el vídeo se borra.
 
 Se pausa mientras juegas (como la precarga), espera entre vídeos para no enfadar a YouTube y, si YouTube frena
-(429 o «confirma que no eres un bot»), para 30 min. Al vaciar la cola (o cada 10 vídeos) pide una subida a GitHub.
+(429 o «confirma que no eres un bot»), para 30 min. Cada vídeo recogido cuenta para la subida a GitHub
+(``AUTO_PUSH_VIDEOS``, 5 por defecto, en :mod:`app.autopush`) y, al vaciar la cola, se sube lo que haya.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ import shutil
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -33,11 +37,13 @@ DIR_NAME = "videos"
 PAUSE_BETWEEN_S = (8, 20)  # entre vídeo y vídeo (sin saturar a YouTube)
 LIMIT_PAUSE_S = 30 * 60  # YouTube frena: media hora sin pedirle nada
 IDLE_S = 15
-PUSH_EVERY = 10  # vídeos recogidos entre subidas a GitHub (y siempre al vaciar la cola)
 MAX_FRAMES_DURATION_S = 3 * 3600  # directos larguísimos: solo transcripción
 MIN_FREE_BYTES = 3 * 1024**3
 MIN_DURATION_S = 90  # los shorts no sirven para analizar
-TEMP_PREFIX = "tempu-video-"
+TEMP_PREFIX = "tempu-video-"  # carpetas temporales de antes (se borran al arrancar)
+WORK_DIR = "tempu-videos"  # en la carpeta temporal del sistema: una carpeta de trabajo por vídeo
+WORK_KEEP_S = 3 * 86_400  # un vídeo a medias que no se retoma en 3 días: su carpeta se borra
+CHECKPOINT = "estado.json"
 LANGS = ("es", "en")
 CDN = "https://ddragon.leagueoflegends.com/cdn"
 # Sube cuando hay que rehacer todo lo recogido: al arrancar la app, todos los vídeos hechos con una versión anterior
@@ -98,10 +104,9 @@ class VideoCollector:
         self.lock = threading.Lock()
         self.current: dict | None = None
         self.limited_until = 0.0
-        self.collected_since_push = 0
         self.last_error: str | None = None
         self.tools = None
-        self.threads: int | None = None  # hilos del último análisis de frames (el 70 % de la CPU libre al empezar)
+        self.threads: int | None = None  # hilos del último análisis de frames (el 90 % de la CPU libre al empezar)
 
     # ------------------------------------------------------------------ control
     def autostart(self) -> None:
@@ -109,6 +114,7 @@ class VideoCollector:
         cerrar la app (mientras juegas se sigue pausando solo)."""
         _clean_temp()
         self.store.reset_working()
+        _clean_work({v["id"] for v in self.store.videos(PENDING, limit=1_000_000)})
         if self.store.paused:
             self.store.set_paused(False)
             log.info("Vídeos: la pausa era de la sesión anterior; el recolector sigue solo.")
@@ -199,7 +205,7 @@ class VideoCollector:
         while not self.stop_event.is_set():
             reason = self.paused_reason()
             if reason:
-                if reason == "manual" and self.collected_since_push:
+                if reason == "manual" and self._pending():
                     self._push()  # al parar, lo recogido sube ya (y el vídeo que acabe después, en una subida en cola)
                 self._sleep(IDLE_S)
                 continue
@@ -214,7 +220,7 @@ class VideoCollector:
 
     def _idle(self) -> bool:
         """Nada que hacer: sube lo recogido y espera a que llegue algo (``False`` = salir del hilo)."""
-        if self.collected_since_push:
+        if self._pending():
             self._push()
         self.wake.clear()
         self.wake.wait(60)
@@ -270,43 +276,52 @@ class VideoCollector:
         vid = video["id"]
         self.store.start(vid)
         self.current = {"tipo": "video", "id": vid, "titulo": video.get("titulo"), "paso": "metadatos", "progreso": None}
-        folder = Path(tempfile.mkdtemp(prefix=f"{TEMP_PREFIX}{vid}-"))
+        folder = work_dir(vid)
+        ckpt = Checkpoint(folder, vid)
+        if ckpt.resumed:
+            log.info("Vídeos: sigo con %s donde se quedó (%s).", vid, ckpt.summary())
+        keep = False  # la carpeta se queda (para seguir) si se paró a mitad o el fallo se puede reintentar
         try:
-            data = self._collect(vid, folder)
+            data = self._collect(vid, folder, ckpt)
+            keep = data is None
         except youtube.VideoError as exc:
             self.store.fail(vid, str(exc), final=exc.kind == "final")
             self._error(f"{vid}: {exc}", exc.kind)
+            keep = exc.kind != "final"
             return
         except Exception as exc:
             log.exception("Vídeos: fallo inesperado con %s", vid)
             self.store.fail(vid, f"{type(exc).__name__}: {exc}")
             return
         finally:
-            shutil.rmtree(folder, ignore_errors=True)
+            if not keep:
+                shutil.rmtree(folder, ignore_errors=True)
             self.current = None
-        if data is None:  # se pidió parar a mitad: vuelve a la cola
+        if data is None:  # se pidió parar a mitad: vuelve a la cola y sigue por su carpeta de trabajo
             self.store.update(vid, estado=PENDING)
             return
         self.store.save_result(vid, data)
         self.store.done(vid, _summary(data))
-        self.collected_since_push += 1
         self.last_error = None
         log.info("Vídeos: recogido «%s» (%s).", data.get("titulo") or vid, _summary_text(data))
-        if self.collected_since_push >= PUSH_EVERY:
-            self._push()
+        from app import autopush  # aquí: evita un import circular
 
-    def _collect(self, vid: str, folder: Path) -> dict | None:
-        from app.videos import transcript, youtube
+        autopush.note_video(self.svc)  # AUTO_PUSH_VIDEOS vídeos recogidos suben los datos (y la cuenta sobrevive a reiniciar)
 
-        info = self._info(vid)
+    def _collect(self, vid: str, folder: Path, ckpt: Checkpoint) -> dict | None:
+        from app.videos import youtube
+
+        info = ckpt.get("info")
+        if info is None:
+            info = self._info(vid)
+            ckpt.put("info", info)
         if info.get("is_live") or info.get("live_status") in ("is_live", "is_upcoming"):
             raise youtube.VideoError("Es un directo en curso o programado: se recoge cuando termine", "otro")
         data = _metadata(vid, info)
         queued = self.store.get(vid) or {}
         data["origen"] = {"fuente": queued.get("fuente"), "alta": queued.get("alta")}
         self._check_language(queued, info)
-        self._step_label("transcripción")
-        text, notes = transcript.collect(vid, info, folder, self.root, self.stop_event.is_set)
+        text, notes = self._transcript(vid, info, folder, ckpt)
         data["transcripcion"] = text
         data["avisos"] = notes
         if info.get("_plan_b"):
@@ -314,12 +329,25 @@ class VideoCollector:
         if self.stop_event.is_set():
             return None
         self._step_label("frames (¿es una partida?)")
-        data["frames"] = self._frames(vid, info, folder, data["avisos"])
+        data["frames"] = self._frames(vid, info, folder, data["avisos"], ckpt)
         if self.stop_event.is_set():
             return None
         if text is None and not (data["frames"] or {}).get("partida"):
             data["avisos"].append("sin transcripción ni partida: solo metadatos")
         return data
+
+    def _transcript(self, vid: str, info: dict, folder: Path, ckpt: Checkpoint) -> tuple[dict | None, list[str]]:
+        """La transcripción (la de antes del reinicio si ya estaba hecha)."""
+        from app.videos import transcript
+
+        saved = ckpt.get("transcripcion")
+        if saved is not None:
+            return saved.get("texto"), list(saved.get("avisos") or [])
+        self._step_label("transcripción")
+        text, notes = transcript.collect(vid, info, folder, self.root, self.stop_event.is_set)
+        if not self.stop_event.is_set():
+            ckpt.put("transcripcion", {"texto": text, "avisos": notes})
+        return text, list(notes)
 
     def _info(self, vid: str) -> dict:
         """Metadatos con yt-dlp; si falla por algo raro (no por vídeo privado ni por límite), plan B con oEmbed:
@@ -352,7 +380,7 @@ class VideoCollector:
             self.current.update(paso=label, progreso=progress)
 
     # ------------------------------------------------------------------ frames
-    def _frames(self, vid: str, info: dict, folder: Path, notes: list[str]) -> dict | None:
+    def _frames(self, vid: str, info: dict, folder: Path, notes: list[str], ckpt: Checkpoint | None = None) -> dict | None:
         """Copia pequeña (360p) para ver si es una partida; si lo es, el vídeo a 1080p para sacar los datos.
 
         Los ficheros se borran en cuanto dejan de hacer falta (y la carpeta entera al acabar el vídeo)."""
@@ -368,6 +396,9 @@ class VideoCollector:
         from app.videos import frames as vf
         from app.videos import youtube
 
+        resumed = _downloaded(folder / "video", vid)
+        if resumed is not None:  # sigue un vídeo a medias: ya estaba bajado (la sonda ya dijo que es una partida)
+            return self._pass_and_clean(resumed, duration, tools, "descarga", ckpt)
         small = self._download(vid, folder / "sonda", notes, youtube.PROBE_FORMATS, "¿es una partida? (copia pequeña)")
         if small is None:
             return None
@@ -379,12 +410,16 @@ class VideoCollector:
         path = big or small
         if big is not None:
             small.unlink(missing_ok=True)
-        try:
-            return self._full_pass(path, duration, tools, "descarga" if big else "copia pequeña")
-        finally:
-            path.unlink(missing_ok=True)
+        return self._pass_and_clean(path, duration, tools, "descarga" if big else "copia pequeña", ckpt)
 
-    def _full_pass(self, path: Path, duration: float, tools, method: str) -> dict | None:
+    def _pass_and_clean(self, path: Path, duration: float, tools, method: str, ckpt: Checkpoint | None) -> dict | None:
+        """La pasada de frames y, si acaba, fuera la descarga (si se paró a mitad se queda para seguir)."""
+        result = self._full_pass(path, duration, tools, method, ckpt)
+        if result is not None:
+            path.unlink(missing_ok=True)
+        return result
+
+    def _full_pass(self, path: Path, duration: float, tools, method: str, ckpt: Checkpoint | None = None) -> dict | None:
         from app.videos import frames as vf
 
         self._step_label("frames: calibrando minimapa, reloj y cámara")
@@ -392,15 +427,17 @@ class VideoCollector:
         if box is None:
             return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
         clock_ok = self._pick_clock(tools, probe_frames)
-        self.threads = workers = hardware.threads()  # el 70 % de la CPU libre ahora mismo
+        self.threads = workers = hardware.threads()  # el 90 % de la CPU libre ahora mismo
         # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
         player = [f for f in probe_frames if tools.clock.read(f) is not None]
         tools.ability_slots, probe_keys = tools.abilities.calibrate(player, workers) if tools.abilities and player else (None, [])
         cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
         label = f"frames ({workers} hilos)"
         self._step_label(label, 0.0)
+        done, on_done = ckpt.frames(f"{path.name}|{box.x},{box.y},{box.size}|{cam}") if ckpt else ({}, None)
         collected = vf.sample_pass(str(path), box, cam, tools, duration, self._should_stop_frames,
-                                   lambda p: self._step_label(label, p), workers, gpu=hardware.gpu() is not None)
+                                   lambda p: self._step_label(label, p), workers, gpu=hardware.gpu() is not None,
+                                   done=done, on_done=on_done)
         if self.stop_event.is_set():
             return None
         reader = tools.clock_reader
@@ -540,20 +577,118 @@ class VideoCollector:
         else:
             log.warning("Vídeos: %s", message[:300])
 
+    def _pending(self) -> int:
+        """Vídeos recogidos que aún no se han subido a GitHub (los cuenta la subida automática)."""
+        from app import autopush
+
+        auto = autopush.AutoPush.of(self.svc)
+        return int((auto.state.get("videos_pending") or 0) if auto is not None else 0)
+
     def _push(self) -> None:
         """Sube lo recogido a GitHub con el resto de ``data/`` (en cola si ya hay una subida en marcha)."""
         try:
             from app import autopush
 
             auto = autopush.AutoPush.of(self.svc)
-            if auto is None or autopush.every() <= 0 or auto.state.get("git_ok") is False:
+            if auto is None or autopush.every() <= 0 or auto.state.get("git_ok") is False or auto.busy:
                 return
+            if time.time() - float(auto.state.get("last_error_at") or 0) < autopush.RETRY_AFTER_S:
+                return  # acaba de fallar (sin red, conflicto…): se reintenta más tarde, no en cada vuelta
+            n = self._pending()
             started = auto.start()
-            log.info("Vídeos: %s los %d vídeos recogidos.", "subiendo a GitHub" if started else "en cola para subir a GitHub",
-                     self.collected_since_push)
-            self.collected_since_push = 0
+            log.info("Vídeos: %s los %d vídeos recogidos.", "subiendo a GitHub" if started else "en cola para subir a GitHub", n)
         except Exception:  # subir no puede parar la recogida
             log.exception("Vídeos: no se pudo pedir la subida a GitHub")
+
+
+# ---------------------------------------------------------------------- vídeos a medias
+def work_dir(vid: str) -> Path:
+    """Carpeta de trabajo de un vídeo: fuera del proyecto (en Windows suele estar en OneDrive) y la misma tras reiniciar."""
+    return Path(tempfile.gettempdir()) / WORK_DIR / vid
+
+
+def _downloaded(folder: Path, vid: str) -> Path | None:
+    """El vídeo ya bajado entero en una vez anterior (yt-dlp solo quita el ``.part`` al terminar), si lo hay."""
+    try:
+        files = [p for p in folder.glob(f"{vid}.*") if ".part" not in p.name and p.suffix not in (".ytdl", ".tmp") and p.stat().st_size > 0]
+    except OSError:
+        return None
+    return max(files, key=lambda p: p.stat().st_size) if files else None
+
+
+def _jsonable(value):
+    """Números de numpy y lo raro de los metadatos de yt-dlp, para guardarlos en ``estado.json``."""
+    item = getattr(value, "item", None)
+    return item() if callable(item) else str(value)
+
+
+class Checkpoint:
+    """Lo ya hecho de un vídeo (``estado.json`` en su carpeta de trabajo): metadatos, transcripción y los trozos de
+    frames analizados. Si la app se reinicia a mitad, el vídeo sigue por ahí; lo descargado también se queda (yt-dlp
+    no lo vuelve a bajar). Con otra versión del recolector se empieza de cero (las descargas siguen valiendo)."""
+
+    def __init__(self, folder: Path, vid: str) -> None:
+        self.path = folder / CHECKPOINT
+        self.lock = threading.Lock()
+        folder.mkdir(parents=True, exist_ok=True)
+        fresh = {"id": vid, "version": VERSION, "frames_version": FRAMES_VERSION}
+        try:
+            saved = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = {}
+        ok = isinstance(saved, dict) and all(saved.get(k) == v for k, v in fresh.items())
+        self.data: dict = saved if ok else fresh
+        self.resumed = ok and len(self.data) > len(fresh)
+
+    def summary(self) -> str:
+        parts = [name for key, name in (("info", "metadatos"), ("transcripcion", "transcripción")) if key in self.data]
+        trozos = len((self.data.get("frames") or {}).get("trozos") or {})
+        if trozos:
+            parts.append(f"{trozos} trozos de frames")
+        return ", ".join(parts) or "sin nada hecho"
+
+    def get(self, key: str):
+        with self.lock:
+            return self.data.get(key)
+
+    def put(self, key: str, value) -> None:
+        with self.lock:
+            self.data[key] = value
+            self._save()
+
+    def frames(self, key: str) -> tuple[dict, Callable]:
+        """Los trozos ya hechos de la pasada de frames con ``key`` (fichero, minimapa y cámara: si cambian, no valen) y
+        la función que guarda cada trozo terminado."""
+        with self.lock:
+            saved = self.data.get("frames") or {}
+            if saved.get("clave") != key:
+                self.data["frames"] = saved = {"clave": key, "trozos": {}}
+            done = dict(saved["trozos"])
+
+        def on_done(piece: str, part) -> None:
+            with self.lock:
+                self.data["frames"]["trozos"][piece] = part.to_json()
+                self._save()
+
+        return done, on_done
+
+    def _save(self) -> None:
+        try:
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text(json.dumps(self.data, ensure_ascii=False, default=_jsonable), encoding="utf-8")
+            tmp.replace(self.path)
+        except OSError:
+            log.debug("Vídeos: no se pudo guardar el punto de control %s", self.path, exc_info=True)
+
+
+def _clean_work(pending: set[str], older_than_s: float = WORK_KEEP_S) -> None:
+    """Carpetas de trabajo de vídeos que ya no están en la cola, o que nadie retoma desde hace días: fuera."""
+    base = Path(tempfile.gettempdir()) / WORK_DIR
+    now = time.time()
+    for path in base.glob("*"):
+        with contextlib.suppress(OSError):
+            if path.is_dir() and (path.name not in pending or now - path.stat().st_mtime > older_than_s):
+                shutil.rmtree(path, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------- frames

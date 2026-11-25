@@ -40,6 +40,7 @@ MAP_SCORE = 0.45  # mínimo para aceptar un minimapa en la búsqueda
 PRESENT_SCORE = 0.42  # y para dar una muestra por «hay partida»
 MIN_PROBES = 3  # frames de la sonda con minimapa para tratar el vídeo como partida
 STEP_S = 2.0  # una muestra cada 2 s
+SPAN_SIZES = ((1800, 60.0), (5400, 120.0), (float("inf"), 300.0))  # (hasta tantos segundos de vídeo, trozo en segundos)
 CLOCK_EVERY = 5  # reloj cada 5 muestras (10 s)
 ICONS_EVERY = 2  # iconos del minimapa cada 2 muestras (4 s)
 CAMERA_COVER = 0.40  # parte del contorno del recuadro que tiene que verse blanca
@@ -713,32 +714,58 @@ class Collected:
     icons: list[list] = field(default_factory=list)
     champions: list[list] = field(default_factory=list)
     samples: int = 0
+    complete: bool = True  # False si se paró a mitad (cierre de la app): ese trozo no se guarda como hecho
+
+    def to_json(self) -> dict:
+        """Lo de un trozo, para el punto de control del vídeo (``done`` de :func:`sample_pass`)."""
+        return {"shape": list(self.shape), "gpu": self.gpu, "present": self.present, "camera": self.camera, "clock": self.clock,
+                "icons": self.icons, "champions": self.champions, "samples": self.samples}
+
+    @classmethod
+    def from_json(cls, box: Box, data: dict) -> Collected:
+        return cls(box, tuple(data.get("shape") or (0, 0)), bool(data.get("gpu")), [tuple(x) for x in data.get("present") or []],
+                   list(data.get("camera") or []), list(data.get("clock") or []), list(data.get("icons") or []),
+                   list(data.get("champions") or []), int(data.get("samples") or 0))
 
 
 def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools, duration: float,
                 should_stop: Callable[[], bool], progress: Callable[[float], None] | None = None, workers: int = 1,
-                gpu: bool = False) -> Collected:
+                gpu: bool = False, done: dict | None = None, on_done: Callable[[str, Collected], None] | None = None) -> Collected:
     """Una muestra cada ``STEP_S``: partida sí/no, cámara, reloj e iconos.
 
     Decodificar el vídeo es lo que más tarda (36 de 39 s en uno de 21 min): se parte en trozos que se leen a la vez,
-    cada uno con su lector y en su hilo (FFmpeg y OpenCV sueltan el GIL), y al final se juntan en orden."""
-    spans = _spans(duration, max(1, workers))
+    cada uno con su lector y en su hilo (FFmpeg y OpenCV sueltan el GIL), y al final se juntan en orden. Los trozos no
+    dependen de los hilos: ``done`` trae los ya hechos de una vez anterior (la app se reinició a mitad) y ``on_done``
+    recibe cada trozo terminado para guardarlo."""
+    spans = _spans(duration)
+    done = done or {}
     seen = [0]
     lock = threading.Lock()
     expected = max(1.0, duration / STEP_S)
 
-    def tick() -> None:
+    def tick(n_samples: int = 1) -> None:
         with lock:
-            seen[0] += 1
+            seen[0] += n_samples
             n = seen[0]
-        if progress and n % 15 == 0:
+        if progress and (n_samples > 1 or n % 15 == 0):
             progress(min(1.0, n / expected))
+
+    def run(item: tuple[int, tuple[float, float]]) -> Collected:
+        key = str(item[0])
+        if key in done:
+            part = Collected.from_json(box, done[key])
+            tick(part.samples)
+            return part
+        part = _sample_span(source, item[1], box, cam, tools, should_stop, gpu, tick)
+        if part.complete and on_done is not None:
+            on_done(key, part)
+        return part
 
     previous = cv2.getNumThreads()
     cv2.setNumThreads(1)  # el reparto lo hacen los trozos: sin esto, cada función usaría todos los núcleos a la vez
     try:
         with ThreadPoolExecutor(max_workers=max(1, workers), thread_name_prefix="videos-frames") as pool:
-            parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))
+            parts = list(pool.map(run, enumerate(spans)))
     finally:
         cv2.setNumThreads(previous)
     out = Collected(box, next((p.shape for p in parts if p.shape != (0, 0)), (0, 0)))
@@ -750,15 +777,17 @@ def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools
         out.icons += part.icons
         out.champions += part.champions
         out.gpu = out.gpu or part.gpu
+        out.complete = out.complete and part.complete
     return out
 
 
-def _spans(duration: float, workers: int) -> list[tuple[float, float]]:
-    """Trozos de vídeo alineados con las muestras (el doble que hilos: los que no tienen partida acaban antes)."""
+def _spans(duration: float) -> list[tuple[float, float]]:
+    """Trozos de vídeo alineados con las muestras: de 1 min (vídeos de hasta 30 min), 2 min (hasta 90) o 5 min. Solo
+    dependen de la duración (no de los hilos): si la app se reinicia a mitad, los ya hechos siguen valiendo."""
     if not duration or duration <= 0:
         return [(0.0, float("inf"))]
-    pieces = max(1, min(workers * 2, int(duration // (STEP_S * 30)) or 1))
-    size = math.ceil(duration / STEP_S / pieces) * STEP_S
+    size = next(size for limit, size in SPAN_SIZES if duration <= limit)
+    pieces = max(1, math.ceil(duration / size))
     return [(k * size, (k + 1) * size if k < pieces - 1 else float("inf")) for k in range(pieces)]
 
 
@@ -775,7 +804,10 @@ def _sample_span(source: str, span: tuple[float, float], box: Box, cam: tuple[in
             # fotogramas perdidos) dos lecturas seguidas caían en el mismo segundo.
             slot = round(t / STEP_S)
             at = round(slot * STEP_S, 1)
-            if at >= end or (part.samples % 30 == 0 and should_stop()):
+            if at >= end:
+                break
+            if part.samples % 30 == 0 and should_stop():
+                part.complete = False
                 break
             if at < start or slot <= last:
                 continue

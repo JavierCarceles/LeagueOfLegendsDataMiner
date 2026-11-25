@@ -105,7 +105,7 @@ def mistake_of(moment: dict, role: str) -> str | None:
 
 def _folder_dossiers(data_dir: Path):
     for src in ("otps", "partidas_campeon"):
-        for f in Path(data_dir, src).glob("*/*/*/partidas.jsonl.gz"):
+        for f in Path(data_dir, src).glob("*/*/*/partidas*.jsonl.gz"):
             try:
                 with gzip.open(f, "rt", encoding="utf-8") as fh:
                     for line in fh:

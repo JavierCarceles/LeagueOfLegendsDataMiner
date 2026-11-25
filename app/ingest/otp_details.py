@@ -57,6 +57,10 @@ RANKING_KIND = "ranking"
 # el diccionario del 6) y usa ~670 MB de memoria al comprimir frente a ~94 MB. ~30 ms por partida.
 RANKING_XZ_PRESET = 6
 GAMES_FILE = "partidas.jsonl.gz"  # en la carpeta de cada jugador: una línea por partida (el dossier entero)
+# Las partidas que llegan después de subir a GitHub ``partidas.jsonl.gz`` van a ``partidas-<hora del commit>.jsonl.gz``:
+# un fichero ya subido no se reescribe (git guardaba otra copia entera del gzip en cada subida).
+GAMES_GLOB = "partidas*.jsonl.gz"
+SHARD_NAME = "partidas-{}.jsonl.gz"
 FORMAT_MARKER = ".formato"  # en la raíz de cada carpeta: la versión de su formato (``LAYOUT_VERSION``)
 # Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, con al menos estos puntos y
 # 1,5 veces los del segundo; o estar en la tabla de los mejores de ese campeón (OP.GG).
@@ -898,9 +902,30 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
     return done
 
 
+def games_target(folder: Path, committed_at: float) -> Path:
+    """Fichero de un jugador al que se añade su partida nueva: ``partidas.jsonl.gz`` mientras no vaya en ningún commit
+    «datos» (``committed_at``: hora del último); si ya va, uno nuevo para lo que llegue hasta el siguiente commit."""
+    base = folder / GAMES_FILE
+    if not committed_at or not base.exists() or base.stat().st_mtime >= committed_at:
+        return base
+    return folder / SHARD_NAME.format(int(committed_at))
+
+
+def games_files(folder: Path) -> list[Path]:
+    """Los ficheros de partidas de un jugador: el principal y, detrás, los añadidos tras cada subida (por orden)."""
+    return sorted(folder.glob(GAMES_GLOB), key=lambda f: (f.name != GAMES_FILE, f.name))
+
+
+def _drop_shards(folder: Path) -> None:
+    """Al reescribir ``partidas.jsonl.gz`` desde la base de datos lleva todas las partidas: los añadidos sobran."""
+    for f in folder.glob(SHARD_NAME.format("*")):
+        f.unlink(missing_ok=True)
+
+
 def _write_games(db, folder: Path, champ: int, role: str | None, puuid: str, kind: str) -> None:
     """Reescribe ``partidas.jsonl.gz`` de un jugador con ese campeón y rol desde la base de datos (mtime=0: el mismo
     contenido da los mismos bytes)."""
+    _drop_shards(folder)
     with gzip.GzipFile(folder / GAMES_FILE, "wb", mtime=0) as raw, io.TextIOWrapper(raw, encoding="utf-8") as fh:
         for g in db.query(
             "SELECT dossier FROM otp_games WHERE champ = ? AND role IS ? AND puuid = ? AND kind = ? ORDER BY game_start",
@@ -1412,7 +1437,8 @@ Se escribe solo mientras el recolector baja partidas de OTPs (Tempu Drafter). Es
   solo cada pocos minutos mientras entran partidas.
 * `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/perfil.json`: el OTP (Riot ID, servidor, elo actual) y sus partidas
   con ese campeón en ese rol, por elo.
-* `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/partidas.jsonl.gz`: una línea JSON por partida con el dossier entero:
+* `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/partidas.jsonl.gz` (y `partidas-<n>.jsonl.gz`, las que llegaron después de
+  subirlo a GitHub: léelos todos): una línea JSON por partida con el dossier entero:
   elo del OTP en ese momento (`tier`, `division`, `lp`), análisis (muertes con contexto, oro, build, jungla,
   objetivos, macro, fase de líneas, series por minuto), build completa (cada compra/venta con su segundo, orden de
   objetos, vueltas a base, objetos finales, habilidades), runas, hechizos, estadísticas de Riot, posición/zona/oro/CS
@@ -1603,11 +1629,16 @@ class Files:
             folder = self._player_dir(self.base, dossier["champ"], dossier["role"], info)
             folder.mkdir(parents=True, exist_ok=True)
             # Un «miembro» gzip por partida: el fichero se lee entero con cualquier lector de gzip.
-            with gzip.open(folder / GAMES_FILE, "at", encoding="utf-8") as fh:
+            with gzip.open(games_target(folder, self._committed_since()), "at", encoding="utf-8") as fh:
                 fh.write(json.dumps(dossier, ensure_ascii=False, separators=(",", ":")) + "\n")
             self._profile(folder, dossier["champ"], dossier["role"], info)
             self.dirty.add(dossier["champ"])
         self.maybe_summarize()
+
+    def _committed_since(self) -> float:
+        from app import autopush  # aquí: evita un import circular
+
+        return autopush.committed_since(self.svc)
 
     def _ensure_layout_locked(self) -> None:
         marker = self.base / FORMAT_MARKER

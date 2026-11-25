@@ -389,9 +389,10 @@ def test_time_text_and_spans():
     assert vf.parse_time("04:07") == 247 and vf.parse_time("19.09") == 1149
     assert vf.parse_time("8.6K") is None and vf.parse_time("12:75") is None
     assert vf.parse_time("91:11") is None  # más de 80 min de partida: mala lectura
-    spans = vf._spans(600.0, 3)
-    assert spans[0][0] == 0.0 and spans[-1][1] == float("inf") and len(spans) == 6
+    spans = vf._spans(600.0)  # trozos de 1 min: no dependen de los hilos (un vídeo a medias sigue por los hechos)
+    assert spans[0][0] == 0.0 and spans[-1][1] == float("inf") and len(spans) == 10
     assert all(a[1] == b[0] for a, b in itertools.pairwise(spans))
+    assert len(vf._spans(3600.0)) == 30 and len(vf._spans(3 * 3600.0)) == 36
 
 
 def test_clock_reader_falls_back_per_frame():

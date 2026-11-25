@@ -1,7 +1,8 @@
 """El equipo en el que corre la app (núcleos, CPU libre, gráfica NVIDIA) y cuántos hilos dar a un análisis pesado.
 
-Al empezar cada análisis se mira un momento cuánta CPU está libre y se usa hasta el 70 % de esa parte: con 24 hilos y
-el PC al 10 %, 15 hilos; con el PC ocupado, menos. Mientras juegas los recolectores ya están en pausa. La gráfica
+Al empezar cada análisis se mira un momento cuánta CPU está libre y se usa hasta el 90 % de esa parte: con 24 hilos y
+el PC al 10 %, 19 hilos; con el PC ocupado, menos. La app va con prioridad baja (Windows le da la CPU antes a lo demás)
+y mientras juegas los recolectores están en pausa: fuera de partida, a tope (pedido el 25-11-2026; antes el 70 %). La gráfica
 NVIDIA (si ``nvidia-smi`` responde) se usa donde se puede: decodificar vídeo y pasar voz a texto.
 """
 
@@ -14,7 +15,7 @@ import subprocess
 
 import psutil
 
-SHARE = 0.7  # parte de la CPU libre que se usa
+SHARE = 0.9  # parte de la CPU libre que se usa
 SAMPLE_S = 0.5  # cuánto se mide la CPU antes de decidir
 
 
@@ -32,7 +33,7 @@ def free_pct(sample_s: float = SAMPLE_S) -> float:
 
 
 def threads(share: float = SHARE, sample_s: float = SAMPLE_S) -> int:
-    """Hilos para un análisis: el ``share`` (70 %) de los núcleos libres en este momento, al menos 1."""
+    """Hilos para un análisis: el ``share`` (90 %) de los núcleos libres en este momento, al menos 1."""
     return max(1, int(cores() * free_pct(sample_s) / 100 * share))
 
 

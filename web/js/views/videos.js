@@ -281,10 +281,10 @@ function durationText(hours) {
   return `~${Math.round(hours / 24)} días`;
 }
 
-/** «Equipo: 28 hilos de CPU · el último vídeo usó 19 (70 % de la CPU libre) · gráfica NVIDIA GeForce RTX 4070 SUPER». */
+/** «Equipo: 28 hilos de CPU · el último vídeo usó 25 (90 % de la CPU libre) · gráfica NVIDIA GeForce RTX 4070 SUPER». */
 function equipmentLine(e) {
   if (!e) return null;
-  const share = Math.round((e.parte || 0.7) * 100);
+  const share = Math.round((e.parte || 0.9) * 100);
   const used = e.hilos ? `el último vídeo usó ${e.hilos} (el ${share} % de la CPU libre)` : `cada vídeo usa el ${share} % de la CPU libre al empezar`;
   const gpu = e.gpu ? `gráfica ${e.gpu.nombre}` : "sin gráfica NVIDIA";
   return h("p.small.muted.video-equipment", icon("monitor"), `Equipo: ${e.nucleos} hilos de CPU · ${used} · ${gpu}`);

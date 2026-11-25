@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 
@@ -22,6 +23,8 @@ from app.riot.ratelimit import RateLimiter
 from app.warmer import Warmer
 
 log = get_logger("app")
+
+LIMITER_STATE = ".ratelimit.json"  # en data/ (ignorado por git): el cupo de la API entre reinicios
 LEGACY_FILE = "matchups_stats.json"
 
 
@@ -32,6 +35,7 @@ class Services:
         self.db = Database(settings.db_path)
         self.keys = KeyStore(ENV_PATH, state_path=settings.data_dir / "riot_key_state.json")
         self.limiter = RateLimiter()
+        self._load_limiter()
         self.riot = RiotClient(self.keys, self.limiter)
         self.dd = DDragon(settings.ddragon_dir, settings.ddragon_lang)
         self.agg = Aggregates(self.db)
@@ -68,6 +72,28 @@ class Services:
         self.videos = VideoCollector(self)
         self.startup_done = threading.Event()
         self.legacy_running = False
+
+    def _limiter_path(self):
+        return self.settings.data_dir / LIMITER_STATE
+
+    def _load_limiter(self) -> None:
+        """El cupo de la API que Riot aún cuenta del arranque anterior (la app se reinició: versión nueva de GitHub)."""
+        try:
+            state = json.loads(self._limiter_path().read_text(encoding="utf-8"))
+            loaded = self.limiter.import_state(state) if isinstance(state, dict) else 0
+        except (OSError, ValueError, TypeError):
+            return
+        if loaded:
+            log.info("Cupo de la API: %d llamadas de los últimos 2 min (arranque anterior) siguen contando.", loaded)
+
+    def _save_limiter(self) -> None:
+        try:
+            path = self._limiter_path()
+            tmp = path.with_name(path.name + ".tmp")
+            tmp.write_text(json.dumps(self.limiter.export_state()), encoding="utf-8")
+            tmp.replace(path)
+        except (OSError, ValueError):
+            log.debug("No se pudo guardar el cupo de la API", exc_info=True)
 
     def legacy_path(self):
         return self.settings.legacy_dir / LEGACY_FILE
@@ -129,6 +155,13 @@ class Services:
             autopush.start(self)
         except Exception:
             log.exception("No se pudo comprobar la subida automática a GitHub")
+        # Código nuevo en GitHub: se baja con la subida de datos y la app se reinicia sola sin perder lo que hacía.
+        try:
+            from app import updater
+
+            updater.start(self)
+        except Exception:
+            log.exception("No se pudo empezar a vigilar las actualizaciones de GitHub")
         # El recolector vuelve a arrancar solo si lo dejaste en marcha.
         try:
             self.crawler.autostart()
@@ -236,3 +269,4 @@ class Services:
         from app.external.base import shutdown_fetches
 
         shutdown_fetches()
+        self._save_limiter()

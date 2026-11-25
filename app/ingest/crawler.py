@@ -1807,6 +1807,9 @@ class RegionWorker(threading.Thread):
             self._save_progress(v, final=True)
             self._reclassify(v)
         self._end_visit(v, self.state["stored"] - stored_before)
+        from app import autopush  # aquí: evita un import circular
+
+        autopush.note_player(self.svc)  # jugador revisado: AUTO_PUSH_PLAYERS de ellos también suben los datos
 
     def _reclassify(self, v: _OtpVisit) -> None:
         """Con su historial revisado, sus partidas ya guardadas pasan a OTP o a jugador por lo que juega (las primeras
