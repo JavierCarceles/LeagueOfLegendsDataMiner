@@ -32,7 +32,12 @@ export async function render(container, args = []) {
 }
 
 function searchCard() {
-  const input = h("input.input", { placeholder: "Nombre#TAG (p. ej. Faker#KR1)", value: query.name ? `${query.name}#${query.tag}` : "", autocomplete: "off" });
+  const input = h("input.input", {
+    placeholder: "Nombre#TAG (p. ej. Faker#KR1)",
+    value: query.name ? `${query.name}#${query.tag}` : "",
+    autocomplete: "off",
+    style: { width: "100%" }, // ocupa todo su hueco (antes se quedaba en ~180 px y cortaba el ejemplo)
+  });
   const suggestions = h("div.chips", { style: { marginTop: "8px" } });
   const platforms = (state.meta?.platforms || []).map((p) => ({ value: p.id, label: `${p.label} · ${p.name}` }));
   const submit = () => {
