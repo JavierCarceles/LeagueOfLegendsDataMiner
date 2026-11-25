@@ -23,7 +23,7 @@ import requests
 from app import hardware
 from app.logbus import add_videos_log, get_logger
 from app.videos import deps
-from app.videos.store import PENDING, VideoStore
+from app.videos.store import DONE, PENDING, VideoStore
 
 log = get_logger("videos")
 
@@ -39,6 +39,9 @@ TEMP_PREFIX = "tempu-video-"
 LANGS = ("es", "en")
 CDN = "https://ddragon.leagueoflegends.com/cdn"
 VERSION = 1
+# Sube cuando cambia lo que se saca de los frames: los vídeos con partida (o recogidos sin frames) se rehacen solos al
+# arrancar la app. 2: reloj frame a frame (plantillas u OCR), campeón conservador, sin partidas falsas ni duplicados.
+FRAMES_VERSION = 2
 
 # Búsquedas guiadas (rol y tema) en los dos idiomas.
 ROLES = {
@@ -99,9 +102,23 @@ class VideoCollector:
         """Al arrancar la app: si hay algo pendiente y no lo pausaste, sigue solo."""
         _clean_temp()
         self.store.reset_working()
+        self._requeue_outdated()
         counts = self.store.counts()
         if counts.get("pendiente") or counts.get("fuentes_pendientes"):
             self.start()
+
+    def _requeue_outdated(self) -> int:
+        """Vídeos con partida (o sin frames) analizados con una versión anterior: vuelven a la cola, los primeros."""
+        stale = []
+        for video in self.store.videos(DONE, limit=1_000_000):
+            data = self.store.load_result(video["id"]) or {}
+            frames = data.get("frames")
+            if int(data.get("version_frames") or 0) < FRAMES_VERSION and (frames is None or frames.get("partida")):
+                stale.append(video["id"])
+        if stale:
+            self.store.requeue(stale)
+            log.info("Vídeos: %d vídeos analizados con una versión anterior vuelven a la cola para rehacerlos.", len(stale))
+        return len(stale)
 
     def start(self) -> None:
         with self.lock:
@@ -367,8 +384,10 @@ class VideoCollector:
         box, probe_frames = _probe_file(path, duration, tools)
         if box is None:
             return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
-        clock_ok, hud = self._pick_clock(tools, probe_frames)
-        champion = vf.vote_champion(tools.portraits, probe_frames[:6]) if tools.portraits and hud != "espectador" else None
+        clock_ok = self._pick_clock(tools, probe_frames)
+        # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
+        player = [f for f in probe_frames if tools.clock.read(f) is not None][:6]
+        champion = vf.vote_champion(tools.portraits, player) if tools.portraits and len(player) >= vf.MIN_PROBES else None
         if champion:
             champion["nombre"] = self._champ_name(champion["clave"])
         cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
@@ -379,24 +398,23 @@ class VideoCollector:
                                    lambda p: self._step_label(label, p), workers, gpu=hardware.gpu() is not None)
         if self.stop_event.is_set():
             return None
-        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", hud)
+        reader = tools.clock_reader
+        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None)
+        out["hud_lecturas"] = dict(reader.modes) if reader else {}
         out["hilos"] = workers
         out["gpu_decodifica"] = collected.gpu
         return out
 
     @staticmethod
-    def _pick_clock(tools, frames) -> tuple[bool, str | None]:
-        """Reloj del HUD de jugador con plantillas (rápido); si no, OCR genérico (retransmisiones, repeticiones)."""
+    def _pick_clock(tools, frames) -> bool:
+        """Escala del HUD para las plantillas y, de plan B, el OCR genérico; ¿se lee el reloj en algún frame?"""
         from app.videos import frames as vf
 
-        tools.clock_reader = None
-        if tools.clock.calibrate(frames):
-            return True, "jugador"
-        generic = vf.GenericClock.create()
-        if generic is not None and generic.calibrate(frames):
-            tools.clock_reader = generic
-            return True, generic.hud
-        return False, None
+        tools.clock.calibrate(frames)
+        tools.clock_reader = vf.ClockReader(tools.clock, vf.GenericClock.create())
+        found = sum(1 for f in frames[:8] if tools.clock_reader.read(f) is not None)
+        tools.clock_reader.modes.clear()  # las de la sonda no cuentan para el HUD del vídeo
+        return found > 0
 
     def _should_stop_frames(self) -> bool:
         """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar, esperar a que acabe."""
@@ -535,6 +553,7 @@ def _metadata(vid: str, info: dict) -> dict:
     chapters = [[round(float(c.get("start_time") or 0), 1), c.get("title") or ""] for c in info.get("chapters") or []]
     return {
         "version": VERSION,
+        "version_frames": FRAMES_VERSION,
         "id": vid,
         "url": f"https://www.youtube.com/watch?v={vid}",
         "titulo": info.get("title") or "",

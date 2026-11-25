@@ -391,3 +391,45 @@ def test_time_text_and_spans():
     spans = vf._spans(600.0, 3)
     assert spans[0][0] == 0.0 and spans[-1][1] == float("inf") and len(spans) == 6
     assert all(a[1] == b[0] for a, b in itertools.pairwise(spans))
+
+
+def test_clock_reader_falls_back_per_frame():
+    """Un vídeo mezcla repeticiones (reloj en el centro) y partidas (a la derecha): se decide frame a frame."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("cv2")
+    from app.videos import frames as vf
+
+    class FakeGeneric:
+        def read(self, frame, region):
+            return 243 if region[0] == "espectador" and frame[0, 0, 0] == 1 else None
+
+    reader = vf.ClockReader(vf.Clock(vf.load_digits()), FakeGeneric())
+    spectator = np.zeros((1080, 1920, 3), np.uint8)
+    spectator[0, 0, 0] = 1
+    assert reader.read(spectator) == 243
+    assert reader.read(np.zeros((1080, 1920, 3), np.uint8)) is None
+    assert reader.hud == "espectador" and reader.modes == {"espectador": 1}
+    assert vf.ClockReader(vf.Clock(vf.load_digits()), None).hud is None
+
+
+def test_outdated_gameplay_videos_are_redone(tmp_path):
+    from types import SimpleNamespace
+
+    from app.videos.collector import FRAMES_VERSION, VideoCollector
+
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path, pause_in_game=False), tracker=None)
+    collector = VideoCollector(svc)
+    store = collector.store
+    store.add_videos([{"id": "aaaaaaaaaaa"}, {"id": "bbbbbbbbbbb"}, {"id": "ccccccccccc"}, {"id": "ddddddddddd"}])
+    results = {
+        "aaaaaaaaaaa": {"frames": {"partida": True}},  # partida analizada con la versión anterior: se rehace
+        "bbbbbbbbbbb": {"frames": {"partida": False}},  # sin partida: no hace falta
+        "ccccccccccc": {"frames": None},  # recogido sin frames (plan B): se rehace
+        "ddddddddddd": {"frames": {"partida": True}, "version_frames": FRAMES_VERSION},  # ya al día
+    }
+    for vid, data in results.items():
+        store.save_result(vid, data)
+        store.done(vid, {})
+    assert collector._requeue_outdated() == 2
+    states = {vid: store.get(vid)["estado"] for vid in results}
+    assert states == {"aaaaaaaaaaa": "pendiente", "bbbbbbbbbbb": "hecho", "ccccccccccc": "pendiente", "ddddddddddd": "hecho"}

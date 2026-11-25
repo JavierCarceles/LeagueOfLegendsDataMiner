@@ -45,7 +45,8 @@ ICONS_EVERY = 2  # iconos del minimapa cada 2 muestras (4 s)
 CAMERA_COVER = 0.40  # parte del contorno del recuadro que tiene que verse blanca
 CAMERA_SCORE = 0.28  # contorno blanco menos interior blanco
 DIGIT_SCORE = 0.55
-CHAMPION_SCORE = 0.7  # parecido medio mínimo del retrato del HUD (Lux daba 0,83)
+CHAMPION_SCORE = 0.8  # parecido medio mínimo del retrato del HUD (Lux daba 0,83; los falsos, 0,75-0,80)
+CHAMPION_MARGIN = 0.05  # y ventaja sobre el segundo campeón más parecido
 GENERIC_CLOCK_EVERY_S = 10
 
 
@@ -383,9 +384,6 @@ class GenericClock:
     REGIONS = (("espectador", 0.0, 0.14, 0.35, 0.65), ("jugador", 0.0, 0.06, 0.82, 1.0))
     _local = threading.local()  # un motor por hilo: con el análisis en paralelo, cada hilo lee su reloj
 
-    def __init__(self) -> None:
-        self.region = self.REGIONS[0]
-
     @classmethod
     def create(cls) -> GenericClock | None:
         """``None`` si RapidOCR no está instalado o no arranca (el vídeo se recoge igual, sin reloj)."""
@@ -409,12 +407,8 @@ class GenericClock:
             cls._local.engine = engine
         return engine
 
-    @property
-    def hud(self) -> str:
-        return self.region[0]
-
-    def read(self, frame: np.ndarray, region=None) -> int | None:
-        _, y0, y1, x0, x1 = region or self.region
+    def read(self, frame: np.ndarray, region) -> int | None:
+        _, y0, y1, x0, x1 = region
         h, w = frame.shape[:2]
         crop = frame[int(h * y0):max(int(h * y0) + 8, int(h * y1)), int(w * x0):int(w * x1)]
         result = self._engine()(crop)
@@ -428,14 +422,36 @@ class GenericClock:
                 best = (off_center, seconds)
         return best[1] if best else None
 
-    def calibrate(self, frames: list[np.ndarray]) -> bool:
-        """La zona (centro arriba o derecha arriba) donde se lee el reloj en los frames de la sonda."""
-        for region in self.REGIONS:
-            ok = sum(1 for f in frames[:8] if self.read(f, region) is not None)
-            if ok >= max(2, len(frames[:8]) // 3):
-                self.region = region
-                return True
-        return False
+
+
+class ClockReader:
+    """El reloj de cada frame: plantillas del HUD de jugador (rápido) y, si no salen, OCR genérico arriba en el centro
+    (retransmisiones, repeticiones) o a la derecha. Un mismo vídeo mezcla repeticiones, partidas y la herramienta de
+    práctica: se decide frame a frame. Cuenta de qué HUD salió cada lectura."""
+
+    def __init__(self, clock: Clock, generic: GenericClock | None) -> None:
+        self.clock = clock
+        self.generic = generic
+        self.modes: Counter = Counter()
+        self._lock = threading.Lock()
+
+    def read(self, frame: np.ndarray) -> int | None:
+        seconds, mode = self.clock.read(frame), "jugador"
+        if seconds is None and self.generic is not None:
+            for region in GenericClock.REGIONS:
+                seconds, mode = self.generic.read(frame, region), region[0]
+                if seconds is not None:
+                    break
+        if seconds is not None:
+            with self._lock:
+                self.modes[mode] += 1
+        return seconds
+
+    @property
+    def hud(self) -> str | None:
+        """El HUD con más lecturas: «jugador» o «espectador»."""
+        with self._lock:
+            return self.modes.most_common(1)[0][0] if self.modes else None
 
 
 def parse_time(text: str) -> int | None:
@@ -463,28 +479,34 @@ class Portraits:
             }
         return self._cache[d]
 
-    def best(self, frame: np.ndarray) -> tuple[str | None, float]:
+    def best(self, frame: np.ndarray) -> tuple[str | None, float, float]:
+        """``(campeón, parecido, margen sobre el segundo)``. El margen importa: con iconos que no se parecen al retrato
+        del HUD (Vi), ganaban por poco campeones de textura oscura (Ambessa 0,776 frente a Locke 0,738)."""
         h, w = frame.shape[:2]
         region = frame[int(h * 0.82):h, int(w * 0.22):int(w * 0.58)]
-        best: tuple[str | None, float] = (None, 0.0)
+        scores: dict[str, float] = {}
         for frac in (0.052, 0.06, 0.068, 0.076):
             d = round(h * frac)
             for key, tpl in self._templates(d).items():
                 if tpl.shape[0] > region.shape[0] or tpl.shape[1] > region.shape[1]:
                     continue
                 score = float(cv2.minMaxLoc(cv2.matchTemplate(region, tpl, cv2.TM_CCOEFF_NORMED))[1])
-                if score > best[1]:
-                    best = (key, score)
-        return best
+                scores[key] = max(score, scores.get(key, -1.0))
+        if not scores:
+            return None, 0.0, 0.0
+        ranked = sorted(scores.items(), key=lambda kv: -kv[1])
+        second = ranked[1][1] if len(ranked) > 1 else 0.0
+        return ranked[0][0], ranked[0][1], ranked[0][1] - second
 
 
-def vote_champion(portraits: Portraits, frames: list[np.ndarray], min_score: float = 0.5) -> dict | None:
-    """El campeón del retrato del HUD si sale claro (en una retransmisión no hay retrato: Pantheon salió en 2 de 6)."""
+def vote_champion(portraits: Portraits, frames: list[np.ndarray], min_score: float = 0.8) -> dict | None:
+    """El campeón del retrato del HUD solo si sale claro y destacado en varios frames con HUD de jugador (mejor ninguno
+    que uno falso: en retransmisiones no hay retrato y con algunos iconos no se reconoce)."""
     votes: Counter = Counter()
     scores: dict[str, list[float]] = {}
     for frame in frames:
-        key, score = portraits.best(frame)
-        if key and score >= min_score:
+        key, score, margin = portraits.best(frame)
+        if key and score >= min_score and margin >= CHAMPION_MARGIN:
             votes[key] += 1
             scores.setdefault(key, []).append(score)
     if not votes:
@@ -621,16 +643,24 @@ def _sample_span(source: str, span: tuple[float, float], box: Box, cam: tuple[in
     part = Collected(box, (0, 0))
     reader = Frames(source, threads=1, gpu=gpu)
     part.gpu = reader.gpu
+    last = -1
     try:
         for t, frame in reader.every(STEP_S, start):
-            if t >= end or (part.samples % 30 == 0 and should_stop()):
+            # Cada frame a su hueco de 2 s, y un hueco solo una vez: con frames de tiempo irregular (vídeos con
+            # fotogramas perdidos) dos lecturas seguidas caían en el mismo segundo.
+            slot = round(t / STEP_S)
+            at = round(slot * STEP_S, 1)
+            if at >= end or (part.samples % 30 == 0 and should_stop()):
                 break
+            if at < start or slot <= last:
+                continue
+            last = slot
             part.shape = frame.shape
             part.samples += 1
             score = tools.maps.presence(frame, box)
-            part.present.append((round(t, 1), score))
+            part.present.append((at, score))
             if score >= PRESENT_SCORE:
-                _merge(part, _analyze(frame, round(t, 1), round(t / STEP_S), box, cam, tools))
+                _merge(part, _analyze(frame, at, slot, box, cam, tools))
             tick()
     finally:
         reader.close()

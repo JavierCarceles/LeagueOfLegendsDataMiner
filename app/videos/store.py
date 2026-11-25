@@ -194,6 +194,15 @@ class VideoStore:
             video.update(estado=state, intentos=tries, error=error[:500], fallo=_now())
             self._flush()
 
+    def requeue(self, vids: list[str]) -> None:
+        """Vuelven a la cola para rehacerlos (lo recogido se sobrescribe al terminar)."""
+        with self.lock:
+            videos = self._data()["videos"]
+            for vid in vids:
+                if vid in videos:
+                    videos[vid].update(estado=PENDING, intentos=0, error=None, fallo=None)
+            self._flush()
+
     def retry(self, vid: str) -> bool:
         with self.lock:
             video = self._data()["videos"].get(vid)
