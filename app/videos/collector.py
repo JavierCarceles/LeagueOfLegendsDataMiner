@@ -11,11 +11,13 @@ Se pausa mientras juegas (como la precarga), espera entre vídeos para no enfada
 from __future__ import annotations
 
 import contextlib
+import json
 import random
 import shutil
 import tempfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -23,6 +25,7 @@ import requests
 from app import hardware
 from app.logbus import add_videos_log, get_logger
 from app.videos import deps
+from app.videos.review import champion_names
 from app.videos.store import DONE, PENDING, VideoStore
 
 log = get_logger("videos")
@@ -41,7 +44,8 @@ CDN = "https://ddragon.leagueoflegends.com/cdn"
 VERSION = 1
 # Sube cuando cambia lo que se saca de los frames: los vídeos con partida (o recogidos sin frames) se rehacen solos al
 # arrancar la app. 2: reloj frame a frame (plantillas u OCR), campeón conservador, sin partidas falsas ni duplicados.
-FRAMES_VERSION = 2
+# 3: campeón por los iconos de sus habilidades (cada 30 s: vídeos con varias partidas) y lecturas sueltas del reloj aparte.
+FRAMES_VERSION = 3
 
 # Búsquedas guiadas (rol y tema) en los dos idiomas.
 ROLES = {
@@ -385,13 +389,11 @@ class VideoCollector:
         if box is None:
             return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
         clock_ok = self._pick_clock(tools, probe_frames)
-        # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
-        player = [f for f in probe_frames if tools.clock.read(f) is not None][:6]
-        champion = vf.vote_champion(tools.portraits, player) if tools.portraits and len(player) >= vf.MIN_PROBES else None
-        if champion:
-            champion["nombre"] = self._champ_name(champion["clave"])
-        cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
         self.threads = workers = hardware.threads()  # el 70 % de la CPU libre ahora mismo
+        # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
+        player = [f for f in probe_frames if tools.clock.read(f) is not None]
+        tools.ability_slots, probe_keys = tools.abilities.calibrate(player, workers) if tools.abilities and player else (None, [])
+        cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
         label = f"frames ({workers} hilos)"
         self._step_label(label, 0.0)
         collected = vf.sample_pass(str(path), box, cam, tools, duration, self._should_stop_frames,
@@ -399,7 +401,13 @@ class VideoCollector:
         if self.stop_event.is_set():
             return None
         reader = tools.clock_reader
-        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None)
+        keys = probe_keys + [c[1] for c in collected.champions]
+        champion, champions = vf.vote_champion(keys), vf.champion_counts(keys)
+        for item in ([champion] if champion else []) + champions:
+            item["nombre"] = self._champ_name(item["clave"])
+        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None,
+                           champions)
+        out["habilidades"] = tools.ability_slots.public() if tools.ability_slots else None
         out["hud_lecturas"] = dict(reader.modes) if reader else {}
         out["hilos"] = workers
         out["gpu_decodifica"] = collected.gpu
@@ -471,17 +479,35 @@ class VideoCollector:
         map_bgr = vf.read_image(map_path)
         if map_bgr is None:
             raise OSError("map11.png dañado")
-        icons = {}
-        for champ in dd.champions.values():
-            try:
-                path = self._cached(img_dir / "champion" / f"{champ['key']}.png", f"{CDN}/{dd.version}/img/champion/{champ['key']}.png")
-            except OSError:
-                continue
-            img = vf.read_image(path)
-            if img is not None:
-                icons[champ["key"]] = img
-        self.tools = vf.Tools(vf.MapMatcher(map_bgr), vf.Clock(vf.load_digits()), vf.Portraits(icons) if icons else None)
+        spells = self._spell_icons(img_dir, str(dd.version))
+        self.tools = vf.Tools(vf.MapMatcher(map_bgr), vf.Clock(vf.load_digits()), vf.Abilities(spells) if spells else None)
         return self.tools
+
+    def _spell_icons(self, img_dir: Path, version: str) -> dict:
+        """Los iconos de las 4 habilidades de cada campeón (Data Dragon, una vez por parche): ~700 ficheros pequeños."""
+        from app.videos import frames as vf
+
+        path = img_dir.parent / "championFull.json"
+        try:
+            data = json.loads(self._cached(path, f"{CDN}/{version}/data/en_US/championFull.json").read_text(encoding="utf-8"))["data"]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            path.unlink(missing_ok=True)  # si quedó mal, se vuelve a bajar la próxima vez
+            log.warning("Vídeos: sin habilidades de Data Dragon (no se reconocerá el campeón): %s", exc)
+            return {}
+        wanted = {key: [s["image"]["full"] for s in champ.get("spells") or []] for key, champ in data.items()}
+
+        def fetch(name: str):
+            try:
+                return name, vf.read_image(self._cached(img_dir / "spell" / name, f"{CDN}/{version}/img/spell/{name}"))
+            except OSError:
+                return name, None
+
+        with ThreadPoolExecutor(max_workers=8, thread_name_prefix="videos-iconos") as pool:
+            images = dict(pool.map(fetch, sorted({n for names in wanted.values() for n in names})))
+        return {
+            key: [images[n] for n in names] for key, names in wanted.items()
+            if len(names) == 4 and all(images.get(n) is not None for n in names)
+        }
 
     @staticmethod
     def _cached(path: Path, url: str) -> Path:
@@ -596,7 +622,7 @@ def _summary(data: dict) -> dict:
         "transcripcion": text.get("metodo"),
         "trozos": len(text.get("segmentos") or []),
         "partida": bool(frames.get("partida")),
-        "campeon": (frames.get("campeon") or {}).get("nombre"),
+        "campeon": champion_names(frames) or None,
         "segundos_partida": frames.get("segundos_con_partida"),
         "reloj": len(frames.get("reloj") or []),
         "camara": len(frames.get("camara") or []),

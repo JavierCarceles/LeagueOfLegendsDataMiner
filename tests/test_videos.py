@@ -388,6 +388,7 @@ def test_time_text_and_spans():
 
     assert vf.parse_time("04:07") == 247 and vf.parse_time("19.09") == 1149
     assert vf.parse_time("8.6K") is None and vf.parse_time("12:75") is None
+    assert vf.parse_time("91:11") is None  # más de 80 min de partida: mala lectura
     spans = vf._spans(600.0, 3)
     assert spans[0][0] == 0.0 and spans[-1][1] == float("inf") and len(spans) == 6
     assert all(a[1] == b[0] for a, b in itertools.pairwise(spans))
@@ -433,3 +434,96 @@ def test_outdated_gameplay_videos_are_redone(tmp_path):
     assert collector._requeue_outdated() == 2
     states = {vid: store.get(vid)["estado"] for vid in results}
     assert states == {"aaaaaaaaaaa": "pendiente", "bbbbbbbbbbb": "hecho", "ccccccccccc": "pendiente", "ddddddddddd": "hecho"}
+
+
+def test_champion_from_ability_icons():
+    """El campeón sale de los iconos de sus 4 habilidades, cada uno en su casilla (el retrato cambia con el aspecto)."""
+    np = pytest.importorskip("numpy")
+    cv2 = pytest.importorskip("cv2")
+    from app.videos import frames as vf
+
+    rng = np.random.default_rng(11)
+    spells = {
+        f"C{c}": [cv2.GaussianBlur(rng.integers(0, 255, (64, 64, 3), dtype=np.uint8), (0, 0), 2) for _ in range(4)]
+        for c in range(4)
+    }
+    frame = np.full((1080, 1920, 3), 35, np.uint8)
+    for k, icon in enumerate(spells["C2"]):
+        x = 780 + k * 44
+        frame[990:1028, x:x + 38] = cv2.resize(icon, (38, 38), interpolation=cv2.INTER_AREA)
+    cooldown = frame.copy()
+    for k in range(3):  # Q, W y E en enfriamiento: oscuras y con el número grande encima
+        x = 780 + k * 44
+        cooldown[990:1028, x:x + 38] //= 3
+        cv2.circle(cooldown, (x + 19, 1009), 11, (255, 255, 255), -1)
+    abilities = vf.Abilities(spells)
+    slots, keys = abilities.calibrate([cooldown, frame, frame], workers=2)
+    assert slots.side == 38 and slots.xs[1] - slots.xs[0] == 44 and keys == ["C2", "C2"]
+    assert json.loads(json.dumps(slots.public()))["columnas"] == list(slots.xs)  # se guarda en el JSON del vídeo
+    assert abilities.read(frame, slots)[0] == "C2"
+    assert abilities.read(np.full_like(frame, 35), slots) is None
+    assert abilities.calibrate([np.full_like(frame, 35)] * 4) == (None, [])
+    # Dos iconos claros que no están en fila ni a distancia de casilla no dan casillas
+    assert vf.fit_slots([0.95, 0.9, 0.2, 0.1], [(10, 50), (54, 80)], 38) is None
+    assert vf.fit_slots([0.95, 0.9, 0.2, 0.1], [(10, 50), (200, 50)], 38) is None
+    quality, fitted = vf.fit_slots([0.95, 0.2, 0.9, 0.1], [(10, 50), (0, 0), (98, 51), (0, 0)], 38)
+    assert fitted.xs == (10, 54, 98, 142) and quality == pytest.approx(1.85)
+    assert vf.vote_champion(["C2", "C2", "C1", "C2"]) == {"clave": "C2", "votos": 3, "de": 4}
+    assert vf.vote_champion(["C2", "C1", "C3", "C2"]) is None  # menos de 3 votos
+    assert vf.champion_counts(["C2", "C1", "C2", "C1", "C3"]) == [{"clave": "C2", "votos": 2}, {"clave": "C1", "votos": 2}]
+
+
+def test_review_flags_suspicious_results(tmp_path, capsys):
+    from app.videos import review
+    from app.videos.__main__ import main
+
+    good = {
+        "id": "aaaaaaaaaaa", "titulo": "Bien", "duracion": 600, "idioma": "en",
+        "transcripcion": {"idioma": "en", "tipo": "manual", "segmentos": [[t, "x"] for t in range(0, 600, 12)]},
+        "frames": {"partida": True, "hud": "jugador", "segundos_con_partida": 400, "camara_px": [80, 44],
+                   "campeon": {"clave": "Vi", "nombre": "Vi"},
+                   "reloj": [[t, 60 + t] for t in range(0, 400, 10)], "camara": [[t, 1, 1] for t in range(0, 400, 2)]},
+    }
+    bad = {
+        "id": "bbbbbbbbbbb", "titulo": "Mal", "duracion": 600, "idioma": "es",
+        "transcripcion": {"idioma": "en", "tipo": "traducido", "segmentos": [[0, "x"]]},
+        "frames": {"partida": True, "hud": "jugador", "segundos_con_partida": 30, "camara_px": None,
+                   "reloj": [[0, 100], [10, 50], [20, 900], [30, 10], [40, 2000]], "reloj_apartadas": [[5, 1]] * 4},
+    }
+    assert review.check(good) == []
+    issues = " | ".join(review.check(bad))
+    for text in ("poca transcripción", "traducido", "«es»", "partida muy corta", "saltos", "apartadas", "recuadro de la cámara",
+                 "sin campeón"):
+        assert text in issues
+    assert review.check({"duracion": 300}) == ["sin transcripción", "sin datos de frames"]
+    # La orden solo lee lo recogido (sin herramientas de vídeo ni cambios)
+    store = VideoStore(tmp_path / "videos")
+    store.add_videos([{"id": "aaaaaaaaaaa"}, {"id": "bbbbbbbbbbb"}])
+    for data in (good, bad):
+        store.save_result(data["id"], data)
+        store.done(data["id"], {})
+    assert main(["--datos", str(tmp_path), "revisar"]) == 0
+    out = capsys.readouterr().out
+    assert "bbbbbbbbbbb" in out and "aaaaaaaaaaa" not in out and "2 vídeos revisados, 1 con avisos" in out
+    assert main(["--datos", str(tmp_path), "revisar", "--todos"]) == 0
+    assert "✓ aaaaaaaaaaa" in capsys.readouterr().out
+
+
+def test_clock_drops_lone_misreads_but_keeps_real_jumps():
+    pytest.importorskip("cv2")
+    from app.videos import frames as vf
+
+    clock = [[30, 888], [40, 41], [50, 51], [640, 641], [650, 21], [660, 661],  # «0:21» suelto entre 10:41 y 11:01
+             [670, 700], [680, 730],  # cortes de edición: el reloj corre más que el vídeo
+             [690, 100], [700, 110], [710, 120],  # rebobinado del coach: sigue desde ahí
+             [720, 130], [730, 9000]]
+    keep, odd = vf.clean_clock(clock)
+    assert odd == [[30, 888], [650, 21], [730, 9000]]
+    assert [690, 100] in keep and [670, 700] in keep and len(keep) == len(clock) - 3
+    assert vf.clean_clock([[0, 5], [10, 900]]) == ([[0, 5], [10, 900]], [])
+    # Vídeo con cortes de edición (el reloj corre más que el vídeo) y una mala lectura: sobra 585, no el 601 de antes
+    edited = [[410, 552], [420, 563], [430, 580], [440, 601], [450, 585], [460, 634], [470, 644]]
+    assert vf.clean_clock(edited)[1] == [[450, 585]]
+    # Dos malas casi seguidas: la buena de en medio (793) se queda
+    twice = [[890, 763], [900, 773], [910, 417], [920, 793], [930, 397], [940, 813], [950, 823]]
+    assert vf.clean_clock(twice) == ([[890, 763], [900, 773], [920, 793], [940, 813], [950, 823]], [[910, 417], [930, 397]])

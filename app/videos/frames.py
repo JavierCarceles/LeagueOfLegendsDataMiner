@@ -45,8 +45,19 @@ ICONS_EVERY = 2  # iconos del minimapa cada 2 muestras (4 s)
 CAMERA_COVER = 0.40  # parte del contorno del recuadro que tiene que verse blanca
 CAMERA_SCORE = 0.28  # contorno blanco menos interior blanco
 DIGIT_SCORE = 0.55
-CHAMPION_SCORE = 0.8  # parecido medio mínimo del retrato del HUD (Lux daba 0,83; los falsos, 0,75-0,80)
-CHAMPION_MARGIN = 0.05  # y ventaja sobre el segundo campeón más parecido
+# Campeón del jugador por los iconos de sus 4 habilidades, cada uno en su casilla (media de las 3 que más se parecen):
+# Vi y Qiyana daban 0,97 y el segundo campeón 0,44; con 3 habilidades en enfriamiento, 0,51 (se descarta esa lectura).
+CHAMPION_SCORE = 0.75
+CHAMPION_MARGIN = 0.15  # ventaja mínima sobre el segundo campeón
+CHAMPION_EVERY = 5  # campeón cada 5 muestras (10 s), solo con HUD de jugador (cada lectura son ~20 ms)
+ABILITY_SIZES = tuple(range(24, 62, 2))  # lado del icono de habilidad a 1080p según la escala del HUD
+ABILITY_INNER = 0.7  # el centro del icono: fuera quedan el marco, el enfriamiento y el coste
+SLOT_SCORE = 0.85  # parecido de un icono para fijar con él las casillas
+SLOT_PITCH = (1.0, 1.6)  # de una casilla a la siguiente, en lados de icono (icono más hueco)
+SLOT_SLACK_PX = 3  # holgura al buscar cada icono en su casilla
+CALIBRATION_FRAMES = 4  # frames de HUD de jugador de la sonda para buscar las casillas (~2 s cada uno)
+MAX_GAME_S = 80 * 60  # un reloj por encima es una mala lectura
+CLOCK_TOLERANCE_S = 5  # lo que puede bailar el desfase reloj − vídeo entre lecturas sin que sea un salto
 GENERIC_CLOCK_EVERY_S = 10
 
 
@@ -372,7 +383,7 @@ def _parse_clock(peaks: list[tuple[int, int, int, float]], tw: int) -> int | Non
         return None
     minutes = a[2] * 10 + b[2]
     seconds = c[2] * 10 + d[2]
-    if seconds >= 60:
+    if seconds >= 60 or minutes * 60 + seconds > MAX_GAME_S:
         return None
     return minutes * 60 + seconds
 
@@ -403,7 +414,7 @@ class GenericClock:
 
             # 2 hilos por lectura: el paralelismo lo ponen los hilos del análisis (si no, se pisan todos)
             engine = RapidOCR(params={"EngineConfig.onnxruntime.intra_op_num_threads": 2})
-            logging.getLogger("RapidOCR").setLevel(logging.WARNING)
+            logging.getLogger("RapidOCR").setLevel(logging.ERROR)  # «text detection result is empty» en cada fotograma sin texto
             cls._local.engine = engine
         return engine
 
@@ -459,62 +470,173 @@ def parse_time(text: str) -> int | None:
     match = re.fullmatch(r"(\d{1,2})[:.](\d{2})", text.strip())
     if not match or int(match.group(2)) >= 60:
         return None
-    return int(match.group(1)) * 60 + int(match.group(2))
+    seconds = int(match.group(1)) * 60 + int(match.group(2))
+    return seconds if seconds <= MAX_GAME_S else None
 
 
 # ---------------------------------------------------------------------- campeón del jugador
-class Portraits:
-    """El retrato grande del HUD (abajo, en el centro) comparado con los iconos de Data Dragon."""
+@dataclass(frozen=True)
+class Slots:
+    """Dónde están las 4 habilidades en el vídeo en curso, en la zona de :meth:`Abilities.region`: lado del icono (en
+    píxeles del vídeo), fila y columna de cada una (Q, W, E, R), para el centro del icono que se compara."""
 
-    def __init__(self, icons: dict[str, np.ndarray]) -> None:
-        self.icons = icons
-        self._cache: dict[int, dict[str, np.ndarray]] = {}
+    side: int
+    y: int
+    xs: tuple[int, ...]
 
-    def _templates(self, d: int) -> dict[str, np.ndarray]:
-        if d not in self._cache:
-            side = max(8, round(d * 0.68))  # el cuadrado que cabe dentro del círculo del retrato
-            off = (d - side) // 2
-            self._cache[d] = {
-                k: cv2.resize(img, (d, d), interpolation=cv2.INTER_AREA)[off:off + side, off:off + side] for k, img in self.icons.items()
-            }
-        return self._cache[d]
+    def public(self) -> dict:
+        return {"lado": self.side, "fila": self.y, "columnas": list(self.xs)}
 
-    def best(self, frame: np.ndarray) -> tuple[str | None, float, float]:
-        """``(campeón, parecido, margen sobre el segundo)``. El margen importa: con iconos que no se parecen al retrato
-        del HUD (Vi), ganaban por poco campeones de textura oscura (Ambessa 0,776 frente a Locke 0,738)."""
+
+class Abilities:
+    """Las 4 habilidades del HUD de jugador (abajo, en el centro) comparadas con los iconos de Data Dragon.
+
+    El retrato no vale: cambia con el aspecto (la Vi de Arcane de un vídeo no se parecía al icono base y ganaban Ambessa
+    o Pantheon por poco). Los iconos de las habilidades casi nunca cambian. Una vez por vídeo se buscan las casillas
+    (tamaño y posición, que dependen de la escala del HUD); después cada casilla se compara solo con la habilidad que le
+    toca a cada campeón: rápido y los demás campeones se quedan muy lejos. En gris (separa igual y va el doble de rápido).
+    """
+
+    def __init__(self, spells: dict[str, list[np.ndarray]]) -> None:
+        self.names = [key for key, icons in spells.items() if len(icons) == 4]
+        self._icons = [[cv2.cvtColor(icon, cv2.COLOR_BGR2GRAY) for icon in spells[key]] for key in self.names]
+        self._cache: dict[int, list[list[np.ndarray]]] = {}
+        self._lock = threading.Lock()
+
+    def _templates(self, side: int) -> list[list[np.ndarray]]:
+        with self._lock:
+            if side not in self._cache:
+                inner = max(6, round(side * ABILITY_INNER))
+                off = (side - inner) // 2
+                self._cache[side] = [
+                    [cv2.resize(icon, (side, side), interpolation=cv2.INTER_AREA)[off:off + inner, off:off + inner] for icon in row]
+                    for row in self._icons
+                ]
+            return self._cache[side]
+
+    @staticmethod
+    def region(frame: np.ndarray) -> np.ndarray:
         h, w = frame.shape[:2]
-        region = frame[int(h * 0.82):h, int(w * 0.22):int(w * 0.58)]
-        scores: dict[str, float] = {}
-        for frac in (0.052, 0.06, 0.068, 0.076):
-            d = round(h * frac)
-            for key, tpl in self._templates(d).items():
-                if tpl.shape[0] > region.shape[0] or tpl.shape[1] > region.shape[1]:
-                    continue
-                score = float(cv2.minMaxLoc(cv2.matchTemplate(region, tpl, cv2.TM_CCOEFF_NORMED))[1])
-                scores[key] = max(score, scores.get(key, -1.0))
-        if not scores:
-            return None, 0.0, 0.0
-        ranked = sorted(scores.items(), key=lambda kv: -kv[1])
-        second = ranked[1][1] if len(ranked) > 1 else 0.0
-        return ranked[0][0], ranked[0][1], ranked[0][1] - second
+        return cv2.cvtColor(frame[int(h * 0.82):h, int(w * 0.30):int(w * 0.62)], cv2.COLOR_BGR2GRAY)
+
+    def read(self, frame: np.ndarray, slots: Slots) -> tuple[str, float] | None:
+        """El campeón de un frame con las casillas del vídeo, solo si sale claro: ``(clave, parecido)``."""
+        region = self.region(frame)
+        templates = self._templates(slots.side)
+        inner = templates[0][0].shape[0]
+        m = SLOT_SLACK_PX
+        scores = np.zeros((len(self.names), 4))
+        for k, x in enumerate(slots.xs):
+            window = region[max(0, slots.y - m):slots.y + inner + m, max(0, x - m):x + inner + m]
+            if window.shape[0] < inner or window.shape[1] < inner:
+                continue
+            for c, row in enumerate(templates):
+                scores[c, k] = cv2.minMaxLoc(cv2.matchTemplate(window, row[k], cv2.TM_CCOEFF_NORMED))[1]
+        top = np.sort(scores, axis=1)[:, 1:].mean(axis=1)  # las 3 casillas que más se parecen
+        order = np.argsort(-top)
+        best = float(top[order[0]])
+        second = float(top[order[1]]) if len(order) > 1 else 0.0
+        return (self.names[order[0]], best) if sure(best, best - second) else None
+
+    def _scan(self, region: np.ndarray, side: int) -> tuple[np.ndarray, np.ndarray] | None:
+        """Cada icono de ese lado buscado en toda la zona: parecido ``[campeón, casilla]`` y posición ``[campeón, casilla]``."""
+        templates = self._templates(side)
+        if templates[0][0].shape[0] > region.shape[0] or templates[0][0].shape[1] > region.shape[1]:
+            return None
+        scores = np.zeros((len(self.names), 4))
+        locs = np.zeros((len(self.names), 4, 2), int)
+        for c, row in enumerate(templates):
+            for k, tpl in enumerate(row):
+                _, scores[c, k], _, locs[c, k] = cv2.minMaxLoc(cv2.matchTemplate(region, tpl, cv2.TM_CCOEFF_NORMED))
+        return scores, locs
+
+    def _add_scans(self, merged: dict[int, tuple[np.ndarray, np.ndarray]], frame: np.ndarray, workers: int) -> None:
+        """Busca los iconos de todos los tamaños en un frame y se queda lo mejor de cada uno (con los frames anteriores)."""
+        region = self.region(frame)
+        sides = sorted({max(8, round(size * frame.shape[0] / 1080)) for size in ABILITY_SIZES})
+        if workers <= 1:
+            scans = [self._scan(region, side) for side in sides]
+        else:
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="videos-campeon") as pool:
+                scans = list(pool.map(lambda side: self._scan(region, side), sides))
+        for side, scan in zip(sides, scans, strict=True):
+            if scan is not None:
+                merged[side] = _keep_best(merged.get(side), scan)
+
+    def _pick(self, merged: dict[int, tuple[np.ndarray, np.ndarray]], frames: list[np.ndarray]) -> tuple[Slots | None, bool]:
+        """Las mejores casillas posibles y si ya leen claro el campeón en alguno de ``frames``."""
+        fits = [slots for _, slots in sorted(_fits(merged), key=lambda f: -f[0])[:5]]
+        for slots in fits:
+            if any(self.read(frame, slots) for frame in frames):
+                return slots, True
+        return (fits[0] if fits else None), False
+
+    def calibrate(self, frames: list[np.ndarray], workers: int = 1) -> tuple[Slots | None, list[str]]:
+        """Las casillas con los frames de HUD de jugador de la sonda: cada icono se busca en toda la zona con cada tamaño
+        y se queda lo mejor de cada casilla entre frames (en uno hay habilidades en enfriamiento o sin aprender y en otro
+        no). Valen las casillas que dan los iconos claros de un campeón en fila y a distancia de casilla; mejor si en algún
+        frame ya se lee ese campeón claro. Devuelve también los campeones que se leen claros en todos los frames."""
+        merged: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        slots: Slots | None = None
+        for i, frame in enumerate(frames[:CALIBRATION_FRAMES]):
+            self._add_scans(merged, frame, workers)
+            slots, clear = self._pick(merged, frames[:i + 1])
+            if clear:
+                break
+        if slots is None:
+            return None, []
+        return slots, [found[0] for frame in frames if (found := self.read(frame, slots))]
 
 
-def vote_champion(portraits: Portraits, frames: list[np.ndarray], min_score: float = 0.8) -> dict | None:
-    """El campeón del retrato del HUD solo si sale claro y destacado en varios frames con HUD de jugador (mejor ninguno
-    que uno falso: en retransmisiones no hay retrato y con algunos iconos no se reconoce)."""
-    votes: Counter = Counter()
-    scores: dict[str, list[float]] = {}
-    for frame in frames:
-        key, score, margin = portraits.best(frame)
-        if key and score >= min_score and margin >= CHAMPION_MARGIN:
-            votes[key] += 1
-            scores.setdefault(key, []).append(score)
-    if not votes:
+def _keep_best(old: tuple[np.ndarray, np.ndarray] | None, new: tuple[np.ndarray, np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
+    """Lo mejor de cada icono entre frames (con su posición)."""
+    if old is None:
+        return new
+    better = new[0] > old[0]
+    return np.where(better, new[0], old[0]), np.where(better[..., None], new[1], old[1])
+
+
+def _fits(merged: dict[int, tuple[np.ndarray, np.ndarray]]) -> list[tuple[float, Slots]]:
+    return [fit for side, (scores, locs) in merged.items() for c in range(len(scores))
+            if (fit := fit_slots([float(v) for v in scores[c]], [(int(x), int(y)) for x, y in locs[c]], side))]
+
+
+def fit_slots(scores: list[float], locs: list[tuple[int, int]], side: int) -> tuple[float, Slots] | None:
+    """Casillas a partir de los iconos de un campeón: los dos más claros (≥ ``SLOT_SCORE``) tienen que estar en la misma
+    fila, en orden (Q, W, E, R) y a distancia de casilla. Devuelve ``(calidad, casillas)``: la suma del parecido de los
+    iconos claros que caen en su casilla."""
+    good = sorted((k for k in range(4) if scores[k] >= SLOT_SCORE), key=lambda k: -scores[k])
+    if len(good) < 2:
         return None
-    key, n = votes.most_common(1)[0]
-    if n < max(MIN_PROBES, 0.6 * len(frames)) or float(np.mean(scores[key])) < CHAMPION_SCORE:
+    a, b = good[0], good[1]
+    (xa, ya), (xb, yb) = locs[a], locs[b]
+    pitch = (xb - xa) / (b - a)
+    if abs(ya - yb) > SLOT_SLACK_PX or not SLOT_PITCH[0] * side <= pitch <= SLOT_PITCH[1] * side:
         return None
-    return {"clave": key, "votos": n, "de": len(frames), "parecido": round(float(np.mean(scores[key])), 3)}
+    xs = tuple(round(xa + (k - a) * pitch) for k in range(4))
+    y = round((ya + yb) / 2)
+    fitting = [k for k in good if abs(locs[k][0] - xs[k]) <= SLOT_SLACK_PX and abs(locs[k][1] - y) <= SLOT_SLACK_PX]
+    return float(sum(scores[k] for k in fitting)), Slots(side, y, xs)
+
+
+def sure(score: float, margin: float) -> bool:
+    return score >= CHAMPION_SCORE and margin >= CHAMPION_MARGIN
+
+
+def vote_champion(keys: list[str]) -> dict | None:
+    """El campeón del jugador si sale en la mitad de las lecturas claras o más (y al menos en ``MIN_PROBES``); en vídeos
+    con varias partidas puede no haber uno (ver :func:`champion_counts`)."""
+    if not keys:
+        return None
+    key, n = Counter(keys).most_common(1)[0]
+    if n < max(MIN_PROBES, 0.5 * len(keys)):
+        return None
+    return {"clave": key, "votos": n, "de": len(keys)}
+
+
+def champion_counts(keys: list[str], min_votes: int = 2) -> list[dict]:
+    """Todos los campeones leídos al menos ``min_votes`` veces (vídeos con varias partidas), de más a menos."""
+    return [{"clave": k, "votos": n} for k, n in Counter(keys).most_common() if n >= min_votes]
 
 
 # ---------------------------------------------------------------------- iconos del minimapa
@@ -557,8 +679,9 @@ def _ring_team(pixels: np.ndarray) -> str | None:
 class Tools:
     maps: MapMatcher
     clock: Clock
-    portraits: Portraits | None = None
+    abilities: Abilities | None = None
     clock_reader: object | None = None  # el lector de reloj elegido para el vídeo en curso (None = plantillas)
+    ability_slots: Slots | None = None  # las casillas de las habilidades en el vídeo en curso (None = sin campeón)
 
 
 def probe(reader: Frames, duration: float, tools: Tools) -> tuple[Box | None, list[np.ndarray]]:
@@ -588,6 +711,7 @@ class Collected:
     camera: list[list] = field(default_factory=list)
     clock: list[list] = field(default_factory=list)
     icons: list[list] = field(default_factory=list)
+    champions: list[list] = field(default_factory=list)
     samples: int = 0
 
 
@@ -624,6 +748,7 @@ def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools
         out.camera += part.camera
         out.clock += part.clock
         out.icons += part.icons
+        out.champions += part.champions
         out.gpu = out.gpu or part.gpu
     return out
 
@@ -679,6 +804,8 @@ def _analyze(frame: np.ndarray, t: float, i: int, box: Box, cam: tuple[int, int]
         seconds = (tools.clock_reader or tools.clock).read(frame)
         if seconds is not None:
             part["clock"] = [t, seconds]
+    if i % CHAMPION_EVERY == 0 and (champion := _champion(frame, t, tools)):
+        part["champion"] = champion
     if i % ICONS_EVERY == 0:
         found = [[*box.to_game(u, v), team] for u, v, team in ring_icons(minimap)]
         if found:
@@ -686,9 +813,17 @@ def _analyze(frame: np.ndarray, t: float, i: int, box: Box, cam: tuple[int, int]
     return part
 
 
+def _champion(frame: np.ndarray, t: float, tools: Tools) -> list | None:
+    """``[t, campeón, parecido]`` si el frame tiene HUD de jugador (reloj de plantillas) y el campeón sale claro."""
+    if tools.abilities is None or tools.ability_slots is None or tools.clock.read(frame) is None:
+        return None
+    found = tools.abilities.read(frame, tools.ability_slots)
+    return [t, found[0], round(found[1], 2)] if found else None
+
+
 def _merge(out: Collected, part: dict) -> None:
     """Las muestras se juntan en el orden en que se leyeron (los hilos pueden acabar desordenados)."""
-    for key, target in (("camera", out.camera), ("clock", out.clock), ("icons", out.icons)):
+    for key, target in (("camera", out.camera), ("clock", out.clock), ("icons", out.icons), ("champion", out.champions)):
         if key in part:
             target.append(part[key])
 
@@ -710,10 +845,68 @@ def segments(present: list[tuple[float, float]], gap: float = STEP_S * 3, min_le
     return out
 
 
+def clean_clock(clock: list[list]) -> tuple[list[list], list[list]]:
+    """Aparta las lecturas sueltas que no casan con sus vecinas: un «0:21» entre 10:41 y 11:01 (el OCR de reserva leyó
+    otro texto de la pantalla). Los saltos de verdad (cortes del vídeo, pausas, rebobinados del coach) siguen en las
+    lecturas de después y se quedan. Se quita la peor y se vuelve a mirar: con dos malas casi seguidas (773, 417, 793,
+    397, 813) la buena de en medio no sale perjudicada. Devuelve ``(buenas, apartadas)``."""
+    keep = list(clock)
+    odd: list[list] = []
+    while keep:
+        excess = [_excess(keep, i) for i in range(len(keep))]
+        worst = max(range(len(keep)), key=excess.__getitem__)
+        if excess[worst] <= 0:
+            break
+        odd.append(keep.pop(worst))
+    return keep, sorted(odd)
+
+
+def _excess(clock: list[list], i: int) -> float:
+    """Cuánto se sale una lectura de sus vecinas (0 si casa)."""
+    last = len(clock) - 1
+    if 0 < i < last:
+        return _middle_excess(_offset(clock[i]), _offset(clock[i - 1]), _offset(clock[i + 1]))
+    if last >= 2 and i in (0, last):
+        step = 1 if i == 0 else -1
+        return _edge_excess(clock[i], clock[i + step], clock[i + 2 * step], first=i == 0)
+    return 0.0
+
+
+def _offset(reading: list) -> float:
+    return reading[1] - reading[0]
+
+
+def _middle_excess(own: float, before: float, after: float) -> float:
+    """Con vecinas a los dos lados se mira el desfase reloj − vídeo: con cortes de edición sube a saltos, con pausas o
+    rebobinados baja y se queda; una lectura suelta se sale por arriba o por abajo de las dos más de lo que las vecinas
+    se separan entre sí (601, 585, 634 cada 10 s: sobra 585)."""
+    if (own - before) * (own - after) <= 0:  # entre las dos, o igual que una
+        return 0.0
+    off = min(abs(own - before), abs(own - after))
+    return off - abs(after - before) if off > CLOCK_TOLERANCE_S else 0.0
+
+
+def _edge_excess(item: list, near: list, far: list, first: bool) -> float:
+    """La primera o la última: sobra si no casa con la de al lado y esa sí casa con la siguiente."""
+    if first:
+        lone = _follows(near, far) and not _follows(item, near)
+    else:
+        lone = _follows(far, near) and not _follows(near, item)
+    return abs(_offset(item) - _offset(near)) if lone else 0.0
+
+
+def _follows(a: list, b: list) -> bool:
+    """¿La lectura ``b`` puede venir después de ``a``? Vale el reloj parado (pausa) y que corra más que el vídeo (cortes de
+    edición: hasta 6 veces), no que vaya hacia atrás."""
+    video, game = b[0] - a[0], b[1] - a[1]
+    return video > 0 and -2 <= game <= video * 6 + 2
+
+
 def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict | None, clock_ok: bool, method: str,
-              hud: str | None = None) -> dict:
+              hud: str | None = None, champions: list[dict] | None = None) -> dict:
     tramos = segments(collected.present)
     in_game = sum(b - a for a, b in tramos)
+    clock, odd = clean_clock(collected.clock)
     return {
         "partida": bool(tramos),
         "metodo": method,
@@ -723,10 +916,13 @@ def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict 
         "segundos_con_partida": round(in_game),
         "minimapa": collected.box.public(collected.shape),
         "camara_px": list(cam) if cam else None,
-        "campeon": champion,
+        "campeon": champion,  # el de la mayoría de las lecturas (None si no está claro o hay varios a medias)
+        "campeones": champions or [],  # todos los que se leyeron (vídeos con varias partidas)
+        "campeon_lecturas": collected.champions,  # [[t, clave, parecido]] cada 10 s con HUD de jugador
         "reloj_ok": clock_ok,
         "tramos": tramos,
-        "reloj": collected.clock,
+        "reloj": clock,
+        "reloj_apartadas": odd,  # lecturas sueltas que no casaban con sus vecinas (ver clean_clock)
         "camara": collected.camera,
         "iconos": collected.icons,
     }

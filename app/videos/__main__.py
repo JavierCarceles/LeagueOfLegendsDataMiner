@@ -7,6 +7,7 @@ Ejemplos::
     python -m app.videos añadir "" --rol jungla --tema rutas
     python -m app.videos procesar --max 3          # procesa la cola hasta 3 vídeos y sale
     python -m app.videos estado
+    python -m app.videos revisar                   # marca lo recogido que parece mal (--todos: también lo que está bien)
 
 ``--datos <carpeta>`` usa otra carpeta de datos (para pruebas: nunca toques ``data/`` en pruebas).
 """
@@ -54,8 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     run = sub.add_parser("procesar", aliases=["run"], help="Procesa la cola (fuentes y vídeos)")
     run.add_argument("--max", type=int, default=0, help="Como mucho estos vídeos (0 = toda la cola)")
     sub.add_parser("estado", aliases=["status"], help="Cuentas de la cola")
+    check = sub.add_parser("revisar", aliases=["review"], help="Marca lo recogido que parece mal (no cambia nada)")
+    check.add_argument("--todos", action="store_true", help="Lista también los vídeos sin avisos")
     args = parser.parse_args(argv)
 
+    if args.cmd in ("revisar", "review"):
+        return _review(args.datos, args.todos)
     collector = _collector(args.datos)
     if args.cmd in ("añadir", "add"):
         langs = tuple(x.strip() for x in args.idiomas.split(",") if x.strip() in ("es", "en")) or ("es", "en")
@@ -90,6 +95,21 @@ def _run(collector, max_videos: int) -> int:
         after = collector.store.get(video["id"]) or {}
         print(f"  {after.get('estado')}: {json.dumps(after.get('resumen') or after.get('error'), ensure_ascii=False)}", flush=True)
     print(json.dumps(collector.store.counts(), ensure_ascii=False))
+    return 0
+
+
+def _review(data_dir: Path | None, everything: bool) -> int:
+    """Lo recogido que parece mal, para mirarlo a mano (solo lee: no necesita las herramientas de vídeo)."""
+    from app.config import settings
+    from app.videos import review
+    from app.videos.store import DONE, VideoStore
+
+    store = VideoStore(Path(data_dir or settings.data_dir) / "videos")
+    results = [data for video in store.videos(DONE, limit=1_000_000) if (data := store.load_result(video["id"]))]
+    lines, counts = review.report(results, everything)
+    for text in lines:
+        print(text)
+    print(f"{counts['revisados']} vídeos revisados, {counts['con_avisos']} con avisos")
     return 0
 
 
