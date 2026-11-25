@@ -1,9 +1,11 @@
-# Recolector de vídeos de YouTube (sección «Vídeos»). La app los instala sola en segundo plano la primera vez que
-# hacen falta (no en el arranque: si algo fallara, el resto de la app sigue funcionando).
-# Todas tienen ruedas para Python 3.14 en Windows.
+# Recolector de vídeos de YouTube (sección «Vídeos»). run.py los instala al arrancar, como requirements.txt, pero si
+# algo falla la app arranca igual (y la sección lo vuelve a intentar sola). Todas tienen ruedas para Python 3.14 en Windows.
 yt-dlp[default]>=2025.11.12
 youtube-transcript-api>=1.2
 opencv-python-headless>=4.10
 numpy>=2.0
 # Motor de JavaScript para yt-dlp (sin él, YouTube da menos calidades y algunos vídeos fallan).
 deno>=2.5
+# Plan C de las transcripciones: voz a texto en este ordenador cuando un vídeo no tiene subtítulos (el modelo de voz,
+# ~460 MB, se descarga la primera vez que hace falta).
+faster-whisper>=1.1

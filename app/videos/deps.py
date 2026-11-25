@@ -1,13 +1,12 @@
 """Dependencias del recolector de vídeos, instaladas solas en segundo plano la primera vez que hacen falta.
 
-No van en ``requirements.txt`` a propósito: si una instalación fallara (sin red, antivirus…), la app arranca igual y
-solo la sección «Vídeos» espera y lo vuelve a intentar. yt-dlp se actualiza solo una vez al día (YouTube cambia a
-menudo y una versión vieja deja de funcionar).
+``run.py`` instala ``requirements-videos.txt`` al arrancar (como ``requirements.txt``, pero si falla la app arranca
+igual). Si al usar la sección todavía falta algo, se instala aquí en segundo plano y se reintenta cada 10 min.
+yt-dlp se actualiza solo una vez al día (YouTube cambia a menudo y una versión vieja deja de funcionar).
 """
 
 from __future__ import annotations
 
-import hashlib
 import importlib
 import importlib.util
 import json
@@ -24,7 +23,6 @@ from app.logbus import get_logger
 log = get_logger("videos")
 
 BASE_REQ = BASE_DIR / "requirements-videos.txt"
-VOICE_REQ = BASE_DIR / "requirements-videos-voz.txt"
 BASE_MODULES = ("yt_dlp", "youtube_transcript_api", "cv2", "numpy")
 VOICE_MODULES = ("faster_whisper",)
 STAMP = ".tempu-videos.json"  # en el entorno de Python (como la huella de requirements.txt de run.py)
@@ -53,14 +51,6 @@ def _write_stamp(data: dict) -> None:
         _stamp_path().write_text(json.dumps(data, indent=1), encoding="utf-8")
     except OSError:
         log.debug("No se pudo guardar %s", _stamp_path(), exc_info=True)
-
-
-def _digest(path: Path) -> str:
-    try:
-        raw = path.read_bytes()
-    except OSError:
-        raw = b""
-    return hashlib.sha256(raw + f"|{sys.version_info[0]}.{sys.version_info[1]}".encode()).hexdigest()
 
 
 def _importable(modules: tuple[str, ...]) -> bool:
@@ -109,21 +99,20 @@ def _set(estado: str, detalle: str | None = None, **extra) -> None:
 
 
 def ensure_base() -> bool:
-    """yt-dlp, OpenCV… listos (los instala si faltan o si cambió ``requirements-videos.txt``)."""
+    """yt-dlp, OpenCV… listos. Normalmente ya los instaló ``run.py`` al arrancar; si falta algo, se instala aquí."""
     stamp = _read_stamp()
-    digest = _digest(BASE_REQ)
-    if stamp.get("base") == digest and _importable(BASE_MODULES):
+    if _importable(BASE_MODULES):
         _set("listo")
         _maybe_update_ytdlp(stamp)
         return True
-    if time.time() - float(stamp.get("base_failed_at") or 0) < RETRY_AFTER_S and not _importable(BASE_MODULES):
+    if time.time() - float(stamp.get("base_failed_at") or 0) < RETRY_AFTER_S:
         return False
-    _set("instalando", "yt-dlp, OpenCV y Deno (solo la primera vez, ~120 MB)")
-    log.info("Vídeos: instalando las herramientas (yt-dlp, OpenCV, Deno)… solo la primera vez.")
+    _set("instalando", "yt-dlp, OpenCV, Deno y voz a texto (falló o faltaba al arrancar)")
+    log.info("Vídeos: instalando las herramientas (yt-dlp, OpenCV, Deno, voz a texto)…")
     ok, output = _pip("-r", str(BASE_REQ))
     stamp = _read_stamp()
     if ok and _importable(BASE_MODULES):
-        stamp.update(base=digest, base_failed_at=None, ytdlp_updated_at=time.time())
+        stamp.update(base_failed_at=None, ytdlp_updated_at=time.time())
         _write_stamp(stamp)
         _set("listo")
         log.info("Vídeos: herramientas instaladas.")
@@ -131,7 +120,7 @@ def ensure_base() -> bool:
     stamp["base_failed_at"] = time.time()
     _write_stamp(stamp)
     _set("error", f"No se pudieron instalar las herramientas de vídeo: {output.strip()[-400:]}")
-    log.warning("Vídeos: no se pudieron instalar las herramientas (se reintenta en 10 min): %s", output.strip()[-400:])
+    log.warning("Vídeos: no se pudieron instalar las herramientas (se reintenta en 10 min): %s", output.strip()[-1500:])
     return False
 
 
@@ -164,7 +153,7 @@ def ensure_voice() -> bool:
     if time.time() - float(stamp.get("voice_failed_at") or 0) < RETRY_AFTER_S:
         return False
     log.info("Vídeos: instalando la transcripción local (faster-whisper) para los vídeos sin subtítulos…")
-    ok, output = _pip("-r", str(VOICE_REQ))
+    ok, output = _pip("faster-whisper>=1.1")
     if ok and _importable(VOICE_MODULES):
         _set(_state.get("estado") or "listo", _state.get("detalle"), voz=True)
         return True

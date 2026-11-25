@@ -59,10 +59,14 @@ def classify_error(message: str) -> str:
 
 # ---------------------------------------------------------------------- yt-dlp
 class _Logger:
-    """Lo que dice yt-dlp va al registro de la app (los avisos en modo depuración: son muchos y casi nunca importan)."""
+    """Lo que dice yt-dlp va al registro de vídeos (``data/registro/videos_vivo.log``), no a la ventana: son muchos
+    mensajes. Con ``detail`` también las líneas «[debug]» (versiones, proxy, peticiones) del intento en modo detallado."""
+
+    def __init__(self, detail: bool = False) -> None:
+        self.detail = detail
 
     def debug(self, msg: str) -> None:
-        if not msg.startswith("[debug] "):
+        if self.detail or not msg.startswith("[debug] "):
             log.debug("yt-dlp: %s", msg)
 
     def info(self, msg: str) -> None:
@@ -75,6 +79,19 @@ class _Logger:
         log.debug("yt-dlp error: %s", msg)
 
 
+# Formas de conectarse si YouTube le devuelve a yt-dlp respuestas vacías o rotas (pasó en Windows el 25-11-2026: «Failed
+# to parse JSON» y «Failed to extract any player response» mientras las otras librerías funcionaban). La primera que
+# funciona se recuerda para el resto de la sesión. El último intento va en modo detallado al registro de vídeos.
+VARIANTS: tuple[dict, ...] = (
+    {},
+    {"proxy": ""},  # sin el proxy del sistema (Windows lo saca del registro)
+    {"proxy": "", "extractor_args": {"youtube": {"player_client": ["tv", "web_safari", "android_vr"]}}},
+)
+RETRY_HINTS = ("failed to parse json", "failed to extract any player response", "unable to download api page",
+               "unable to download webpage", "unable to download json", "connection", "timed out")
+_state: dict = {"preferred": {}}  # la forma de conectarse que funcionó la última vez
+
+
 def options(data_dir: Path | None = None, **extra) -> dict:
     opts = {
         "quiet": True,
@@ -85,26 +102,67 @@ def options(data_dir: Path | None = None, **extra) -> dict:
         "extractor_retries": 2,
         "fragment_retries": 5,
         "logger": _Logger(),
+        # Sin brotli: es lo que más se diferencia de las peticiones que sí funcionan (y no se pierde nada).
+        "http_headers": {"Accept-Encoding": "gzip, deflate"},
     }
     runtimes = deps.js_runtimes()
     if runtimes:
         opts["js_runtimes"] = runtimes
     if data_dir is not None and (Path(data_dir) / COOKIES_FILE).exists():
         opts["cookiefile"] = str(Path(data_dir) / COOKIES_FILE)
+    opts.update(_state["preferred"])
     opts.update(extra)
     return opts
 
 
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _clean(message: str) -> str:
+    """Sin los colores de la consola (en Windows yt-dlp los mete en el texto del error) ni el «ERROR: » del principio."""
+    return _ANSI.sub("", message).replace("ERROR: ", "").strip()
+
+
+def _retryable(error: VideoError) -> bool:
+    return error.kind == "otro" and any(h in str(error).lower() for h in RETRY_HINTS)
+
+
+def with_variants(run, what: str):
+    """``run(opciones_extra)`` con cada forma de conectarse hasta que una funcione (y se recuerda)."""
+    preferred = _state["preferred"]
+    order = [preferred, *[v for v in VARIANTS if v != preferred]]
+    error: VideoError | None = None
+    for i, variant in enumerate(order):
+        last = i == len(order) - 1
+        extra = {**variant, "verbose": True, "logger": _Logger(detail=True)} if last and error else dict(variant)
+        try:
+            result = run(extra)
+        except VideoError as exc:
+            if not _retryable(exc):
+                raise
+            error = exc
+            log.info("yt-dlp falló con %s (%s); pruebo otra forma de conectarse.", what, str(exc)[:160])
+            continue
+        if variant != preferred:
+            log.info("yt-dlp funciona con %s: la uso desde ahora.", variant or "la conexión normal")
+            _state["preferred"] = dict(variant)
+        return result
+    raise error if error else VideoError(f"yt-dlp no pudo con {what}")
+
+
 def _extract(url: str, data_dir: Path | None, **extra) -> dict:
-    try:
-        with yt_dlp.YoutubeDL(options(data_dir, **extra)) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except yt_dlp.utils.DownloadError as exc:
-        message = str(exc).replace("ERROR: ", "")
-        raise VideoError(message, classify_error(message)) from exc
-    if not isinstance(info, dict):
-        raise VideoError(f"yt-dlp no devolvió datos para {url}")
-    return info
+    def run(variant: dict) -> dict:
+        try:
+            with yt_dlp.YoutubeDL(options(data_dir, **{**extra, **variant})) as ydl:
+                info = ydl.extract_info(url, download=False)
+        except yt_dlp.utils.DownloadError as exc:
+            message = _clean(str(exc))
+            raise VideoError(message, classify_error(message)) from exc
+        if not isinstance(info, dict):
+            raise VideoError(f"yt-dlp no devolvió datos para {url}")
+        return info
+
+    return with_variants(run, url)
 
 
 def _entry(raw: dict) -> dict | None:
@@ -182,13 +240,18 @@ def fetch(url: str, data_dir: Path | None = None) -> bytes:
 def download(video_id: str, folder: Path, fmt: str, data_dir: Path | None = None, **extra) -> Path:
     """Descarga un formato a ``folder`` y devuelve el fichero (yt-dlp elige según ``fmt``)."""
     folder.mkdir(parents=True, exist_ok=True)
-    opts = options(data_dir, format=fmt, outtmpl=str(folder / "%(id)s.%(format_id)s.%(ext)s"), continuedl=False, **extra)
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([watch_url(video_id)])
-    except yt_dlp.utils.DownloadError as exc:
-        message = str(exc).replace("ERROR: ", "")
-        raise VideoError(message, classify_error(message)) from exc
+
+    def run(variant: dict) -> None:
+        opts = options(data_dir, format=fmt, outtmpl=str(folder / "%(id)s.%(format_id)s.%(ext)s"), continuedl=False,
+                       **{**extra, **variant})
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([watch_url(video_id)])
+        except yt_dlp.utils.DownloadError as exc:
+            message = _clean(str(exc))
+            raise VideoError(message, classify_error(message)) from exc
+
+    with_variants(run, f"la descarga de {video_id}")
     files = [p for p in folder.glob(f"{video_id}.*") if p.suffix not in (".part", ".ytdl", ".tmp") and p.stat().st_size > 0]
     if not files:
         raise VideoError("La descarga terminó sin ningún fichero")

@@ -24,6 +24,7 @@ from app.videos import deps, youtube
 log = get_logger("videos")
 
 PREFERRED = ("es", "en")
+ORIG = "-orig"  # subtítulos automáticos de lo que se dice en esa pista de audio (no una traducción)
 FORMATS = ("json3", "srv3", "vtt")
 CHUNK_S = 12.0  # trozos de ~12 s: suficiente para alinear lo dicho con la partida sin repetir tiempos
 CHUNK_CHARS = 240
@@ -40,10 +41,26 @@ def _base(lang: str | None) -> str:
     return (lang or "").split("-")[0].lower()
 
 
+def _audio_rank(f: dict) -> int:
+    """Cuánto parece la pista de audio original: 2 si se marca «original», +1 si tiene la preferencia del original (10)."""
+    if f.get("acodec") in (None, "none") or not f.get("language"):
+        return 0
+    rank = 2 if "original" in str(f.get("format_note") or "").lower() else 0
+    return rank + (1 if (f.get("language_preference") or -1) >= 10 else 0)
+
+
+def original_language(info: dict) -> str:
+    """Idioma en el que habla el coach. Con doblajes automáticos de YouTube, ``language`` puede ser el de un doblaje
+    (un vídeo en español salía «ar»): manda la pista de audio marcada como original."""
+    ranked = [(_audio_rank(f), _base(f.get("language"))) for f in info.get("formats") or []]
+    best = max((r for r in ranked if r[0] > 0), default=None, key=lambda r: r[0])
+    return best[1] if best else _base(info.get("language"))
+
+
 def language_order(info: dict) -> list[str]:
-    """Idioma del vídeo primero, después español e inglés."""
+    """Idioma original del vídeo primero, después español e inglés."""
     order: list[str] = []
-    for lang in (_base(info.get("language")), *PREFERRED):
+    for lang in (original_language(info), *PREFERRED):
         if lang and lang not in order:
             order.append(lang)
     return order
@@ -52,7 +69,7 @@ def language_order(info: dict) -> list[str]:
 def candidate_tracks(info: dict) -> list[tuple[str, str, list[dict]]]:
     """``(tipo, idioma, formatos)`` por orden de preferencia: manuales, automáticos originales, traducciones."""
     langs = language_order(info)
-    return _manual_tracks(info.get("subtitles") or {}, langs) + _auto_tracks(info.get("automatic_captions") or {}, langs, _base(info.get("language")))
+    return _manual_tracks(info.get("subtitles") or {}, langs) + _auto_tracks(info.get("automatic_captions") or {}, langs, original_language(info))
 
 
 def _manual_tracks(manual: dict, langs: list[str]) -> list[tuple[str, str, list[dict]]]:
@@ -60,12 +77,19 @@ def _manual_tracks(manual: dict, langs: list[str]) -> list[tuple[str, str, list[
 
 
 def _auto_tracks(auto: dict, langs: list[str], spoken: str) -> list[tuple[str, str, list[dict]]]:
-    # Primero el automático del idioma en el que se habla («xx-orig»), después las traducciones a español o inglés.
-    out = [("auto", key.removesuffix("-orig"), auto[key]) for key in auto if key.endswith("-orig")]
-    for lang in langs:
-        if lang in auto and f"{lang}-orig" not in auto:
-            out.append(("auto" if lang == spoken else "traducido", lang, auto[lang]))
+    """Primero el automático de lo que dice el coach («xx-orig» del idioma original), después los de las otras pistas de
+    audio en español o inglés (doblajes), las traducciones y, al final, el resto."""
+    rank = {lang: i for i, lang in enumerate(langs)}
+    originals = sorted((k for k in auto if k.endswith(ORIG)), key=lambda k: (_base(k) != spoken, rank.get(_base(k), len(rank))))
+    covered = {_base(k) for k in originals}
+    out = [_orig_track(auto, k, spoken) for k in originals if _base(k) in rank]
+    out += [("auto" if lang == spoken else "traducido", lang, auto[lang]) for lang in langs if lang in auto and lang not in covered]
+    out += [_orig_track(auto, k, spoken) for k in originals if _base(k) not in rank]
     return out
+
+
+def _orig_track(auto: dict, key: str, spoken: str) -> tuple[str, str, list[dict]]:
+    return ("auto" if _base(key) == spoken else "doblaje", key.removesuffix(ORIG), auto[key])
 
 
 # ---------------------------------------------------------------------- formatos
@@ -225,7 +249,7 @@ def from_whisper(video_id: str, folder: Path, info: dict | None = None, data_dir
     audio = youtube.download(video_id, folder, youtube.AUDIO_FORMAT, data_dir)
     try:
         model = _whisper()
-        lang = _base((info or {}).get("language")) or None
+        lang = original_language(info or {}) or None
         segments, detected = model.transcribe(str(audio), language=lang, vad_filter=True, beam_size=1)
         words: list[tuple[float, str]] = []
         for seg in segments:

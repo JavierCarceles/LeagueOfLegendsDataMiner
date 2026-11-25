@@ -331,32 +331,16 @@ class AutoPush:
             log.debug("No se pudo poner al día el estado de la búsqueda antes de subir", exc_info=True)
 
     def _snapshot_log(self) -> None:
-        """Copia el final del registro vivo (``app_vivo.log``, abierto por la app y fuera de GitHub) a ``app.log``."""
-        from app.logbus import LIVE_LOG, LOG_SNAPSHOT_BYTES
+        """Copia el final de los registros vivos (abiertos por la app y fuera de GitHub) a los que se suben: ``app.log`` y
+        ``videos.log`` (el detalle del recolector de vídeos)."""
+        from app.logbus import LIVE_LOG, VIDEOS_LIVE_LOG, VIDEOS_LOG, copy_tail
 
         folder = self.data_dir / "registro"
-        live = folder / LIVE_LOG
-        try:
-            if not live.exists():
-                return
-            tail, total = b"", 0
-            # El vivo y, si acaba de rotar (es corto), el final del anterior: siempre ~LOG_SNAPSHOT_BYTES seguidos.
-            for path in (live.with_name(live.name + ".1"), live):
-                if not path.exists():
-                    continue
-                size = path.stat().st_size
-                total += size
-                with open(path, "rb") as fh:
-                    fh.seek(max(0, size - LOG_SNAPSHOT_BYTES))
-                    tail += fh.read()
-            tail = tail[-LOG_SNAPSHOT_BYTES:]
-            if total > len(tail):
-                tail = tail.split(b"\n", 1)[-1]  # desde una línea entera
-            tmp = folder / "app.log.tmp"
-            tmp.write_bytes(tail)
-            tmp.replace(folder / "app.log")
-        except OSError:
-            log.debug("No se pudo copiar el registro para GitHub", exc_info=True)
+        for live, target in ((LIVE_LOG, "app.log"), (VIDEOS_LIVE_LOG, VIDEOS_LOG)):
+            try:
+                copy_tail(folder / live, folder / target)
+            except OSError:
+                log.debug("No se pudo copiar %s para GitHub", live, exc_info=True)
 
     def _write_log(self) -> None:
         """``data/otps/_registro.json``: lo último del registro de la app (avisos, errores con dónde fallaron) y qué está

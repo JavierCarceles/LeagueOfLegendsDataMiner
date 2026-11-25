@@ -295,6 +295,10 @@ def test_antes_de_subir_se_copia_el_final_del_registro_vivo(repos, monkeypatch):
     auto._snapshot_log()
     copy = (folder / "app.log").read_text(encoding="utf-8")
     assert copy.endswith("linea nueva 4\n") and copy.startswith("linea") and "vieja 1" not in copy
+    # Y el registro del recolector de vídeos, igual (videos_vivo.log → videos.log).
+    (folder / logbus.VIDEOS_LIVE_LOG).write_text("video viejo\nvideo nuevo 1\nvideo nuevo 2\n", encoding="utf-8")
+    auto._snapshot_log()
+    assert (folder / logbus.VIDEOS_LOG).read_text(encoding="utf-8").endswith("video nuevo 2\n")
 
 
 def test_la_subida_dice_en_que_fase_va(repos):
