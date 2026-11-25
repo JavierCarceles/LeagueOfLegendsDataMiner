@@ -132,6 +132,19 @@ def test_docs_pulled_by_a_data_push_do_not_restart(repos, monkeypatch, restarted
 
 
 @needs_git
+def test_data_with_non_english_names_does_not_restart(repos, monkeypatch, restarted):
+    """git escribe entre comillas las rutas con letras no inglesas («"data/otps/…/vn2_M\341\273\227i…"»): no son código."""
+    up = _updater(repos, monkeypatch)
+    folder = repos.win / "data" / "otps" / "Akali" / "MID" / "vn2_Mỗi_ngày_1_đấu_x#89206"
+    folder.mkdir(parents=True)
+    (folder / "perfil.json").write_text("{}")
+    (repos.win / "data" / "otps" / "ru_Аге#AGE.json").write_text("{}")
+    autopush.push_data(repos.win, repos.win / "data")
+    assert up.tick() == "same" and restarted == []
+    assert updater._names("data/a\0docs/b.md\0") == ["data/a", "docs/b.md"]
+
+
+@needs_git
 def test_never_restarts_during_a_game_or_champ_select(repos, monkeypatch, restarted):
     up = _updater(repos, monkeypatch)
     _mac_pushes(repos)

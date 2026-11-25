@@ -213,7 +213,8 @@ def _pull(repo: Path, remote: str, remote_branch: str, progress, rel: str = "dat
     progress("pull")
     before = _git(repo, "rev-parse", "HEAD", check=False).stdout.strip()
     pull = _git(repo, "pull", "--no-rebase", "--no-edit", "--autostash", remote, remote_branch, check=False)
-    conflicts = _git(repo, "diff", "--name-only", "--diff-filter=U", check=False).stdout.splitlines()
+    # -z: sin las comillas con las que git escribe las rutas con letras no inglesas (si no, «data/…» no parecía datos)
+    conflicts = [c for c in _git(repo, "diff", "--name-only", "-z", "--diff-filter=U", check=False).stdout.split("\0") if c]
     in_data = any(c == rel or c.startswith(f"{rel}/") for c in conflicts)
     if conflicts and not in_data and _only_reverts(repo, rel, "FETCH_HEAD"):
         _take_remote_code(repo, rel, merging=True)
