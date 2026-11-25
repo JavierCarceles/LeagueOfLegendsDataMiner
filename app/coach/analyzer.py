@@ -971,6 +971,9 @@ ANCHOR_CAMP = 6  # en un campamento de jungla (deducido del CS de jungla de ese 
 CAMP_CS = 5  # CS de jungla de media por campamento (unos dan 4 y otros más)
 CAMP_SPAWN_MS = 90_000
 CAMP_RESPAWN_MS = 150_000
+CAMP_RESPAWN_BUFF_MS = 300_000  # rojo y azul: 5:00 (con la de los pequeños, el rojo «revivía» a los 2:30)
+BUFFS = ("red", "blue")
+SKIPPED_NEAR = 1_300  # en un tramo saltado (kill, muerte), el campamento donde estaba al empezar o al acabar
 CAMP_CLEAR_MS = 9_000
 CAMP_SPEED = 0.40  # unidades por ms andando entre campamentos
 # Si así no da tiempo (pasa en partida avanzada: 18-23 CS de jungla en un minuto), con la velocidad real que da Riot en
@@ -1044,8 +1047,11 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     if k <= 0:
         return
     p0, p1 = g.frame_pos(pid, a), g.frame_pos(pid, b)
-    # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias.
+    # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias. En los que no, lo que
+    # hizo no se coloca, pero sí cuenta como hecho: si no, ese campamento seguía «vivo» y otro tramo lo repetía (tu rojo
+    # del principio, con una kill a los 1:33 en medio, volvía a salir hecho a los 2:24).
     if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known):
+        _mark_skipped(sites, killed, (t0, t1), (p0, p1), k)
         return
     g.camp_minutes += 1
     last = (out.get(pid) or [None])[-1]
@@ -1063,13 +1069,34 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     _place_camps(out, killed, span, p0, best, fits, due)
 
 
+def _respawn_ms(name: str) -> int:
+    """Lo que tarda en reaparecer un campamento (``100_red``…): los bufos, 5:00; los demás, ``CAMP_RESPAWN_MS``."""
+    return CAMP_RESPAWN_BUFF_MS if name.rsplit("_", 1)[-1] in BUFFS else CAMP_RESPAWN_MS
+
+
+def _alive(name: str, killed: dict[str, int], t: int) -> bool:
+    return t >= CAMP_SPAWN_MS and (name not in killed or killed[name] + _respawn_ms(name) <= t)
+
+
+def _mark_skipped(sites: list, killed: dict[str, int], times: tuple[int, int], ends: tuple, k: int) -> None:
+    """Un tramo que no se coloca (con una kill o una muerte en medio) pero en el que subió su CS de jungla: los ``k``
+    campamentos vivos donde estaba al empezar o al acabar se dan por hechos (al acabar el tramo, o antes si es el del
+    principio), para que no salgan repetidos después."""
+    t0, t1 = times
+    marked = 0
+    for t, p in ((t0, ends[0]), (t1, ends[1])):
+        if p is None or marked >= k:
+            continue
+        near = [name for name, pos in sites if _alive(name, killed, t1) and geo.dist(p, pos) <= SKIPPED_NEAR]
+        for name in near[: k - marked]:
+            killed[name] = max(t, CAMP_SPAWN_MS) + CAMP_CLEAR_MS
+            marked += 1
+
+
 def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int) -> tuple[float, tuple] | None:
     """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos)."""
     p0, p1 = ends
-    alive = [
-        (name, pos) for name, pos in sites
-        if t1 >= CAMP_SPAWN_MS and (name not in killed or killed[name] + CAMP_RESPAWN_MS <= t1)
-    ]
+    alive = [(name, pos) for name, pos in sites if _alive(name, killed, t1)]
     alive.sort(key=lambda s, p0=p0, p1=p1: geo._dist_segment(s[1], p0, p1))
     alive = alive[:CAMP_CANDIDATES]
     best = None
