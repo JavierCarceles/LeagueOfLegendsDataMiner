@@ -457,7 +457,11 @@ def play_share(db, puuid: str, champ: int) -> tuple[int, float] | None:
 
 
 def judgeable(seen: int, done_reason: str | None) -> bool:
-    """¿Hay partidas revisadas para juzgar lo que juega? 20, o 10 si ya no tiene más en el periodo (historial completo)."""
+    """¿Hay partidas revisadas para juzgar lo que juega? 20, o 10 si ya no tiene más en el periodo (historial completo);
+    o las que hicieron falta para descartarlo (``share``: el recolector para en cuanto ya no puede llegar al mínimo, a
+    veces con 11; sin esto se le juzgaba por la maestría y podía acabar en OTPs)."""
+    if done_reason == "share":
+        return seen > 0
     return seen >= (OTP_SHARE_MIN_SEEN_COMPLETE if done_reason == "end" else OTP_SHARE_MIN_SEEN)
 
 
@@ -511,7 +515,7 @@ def reclassify(db) -> list[tuple[str, int]]:
     try:
         pairs = db.query(
             "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
-            "WHERE (o.seen >= ? OR (o.back_done_reason = 'end' AND o.seen >= ?)) "
+            "WHERE (o.seen >= ? OR (o.back_done_reason = 'end' AND o.seen >= ?) OR o.back_done_reason = 'share') "
             "AND g.kind IN ('otp', 'player')",  # las de todo el ranking se quedan solo en la base de datos
             (OTP_SHARE_MIN_SEEN, OTP_SHARE_MIN_SEEN_COMPLETE),
         )
@@ -721,7 +725,7 @@ _live_lock = threading.Lock()  # el estado va en la propia base de datos (``db._
 def _live_state(db) -> dict:
     st = getattr(db, "_live_counts", None)
     if st is None:
-        st = {"data": None, "at": 0.0, "counting": False}
+        st = {"data": None, "at": 0.0, "counting": False, "session": _empty_session()}
         try:
             db._live_counts = st
         except AttributeError:
@@ -752,11 +756,62 @@ def _move_live(db, old: dict, tier: str | None, kind: str | None, has_timeline: 
         _bump(d, tier, kind, champ, 1)
 
 
+def _empty_session() -> dict:
+    return {"tiers": {}, "tiers_otp": {}, "tiers_player": {}, "provisional": {}}
+
+
+def session_reset(db) -> None:
+    """Al arrancar el recolector: lo recogido en la sesión por clase vuelve a 0 (``session_counts``)."""
+    with _live_lock:
+        _live_state(db)["session"] = _empty_session()
+
+
+def session_counts(db) -> dict:
+    """Partidas guardadas desde que arrancó el recolector por elo: todas, de OTPs y de otros jugadores (las de un
+    jugador aún sin decidir solo en ``tiers``), para partir en OTPs y resto la gráfica de la sesión."""
+    with _live_lock:
+        ses = _live_state(db).get("session") or _empty_session()
+        return {k: dict(ses[k]) for k in ("tiers", "tiers_otp", "tiers_player")}
+
+
+def _session_bump(ses: dict, tier: str | None, kind: str | None, step: int) -> None:
+    """Suma (o resta) una partida de la sesión en su elo y clase (nunca por debajo de 0)."""
+    key = tier or "?"
+    buckets = ["tiers"]
+    bucket = "player" if kind == RANKING_KIND else kind
+    if bucket in ("otp", "player"):
+        buckets.append(f"tiers_{bucket}")
+    for name in buckets:
+        counter = ses[name]
+        counter[key] = max(0, counter.get(key, 0) + step)
+
+
+def _note_session(db, puuid: str, dossier: dict, decided: tuple[str, bool]) -> None:
+    """Una partida nueva de la sesión: con su clase si es definitiva; si no, sin clasificar hasta decidirla."""
+    kind, final = decided
+    with _live_lock:
+        ses = _live_state(db).setdefault("session", _empty_session())
+        _session_bump(ses, dossier["tier"], kind if final else None, 1)
+        if not final:
+            pending = ses["provisional"].setdefault(puuid, {})
+            key = (int(dossier["champ"]), dossier["tier"] or "?", kind)
+            pending[key] = pending.get(key, 0) + 1
+
+
+def _settle_session(ses: dict, puuid: str, kinds: dict[int, str]) -> None:
+    """Las partidas de la sesión de un jugador ya decidido pasan de sin clasificar a su clase (con ``_live_lock``)."""
+    for (champ, tier, stored), n in (ses["provisional"].pop(puuid, None) or {}).items():
+        _session_bump(ses, tier, None, -n)
+        _session_bump(ses, tier, kinds.get(champ, stored), n)
+
+
 def _count_live(db, puuid: str, dossier: dict, before, decided: tuple[str, bool], has_timeline: bool) -> None:
     """La partida recién guardada en los contadores de la gráfica: nueva, o movida si ya estaba con otra clase o elo.
     ``decided``: (clase, ¿definitiva?); con una provisional cuenta como sin clasificar hasta saber qué juega."""
     kind, final = decided
     live_kind = kind if final else None
+    if before is None or before["kind"] == RANKING_KIND:
+        _note_session(db, puuid, dossier, decided)  # nueva para la sesión (o de todo el ranking y ahora de la búsqueda)
     if before is not None and (before["kind"], before["tier"]) == (kind, dossier["tier"]):
         return  # la misma partida, igual que estaba
     if before is None:
@@ -784,6 +839,7 @@ def _settle_live(db, puuid: str, kinds: dict[int, str], changed: list[tuple]) ->
     está, la que se guardó)."""
     with _live_lock:
         st = _live_state(db)
+        _settle_session(st.setdefault("session", _empty_session()), puuid, kinds)
         pending = (st.get("provisional") or {}).pop(puuid, None) or {}
         d = st["data"]
         if d is None:
