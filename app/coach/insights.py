@@ -344,12 +344,24 @@ TAG_LABELS = {
 # ------------------------------------------------------------------ utilidades
 def reliable(game: dict) -> bool:
     """¿Sirve esta partida para las conclusiones? No si es Swiftplay ni si alguien estuvo AFK 3 minutos o más."""
+    return unreliable_reason(game) is None
+
+
+# Quién estuvo AFK según nuestra detección por posiciones (minutos): para decir por qué una partida no tiene nota.
+AFK_WHO = (("afk_min", "Estuviste AFK {} min"), ("ally_afk_min", "Un aliado estuvo AFK {} min"), ("enemy_afk_min", "Un rival estuvo AFK {} min"))
+
+
+def unreliable_reason(game: dict) -> str | None:
+    """Por qué una partida no cuenta para tus medias ni tiene nota (``None`` si cuenta): Swiftplay o alguien AFK."""
     if game.get("queue") in EXCLUDED_QUEUES:
-        return False
+        return "Swiftplay: otro ritmo de partida"
     m = game.get("metrics") or {}
+    for key, text in AFK_WHO:
+        if (m.get(key) or 0) >= AFK_EXCLUDE_MIN:
+            return text.format(round(m[key]))
     if (m.get("riot_afk") or 0) > 0:  # Riot detectó a alguien AFK (aunque nuestra detección por posiciones no llegue a 3 min)
-        return False
-    return all((m.get(k) or 0) < AFK_EXCLUDE_MIN for k in ("afk_min", "ally_afk_min", "enemy_afk_min"))
+        return "Riot marcó a alguien como AFK"
+    return None
 
 
 def _mean(values: list[float]) -> float | None:

@@ -1603,8 +1603,11 @@ function contextChips(g) {
   return out;
 }
 
-export function scorePill(score) {
-  if (score === null || score === undefined) return h("span.score", "—");
+/** Nota de fundamentos; sin nota, el motivo (Swiftplay o alguien AFK: no cuenta para tus medias) en vez de un «—» mudo. */
+export function scorePill(score, why = null) {
+  if (score === null || score === undefined) {
+    return why ? h("span.score.score-na", { title: `${why}: no cuenta para tus medias ni tiene nota` }, "Sin nota") : h("span.score", "—");
+  }
   return h(`span.score.${scoreClass(score)}`, { title: "Nota de fundamentos 0-10 (5 = como la referencia de tu elo objetivo)" }, fmt.num(score, 1));
 }
 
@@ -1633,7 +1636,7 @@ function gameRows(games) {
           h("div", h("div.kda", `${g.kills} / ${g.deaths} / ${g.assists}`), h("div.tiny", { class: g.win ? "good" : "bad" }, g.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.duration(g.duration)}`))),
           h("div.tiny.muted", `${fmt.num(g.cs_min, 1)} CS/min`, h("br"), `KP ${fmt.pct(g.kp, 0)}`),
           h("div.row-wrap.game-chips", chips(g)),
-          h("div.right", scorePill(g.score), h("div.tiny.muted", fmt.ago(g.game_start))),
+          h("div.right", scorePill(g.score, g.unreliable), h("div.tiny.muted", fmt.ago(g.game_start))),
         );
   const rest = games.slice(5);
   const more = rest.length === 1 ? "partida más" : "partidas más";

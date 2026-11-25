@@ -287,6 +287,7 @@ def _row(g: dict, refs: References) -> dict:
         # Swiftplay o con alguien AFK ≥ 3 min: no se puntúa (igual que en el resumen).
         "score": insights.fundamentals_score(m, insights.game_refs(refs, g), g["role"]) if insights.reliable(g) else None,
         "reliable": insights.reliable(g),
+        "unreliable": insights.unreliable_reason(g),  # por qué no tiene nota (se enseña en vez de un «—» mudo)
         **{k: m.get(k) for k in keys},
     }
 
@@ -515,6 +516,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     analysis["refs_source"] = refs.source(analysis["role"]) if analysis.get("role") else None
     analysis["target_tier"] = profile["target_tier"]
     analysis["reliable"] = insights.reliable(analysis)
+    analysis["unreliable"] = insights.unreliable_reason(analysis)
     metrics = analysis.get("metrics") or {}
     analysis["score"] = insights.fundamentals_score(metrics, role_refs, analysis.get("role")) if analysis["reliable"] else None
     analysis["metric_info"] = public_metrics()
