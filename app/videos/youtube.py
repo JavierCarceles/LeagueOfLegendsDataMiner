@@ -115,6 +115,14 @@ def options(data_dir: Path | None = None, **extra) -> dict:
     return opts
 
 
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _clean(message: str) -> str:
+    """Sin los colores de la consola (en Windows yt-dlp los mete en el texto del error) ni el «ERROR: » del principio."""
+    return _ANSI.sub("", message).replace("ERROR: ", "").strip()
+
+
 def _retryable(error: VideoError) -> bool:
     return error.kind == "otro" and any(h in str(error).lower() for h in RETRY_HINTS)
 
@@ -148,7 +156,7 @@ def _extract(url: str, data_dir: Path | None, **extra) -> dict:
             with yt_dlp.YoutubeDL(options(data_dir, **{**extra, **variant})) as ydl:
                 info = ydl.extract_info(url, download=False)
         except yt_dlp.utils.DownloadError as exc:
-            message = str(exc).replace("ERROR: ", "")
+            message = _clean(str(exc))
             raise VideoError(message, classify_error(message)) from exc
         if not isinstance(info, dict):
             raise VideoError(f"yt-dlp no devolvió datos para {url}")
@@ -240,7 +248,7 @@ def download(video_id: str, folder: Path, fmt: str, data_dir: Path | None = None
             with yt_dlp.YoutubeDL(opts) as ydl:
                 ydl.download([watch_url(video_id)])
         except yt_dlp.utils.DownloadError as exc:
-            message = str(exc).replace("ERROR: ", "")
+            message = _clean(str(exc))
             raise VideoError(message, classify_error(message)) from exc
 
     with_variants(run, f"la descarga de {video_id}")

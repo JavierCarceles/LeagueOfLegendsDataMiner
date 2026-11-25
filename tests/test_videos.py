@@ -347,3 +347,9 @@ def test_dubbed_video_uses_the_original_audio_language():
     assert transcript.original_language(info) == "es"
     order = [(kind, lang) for kind, lang, _ in transcript.candidate_tracks(info)]
     assert order == [("auto", "es"), ("doblaje", "en-US"), ("doblaje", "ar"), ("doblaje", "pt-BR")]
+
+
+def test_ytdlp_error_text_without_console_colours():
+    youtube = pytest.importorskip("app.videos.youtube")
+    raw = "\x1b[0;31mERROR:\x1b[0m [youtube] abc: Failed to extract any player response"
+    assert youtube._clean(raw) == "[youtube] abc: Failed to extract any player response"
