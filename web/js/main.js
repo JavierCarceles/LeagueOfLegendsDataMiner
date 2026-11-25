@@ -15,6 +15,7 @@ const VIEWS = [
   { id: "regiones", label: "Regiones", icon: "globe", section: "Estadísticas", load: () => import("./views/regions.js") },
   { id: "otps", label: "OTPs", icon: "crown", section: "Estadísticas", noFilters: true, load: () => import("./views/otps.js") },
   { id: "guias", label: "Guías", icon: "book", section: "Coaching", load: () => import("./views/guides.js") },
+  { id: "videos", label: "Vídeos", icon: "film", section: "Coaching", noFilters: true, load: () => import("./views/videos.js") },
   { id: "datos", label: "Datos y API", icon: "database", section: "Sistema", noFilters: true, load: () => import("./views/data.js") },
 ];
 const ALIASES = { campeon: "campeones", perfil: "progreso", "mi-progreso": "progreso", repeticion: "repeticiones", replays: "repeticiones" };

@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import coach, collector, draft, external, guides, otps, players, replays, sources, stats, system
+from app.api import coach, collector, draft, external, guides, otps, players, replays, sources, stats, system, videos
 from app.budget import BudgetMiddleware
 from app.config import WEB_DIR, Settings
 from app.config import settings as default_settings
@@ -80,7 +80,7 @@ def create_app(settings: Settings | None = None, run_startup: bool = True) -> Fa
         log.exception("Error inesperado en %s", request.url.path)
         return JSONResponse({"detail": "Error interno inesperado. El detalle está en «Actividad en tiempo real».", "code": "internal"}, status_code=500)
 
-    for router in (system.router, stats.router, draft.router, players.router, collector.router, guides.router, external.router, coach.router, sources.router, replays.router, otps.router):
+    for router in (system.router, stats.router, draft.router, players.router, collector.router, guides.router, external.router, coach.router, sources.router, replays.router, otps.router, videos.router):
         app.include_router(router)
 
     # Ninguna vista espera a una descarga más de unos segundos (ver app/budget.py).
