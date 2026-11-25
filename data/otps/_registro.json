@@ -1,5 +1,5 @@
 {
- "at": 1795629884,
+ "at": 1795629900,
  "diagnostico": {
   "videos-campeon": {
    "muestras": 1569,
@@ -90,7 +90,7 @@
    }
   },
   "db-checkpoint": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "esperando un candado (base de datos, ficheros)": 99,
     "consultando o escribiendo la base de datos": 1
@@ -101,7 +101,7 @@
    }
   },
   "MainThread": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "otro": 100
    },
@@ -209,25 +209,25 @@
    }
   },
   "videos": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
-    "parado esperando trabajo": 79,
-    "otro": 21
+    "parado esperando trabajo": 80,
+    "otro": 20
    },
    "lineas": {
-    "videos/collector.py:225 _sleep → threading.py:wait": 33,
-    "videos/frames.py:741 sample_pass → threading.py:wait": 30,
+    "videos/collector.py:225 _sleep → threading.py:wait": 36,
+    "videos/frames.py:741 sample_pass → threading.py:wait": 29,
     "videos/frames.py:561 _add_scans → threading.py:wait": 16,
-    "videos/frames.py:425 read → onnxruntime_inference_collection.py:run": 14,
+    "videos/frames.py:425 read → onnxruntime_inference_collection.py:run": 13,
     "videos/frames.py:534 read": 3,
     "videos/frames.py:279 find_camera": 1
    }
   },
   "web": {
-   "muestras": 1074,
+   "muestras": 1138,
    "en": {
     "parado esperando trabajo": 91,
-    "consultando o escribiendo la base de datos": 8,
+    "consultando o escribiendo la base de datos": 7,
     "otro": 1
    },
    "lineas": {
@@ -237,6 +237,22 @@
     "proactor_events.py _write_to_self": 1,
     "api/system.py:36 _db_counts → db.py:one": 1,
     "api/system.py:32 _db_counts → db.py:one": 0
+   }
+  },
+  "autopush": {
+   "muestras": 192,
+   "en": {
+    "parado esperando trabajo": 78,
+    "otro": 21,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "ingest/otp_details.py:1725 wait_summaries → threading.py:join": 52,
+    "autopush.py:60 _git → threading.py:join": 26,
+    "autopush.py:101 _read_progress": 21,
+    "coach/ranking_stats.py:146 load → __init__.py:open": 1,
+    "autopush.py:358 _fresh_funnel → threading.py:join": 1,
+    "logbus.py:234 copy_tail → __init__.py:write_bytes": 1
    }
   },
   "crawler-rows": {
@@ -262,24 +278,8 @@
     "ingest/crawler.py:3178 _push_after_stop → __init__.py:flush": 3
    }
   },
-  "autopush": {
-   "muestras": 160,
-   "en": {
-    "parado esperando trabajo": 83,
-    "otro": 16,
-    "comprimiendo o escribiendo ficheros": 1
-   },
-   "lineas": {
-    "ingest/otp_details.py:1725 wait_summaries → threading.py:join": 62,
-    "autopush.py:60 _git → threading.py:join": 21,
-    "autopush.py:101 _read_progress": 15,
-    "coach/ranking_stats.py:146 load → __init__.py:open": 1,
-    "autopush.py:358 _fresh_funnel → threading.py:join": 1,
-    "logbus.py:234 copy_tail → __init__.py:write_bytes": 1
-   }
-  },
   "draft-live": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 96,
     "consultando o escribiendo la base de datos": 2,
@@ -342,6 +342,24 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-382 (": {
+   "muestras": 7,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-381 (": {
+   "muestras": 7,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "Thread-363 (": {
    "muestras": 6,
    "en": {
@@ -360,8 +378,44 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-378 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-377 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-390 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-389 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "mis-partidas": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 99,
     "consultando o escribiendo la base de datos": 1
@@ -372,7 +426,7 @@
    }
   },
   "lol-client-watch": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -381,24 +435,25 @@
     "lcu.py:109 _credentials → _pswindows.py:cmdline": 0
    }
   },
+  "game-tracker": {
+   "muestras": 567,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:396 _sleep → threading.py:wait": 100,
+    "coach/store.py:335 retry_candidates → db.py:query": 0,
+    "coach/store.py:52 get_profile → db.py:one": 0
+   }
+  },
   "rofl": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "replays_local.py:301 _run → threading.py:wait": 100,
     "lcu.py:109 _credentials → _common.py:__init__": 0
-   }
-  },
-  "game-tracker": {
-   "muestras": 535,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:396 _sleep → threading.py:wait": 100,
-    "coach/store.py:335 retry_candidates → db.py:query": 0
    }
   },
   "crawler-funnel": {
@@ -437,6 +492,24 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-370 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-369 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "busquedas": {
    "muestras": 5730,
    "en": {
@@ -447,7 +520,7 @@
    }
   },
   "tier-calibrator": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -456,7 +529,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -465,7 +538,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1605,
+   "muestras": 1701,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -474,7 +547,7 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -483,37 +556,37 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 535,
+   "muestras": 567,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 80,
-    "warmer.py:177 _work → threading.py:wait": 20
+    "warmer.py:200 _work → threading.py:wait": 76,
+    "warmer.py:177 _work → threading.py:wait": 24
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 1070,
+   "muestras": 1134,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 81,
-    "warmer.py:177 _work → threading.py:wait": 19
+    "warmer.py:200 _work → threading.py:wait": 76,
+    "warmer.py:177 _work → threading.py:wait": 24
    }
   },
   "warm-opgg-web": {
-   "muestras": 1070,
+   "muestras": 1134,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:200 _work → threading.py:wait": 79,
-    "warmer.py:177 _work → threading.py:wait": 21
+    "warmer.py:200 _work → threading.py:wait": 74,
+    "warmer.py:177 _work → threading.py:wait": 26
    }
   },
   "Thread": {
-   "muestras": 24,
+   "muestras": 40,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -2826,6 +2899,22 @@
    "source": "http",
    "message": "Petición lenta: GET /api/system/status tardó 3.0 s",
    "hora": "19:04:26"
+  },
+  {
+   "id": 289,
+   "ts": 1795629899.915958,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (8 partidas nuevas, rama main).",
+   "hora": "19:04:59"
+  },
+  {
+   "id": 290,
+   "ts": 1795629899.917299,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: había otra en cola; subo también lo nuevo.",
+   "hora": "19:04:59"
   }
  ],
  "hilos": {
