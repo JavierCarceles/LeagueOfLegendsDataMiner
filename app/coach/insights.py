@@ -1078,6 +1078,13 @@ ROUTE_ROWS = [
     ("rm_jg_clear_min", "Minuto en que acabas el primer full clear (24 de CS)", ("JUNGLE",), ""),
     ("rm_first_back_min", "Minuto de tu primera vuelta a base (sin haber muerto)", ("JUNGLE",), ""),
     ("rm_jg_idle_min", "Minutos parado del 4 al 14 (sin CS, kills ni objetivos)", ("JUNGLE",), ""),
+    # Tus primeros 4 min (route_macro.early_route): en elo alto se rompe la ruta para ganar un gank o un invade
+    # (Hierro-Oro → Diamante+: full clear 26 → 12 %, 3-4 campamentos y gank 27 → 45 %). Tendencias, no errores.
+    ("jr_full", "Primer full clear entero (5 o más campamentos en los primeros 4 min)", ("JUNGLE",), "%"),
+    ("jr_three_gank", "3-4 campamentos y kill o asistencia antes de 3:30", ("JUNGLE",), "%"),
+    ("jr_kill3", "Kill o asistencia antes de 3:00", ("JUNGLE",), "%"),
+    ("jr_start_small", "Empiezas por un campamento pequeño (raptors, lobos, gromp o krugs)", ("JUNGLE",), "%"),
+    ("jr_invade", "Algún campamento de la jungla rival en los primeros 4 min", ("JUNGLE",), "%"),
     # Muertes que cuestan caro (validado el 25-11-2026 con 50.328 partidas, Hierro-Bronce → Aspirante): reaparecer después
     # de que salga el dragón, el ancestral o el barón 0,68-0,79 → 0,45-0,61 por partida en los cinco roles (y que el
     # rival se lo lleve antes de que llegues, 0,24-0,31 → 0,14-0,20); morir ante tu rival justo después de que suba a 6,
@@ -1094,7 +1101,7 @@ ROUTE_ROWS = [
     ("rm_behind_deaths10", "Muertes cada 10 min yendo 3.000 de oro por detrás (desde el 14)", ("JUNGLE", "MID"), ""),
 ]
 VISION_KEYS = {"rm_wards_pre14", "rm_obj_ward_pct", "rm_pink_obj", "rm_ward_enemy_jg10", "rm_ward_enemy_jg_pct", "rm_ward_lane_pct", "rm_farsight10"}
-MACRO_KEYS = {"rm_obj_convert_pct", "rm_jg_clear_min", "rm_first_back_min", "rm_jg_idle_min"}
+MACRO_KEYS = {"rm_obj_convert_pct", "rm_jg_clear_min", "rm_first_back_min", "rm_jg_idle_min", "jr_full", "jr_three_gank", "jr_kill3", "jr_start_small", "jr_invade"}
 DEATH_KEYS = {"rm_dead_spawn", "rm_dead_spawn_lost", "rm_spike_deaths", "rm_alone_after_tower", "rm_adc_side_deaths", "rm_behind_deaths10"}
 
 

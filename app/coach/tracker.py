@@ -49,10 +49,11 @@ class ProfileNotFound(ValueError):
     pass
 
 
-DIGEST_VERSION = 9  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y
+DIGEST_VERSION = 10  # 2: datos para ``champ_checks`` (habilidades, primera vuelta, primer objeto); 3: movimiento; 4: roams y
 # contraganks; 5: reglas medibles de las guías (``rule_metrics``: pinks por vuelta, visión, roams, TP); 6: destinos de los
 # roams y visión útil (wards del objetivo, de la jungla rival, pinks); 7: visión y jungla exactas de Riot (``rule_metrics``);
-# 8: hábitos de ``macro_habits`` (objetivos que acaban en torre, ritmo del jungla, Farsight)
+# 8: hábitos de ``macro_habits`` (objetivos que acaban en torre, ritmo del jungla, Farsight); 9: muertes caras y constancia;
+# 10: rutas iniciales de jungla (``route_macro.early_route``)
 
 
 def skill_times(timeline: dict | None, pid: int | None) -> list[float] | None:
