@@ -20,6 +20,7 @@ from pathlib import Path
 
 import requests
 
+from app import hardware
 from app.logbus import add_videos_log, get_logger
 from app.videos import deps
 from app.videos.store import PENDING, VideoStore
@@ -27,7 +28,7 @@ from app.videos.store import PENDING, VideoStore
 log = get_logger("videos")
 
 DIR_NAME = "videos"
-PAUSE_BETWEEN_S = (20, 45)  # entre vídeo y vídeo
+PAUSE_BETWEEN_S = (8, 20)  # entre vídeo y vídeo (sin saturar a YouTube)
 LIMIT_PAUSE_S = 30 * 60  # YouTube frena: media hora sin pedirle nada
 IDLE_S = 15
 PUSH_EVERY = 10  # vídeos recogidos entre subidas a GitHub (y siempre al vaciar la cola)
@@ -91,6 +92,7 @@ class VideoCollector:
         self.collected_since_push = 0
         self.last_error: str | None = None
         self.tools = None
+        self.threads: int | None = None  # hilos del último análisis de frames (el 70 % de la CPU libre al empezar)
 
     # ------------------------------------------------------------------ control
     def autostart(self) -> None:
@@ -164,6 +166,7 @@ class VideoCollector:
             "herramientas": deps.state(),
             "ultimo_error": self.last_error,
             "carpeta": str(self.root),
+            "equipo": hardware.summary(self.threads),
         }
 
     # ------------------------------------------------------------------ bucle
@@ -364,20 +367,36 @@ class VideoCollector:
         box, probe_frames = _probe_file(path, duration, tools)
         if box is None:
             return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
-        champion = vf.vote_champion(tools.portraits, probe_frames[:6]) if tools.portraits else None
+        clock_ok, hud = self._pick_clock(tools, probe_frames)
+        champion = vf.vote_champion(tools.portraits, probe_frames[:6]) if tools.portraits and hud != "espectador" else None
         if champion:
             champion["nombre"] = self._champ_name(champion["clave"])
-        clock_ok = tools.clock.calibrate(probe_frames)
         cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
-        self._step_label("frames", 0.0)
-        reader = vf.Frames(str(path))
-        try:
-            collected = vf.sample_pass(reader, box, cam, tools, duration, self._should_stop_frames, lambda p: self._step_label("frames", p))
-        finally:
-            reader.close()
+        self.threads = workers = hardware.threads()  # el 70 % de la CPU libre ahora mismo
+        label = f"frames ({workers} hilos)"
+        self._step_label(label, 0.0)
+        collected = vf.sample_pass(str(path), box, cam, tools, duration, self._should_stop_frames,
+                                   lambda p: self._step_label(label, p), workers, gpu=hardware.gpu() is not None)
         if self.stop_event.is_set():
             return None
-        return vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p")
+        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", hud)
+        out["hilos"] = workers
+        out["gpu_decodifica"] = collected.gpu
+        return out
+
+    @staticmethod
+    def _pick_clock(tools, frames) -> tuple[bool, str | None]:
+        """Reloj del HUD de jugador con plantillas (rápido); si no, OCR genérico (retransmisiones, repeticiones)."""
+        from app.videos import frames as vf
+
+        tools.clock_reader = None
+        if tools.clock.calibrate(frames):
+            return True, "jugador"
+        generic = vf.GenericClock.create()
+        if generic is not None and generic.calibrate(frames):
+            tools.clock_reader = generic
+            return True, generic.hud
+        return False, None
 
     def _should_stop_frames(self) -> bool:
         """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar, esperar a que acabe."""

@@ -33,7 +33,7 @@ _TAG = re.compile(r"<[^>]+>")
 _TIMING = re.compile(r"(\d+):(\d{2}):(\d{2})[.,](\d{3})\s+-->")
 _SHORT_TIMING = re.compile(r"^(\d{1,2}):(\d{2})[.,](\d{3})\s+-->")
 
-_model = None
+_state: dict = {"model": None}
 _model_lock = threading.Lock()
 
 
@@ -265,14 +265,24 @@ def from_whisper(video_id: str, folder: Path, info: dict | None = None, data_dir
 
 
 def _whisper():
-    global _model
+    """El modelo de voz: en la gráfica NVIDIA si hay (mucho más rápido); si no, con el 70 % de la CPU libre."""
     with _model_lock:
-        if _model is None:
-            from faster_whisper import WhisperModel
+        if _state["model"] is None:
+            _state["model"] = _load_whisper()
+        return _state["model"]
 
-            threads = max(1, (os.cpu_count() or 2) // 2)  # la mitad de los núcleos: el PC sigue usable
-            _model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8", cpu_threads=threads)
-        return _model
+
+def _load_whisper():
+    from faster_whisper import WhisperModel
+
+    from app import hardware
+
+    if hardware.gpu() is not None:
+        try:
+            return WhisperModel(WHISPER_MODEL, device="cuda", compute_type="float16")
+        except Exception as exc:  # noqa: BLE001 - sin las librerías de CUDA va por CPU
+            log.info("Voz a texto: la gráfica no está disponible para faster-whisper (%s); uso la CPU.", exc)
+    return WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8", cpu_threads=hardware.threads())
 
 
 def collect(video_id: str, info: dict, folder: Path, data_dir: Path | None = None,

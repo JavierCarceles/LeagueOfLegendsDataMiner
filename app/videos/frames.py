@@ -14,19 +14,18 @@ Las coordenadas se guardan como las de la app y Riot (de -120 a 14870/14980; la 
 
 from __future__ import annotations
 
+import math
 import os
+import re
+import threading
 from collections import Counter
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
 import numpy as np
-
-# Pocos hilos para decodificar: el recolector va en segundo plano y el PC tiene que seguir yendo fino.
-DECODE_THREADS = 2
-os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", f"threads;{DECODE_THREADS}")
-cv2.setNumThreads(DECODE_THREADS)
 
 ASSETS = Path(__file__).with_name("assets")
 MAP_MIN = -120
@@ -35,8 +34,10 @@ MAP_MAX_Y = 14980
 
 PROBE_FRAMES = 16
 WORK_HEIGHT = 360  # la búsqueda del minimapa se hace a 360p (rápida) y se afina a resolución completa
-MAP_SCORE = 0.35  # parecido mínimo con el mapa para aceptar un minimapa en la búsqueda
-PRESENT_SCORE = 0.30  # y para dar una muestra por «hay partida»
+# Parecido con el mapa: 0,55-0,71 con minimapa de verdad (HUD de jugador y retransmisiones); un trozo de la cámara del
+# coach llegó a 0,355 y se tomó por partida (25-11-2026).
+MAP_SCORE = 0.45  # mínimo para aceptar un minimapa en la búsqueda
+PRESENT_SCORE = 0.42  # y para dar una muestra por «hay partida»
 MIN_PROBES = 3  # frames de la sonda con minimapa para tratar el vídeo como partida
 STEP_S = 2.0  # una muestra cada 2 s
 CLOCK_EVERY = 5  # reloj cada 5 muestras (10 s)
@@ -44,6 +45,8 @@ ICONS_EVERY = 2  # iconos del minimapa cada 2 muestras (4 s)
 CAMERA_COVER = 0.40  # parte del contorno del recuadro que tiene que verse blanca
 CAMERA_SCORE = 0.28  # contorno blanco menos interior blanco
 DIGIT_SCORE = 0.55
+CHAMPION_SCORE = 0.7  # parecido medio mínimo del retrato del HUD (Lux daba 0,83)
+GENERIC_CLOCK_EVERY_S = 10
 
 
 @dataclass
@@ -94,13 +97,25 @@ def _ascii_path(path: str) -> str:
 
 
 class Frames:
-    """Frames por segundo de vídeo de un fichero o de un enlace directo (OpenCV con FFmpeg)."""
+    """Frames por segundo de vídeo de un fichero o de un enlace directo (OpenCV con FFmpeg).
 
-    def __init__(self, source: str) -> None:
-        self.cap = cv2.VideoCapture(_ascii_path(str(source)), cv2.CAP_FFMPEG)
+    ``threads``: hilos de FFmpeg para decodificar; ``gpu``: pedir decodificación por la gráfica (D3D11 en Windows). Si
+    esta versión de OpenCV no puede, decodifica con la CPU (``self.gpu`` dice qué se usa de verdad)."""
+
+    def __init__(self, source: str, threads: int | None = None, gpu: bool = False) -> None:
+        params: list[int] = []
+        if threads:
+            params += [cv2.CAP_PROP_N_THREADS, int(threads)]
+        if gpu:
+            params += [cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY]
+        path = _ascii_path(str(source))
+        self.cap = cv2.VideoCapture(path, cv2.CAP_FFMPEG, params)
+        if not self.cap.isOpened() and params:
+            self.cap = cv2.VideoCapture(path, cv2.CAP_FFMPEG)
         if not self.cap.isOpened():
             raise OSError(f"OpenCV no puede abrir el vídeo ({str(source)[:80]}…)")
         self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30.0
+        self.gpu = bool(gpu and self.cap.get(cv2.CAP_PROP_HW_ACCELERATION))
 
     def at(self, t: float) -> np.ndarray | None:
         self.cap.set(cv2.CAP_PROP_POS_MSEC, max(0.0, t) * 1000)
@@ -361,6 +376,76 @@ def _parse_clock(peaks: list[tuple[int, int, int, float]], tw: int) -> int | Non
     return minutes * 60 + seconds
 
 
+class GenericClock:
+    """Plan B del reloj con OCR de verdad (RapidOCR): las retransmisiones (LPL, LCK, Worlds…) y las repeticiones lo
+    ponen arriba en el centro, cada una con su tipografía. Más lento (~0,3 s por lectura) pero vale para cualquiera."""
+
+    REGIONS = (("espectador", 0.0, 0.14, 0.35, 0.65), ("jugador", 0.0, 0.06, 0.82, 1.0))
+    _local = threading.local()  # un motor por hilo: con el análisis en paralelo, cada hilo lee su reloj
+
+    def __init__(self) -> None:
+        self.region = self.REGIONS[0]
+
+    @classmethod
+    def create(cls) -> GenericClock | None:
+        """``None`` si RapidOCR no está instalado o no arranca (el vídeo se recoge igual, sin reloj)."""
+        try:
+            cls._engine()
+        except Exception:  # noqa: BLE001 - sin OCR genérico no hay reloj de retransmisiones, nada más
+            return None
+        return cls()
+
+    @classmethod
+    def _engine(cls):
+        engine = getattr(cls._local, "engine", None)
+        if engine is None:
+            import logging
+
+            from rapidocr import RapidOCR
+
+            # 2 hilos por lectura: el paralelismo lo ponen los hilos del análisis (si no, se pisan todos)
+            engine = RapidOCR(params={"EngineConfig.onnxruntime.intra_op_num_threads": 2})
+            logging.getLogger("RapidOCR").setLevel(logging.WARNING)
+            cls._local.engine = engine
+        return engine
+
+    @property
+    def hud(self) -> str:
+        return self.region[0]
+
+    def read(self, frame: np.ndarray, region=None) -> int | None:
+        _, y0, y1, x0, x1 = region or self.region
+        h, w = frame.shape[:2]
+        crop = frame[int(h * y0):max(int(h * y0) + 8, int(h * y1)), int(w * x0):int(w * x1)]
+        result = self._engine()(crop)
+        best: tuple[float, int] | None = None
+        for text, score, box in zip(result.txts or (), result.scores or (), result.boxes if result.boxes is not None else ()):
+            seconds = parse_time(str(text))
+            if seconds is None or float(score) < 0.8:
+                continue
+            off_center = abs(float(np.mean([p[0] for p in box])) - crop.shape[1] / 2)
+            if best is None or off_center < best[0]:
+                best = (off_center, seconds)
+        return best[1] if best else None
+
+    def calibrate(self, frames: list[np.ndarray]) -> bool:
+        """La zona (centro arriba o derecha arriba) donde se lee el reloj en los frames de la sonda."""
+        for region in self.REGIONS:
+            ok = sum(1 for f in frames[:8] if self.read(f, region) is not None)
+            if ok >= max(2, len(frames[:8]) // 3):
+                self.region = region
+                return True
+        return False
+
+
+def parse_time(text: str) -> int | None:
+    """«04:07» o «19.09» → segundos (minutos y segundos de una partida)."""
+    match = re.fullmatch(r"(\d{1,2})[:.](\d{2})", text.strip())
+    if not match or int(match.group(2)) >= 60:
+        return None
+    return int(match.group(1)) * 60 + int(match.group(2))
+
+
 # ---------------------------------------------------------------------- campeón del jugador
 class Portraits:
     """El retrato grande del HUD (abajo, en el centro) comparado con los iconos de Data Dragon."""
@@ -394,6 +479,7 @@ class Portraits:
 
 
 def vote_champion(portraits: Portraits, frames: list[np.ndarray], min_score: float = 0.5) -> dict | None:
+    """El campeón del retrato del HUD si sale claro (en una retransmisión no hay retrato: Pantheon salió en 2 de 6)."""
     votes: Counter = Counter()
     scores: dict[str, list[float]] = {}
     for frame in frames:
@@ -404,6 +490,8 @@ def vote_champion(portraits: Portraits, frames: list[np.ndarray], min_score: flo
     if not votes:
         return None
     key, n = votes.most_common(1)[0]
+    if n < max(MIN_PROBES, 0.6 * len(frames)) or float(np.mean(scores[key])) < CHAMPION_SCORE:
+        return None
     return {"clave": key, "votos": n, "de": len(frames), "parecido": round(float(np.mean(scores[key])), 3)}
 
 
@@ -448,6 +536,7 @@ class Tools:
     maps: MapMatcher
     clock: Clock
     portraits: Portraits | None = None
+    clock_reader: object | None = None  # el lector de reloj elegido para el vídeo en curso (None = plantillas)
 
 
 def probe(reader: Frames, duration: float, tools: Tools) -> tuple[Box | None, list[np.ndarray]]:
@@ -472,6 +561,7 @@ def probe(reader: Frames, duration: float, tools: Tools) -> tuple[Box | None, li
 class Collected:
     box: Box
     shape: tuple[int, ...]
+    gpu: bool = False  # se decodificó con la gráfica
     present: list[tuple[float, float]] = field(default_factory=list)
     camera: list[list] = field(default_factory=list)
     clock: list[list] = field(default_factory=list)
@@ -479,41 +569,98 @@ class Collected:
     samples: int = 0
 
 
-def sample_pass(reader: Frames, box: Box, cam: tuple[int, int] | None, tools: Tools, duration: float,
-                should_stop: Callable[[], bool], progress: Callable[[float], None] | None = None) -> Collected:
-    """Una muestra cada ``STEP_S``: partida sí/no, cámara, reloj e iconos."""
-    out: Collected | None = None
-    for i, (t, frame) in enumerate(reader.every(STEP_S)):
-        if out is None:
-            out = Collected(box, frame.shape)
-        if i % 30 == 0 and should_stop():
-            break
-        out.samples += 1
-        score = tools.maps.presence(frame, box)
-        out.present.append((round(t, 1), score))
-        if score < PRESENT_SCORE:
-            continue
-        _sample(frame, t, i, out, cam, tools)
-        if progress and duration and i % 15 == 0:
-            progress(min(1.0, t / duration))
-    return out if out is not None else Collected(box, (0, 0))
+def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools, duration: float,
+                should_stop: Callable[[], bool], progress: Callable[[float], None] | None = None, workers: int = 1,
+                gpu: bool = False) -> Collected:
+    """Una muestra cada ``STEP_S``: partida sí/no, cámara, reloj e iconos.
+
+    Decodificar el vídeo es lo que más tarda (36 de 39 s en uno de 21 min): se parte en trozos que se leen a la vez,
+    cada uno con su lector y en su hilo (FFmpeg y OpenCV sueltan el GIL), y al final se juntan en orden."""
+    spans = _spans(duration, max(1, workers))
+    seen = [0]
+    lock = threading.Lock()
+    expected = max(1.0, duration / STEP_S)
+
+    def tick() -> None:
+        with lock:
+            seen[0] += 1
+            n = seen[0]
+        if progress and n % 15 == 0:
+            progress(min(1.0, n / expected))
+
+    previous = cv2.getNumThreads()
+    cv2.setNumThreads(1)  # el reparto lo hacen los trozos: sin esto, cada función usaría todos los núcleos a la vez
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, workers), thread_name_prefix="videos-frames") as pool:
+            parts = list(pool.map(lambda span: _sample_span(source, span, box, cam, tools, should_stop, gpu, tick), spans))
+    finally:
+        cv2.setNumThreads(previous)
+    out = Collected(box, next((p.shape for p in parts if p.shape != (0, 0)), (0, 0)))
+    for part in parts:
+        out.samples += part.samples
+        out.present += part.present
+        out.camera += part.camera
+        out.clock += part.clock
+        out.icons += part.icons
+        out.gpu = out.gpu or part.gpu
+    return out
 
 
-def _sample(frame: np.ndarray, t: float, i: int, out: Collected, cam: tuple[int, int] | None, tools: Tools) -> None:
-    box = out.box
+def _spans(duration: float, workers: int) -> list[tuple[float, float]]:
+    """Trozos de vídeo alineados con las muestras (el doble que hilos: los que no tienen partida acaban antes)."""
+    if not duration or duration <= 0:
+        return [(0.0, float("inf"))]
+    pieces = max(1, min(workers * 2, int(duration // (STEP_S * 30)) or 1))
+    size = math.ceil(duration / STEP_S / pieces) * STEP_S
+    return [(k * size, (k + 1) * size if k < pieces - 1 else float("inf")) for k in range(pieces)]
+
+
+def _sample_span(source: str, span: tuple[float, float], box: Box, cam: tuple[int, int] | None, tools: Tools,
+                 should_stop: Callable[[], bool], gpu: bool, tick: Callable[[], None]) -> Collected:
+    start, end = span
+    part = Collected(box, (0, 0))
+    reader = Frames(source, threads=1, gpu=gpu)
+    part.gpu = reader.gpu
+    try:
+        for t, frame in reader.every(STEP_S, start):
+            if t >= end or (part.samples % 30 == 0 and should_stop()):
+                break
+            part.shape = frame.shape
+            part.samples += 1
+            score = tools.maps.presence(frame, box)
+            part.present.append((round(t, 1), score))
+            if score >= PRESENT_SCORE:
+                _merge(part, _analyze(frame, round(t, 1), round(t / STEP_S), box, cam, tools))
+            tick()
+    finally:
+        reader.close()
+    return part
+
+
+def _analyze(frame: np.ndarray, t: float, i: int, box: Box, cam: tuple[int, int] | None, tools: Tools) -> dict:
+    """Lo de una muestra con partida: dónde mira la cámara, el reloj (cada ``CLOCK_EVERY``) y los iconos."""
     minimap = box.crop(frame)
+    part: dict = {"t": t}
     if cam is not None:
         u, v, score, cover = find_camera(white_mask(minimap), cam[0], cam[1])
         if cover >= CAMERA_COVER and score >= CAMERA_SCORE:
-            out.camera.append([round(t, 1), *box.to_game(u, v)])
+            part["camera"] = [t, *box.to_game(u, v)]
     if i % CLOCK_EVERY == 0:
-        seconds = tools.clock.read(frame)
+        seconds = (tools.clock_reader or tools.clock).read(frame)
         if seconds is not None:
-            out.clock.append([round(t, 1), seconds])
+            part["clock"] = [t, seconds]
     if i % ICONS_EVERY == 0:
         found = [[*box.to_game(u, v), team] for u, v, team in ring_icons(minimap)]
         if found:
-            out.icons.append([round(t, 1), found])
+            part["icons"] = [t, found]
+    return part
+
+
+def _merge(out: Collected, part: dict) -> None:
+    """Las muestras se juntan en el orden en que se leyeron (los hilos pueden acabar desordenados)."""
+    for key, target in (("camera", out.camera), ("clock", out.clock), ("icons", out.icons)):
+        if key in part:
+            target.append(part[key])
 
 
 def segments(present: list[tuple[float, float]], gap: float = STEP_S * 3, min_len: float = 20.0) -> list[list[float]]:
@@ -533,12 +680,14 @@ def segments(present: list[tuple[float, float]], gap: float = STEP_S * 3, min_le
     return out
 
 
-def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict | None, clock_ok: bool, method: str) -> dict:
+def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict | None, clock_ok: bool, method: str,
+              hud: str | None = None) -> dict:
     tramos = segments(collected.present)
     in_game = sum(b - a for a, b in tramos)
     return {
         "partida": bool(tramos),
         "metodo": method,
+        "hud": hud,  # «jugador» (su partida) o «espectador» (retransmisión o repetición); None si no se supo
         "muestra_s": STEP_S,
         "muestras": collected.samples,
         "segundos_con_partida": round(in_game),

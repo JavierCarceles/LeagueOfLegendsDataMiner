@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 
 import pytest
@@ -353,3 +354,40 @@ def test_ytdlp_error_text_without_console_colours():
     youtube = pytest.importorskip("app.videos.youtube")
     raw = "\x1b[0;31mERROR:\x1b[0m [youtube] abc: Failed to extract any player response"
     assert youtube._clean(raw) == "[youtube] abc: Failed to extract any player response"
+
+
+def test_parallel_pass_keeps_time_order(tmp_path):
+    """El vídeo se lee a trozos en paralelo: las muestras salen en orden y ninguna se repite ni se pierde."""
+    np = pytest.importorskip("numpy")
+    cv2 = pytest.importorskip("cv2")
+    from app.videos import frames as vf
+
+    world = _fake_map(np, cv2)
+    path = tmp_path / "partida.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 5, (640, 360))
+    minimap = cv2.resize(world, (110, 110), interpolation=cv2.INTER_AREA)
+    for k in range(5 * 50):  # 50 s: partida del 10 al 40
+        frame = np.full((360, 640, 3), 30, np.uint8)
+        if 50 <= k < 200:
+            frame[240:350, 520:630] = minimap
+        writer.write(frame)
+    writer.release()
+    box = vf.Box(520, 240, 110, "derecha", 0.9)
+    tools = vf.Tools(vf.MapMatcher(world), vf.Clock(vf.load_digits()))
+    one = vf.sample_pass(str(path), box, None, tools, 50.0, lambda: False, workers=1)
+    many = vf.sample_pass(str(path), box, None, tools, 50.0, lambda: False, workers=4)
+    times = [t for t, _ in many.present]
+    assert times == sorted(times) and len(times) == len(set(times)) == one.samples == many.samples
+    assert many.present == one.present
+    assert vf.segments(many.present) == [[10.0, 38.0]]
+
+
+def test_time_text_and_spans():
+    pytest.importorskip("cv2")
+    from app.videos import frames as vf
+
+    assert vf.parse_time("04:07") == 247 and vf.parse_time("19.09") == 1149
+    assert vf.parse_time("8.6K") is None and vf.parse_time("12:75") is None
+    spans = vf._spans(600.0, 3)
+    assert spans[0][0] == 0.0 and spans[-1][1] == float("inf") and len(spans) == 6
+    assert all(a[1] == b[0] for a, b in itertools.pairwise(spans))
