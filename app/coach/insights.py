@@ -776,6 +776,9 @@ FLAT_WEIGHT = 0.5  # en «Errores que repites» pesa la mitad: es parte del jueg
 RISE_RATIO = 1.15
 RISE_WEIGHT = 0.25
 MIN_ELO_GAMES = 5
+# Un elo con menos partidas que esto (con tu campeón salen desde 20, a veces de 6-7 jugadores) se enseña, pero no decide
+# si un error separa elos ni a qué elo te pareces: con 21 partidas un 14 % frente a un 7 % es ruido.
+SOLID_ELO_GAMES = 30
 
 
 def elo_tiers(profile: dict | None, role: str | None, champ: int | None = None) -> tuple[dict, str]:
@@ -798,6 +801,9 @@ def separation(tiers: dict, mistake_id: str) -> dict | None:
     """% de partidas con ese error en el elo más bajo y en el más alto con datos, y si de verdad separa elos (por
     errores por partida: morir aislado 3 veces por partida o 1 es muy distinto aunque ambos lo hagan en todas)."""
     present = [g for g in ELO_GROUPS if g in tiers and _known(tiers[g], mistake_id)]
+    solid = [g for g in present if (tiers[g].get("games") or 0) >= SOLID_ELO_GAMES]
+    if len(solid) >= 2:
+        present = solid
     if len(present) < 2:
         return None
     low, top = present[0], present[-1]
@@ -1002,14 +1008,17 @@ def _elo_levels(tiers: dict) -> list[dict]:
         {
             "tier": g, "label": ELO_LABEL[g], "games": tiers[g]["games"], "players": tiers[g].get("players"),
             "per_game": tiers[g]["per_game"], "severity": tiers[g].get("severity"),
+            "few": tiers[g]["games"] < SOLID_ELO_GAMES,
         }
         for g in ELO_GROUPS if g in tiers
     ]
 
 
 def _closest(levels: list[dict], key: str, value: float) -> str | None:
-    """Elo cuyo ``key`` (errores por partida) queda más cerca de tu valor (None si no hay elos)."""
-    return min(levels, key=lambda lv: abs(lv[key] - value))["tier"] if levels else None
+    """Elo cuyo ``key`` (errores por partida) queda más cerca de tu valor (None si no hay elos); los de pocas partidas,
+    solo si no hay otros."""
+    pool = [lv for lv in levels if not lv.get("few")] or levels
+    return min(pool, key=lambda lv: abs(lv[key] - value))["tier"] if pool else None
 
 
 # ------------------------------------------------------------------ movimiento (posiciones reconstruidas)

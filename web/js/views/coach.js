@@ -894,6 +894,7 @@ function eloErrorsCard(e) {
       h("span.elo-val.num", fmt.num(sep, 1), h("span.faint", ` / ${fmt.num(total, 1)}`)),
     );
   const tiers = levels.map((l) => l.tier);
+  const few = new Set(levels.filter((l) => l.few).map((l) => l.tier));
   const champ = e.champ ? dd.name(e.champ) : null;
   const rows = (e.types || []).filter((t) => t.status === "worse" || t.mine_pct > 0 || t.separates);
   const withChamp = champ ? ` con ${champ}` : "";
@@ -912,7 +913,7 @@ function eloErrorsCard(e) {
     h(
       "div.elo-bars",
       bar("Tú", e.per_game, e.per_game_sep, "me", `${e.games} partidas tuyas`),
-      levels.map((l) => bar(l.label, l.per_game, l.per_game_sep, l.tier === e.closest_sep ? "near" : "", `${fmt.int(l.games)} partidas de ${l.players} jugadores`)),
+      levels.map((l) => bar(fewLabel(l.label, l.few), l.per_game, l.per_game_sep, eloRowClass(l, e.closest_sep), eloRowTitle(l))),
     ),
     normalsNote(e),
     rows.length
@@ -920,7 +921,7 @@ function eloErrorsCard(e) {
           "div.table-wrap",
           h(
             "table.table.elo-table",
-            h("thead", h("tr", h("th", "Error"), h("th.num", "Tú"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)), h("th", ""))),
+            h("thead", h("tr", h("th", "Error"), h("th.num", "Tú"), tiers.map((t) => h("th.num", { title: few.has(t) ? FEW_TITLE : null }, fewLabel(ELO_LABEL[t] || t, few.has(t)))), h("th", ""))),
             h(
               "tbody",
               rows.map((t) => eloTypeRow(t, tiers)),
@@ -928,8 +929,30 @@ function eloErrorsCard(e) {
           ),
         )
       : null,
-    h("p.tiny.muted", { style: { margin: 0 } }, "Porcentaje de partidas con al menos un error de ese tipo. «Los mejores» es el elo más alto con datos; con pocas partidas tuyas, solo se marca lo que se sale del ruido."),
+    h(
+      "p.tiny.muted",
+      { style: { margin: 0 } },
+      "Porcentaje de partidas con al menos un error de ese tipo. «Los mejores» es el elo más alto con datos; con pocas partidas tuyas, solo se marca lo que se sale del ruido.",
+      few.size ? ` * ${FEW_TITLE}.` : "",
+    ),
   );
+}
+
+const FEW_TITLE = "Menos de 30 partidas: orientativo, no decide si un error separa elos ni a qué elo te pareces";
+
+/** Nombre de un elo con asterisco si tiene pocas partidas. */
+function fewLabel(label, few) {
+  return few ? `${label}*` : label;
+}
+
+/** Clase de la barra de un elo: el más parecido a ti (≈) y, aparte, los de pocas partidas (más tenues). */
+function eloRowClass(l, closest) {
+  return [l.tier === closest ? "near" : "", l.few ? "few" : ""].filter(Boolean).join(".");
+}
+
+function eloRowTitle(l) {
+  const base = `${fmt.int(l.games)} partidas de ${l.players} jugadores`;
+  return l.few ? `${base}. ${FEW_TITLE}.` : base;
 }
 
 /** Aviso de cuántas de tus partidas son normales (rivales más flojos que en clasificatorias); null si ninguna. */

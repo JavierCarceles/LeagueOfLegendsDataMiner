@@ -1150,10 +1150,11 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 
 /* Errores frente a cada elo (Mi progreso) */
 .elo-bars { display: flex; flex-direction: column; gap: 6px; }
-.elo-row { display: grid; grid-template-columns: 84px 1fr 76px; align-items: center; gap: 10px; font-size: 13px; }
+.elo-row { display: grid; grid-template-columns: 104px 1fr 76px; align-items: center; gap: 10px; font-size: 13px; }
 .elo-name { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .elo-row.me .elo-name { color: var(--gold-2); font-weight: 700; }
 .elo-row.near .elo-name::after { content: " ≈"; color: var(--gold); }
+.elo-row.few { opacity: 0.6; }
 .elo-track { position: relative; height: 12px; border-radius: 6px; background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
 .elo-fill-all, .elo-fill-sep { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; transition: width 0.3s ease; }
 .elo-fill-all { background: rgba(127, 138, 160, 0.28); }
@@ -1165,7 +1166,9 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 .elo-table tr.flat td:first-child { color: var(--muted); }
 .elo-table td:first-child { min-width: 190px; }
 @media (max-width: 560px) {
-  .elo-row { grid-template-columns: 64px 1fr 64px; gap: 6px; font-size: 12px; }
+  .elo-row { grid-template-columns: 70px 1fr 64px; gap: 6px; font-size: 12px; }
+  /* «Hierro-Bronce» no cabe: en dos líneas mejor que cortado */
+  .elo-name { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 }
 .elo-moment { margin-top: 8px; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--bg-2); border: 1px solid var(--line); }
 

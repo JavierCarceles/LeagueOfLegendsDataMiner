@@ -157,6 +157,23 @@ def test_tipo_sin_datos_en_los_elos_no_cuenta_como_cero():
     assert lens_rec["separates"] is None and lens_rec["elo"] is None
 
 
+def test_elos_con_pocas_partidas_no_deciden_si_un_error_separa_elos():
+    """Con tu campeón un elo sale desde 20 partidas (6-7 jugadores): se enseña, pero no decide si un error separa elos
+    ni a qué elo te pareces mientras haya al menos dos con 30 o más."""
+    def block(games, pct, per_game):
+        return {"games": games, "players": 7, "per_game": per_game, "types": {"death_solo": {"pct": pct, "per_game": pct / 100}}}
+
+    tiers = {"BRONZE": block(21, 30, 4.0), "PLATINUM": block(120, 10, 3.0), "CHALLENGER": block(800, 9.5, 2.0)}
+    sep = insights.separation(tiers, "death_solo")
+    assert sep["low"] == "PLATINUM" and sep["flat"] is True  # con Bronce (21) habría «separado»: 30 % frente a 9,5 %
+    assert insights.separation({"BRONZE": block(21, 30, 4.0), "CHALLENGER": block(800, 9.5, 2.0)}, "death_solo")["low"] == "BRONZE"
+    mine = [{"match_id": f"M{i}", "queue": 420, "champ": 120, "role": "JUNGLE", "win": True, "has_timeline": True, "metrics": {},
+             "mistakes": [["death", "medium", 600, ["solo"], "1 contra 1"]] * 4} for i in range(6)]
+    e = insights.elo_errors(mine, {"roles": {"JUNGLE": tiers}, "champs": {}})
+    assert [lv["few"] for lv in e["levels"]] == [True, False, False]
+    assert e["closest"] == "PLATINUM"  # 4 por partida: el más cercano sería Bronce, pero tiene pocas
+
+
 def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
     services = keyed_svc
     """Resúmenes de un formato anterior (sin datos para las comprobaciones por campeón): se rehacen del análisis
