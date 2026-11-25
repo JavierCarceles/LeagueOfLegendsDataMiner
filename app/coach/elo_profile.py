@@ -33,7 +33,7 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 10  # 10: constancia entre partidas (C-11) y muertes caras (C-7, C-9, C-12, C-13); 9: hábitos de macro_habits (objetivos que acaban en torre, ritmo del jungla, Farsight); 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
+VERSION = 11  # 11: rutas iniciales de jungla (jr_*); 10: constancia entre partidas (C-11) y muertes caras (C-7, C-9, C-12, C-13); 9: hábitos de macro_habits (objetivos que acaban en torre, ritmo del jungla, Farsight); 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
 RECORDS_CACHE = Path(".cache") / "errores_por_elo_partidas.json.gz"  # lo de cada fichero de partidas (ver _FileCache)
 SOURCES = ("otps", "partidas_campeon")

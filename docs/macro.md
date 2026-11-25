@@ -973,3 +973,27 @@ junto al foso en los 45 s antes de que el rival coja un dragón o unas larvas si
 (`obj_noprio_deaths`). En «Prioridad de línea y objetivos» salen tus números; la referencia por elo, cuando haya
 partidas nuevas de OTPs con ellas (validarlo antes de enseñarlo como error). C-10 (recompensas de objetivo) sin el
 umbral público solo se mide con la diferencia de oro.
+
+## Q) Rutas iniciales de jungla por elo y por campeón (25-11-2026)
+
+Primeros 4 minutos de 22.739 partidas de jungla con timeline de `data/otps` y `data/partidas_campeon`, con los
+campamentos de la reconstrucción del recorrido (`analyzer.infer_camps`, anclas de tipo 6). Confirma lo que dicen las
+guías: en elo bajo se hace la ruta «de libro» y en elo alto se rompe para ganar una jugada.
+
+| Primeros 4 min | Hierro-Oro (3.460) | Platino-Esmeralda (2.077) | Diamante+ (17.202) |
+|---|---|---|---|
+| Full clear (5 o más campamentos propios) | 26 % | 21 % | 12 % |
+| 3-4 campamentos y kill o asistencia antes de 3:30 | 27 % | 38 % | 45 % |
+| Kill o asistencia antes de 3:00 | 15 % | 18 % | 26 % |
+| Algún campamento de la jungla rival | 21 % | 17 % | 18 % |
+| Empieza por el azul / rojo / raptors / lobos | 50 / 32 / 11 / — % | 46 / 33 / 15 / — % | 28 / 35 / 21 / 14 % |
+
+Por campeón (Diamante+), lo propio de cada uno: Kindred empieza por el rojo el 77 % (y su invade al gromp rival con la Q
+por el muro del heraldo), Master Yi el 78 %, Kha'Zix el 50 %; Nidalee por los raptors el 44 % e invade el 27 %; Kayn
+invade el 37 %; Lee Sin reparte (rojo 29, raptors 26, lobos 25 %); Hecarim, azul 38, rojo 34 y raptors 19 %, con 3-4
+campamentos y gank el 46 %. «Invade» en la reconstrucción es lo menos fiable (coloca los campamentos por el CS y la
+posición de cada minuto); para invades, mejor `challenges.enemyJungleMonsterKills` (exacto, ya en «Campamentos de la
+jungla rival cada 10 min»: 6,7 → 14,9 por partida de Hierro-Bronce a Aspirante).
+
+Pendiente: enseñar en «Tu pathing de jungla» tus primeros minutos frente a los OTPs de tu campeón por elo (sin marcar
+como error saltarse campamentos: en elo alto es lo normal), y usar el inicio típico de cada campeón en la reconstrucción.

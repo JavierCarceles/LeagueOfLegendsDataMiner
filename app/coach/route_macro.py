@@ -94,6 +94,8 @@ def features(
     if role == "MID" and ally_jungler:
         out.update(_mid_with_jungler(pos, kills, ally_jungler))
     out.update(_vision(pos, team, wards, objectives))
+    if role == "JUNGLE" and team:
+        out.update(early_route(anchors, kills, me, team))
     if role == "SUPPORT" and adc:
         out["rm_adc_alone_deaths"] = _adc_alone_deaths(pos, kills, adc)
     game = macro_habits.Game(
@@ -261,6 +263,41 @@ def _objective_wards(placed: list[tuple], objectives: list | None) -> dict:
     return {"rm_obj_ward_pct": round(100 * covered / n, 1)} if n else {}
 
 
+ROUTE_WINDOW_MS = 240_000  # los primeros 4 min
+ROUTE_CAMP_NEAR = 900
+ANCHOR_CAMP = 6  # anclas de campamento de la reconstrucción (``analyzer.infer_camps``)
+SMALL_CAMPS = ("raptors", "wolves", "gromp", "krugs")
+
+
+def early_route(anchors: list, kills: list, me: int, team: int) -> dict:
+    """Tus primeros 4 min de jungla (con los campamentos de la reconstrucción): full clear, 3-4 campamentos y gank, kill
+    o asistencia antes de 3:00, algún campamento de la jungla rival y si empiezas por uno pequeño. En % (0 o 100 por
+    partida) para comparar con cada elo: no son errores. Medido el 25-11-2026 con 22.739 partidas (Hierro-Oro →
+    Diamante+): full clear 26 → 12 %, 3-4 campamentos y gank 27 → 45 %, kill antes de 3:00 15 → 26 %, empezar por uno
+    pequeño 11 → 35 % (en elo alto se rompe la ruta para ganar un gank o un invade)."""
+    camps: list[tuple[int, str]] = []
+    for a in anchors:
+        if a[0] >= ROUTE_WINDOW_MS:
+            break
+        if a[3] != ANCHOR_CAMP:
+            continue
+        camp = geo.nearest_camp((a[1], a[2]), ROUTE_CAMP_NEAR)
+        if camp and (not camps or camps[-1] != camp):
+            camps.append(camp)
+    if len(camps) < 2:
+        return {}
+    own = sum(1 for c in camps if c[0] == team)
+    first_kill = min((k[0] for k in kills if k[0] * 1000 < ROUTE_WINDOW_MS and _involved(k, me)), default=None)
+    gank = first_kill is not None and first_kill < 210 and own <= 4
+    return {
+        "jr_full": 100 * (own >= 5),
+        "jr_three_gank": 100 * gank,
+        "jr_kill3": 100 * (first_kill is not None and first_kill < 180),
+        "jr_invade": 100 * any(c[0] != team for c in camps),
+        "jr_start_small": 100 * (camps[0][1] in SMALL_CAMPS),
+    }
+
+
 def _objective_pit(o: list) -> tuple:
     """Dónde cayó el objetivo: su posición si viene; si no, el foso del dragón (dragones y anciano) o el del barón."""
     if len(o) >= 5 and o[3] is not None:
@@ -339,6 +376,7 @@ def from_dossier(d: dict) -> dict:
 
 
 KEYS = (
+    "jr_full", "jr_three_gank", "jr_kill3", "jr_invade", "jr_start_small",
     "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
     "rm_adc_alone_deaths", "rm_roam_lane", "rm_roam_river", "rm_roam_own_jg", "rm_roam_enemy_jg", "rm_wards_pre14",
     "rm_ward_lane_pct", "rm_ward_river_pct", "rm_ward_enemy_jg_pct", "rm_ward_enemy_jg10", "rm_pink_obj", "rm_obj_ward_pct",

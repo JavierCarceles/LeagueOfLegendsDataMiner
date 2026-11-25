@@ -175,3 +175,19 @@ def test_elo_profile_consistency_needs_enough_players():
     for i in range(10):
         few.add([], "solo", None, (), (i, 3))
     assert few.public()["consistency"] is None
+
+
+def test_early_jungle_route():
+    """Primeros 4 min del jungla azul: empieza por los raptors, 3 campamentos propios, kill a los 3:10 y un campamento
+    de la jungla rival: «3 campamentos y gank», sin full clear."""
+    from app.coach import geometry as geo
+    from app.coach.route_macro import early_route
+
+    camps = {f"{t}_{n}": p for (t, n), p in geo.CAMPS.items()}
+    anchors = [
+        (95_000, *camps["100_raptors"], 6), (130_000, *camps["100_red"], 6), (160_000, *camps["100_krugs"], 6),
+        (200_000, 7000, 7000, 0), (225_000, *camps["200_raptors"], 6),
+    ]
+    out = early_route(anchors, [[190, 2, 8, 7000, 7000, []]], 2, 100)
+    assert out == {"jr_full": 0, "jr_three_gank": 100, "jr_kill3": 0, "jr_invade": 100, "jr_start_small": 100}
+    assert early_route(anchors[:1], [], 2, 100) == {}  # sin ruta reconstruida
