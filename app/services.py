@@ -63,6 +63,9 @@ class Services:
         from app.coach.calibrate import TierCalibrator
 
         self.calibrator = TierCalibrator(self, enabled=settings.calibrate_enabled)
+        from app.videos.collector import VideoCollector
+
+        self.videos = VideoCollector(self)
         self.startup_done = threading.Event()
         self.legacy_running = False
 
@@ -131,6 +134,11 @@ class Services:
             self.crawler.autostart()
         except Exception:
             log.exception("No se pudo reanudar el recolector")
+        # Vídeos de YouTube pendientes (sección «Vídeos»): siguen solos.
+        try:
+            self.videos.autostart()
+        except Exception:
+            log.exception("No se pudo reanudar el recolector de vídeos")
         self.check_key_on_startup()
 
     def check_key_on_startup(self) -> None:
@@ -214,6 +222,7 @@ class Services:
         self.tracker.shutdown()
         self.calibrator.shutdown()
         self.draft_live.shutdown()
+        self.videos.shutdown()
         self.local_replays.stop()
         self.my_games_files.stop()
         from app.external.base import shutdown_fetches

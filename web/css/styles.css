@@ -1229,3 +1229,26 @@ img.elo-chart-champ.top-otp { border-color: var(--gold); }
   .status-dot.busy { animation: none; }
   .callout-ring { animation: none; }
 }
+
+/* ---------------------------------------------------------------- vídeos de YouTube */
+.video-head { flex-wrap: wrap; row-gap: 8px; }
+.video-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 12px; }
+.video-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.video-field .select, .video-field .input { width: 100%; }
+.video-presets-title { margin: 12px 0 6px; }
+.video-help { margin: 12px 0 0; }
+.video-current { display: flex; align-items: center; gap: 8px; margin-top: 12px; min-width: 0; overflow-wrap: anywhere; }
+.video-current svg { width: 16px; height: 16px; color: var(--gold); flex: none; }
+.video-list { display: flex; flex-direction: column; }
+.video-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.video-row:first-child { border-top: 0; }
+.video-main { flex: 1 1 auto; min-width: 0; }
+.video-title { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.video-title:hover { color: var(--gold-2); }
+.video-pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.video-actions { display: flex; gap: 4px; flex: none; }
+.video-error { color: #ff9aa6; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .video-row { flex-wrap: wrap; }
+  .video-pills { justify-content: flex-start; }
+}
