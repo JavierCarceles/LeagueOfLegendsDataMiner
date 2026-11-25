@@ -1456,7 +1456,7 @@ async function loadLive() {
       liveSig = sig;
       mount(filesBox, otpFilesBar({ details }));
     }
-    if (eloBox?.isConnected) updateEloChart(eloBox, details.session_tiers, resultsMode !== "ranking");
+    if (eloBox?.isConnected) updateEloChart(eloBox, details.session_tiers, resultsMode === "ranking");
     if (sections?.eloTotal?.isConnected) {
       if (!totalBox?.isConnected) {
         totalBox = eloTotalCard();
@@ -1530,19 +1530,19 @@ function setEloBar(col, pct, n) {
   label.textContent = n ? fmt.int(n) : "";
 }
 
-/** Partidas recogidas por elo desde que arrancó el recolector (``session_tiers``: analizadas; con todo el ranking,
- *  guardadas). Antes contaba desde la última subida a GitHub y volvía a 0 al subir. */
-function updateEloChart(box, sessionTiers, analyzed) {
+/** Partidas recogidas por elo desde que arrancó el recolector (``session_tiers``). Antes contaba desde la última
+ *  subida a GitHub y volvía a 0 al subir. Con todo el ranking se analizan los 10 jugadores de cada partida. */
+function updateEloChart(box, sessionTiers, ranking) {
   const counts = sessionTiers || {};
-  const sig = JSON.stringify([analyzed, counts]);
+  const sig = JSON.stringify([ranking, counts]);
   if (sig === eloSig) return;
   eloSig = sig;
   const max = Math.max(0, ...ELO_ORDER.map((t) => counts[t] || 0));
   const total = ELO_ORDER.reduce((n, t) => n + (counts[t] || 0), 0);
   const title = box.querySelector(".elo-chart-title");
-  if (title) title.textContent = `Partidas ${analyzed ? "analizadas" : "guardadas"} por elo: ${fmt.int(total)}`;
+  if (title) title.textContent = `Partidas analizadas por elo: ${fmt.int(total)}`;
   const sub = box.querySelector(".elo-chart-sub");
-  if (sub) sub.textContent = analyzed ? "desde que arrancó el recolector" : "todo el ranking: sin análisis minuto a minuto · desde que arrancó el recolector";
+  if (sub) sub.textContent = ranking ? "todo el ranking: los 10 jugadores de cada partida (no se suben a GitHub) · desde que arrancó el recolector" : "desde que arrancó el recolector";
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
     el.textContent = fmt.int(Math.round((max * Number(el.dataset.q)) / 4));
   });
@@ -1643,7 +1643,9 @@ function updateEloTotal(box, details, champ = null) {
   const approx = estimated ? "~" : "";
   const who = champ ? `${dd.name(champ)}: ` : "";
   box.querySelector(".elo-chart-title").textContent = `${who}${fmt.int(total)} partidas analizadas · ${approx}${fmt.int(otpTotal)} de OTPs`;
-  let sub = champ ? "sus partidas guardadas, de OTPs y de otros jugadores" : "todas las guardadas (data/otps y data/partidas_campeon)";
+  let sub = champ
+    ? "sus partidas analizadas, de OTPs y de otros jugadores"
+    : "todas: data/otps, data/partidas_campeon y las de todo el ranking (solo en tu PC)";
   if (estimated) sub += " · las aún sin clasificar se reparten con el % de OTPs de su elo";
   box.querySelector(".elo-chart-sub").textContent = sub;
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {

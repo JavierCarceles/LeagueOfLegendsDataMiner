@@ -321,6 +321,16 @@ CREATE TABLE IF NOT EXISTS otp_games (
 );
 CREATE INDEX IF NOT EXISTS idx_otp_games_champ ON otp_games(champ, puuid);
 
+-- Todo el ranking: los 10 jugadores analizados de cada partida en un solo bloque xz, con lo común a los 10 aparte (sin
+-- pérdidas; ~33 KB por partida frente a ~107 KB con un análisis comprimido por jugador). Sus filas de otp_games
+-- (kind = 'ranking') llevan solo lo que se cuenta, sin dossier.
+CREATE TABLE IF NOT EXISTS ranking_games (
+    match_id     TEXT PRIMARY KEY,
+    version      INTEGER NOT NULL,      -- versión del dossier × 1000 + versión del análisis
+    blob         BLOB NOT NULL,         -- xz de {"shared": {...}, "players": [{...}, ...]}
+    fetched_at   INTEGER NOT NULL
+);
+
 -- Repeticiones (.rofl) que hay en la carpeta de repeticiones de este ordenador (solo su cabecera).
 CREATE TABLE IF NOT EXISTS local_replays (
     path         TEXT PRIMARY KEY,

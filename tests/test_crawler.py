@@ -9,13 +9,14 @@ Mundo simulado (una plataforma, ``euw1``):
 
 from __future__ import annotations
 
+import json
 import time
 from collections import Counter
 
 import pytest
 
 from app.ingest.crawler import CrawlerConfig
-from tests.factories import TEST_KEY, FakeRiotClient, make_match
+from tests.factories import TEST_KEY, FakeRiotClient, make_match, make_timeline
 
 SEEDS = ["seed-0", "seed-1", "seed-2"]
 
@@ -221,3 +222,53 @@ def test_el_numero_junto_al_boton_cuenta_las_nuevas_desde_la_ultima_subida(keyed
     monkeypatch.setattr(autopush.AutoPush, "of", staticmethod(lambda svc: fake))
     push = keyed_svc.crawler.status()["push"]
     assert push["pending"] == 137 and push["every"] == 2000 and push["enabled"] is True
+
+
+def test_todo_el_ranking_analiza_los_10_jugadores_solo_en_la_base_de_datos(keyed_svc):
+    """25-11-2026: con todo el ranking toda partida nueva se analiza, los 10 jugadores (un timeline por partida). Van solo
+    a la base de datos (``kind='ranking'``): cuentan en la gráfica del total pero no se escriben en data/ (ni se suben
+    a GitHub: serían ~900 MB/hora)."""
+    from app.ingest import otp_details
+
+    ladder, payloads = build_world()
+    fake = FakeRiotClient(ladder, payloads)
+    run_crawler(keyed_svc, fake, ["CHALLENGER"])
+    db = keyed_svc.db
+    valid = db.scalar("SELECT COUNT(*) FROM matches WHERE is_remake = 0")
+    assert valid == 9
+    timelines = Counter(call[1] for call in fake.calls_to("timeline"))
+    assert len(timelines) == valid and max(timelines.values()) == 1  # uno por partida nueva, nunca repetido
+    rows = db.query("SELECT match_id, kind, COUNT(*) AS n FROM otp_games GROUP BY match_id, kind")
+    assert {r["kind"] for r in rows} == {"ranking"} and len(rows) == valid and all(r["n"] == 10 for r in rows)
+    live = otp_details.live_counts(db)
+    assert live["games"] == 10 * valid and live["tiers_player"].get("CHALLENGER") == live["tiers"]["CHALLENGER"]  # «resto»
+    data_dir = keyed_svc.settings.data_dir
+    for folder in ("otps", "partidas_campeon"):
+        assert not list((data_dir / folder).rglob("partidas.jsonl.gz"))
+    assert otp_details.outdated(db) == 0  # sin bruto: nunca se intentan rehacer
+
+
+def test_los_10_analisis_de_cada_partida_del_ranking_van_juntos_en_xz_y_se_recuperan_exactos(keyed_svc):
+    """Los 10 análisis de una partida de todo el ranking van en un bloque xz con lo común aparte: sin pérdidas y mucho
+    más pequeño que un análisis comprimido por jugador. Sus filas de otp_games no llevan dossier."""
+    from app.coach.store import pack
+    from app.ingest import otp_details
+
+    ladder, payloads = build_world()
+    run_crawler(keyed_svc, FakeRiotClient(ladder, payloads), ["CHALLENGER"])
+    db = keyed_svc.db
+    assert db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind = 'ranking' AND dossier IS NOT NULL") == 0
+    match_id = "EUW1_1001"
+    saved = otp_details.ranking_dossiers(db, match_id)
+    payload = payloads[match_id]
+    shared: dict = {}  # como al guardarla: la reconstrucción de los 10, una vez
+    expected = [otp_details.build_dossier(payload, make_timeline(payload), p["puuid"], otp_details.catalog_for(keyed_svc, payload),
+                                          elo={"tier": "CHALLENGER"}, shared=shared) for p in payload["info"]["participants"]]
+    by_puuid = {d.pop("puuid"): d for d in saved}
+    assert len(by_puuid) == 10
+    for p, exp in zip(payload["info"]["participants"], expected):
+        got = by_puuid[p["puuid"]]
+        exp = json.loads(json.dumps(exp))  # como queda al guardarlo en JSON (igual que con pack): claves numéricas en texto
+        assert {k: v for k, v in got.items() if k not in ("tier", "division", "lp")} == {k: v for k, v in exp.items() if k not in ("tier", "division", "lp")}
+    blob = db.scalar("SELECT blob FROM ranking_games WHERE match_id = ?", (match_id,))
+    assert len(blob) < sum(len(pack(d)) for d in expected) / 2  # al menos la mitad que uno por jugador

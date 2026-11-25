@@ -290,6 +290,13 @@ def test_final_push_and_afk_are_not_errors():
     assert any(mo["kind"] == "afk" for mo in a["moments"])
 
 
+def _no_fights(frames: dict) -> dict:
+    """``frames`` sin daño a campeones fuera de las kills: en la partida de prueba todos pegan 500 cada minuto sin
+    rivales cerca, y las peleas sin muerte deducidas moverían a los junglas (en una partida real no pasa)."""
+    flat = {(p, m): {"damageStats": {"totalDamageDoneToChampions": 0}} for p in range(1, 11) for m in range(31)}
+    return {k: {**flat.get(k, {}), **frames.get(k, {})} for k in flat.keys() | frames.keys()}
+
+
 def test_objective_traded_on_the_other_side_is_a_good_decision():
     # El rival coge el dragón a las 20:30 mientras el jungla azul (pid 2) invade su jungla, mata y tira una torre.
     dragon = _event(1_230_000, "ELITE_MONSTER_KILL", killerId=7, killerTeamId=200, monsterType="DRAGON", monsterSubType="FIRE_DRAGON",
@@ -301,7 +308,7 @@ def test_objective_traded_on_the_other_side_is_a_good_decision():
         _event(1_240_000, "BUILDING_KILL", killerId=2, teamId=200, buildingType="TOWER_BUILDING", laneType="TOP_LANE",
                towerType="OUTER_TURRET", position={"x": 4318, "y": 13875}, assistingParticipantIds=[3], bounty=0),
     ]
-    a = _analyze([dragon, *plays], far, pid=2)
+    a = _analyze([dragon, *plays], _no_fights(far), pid=2)
     trade = next(mo for mo in a["moments"] if mo["kind"] == "trade")
     assert trade["severity"] == "good" and trade["title"].startswith("Buen cambio: el dragón por")
     assert "1 torre" in trade["title"] and "su jungla" in trade["title"]
@@ -309,7 +316,7 @@ def test_objective_traded_on_the_other_side_is_a_good_decision():
     assert a["metrics"]["obj_lost_far"] == 1 and a["metrics"]["obj_trades"] == 1
     assert not any("dragón" in mo["title"] for mo in a["moments"] if "far" in mo["tags"])
     # Lejos y sin sacar nada: eso sí es regalarlo.
-    a = _analyze([dragon], {(2, 20): {"position": BLUE_JUNGLE_TOP}, (2, 21): {"position": BLUE_JUNGLE_TOP}}, pid=2)
+    a = _analyze([dragon], _no_fights({(2, 20): {"position": BLUE_JUNGLE_TOP}, (2, 21): {"position": BLUE_JUNGLE_TOP}}), pid=2)
     lost = next(mo for mo in a["moments"] if "far" in mo["tags"] and "dragón" in mo["title"])
     # Un dragón normal cedido es leve: pasa igual en Esmeralda que en Aspirante (data/otps); el heraldo o el barón, no.
     assert lost["title"] == "El rival cogió el dragón gratis y estabas lejos" and lost["severity"] == "low"

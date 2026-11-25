@@ -24,6 +24,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import lzma
 import os
 import re
 import shutil
@@ -49,6 +50,12 @@ EARLY_S = 15 * 60
 FILES_DIR = "otps"  # solo OTPs: lo que usan «Tú frente a los OTPs», sus resúmenes, la página de OTPs y el draft
 PLAYERS_DIR = "partidas_campeon"  # cualquier otro jugador («Cualquiera que lo juegue»): no son datos de OTPs
 KIND_DIRS = {"otp": FILES_DIR, "player": PLAYERS_DIR}
+# Todo el ranking: los 10 jugadores de cada partida, analizados solo en la base de datos (cuentan en la gráfica del total
+# por elo como «resto»). No van a ``data/`` ni a GitHub: con 10 por partida serían ~900 MB/hora (25-11-2026).
+RANKING_KIND = "ranking"
+# Sus 10 análisis van juntos en un bloque xz (``pack_ranking``): nivel 6, el 9 ocupa lo mismo con una partida (cabe en
+# el diccionario del 6) y usa ~670 MB de memoria al comprimir frente a ~94 MB. ~30 ms por partida.
+RANKING_XZ_PRESET = 6
 GAMES_FILE = "partidas.jsonl.gz"  # en la carpeta de cada jugador: una línea por partida (el dossier entero)
 FORMAT_MARKER = ".formato"  # en la raíz de cada carpeta: la versión de su formato (``LAYOUT_VERSION``)
 # Quién cuenta como OTP de un campeón al clasificar una partida: su campeón principal, con al menos estos puntos y
@@ -336,11 +343,13 @@ def _lineup(info: dict, team: int) -> dict:
     }
 
 
-def build_dossier(match: dict, timeline: dict | None, puuid: str, items=None, *, elo: dict | None = None) -> dict:
-    """Todo lo que se puede sacar de una partida desde el punto de vista de ese jugador (función pura)."""
-    # Solo su recorrido rodea muros: de los otros 9 no se guarda ni se usa nada que dependa de ello (y era la mayor parte
-    # del tiempo de análisis de cada partida del recolector).
-    analysis = analyze_game(match, timeline, puuid=puuid, items=items, route_all=False)
+def build_dossier(match: dict, timeline: dict | None, puuid: str, items=None, *, elo: dict | None = None, shared: dict | None = None) -> dict:
+    """Todo lo que se puede sacar de una partida desde el punto de vista de ese jugador (función pura).
+
+    Solo su recorrido rodea muros: de los otros 9 no se guarda ni se usa nada que dependa de ello (y era la mayor parte
+    del tiempo de análisis de cada partida del recolector). Con ``shared`` (el mismo diccionario para los 10 jugadores
+    de la partida), los recorridos de los 10 se reconstruyen una vez, rodeando muros todos, y son los mismos en los 10."""
+    analysis = analyze_game(match, timeline, puuid=puuid, items=items, route_all=False, shared=shared)
     info = match.get("info") or {}
     pid = analysis["me"]
     raw = next((p for p in info.get("participants") or [] if int(p.get("participantId") or 0) == pid), {})
@@ -468,7 +477,7 @@ def reclassify(db) -> list[tuple[str, int]]:
     try:
         pairs = db.query(
             "SELECT DISTINCT g.puuid, g.champ, g.kind FROM otp_games g JOIN otp_progress o ON o.puuid = g.puuid "
-            "WHERE o.seen >= ? AND g.kind IS NOT NULL",
+            "WHERE o.seen >= ? AND g.kind IN ('otp', 'player')",  # las de todo el ranking se quedan solo en la base de datos
             (OTP_SHARE_MIN_SEEN,),
         )
     # BD vieja sin otp_progress
@@ -502,6 +511,78 @@ def classify_pending(db) -> int:
     return len(kinds)
 
 
+def pack_ranking(dossiers: list[dict]) -> bytes:
+    """Los análisis de una partida en un bloque xz, con lo que es idéntico en todos aparte (sin pérdidas)."""
+    shared: dict = {}
+    if dossiers:
+        first = dossiers[0]
+        keys = set(first).intersection(*dossiers[1:])
+        shared = {k: first[k] for k in keys if all(d[k] == first[k] for d in dossiers[1:])}
+    players = [{k: v for k, v in d.items() if k not in shared} for d in dossiers]
+    raw = json.dumps({"shared": shared, "players": players}, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return lzma.compress(raw, preset=RANKING_XZ_PRESET)
+
+
+def unpack_ranking(blob: bytes) -> list[dict]:
+    """Los análisis de una partida de todo el ranking, tal cual se analizaron (``pack_ranking`` al revés)."""
+    data = json.loads(lzma.decompress(blob).decode("utf-8"))
+    shared = data.get("shared") or {}
+    return [{**shared, **p} for p in data.get("players") or []]
+
+
+def ranking_dossiers(db, match_id: str) -> list[dict]:
+    """Los análisis guardados de una partida de todo el ranking (``[]`` si no está)."""
+    blob = db.scalar("SELECT blob FROM ranking_games WHERE match_id = ?", (match_id,))
+    return unpack_ranking(blob) if blob else []
+
+
+def save_ranking_game(db, svc, match: dict, timeline: dict | None, default_tier: str | None) -> int:
+    """Todo el ranking: el análisis de los 10 jugadores de la partida, solo en la base de datos: juntos en
+    ``ranking_games`` (``pack_ranking``) y una fila por jugador en ``otp_games`` (``RANKING_KIND``, sin dossier) para
+    contarlos. El elo de cada uno, el suyo si se conoce; si no, el del jugador visitado (misma partida). Ni carpetas ni
+    bruto (~400 KB por partida): se puede volver a bajar. Devuelve cuántos jugadores se guardaron."""
+    match_id = (match.get("metadata") or {}).get("matchId")
+    have = {r["puuid"] for r in db.query("SELECT puuid FROM otp_games WHERE match_id = ?", (match_id,))}
+    catalog = catalog_for(svc, match)
+    version = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
+    shared: dict = {}  # los recorridos de los 10, una vez: iguales desde los 10 puntos de vista
+    rows, notes, dossiers = [], [], []
+    for p in (match.get("info") or {}).get("participants") or []:
+        puuid = p.get("puuid")
+        if not puuid or puuid in have:
+            continue
+        info = player_info(db, puuid)
+        elo = {"tier": info.get("tier") or default_tier, "division": info.get("division"), "lp": info.get("lp")}
+        try:
+            dossier = build_dossier(match, timeline, puuid, catalog, elo=elo, shared=shared)
+        # un jugador raro no tira la partida entera
+        except Exception:  # noqa: BLE001
+            log.debug("No se pudo analizar a un jugador de %s", match_id, exc_info=True)
+            continue
+        dossier["puuid"] = puuid
+        dossiers.append(dossier)
+        rows.append((
+            dossier["match_id"], puuid, dossier["champ"], dossier["role"], int(bool(dossier["win"])), dossier["game_start"],
+            dossier["patch"], dossier["platform"], dossier["tier"], dossier["division"], dossier["lp"],
+            int(timeline is not None), version, now_s(), RANKING_KIND,
+        ))
+        notes.append((dossier["tier"], dossier["champ"]))
+    if not rows:
+        return 0
+    blob = pack_ranking(dossiers)  # antes de coger el candado de escritura
+    with db.write() as conn:  # los 10 de una vez (una escritura, no diez); el análisis, en ranking_games
+        conn.executemany(
+            "INSERT OR IGNORE INTO otp_games (match_id, puuid, champ, role, win, game_start, patch, platform, tier, division, "
+            "lp, has_timeline, version, fetched_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        conn.execute("INSERT OR IGNORE INTO ranking_games (match_id, version, blob, fetched_at) VALUES (?, ?, ?, ?)",
+                     (match_id, version, blob, now_s()))
+    for tier, champ in notes:
+        _note_live(db, tier, RANKING_KIND, timeline is not None, champ)
+    return len(rows)
+
+
 def save(
     db, svc, match: dict, timeline: dict | None, puuid: str, elo: dict | None = None, *, write_files: bool = True, kind: str | None = None
 ) -> bool:
@@ -512,7 +593,10 @@ def save(
     except NotInMatch:
         return False
     kind = kind if kind in KIND_DIRS else classify(db, puuid, dossier["champ"])
-    is_new = not db.scalar("SELECT 1 FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
+    before = db.one("SELECT kind FROM otp_games WHERE match_id = ? AND puuid = ?", (dossier["match_id"], puuid))
+    is_new = before is None
+    # Ya analizada en todo el ranking (solo en la base de datos): ahora sí va a su carpeta.
+    to_files = is_new or before["kind"] == RANKING_KIND
     # La partida y el timeline en bruto (~400 KB por partida) van a un fichero (``raw_path``), no a la base de datos:
     # en ella llenaban el registro de escrituras (WAL: 1,25 GB en 7 min) y cada escritura tardaba ~1 s. Sin ``svc`` (o
     # sin carpeta), como antes. Se comprime antes de coger el candado de escritura.
@@ -533,8 +617,8 @@ def save(
             ),
         )
     if is_new:
-        _note_live(db, dossier["tier"], kind, timeline is not None)
-    if is_new and write_files:
+        _note_live(db, dossier["tier"], kind, timeline is not None, dossier["champ"])
+    if to_files and write_files:
         files = Files.of(svc, kind)
         if files is not None:
             try:
@@ -609,7 +693,7 @@ def _live_state(db) -> dict:
     return st
 
 
-def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> None:
+def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool, champ: int | None = None) -> None:
     with _live_lock:
         d = _live_state(db)["data"]
         if d is None:
@@ -619,9 +703,15 @@ def _note_live(db, tier: str | None, kind: str | None, has_timeline: bool) -> No
         d["tiers"][tier or "?"] = d["tiers"].get(tier or "?", 0) + 1
         if kind == "otp":
             d["otp_games"] += 1
-        if kind in ("otp", "player"):
-            by_kind = d.setdefault(f"tiers_{kind}", {})
+        bucket = "player" if kind == RANKING_KIND else kind  # las de todo el ranking cuentan como «resto»
+        if bucket in ("otp", "player"):
+            by_kind = d.setdefault(f"tiers_{bucket}", {})
             by_kind[tier or "?"] = by_kind.get(tier or "?", 0) + 1
+        if champ is not None:  # los campeones destacados de cada elo, también al momento
+            per_champ = d.setdefault("champ_counts", {"all": {}, "otp": {}})
+            for key in ("all", "otp") if kind == "otp" else ("all",):
+                champs = per_champ.setdefault(key, {}).setdefault(tier or "?", {})
+                champs[int(champ)] = champs.get(int(champ), 0) + 1
 
 
 def live_counts(db) -> dict:
@@ -647,7 +737,8 @@ def live_counts(db) -> dict:
         threading.Thread(target=recount, name="otp-counts", daemon=True).start()
     with _live_lock:
         d = st["data"] or {}
-        return {**d, **{k: dict(d.get(k) or {}) for k in ("tiers", "tiers_otp", "tiers_player", "top_champs")}}
+        out = {k: v for k, v in d.items() if k != "champ_counts"}  # por campeón: solo los destacados (es grande)
+        return out | {k: dict(d.get(k) or {}) for k in ("tiers", "tiers_otp", "tiers_player")} | {"top_champs": _top_champs(d.get("champ_counts"))}
 
 
 def champ_tier_counts(db, champ: int) -> dict:
@@ -657,29 +748,36 @@ def champ_tier_counts(db, champ: int) -> dict:
     for r in db.query("SELECT tier, kind, COUNT(*) AS n FROM otp_games WHERE champ = ? GROUP BY tier, kind", (int(champ),)):
         tier, n = r["tier"] or "?", int(r["n"])
         out["tiers"][tier] = out["tiers"].get(tier, 0) + n
-        if r["kind"] in ("otp", "player"):
-            out[f"tiers_{r['kind']}"][tier] = n
+        bucket = "player" if r["kind"] == RANKING_KIND else r["kind"]  # las de todo el ranking, «resto»
+        if bucket in ("otp", "player"):
+            out[f"tiers_{bucket}"][tier] = out[f"tiers_{bucket}"].get(tier, 0) + n
     return out
 
 
-def _tier_breakdown(db) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+def _tier_breakdown(db) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, dict[int, int]]]]:
     """Para la gráfica del total por elo de «Datos y API»: de cada elo, las partidas de OTPs y de otros jugadores (las
-    aún sin clasificar se reparten con el % de su elo) y sus campeones con más partidas: de todas (``all``) y de OTPs
-    (``otp``)."""
+    aún sin clasificar se reparten con el % de su elo) y las de cada campeón: de todas (``all``) y de OTPs (``otp``)."""
     by_kind: dict[str, dict[str, int]] = {"otp": {}, "player": {}}
     per_champ: dict[str, dict[str, dict[int, int]]] = {"all": {}, "otp": {}}
     for r in db.query("SELECT tier, champ, kind, COUNT(*) AS n FROM otp_games GROUP BY tier, champ, kind"):
         tier, champ, n = r["tier"] or "?", int(r["champ"]), int(r["n"])
-        if r["kind"] in by_kind:
-            by_kind[r["kind"]][tier] = by_kind[r["kind"]].get(tier, 0) + n
+        bucket = "player" if r["kind"] == RANKING_KIND else r["kind"]  # las de todo el ranking, «resto»
+        if bucket in by_kind:
+            by_kind[bucket][tier] = by_kind[bucket].get(tier, 0) + n
         for key in ("all", "otp") if r["kind"] == "otp" else ("all",):
             champs = per_champ[key].setdefault(tier, {})
             champs[champ] = champs.get(champ, 0) + n
+    return by_kind, per_champ
+
+
+def _top_champs(per_champ: dict | None) -> dict[str, dict[str, int]]:
+    """De cada elo, el campeón con más partidas (``all``) y el que más tiene de OTPs (``otp``); a igualdad, el de id más bajo."""
     top: dict[str, dict[str, int]] = {}
-    for key, tiers in per_champ.items():
+    for key, tiers in (per_champ or {}).items():
         for tier, champs in tiers.items():
-            top.setdefault(tier, {})[key] = max(champs, key=lambda c: (champs[c], -c))  # a igualdad, el de id más bajo
-    return by_kind, top
+            if champs:
+                top.setdefault(tier, {})[key] = max(champs, key=lambda c: (champs[c], -c))
+    return top
 
 
 def counts(db) -> dict:
@@ -689,7 +787,7 @@ def counts(db) -> dict:
         for r in db.query("SELECT tier, COUNT(*) AS n FROM otp_games GROUP BY tier")
     }
     otp = db.one("SELECT COUNT(*) AS games, COUNT(DISTINCT puuid) AS players FROM otp_games WHERE kind = 'otp'")
-    by_kind, top = _tier_breakdown(db)
+    by_kind, per_champ = _tier_breakdown(db)
     return {
         "games": int(row["games"] or 0),
         "players": int(row["players"] or 0),
@@ -697,7 +795,8 @@ def counts(db) -> dict:
         "tiers": {t: tiers[t] for t in sorted(tiers, key=lambda t: TIER_ORDER.index(t) if t in TIER_ORDER else 99)},
         "tiers_otp": by_kind["otp"],
         "tiers_player": by_kind["player"],
-        "top_champs": top,
+        "top_champs": _top_champs(per_champ),
+        "champ_counts": per_champ,  # para tener los destacados al momento (``_note_live``); no sale en la API
         # De ellas, de OTPs (data/otps); el resto, de otros jugadores (data/partidas_campeon).
         "otp_games": int(otp["games"] or 0),
         "otp_players": int(otp["players"] or 0),
@@ -706,7 +805,8 @@ def counts(db) -> dict:
 
 def outdated(db) -> int:
     """Partidas de OTPs analizadas con otra versión del análisis (o del dossier)."""
-    return int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE version != ?", (DOSSIER_VERSION * 1000 + ANALYSIS_VERSION,)) or 0)
+    current = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
+    return int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE version != ? AND kind IS NOT 'ranking'", (current,)) or 0)
 
 
 def _stopped(stop: threading.Event | None) -> bool:
@@ -744,7 +844,9 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
     """
     current = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
     rows = db.query(
-        "SELECT match_id, puuid, tier, division, lp, kind FROM otp_games WHERE version != ? ORDER BY match_id " + ("LIMIT ?" if limit else ""),
+        # Las de todo el ranking no guardan el bruto: no se pueden rehacer sin volver a bajarlas.
+        "SELECT match_id, puuid, tier, division, lp, kind FROM otp_games WHERE version != ? AND kind IS NOT 'ranking' "
+        "ORDER BY match_id " + ("LIMIT ?" if limit else ""),
         (current, limit) if limit else (current,),
     )
     done = 0
