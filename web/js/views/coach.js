@@ -644,7 +644,7 @@ function kpisCard(s) {
       k("cs_min", "CS/min"),
       k("vision_min", "Visión/min"),
       k("kp", "Part. en kills"),
-      k("idle_pct", "Minutos vacíos"),
+      k("time_dead_pct", "Tiempo muerto"),
     ),
   );
 }
