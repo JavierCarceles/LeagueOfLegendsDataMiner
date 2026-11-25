@@ -36,7 +36,7 @@ const LIMIT_OPTS = [
   { value: "20", label: "Últimos 20" },
   { value: "50", label: "Últimos 50" },
   { value: "200", label: "Últimos 200" },
-  { value: "", label: "Todos" },
+  { value: "", label: "Todos (hasta 500)" },
 ];
 const STATE_LABEL = { pendiente: "En cola", procesando: "Procesando", hecho: "Recogido", error: "Error", descartado: "Descartado" };
 const STATE_PILL = { pendiente: "pill", procesando: "pill-gold", hecho: "pill-good", error: "pill-bad", descartado: "pill-warn" };
@@ -143,7 +143,7 @@ function addCard() {
     h("div.chips", presets),
     h(
       "p.small.muted.video-help",
-      "Un enlace de canal trae sus últimos vídeos; una búsqueda, los primeros resultados en cada idioma (sin shorts). Lo descargado para mirar los frames va a una carpeta temporal que se borra al terminar cada vídeo. Mientras juegas, se pausa solo.",
+      "Un enlace de canal trae sus últimos vídeos (con «Todos», como mucho los 500 más recientes); una búsqueda, los primeros resultados en cada idioma (sin shorts). Lo descargado para mirar los frames va a una carpeta temporal que se borra al terminar cada vídeo (si la app se reinicia a mitad, el vídeo sigue por donde iba). Mientras juegas, se pausa solo.",
     ),
   );
 }

@@ -159,6 +159,26 @@ class VideoStore:
                 self._flush()
         return added
 
+    def trim_sources(self, keep: int) -> int:
+        """Fuentes sin límite (un canal con 90.000 vídeos) que metieron más de ``keep`` en la cola: se quitan los
+        pendientes que sobran (se quedan los primeros que dio YouTube, los más recientes). Devuelve cuántos quitó."""
+        removed = 0
+        with self.lock:
+            data = self._data()
+            unlimited = {s["id"] for s in data["fuentes"] if s.get("tipo") != "busqueda" and not (s.get("opciones") or {}).get("limite")}
+            seen: dict[str, int] = {}
+            for vid, video in list(data["videos"].items()):
+                source = video.get("fuente")
+                if source not in unlimited:
+                    continue
+                seen[source] = seen.get(source, 0) + 1
+                if seen[source] > keep and video.get("estado") == PENDING:
+                    del data["videos"][vid]
+                    removed += 1
+            if removed:
+                self._flush()
+        return removed
+
     def next_video(self, now: float | None = None) -> dict | None:
         """El vídeo pendiente más antiguo (los que fallaron esperan ``RETRY_DELAY_S`` antes de reintentarse)."""
         now = time.time() if now is None else now

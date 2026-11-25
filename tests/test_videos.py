@@ -577,3 +577,23 @@ def test_autostart_resumes_after_manual_pause(tmp_path, monkeypatch):
     monkeypatch.setattr(collector, "start", lambda: started.append(True))
     collector.autostart()
     assert not collector.store.paused and collector.paused_reason() is None and started == [True]
+
+
+def test_unlimited_channels_keep_their_500_latest_videos(tmp_path):
+    """Un canal añadido con «Todos» y 90.000 vídeos: la cola se queda con los más recientes (500) y yt-dlp no lee más."""
+    from app.videos import collector as C
+    from app.videos.store import VideoStore
+
+    store = VideoStore(tmp_path)
+    channel = store.add_source("canal", "https://www.youtube.com/@ChallengerReplays/videos", {"limite": None})
+    short = store.add_source("canal", "https://www.youtube.com/@Otro/videos", {"limite": 2})
+    search = store.add_source("busqueda", "macro jungla", {"n": 10})
+    store.add_videos([{"id": f"c{i:010d}"} for i in range(8)], channel)  # de los más recientes a los más antiguos
+    store.add_videos([{"id": f"o{i:010d}"} for i in range(4)], short)
+    store.add_videos([{"id": f"b{i:010d}"} for i in range(6)], search)
+    store.start("c0000000005")  # uno ya en marcha: no se quita aunque sobre
+    assert store.trim_sources(3) == 4  # del canal sin límite: quedan los 3 primeros (y el que está en marcha)
+    ids = {v["id"] for v in store.videos(limit=100)}
+    assert {f"c{i:010d}" for i in (0, 1, 2, 5)} <= ids and "c0000000007" not in ids
+    assert {f"o{i:010d}" for i in range(4)} <= ids and {f"b{i:010d}" for i in range(6)} <= ids  # con límite o búsquedas: igual
+    assert C.MAX_SOURCE_VIDEOS == 500
