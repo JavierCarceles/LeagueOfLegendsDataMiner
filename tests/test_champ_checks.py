@@ -136,6 +136,27 @@ def test_tipo_que_no_separa_elos_pesa_la_mitad():
     assert insights.separation(tiers, "death_solo")["flat"] is True
 
 
+def test_tipo_sin_datos_en_los_elos_no_cuenta_como_cero():
+    """La lente sin usar se detecta desde un análisis posterior a casi todas las partidas de los OTPs: no es que no la
+    cometan (0 %), es que no se sabe. Ni «peor que los mejores» ni «no separa elos», y no infla tu total."""
+    block = {"games": 100, "per_game": 2.0, "unknown": ["death_lens_unused"], "types": {"death_isolated": {"pct": 30, "per_game": 0.4}}}
+    tiers = {"PLATINUM": block, "CHALLENGER": {**block, "types": {"death_isolated": {"pct": 10, "per_game": 0.1}}}}
+    assert insights.separation(tiers, "death_lens_unused") is None
+    assert insights.separation(tiers, "death_isolated")["flat"] is False
+    mine = [
+        {"match_id": f"M{i}", "queue": 420, "champ": 120, "role": "JUNGLE", "win": True, "has_timeline": True, "metrics": {},
+         "mistakes": [["death", "medium", 600, ["seen_ward", "lens_unused"], "Te vio un ward"], ["death", "medium", 900, ["isolated"], "Aislado"]]}
+        for i in range(6)
+    ]
+    e = insights.elo_errors(mine, {"roles": {"JUNGLE": tiers}, "champs": {}})
+    lens = next(r for r in e["types"] if r["id"] == "death_lens_unused")
+    assert lens["status"] is None and lens["separates"] is None and lens["tiers"] == {}
+    assert e["per_game"] == 1  # solo el aislado: la lente no la sabe ningún elo
+    rec = insights.recurring_mistakes(mine, {"JUNGLE": tiers})
+    lens_rec = next(r for r in rec["items"] if r["id"] == "death_lens_unused")
+    assert lens_rec["separates"] is None and lens_rec["elo"] is None
+
+
 def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
     services = keyed_svc
     """Resúmenes de un formato anterior (sin datos para las comprobaciones por campeón): se rehacen del análisis

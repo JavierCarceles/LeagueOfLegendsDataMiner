@@ -789,10 +789,15 @@ def elo_tiers(profile: dict | None, role: str | None, champ: int | None = None) 
     return (profile.get("roles") or {}).get(role) or {}, "role"
 
 
+def _known(block: dict, mistake_id: str) -> bool:
+    """¿Se sabe cuánto comete ese elo este tipo de error? No si se detecta desde un análisis posterior a sus partidas."""
+    return mistake_id not in (block.get("unknown") or ())
+
+
 def separation(tiers: dict, mistake_id: str) -> dict | None:
     """% de partidas con ese error en el elo más bajo y en el más alto con datos, y si de verdad separa elos (por
     errores por partida: morir aislado 3 veces por partida o 1 es muy distinto aunque ambos lo hagan en todas)."""
-    present = [g for g in ELO_GROUPS if g in tiers]
+    present = [g for g in ELO_GROUPS if g in tiers and _known(tiers[g], mistake_id)]
     if len(present) < 2:
         return None
     low, top = present[0], present[-1]
@@ -838,8 +843,12 @@ def _add_mistake(groups: dict[str, dict], mt: dict, g: dict, severity: str, t, t
 
 
 def _tier_pcts(tiers: dict, mistake_id: str) -> dict:
-    """% de partidas con ese tipo de error en cada elo con datos (de más bajo a más alto)."""
-    return {g: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers}
+    """% de partidas con ese tipo de error en cada elo con datos (de más bajo a más alto); sin los que no lo saben."""
+    return {
+        g: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get("pct", 0.0)
+        for g in ELO_GROUPS
+        if g in tiers and _known(tiers[g], mistake_id)
+    }
 
 
 def _elo_weight(sep: dict | None) -> float:
@@ -898,8 +907,11 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
         return None
     n = len(mine)
     count, with_type, sev, total = _count_mistakes(mine, role)
-    per_game = total / n
     all_ids = set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}
+    # Los tipos que ningún elo sabe (la lente sin usar: sus partidas son de antes) no suman a tu total, que si no saldría
+    # inflado frente al de ellos.
+    unknown = {mid for mid in all_ids if not any(_known(t, mid) for t in tiers.values())}
+    per_game = (total - sum(count[mid] for mid in unknown)) / n
     sep_ids = {mid for mid in all_ids if (sep := separation(tiers, mid)) and not sep["flat"]}
     rows = _elo_type_rows(all_ids, tiers, count, with_type, n)
     levels = _elo_levels(tiers)

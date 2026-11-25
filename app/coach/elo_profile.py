@@ -28,7 +28,7 @@ from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 7  # 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
+VERSION = 8  # 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
 SOURCES = ("otps", "partidas_campeon")
 # Con el recolector en marcha los ficheros cambian sin parar: rehacerlo cada media hora (leer ~29.000 partidas) le
@@ -113,6 +113,9 @@ class _Agg:
                 for mid, c in self.count.items()
                 if (d := (self.eligible[mid] if mid in LATER_TYPES else n)) >= (MIN_GROUP_GAMES if mid in LATER_TYPES else 1)
             },
+            # Tipos detectados desde una versión del análisis posterior a casi todas sus partidas: no se sabe cuánto los
+            # cometen (no es un 0 %), así que no se comparan.
+            "unknown": [mid for mid in LATER_TYPES if self.eligible[mid] < MIN_GROUP_GAMES],
             # Medias de movimiento (posiciones reconstruidas; solo partidas analizadas con la versión 14 o más).
             "move": {k: round(sum(v) / len(v), 2) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
         }

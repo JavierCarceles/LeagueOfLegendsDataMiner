@@ -949,7 +949,7 @@ function eloTypeRow(t, tiers) {
     `tr${t.separates === false ? ".flat" : ""}`,
     h("td", t.title, eloTypeNote(t)),
     h(`td.num${eloTypeClass(t.status)}`, `${fmt.num(t.mine_pct, 0)} %`),
-    tiers.map((g) => h("td.num.muted", `${fmt.num(t.tiers[g] ?? 0, 0)} %`)),
+    tiers.map((g) => h("td.num.muted", t.tiers[g] === undefined ? "—" : `${fmt.num(t.tiers[g], 0)} %`)),
     h("td", eloStatusPill(t.status)),
   );
 }
