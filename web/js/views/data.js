@@ -429,7 +429,6 @@ function renderPush(p, running) {
   );
 }
 
-const MASTERY_STEPS = [10_000, 20_000, 50_000, 100_000, 200_000, 300_000, 500_000, 1_000_000, 2_000_000];
 const OTP_DEPTHS = [
   { value: "30", label: "Últimos 30 días" },
   { value: "90", label: "Últimos 90 días" },
@@ -438,32 +437,19 @@ const OTP_DEPTHS = [
   { value: "365", label: "Último año" },
   { value: "all", label: "Todo lo que guarde Riot" },
 ];
-const PER_OTP = [10, 20, 30, 50, 100].map((n) => ({ value: n, label: `sus ${n} partidas más recientes` })).concat([{ value: 0, label: "todas sus partidas" }]);
-const PER_PLAYER = [10, 20, 30, 50, 100].map((n) => ({ value: n, label: `sus ${n} partidas más recientes` }));
-/** «3 horas», «2 días» o «semana». */
-function recrawlLabel(n) {
-  if (n < 24) return `${n} horas`;
-  return n === 168 ? "semana" : `${n / 24} días`;
-}
-const RECRAWL = [3, 6, 12, 24, 48, 72, 168].map((n) => ({ value: n, label: recrawlLabel(n) }));
-const QUEUES = [
-  { value: "solo", label: "Solo SoloQ" },
-  { value: "flex", label: "SoloQ y Flex" },
+// Colas (normales: recluta, a ciegas, Swiftplay y Quickplay, en la Grieta; ARAM y demás modos no cuentan).
+const QUEUE_OPTIONS = [
+  { value: "solo", label: "SoloQ" },
+  { value: "flex", label: "Flex" },
+  { value: "normal", label: "Normales" },
 ];
 const PLAYERS = [
-  { value: "games", label: "Cualquiera que lo juegue", hint: "Toda partida en la que alguien juegue ese campeón en esa línea, sea quien sea: más datos de sus builds y de todos sus matchups." },
-  { value: "specialist", label: "Especialistas", hint: "Jugadores que lo dominan: con el mínimo de maestría y, si quieres, que la mayoría de sus partidas sean con él. Para aprender de ellos y compararte." },
+  { value: "games", label: "Cualquiera" },
+  { value: "otp", label: "OTPs" },
 ];
-// Especialistas: qué parte de sus partidas tiene que ser con ese campeón (se comprueba con sus partidas, no con la
-// maestría, que es de toda la vida de la cuenta). 0 = da igual («mucha maestría»).
-const SHARES = [
-  { value: 0, label: "Da igual cuánto lo juegue", short: "juegue lo que juegue" },
-  { value: 0.25, label: "Al menos 1 de cada 4 partidas", short: "≥ 25 % de sus partidas" },
-  { value: 0.5, label: "La mitad o más (OTP)", short: "≥ 50 % de sus partidas (OTP)" },
-  { value: 0.75, label: "3 de cada 4 o más (OTP estricto)", short: "≥ 75 % de sus partidas" },
-];
-const MASTERY_DEFAULT = { games: 10_000, otp: 100_000, mastery: 100_000 };
-const isSpecialist = (focus) => focus === "otp" || focus === "mastery";
+// Variedad antes que cantidad: de cada jugador, primero 20 partidas (el resto, cuando ya no quedan jugadores nuevos), y
+// nunca se vuelve a por sus partidas nuevas. No se elige: es lo que da más datos distintos.
+const VARIETY_GAMES = 20;
 /** Cómo se llama a los jugadores encontrados según lo que buscas («OTPs» solo si buscas OTPs). */
 function noun(focus, n = 2) {
   if (focus === "otp") return n === 1 ? "OTP" : "OTPs";
@@ -471,16 +457,13 @@ function noun(focus, n = 2) {
 }
 const RESULTS_TITLE = { otp: "OTPs encontrados", mastery: "Jugadores con mucha maestría encontrados", games: "Jugadores encontrados" };
 const depthLabel = (v) => (OTP_DEPTHS.find((d) => d.value === String(v)) || OTP_DEPTHS[3]).label;
-// Qué buscar: todo el ranking, por campeón (y rol), por matchup (ventanas tipo minidraft) o por composición.
+// Qué buscar: campeones sueltos (cada uno en los roles que marques), roles enteros (todos sus campeones), matchups o
+// composiciones (ventanas tipo minidraft).
 const SEARCH_MODES = [
-  { value: "ranking", label: "Todo el ranking", hint: "Partidas de cualquier jugador del ranking, sin elegir campeones." },
-  { value: "champions", label: "Por campeón", hint: "Partidas de los campeones que elijas, en los roles que marques (o líneas enteras)." },
-  {
-    value: "matchups",
-    label: "Por matchup",
-    hint: "Ventanas de partida, como un minidraft: pones campeones contra campeones en su rol (Lee Sin vs Hecarim en jungla, Ahri vs Viktor en mid…). Una partida cuenta si tiene todos los enfrentamientos de su ventana; cada ventana se busca por separado.",
-  },
-  { value: "comps", label: "Por composición", hint: "Campeones del mismo equipo (con rol o sin él) y quién gana: composiciones iguales o parecidas." },
+  { value: "champions", label: "Campeones", hint: "Los que elijas, cada uno en los roles que marques (sin marcar, en cualquiera)." },
+  { value: "roles", label: "Roles", hint: "Todos los campeones que se juegan en esos roles, cada uno en el suyo." },
+  { value: "matchups", label: "Matchups", hint: "Partidas con campeones contra campeones en su rol, como un minidraft (Lee Sin vs Hecarim en jungla)." },
+  { value: "comps", label: "Composiciones", hint: "Partidas con esos campeones en el mismo equipo, y quién gana." },
 ];
 const PATTERN_MODES = new Set(["matchups", "comps"]);
 const ROLE_SHORT = { TOP: "top", JUNGLE: "jungla", MID: "mid", ADC: "ADC", SUPPORT: "support" };
@@ -489,7 +472,7 @@ const MAX_WINDOWS = 20;
 function searchMode(cfg) {
   if (cfg?.search_mode) return cfg.search_mode;
   if (cfg?.patterns?.length) return cfg.patterns.some((w) => w.kind !== "comp") ? "matchups" : "comps";
-  return cfg?.champions?.length || cfg?.roles?.length ? "champions" : "ranking";
+  return cfg?.roles?.length ? "roles" : "champions";
 }
 /** Ventanas del modo elegido (las de matchups y las de composiciones se guardan aparte al cambiar de modo). */
 function windowsOf(cfg) {
@@ -506,7 +489,13 @@ function windowsOf(cfg) {
 }
 const windowFilled = (w) => (w.a?.length || 0) + (w.b?.length || 0) > 0;
 const activeWindows = (cfg) => windowsOf(cfg).filter(windowFilled);
-const hasTargets = (cfg) => !!(cfg?.champions?.length || cfg?.roles?.length || (cfg && PATTERN_MODES.has(searchMode(cfg)) && activeWindows(cfg).length));
+/** ¿Hay algo que buscar? Los campeones o los roles del modo elegido (solo uno de los dos), o alguna ventana. */
+function hasTargets(cfg) {
+  if (!cfg) return false;
+  const mode = searchMode(cfg);
+  if (PATTERN_MODES.has(mode)) return activeWindows(cfg).length > 0;
+  return mode === "roles" ? cfg.roles?.length > 0 : cfg.champions?.length > 0;
+}
 
 /** «Lee Sin vs Hecarim (jungla) + Ahri vs Viktor (mid)» o «Yasuo + Malphite vs cualquiera». */
 function windowLabel(w) {
@@ -560,39 +549,27 @@ function tiersText(tiers) {
   if (contiguous && idx.length > 2) return `${TIER_LABEL[ALL_TIERS[idx[0]]]} – ${TIER_LABEL[ALL_TIERS[idx.at(-1)]]}`;
   return listText(idx.map((i) => TIER_LABEL[ALL_TIERS[i]]));
 }
-function champsText(cfg, poolSize = null) {
-  const parts = [];
-  if (cfg.roles?.length) {
-    const many = cfg.roles.length > 1;
-    const pool = poolSize ? " (" + poolSize + " campeones)" : "";
-    parts.push(`${many ? "Líneas" : "Línea"} ${linesText(cfg.roles).toLowerCase()} completa${many ? "s" : ""}${pool}`);
-  }
+function champsText(cfg) {
   const names = (cfg.champions || []).map((id) => {
     const roles = cfg.champion_roles?.[String(id)] || [];
     const which = roles.length ? " (" + roles.map((r) => ROLE_LABEL[r].toLowerCase()).join("/") + ")" : "";
     return dd.name(id) + which;
   });
-  if (names.length) parts.push(listText(names, 3));
-  return parts.join(" + ") || "Todos";
+  return names.length ? listText(names, 3) : "Ninguno: elige alguno";
 }
-function playersText(cfg) {
-  if (!hasTargets(cfg)) return "Cualquiera";
-  const points = `≥ ${fmt.compact(cfg.min_mastery || MASTERY_DEFAULT[cfg.focus] || 0)} puntos`;
-  if (cfg.focus === "games") return `Cualquiera que lo juegue · ${points}`;
-  const share = cfg.focus === "otp" ? SHARES.find((x) => x.value === Number(cfg.min_share ?? 0.5)) : null;
-  const shareText = share ? " · " + share.short : "";
-  return `Especialistas · ${points}${shareText}`;
+function rolesText(cfg, poolSize = null) {
+  if (!cfg.roles?.length) return "Ninguno: elige alguno";
+  return `${linesText(cfg.roles)}${poolSize ? ` (${poolSize} campeones)` : ""}`;
 }
-function perPlayerText(cfg) {
-  if (!hasTargets(cfg)) return `Últimas ${cfg.matches_per_player} de cada jugador`;
-  return cfg.games_per_otp ? `Primero ${cfg.games_per_otp} de cada jugador` : "Todas las de cada jugador";
+const playersText = (cfg) => (cfg.focus === "games" ? "Cualquiera" : "OTPs");
+/** Colas elegidas; una configuración antigua solo tenía «con Flex o no». */
+function queuesOf(cfg) {
+  if (Array.isArray(cfg.queues) && cfg.queues.length) return QUEUE_OPTIONS.map((q) => q.value).filter((q) => cfg.queues.includes(q));
+  return cfg.include_flex ? ["solo", "flex"] : ["solo"];
 }
-function gamesText(cfg) {
-  const queues = cfg.include_flex ? "SoloQ y Flex" : "Solo SoloQ";
-  const per = perPlayerText(cfg);
-  const only = hasTargets(cfg) && cfg.focus !== "games" && cfg.only_target_games === false ? " · también con otros campeones" : "";
-  const every = RECRAWL.find((r) => r.value === Number(cfg.recrawl_hours))?.label || cfg.recrawl_hours + " h";
-  return `${per}${only} · ${queues} · nuevas cada ${every}`;
+function queuesText(cfg) {
+  const chosen = queuesOf(cfg);
+  return joinY(QUEUE_OPTIONS.filter((q) => chosen.includes(q.value)).map((q) => q.label));
 }
 
 /** Lo que va a pasar, en una frase. */
@@ -606,7 +583,7 @@ function tiersPhrase(idx, contiguous) {
   return joinY(idx.map((i) => TIER_LABEL[ALL_TIERS[i]]));
 }
 
-const WHO_PLAYS = { games: "cualquiera que juegue", mastery: "jugadores con mucha maestría de", otp: "especialistas de" };
+const WHO_PLAYS = { games: "cualquiera que juegue", mastery: "OTPs de", otp: "OTPs de" };
 
 /** Resumen de la búsqueda por partidas (matchups o composiciones). */
 function patternSentence(cfg, mode, { verb, when, servers }) {
@@ -623,21 +600,15 @@ function sentence(cfg, poolSize, running = false) {
   const servers = all.length && cfg.platforms.length === all.length ? "todos los servidores" : joinY(cfg.platforms.map((p) => platformLabel(p))) || "ningún servidor";
   const idx = cfg.tiers.map((x) => ALL_TIERS.indexOf(x)).sort((a, b) => a - b);
   const contiguous = idx.every((v, i) => !i || v === idx[i - 1] + 1);
-  const tiers = tiersPhrase(idx, contiguous);
-  const when = WHEN[cfg.otp_depth] || WHEN.season;
+  const when = `${WHEN[cfg.otp_depth] || WHEN.season} (${queuesText(cfg)})`;
   const mode = searchMode(cfg);
   if (PATTERN_MODES.has(mode)) return patternSentence(cfg, mode, { verb, when, servers });
-  const where = `de ${tiers} en ${servers}`;
-  if (!hasTargets(cfg)) return `${verb} partidas de cualquier jugador del ranking ${where}: de cada uno, sus ${cfg.matches_per_player} más recientes ${when}.`;
+  const where = `de ${tiersPhrase(idx, contiguous)} en ${servers}`;
+  if (!hasTargets(cfg)) return mode === "roles" ? "Elige uno o más roles." : "Elige uno o más campeones.";
   const poolText = poolSize ? ` (${poolSize})` : "";
-  const champs = joinY([
-    ...(cfg.roles.length ? [`cualquier campeón de ${linesText(cfg.roles).toLowerCase()}${poolText}`] : []),
-    ...cfg.champions.map((id) => dd.name(id)),
-  ]);
-  if (cfg.focus === "games") return `${verb} todas las partidas ${when} ${where} en las que alguien juegue ${champs}, analizadas minuto a minuto.`;
-  const who = cfg.focus === "mastery" ? "jugadores con mucha maestría" : `especialistas (${Math.round(100 * Number(cfg.min_share ?? 0.5))} % o más de sus partidas con él)`;
-  const which = cfg.only_target_games !== false ? "solo sus partidas con ese campeón" : "todas sus partidas";
-  return `${verb} partidas de ${who} de ${champs}, ${where}: ${which} ${when}, analizadas minuto a minuto.`;
+  const champs = mode === "roles" ? `cualquier campeón de ${linesText(cfg.roles).toLowerCase()}${poolText}` : joinY(cfg.champions.map((id) => dd.name(id)));
+  if (cfg.focus === "games") return `${verb} partidas ${when} ${where} en las que alguien juegue ${champs}, analizadas minuto a minuto.`;
+  return `${verb} partidas de OTPs de ${champs}, ${where}: las suyas con ese campeón ${when}, analizadas minuto a minuto.`;
 }
 
 /** Por qué no se puede iniciar ("" si se puede). */
@@ -649,6 +620,7 @@ function startBlocked(cfg, key) {
     if (activeWindows(cfg).length) return "";
     return mode === "comps" ? "Añade al menos una composición" : "Añade al menos una partida con un matchup";
   }
+  if (!hasTargets(cfg)) return mode === "roles" ? "Elige al menos un rol" : "Elige al menos un campeón";
   return cfg.tiers.length ? "" : "Elige al menos un elo";
 }
 
@@ -691,12 +663,13 @@ function crawlerPanel(c, key) {
     const byGame = PATTERN_MODES.has(mode);
     const windowsLabel = mode === "comps" ? "Composiciones" : "Matchups";
     return [
-      { id: "mode", label: "Qué buscar", value: SEARCH_MODES.find((m) => m.value === mode)?.label || mode, edit: () => modeEditor(cfg, changed) },
-      mode === "champions" ? { id: "champs", label: "Campeones", value: champsText(cfg, poolSize), edit: () => champsEditor(cfg, changed) } : null,
+      { id: "mode", label: "Buscar", value: SEARCH_MODES.find((m) => m.value === mode)?.label || mode, edit: () => modeEditor(cfg, changed) },
+      mode === "champions" ? { id: "champs", label: "Campeones", value: champsText(cfg), edit: () => champsEditor(cfg, changed), bad: !cfg.champions.length } : null,
+      mode === "roles" ? { id: "roles", label: "Roles", value: rolesText(cfg, poolSize), edit: () => rolesEditor(cfg, changed), bad: !cfg.roles.length } : null,
       byGame
         ? { id: "windows", label: windowsLabel, value: windowsText(cfg), edit: () => windowsEditor(cfg, changed), bad: !activeWindows(cfg).length }
         : null,
-      mode !== "ranking" ? { id: "players", label: "Jugadores", value: playersText(cfg), edit: () => playersEditor(cfg, changed), muted: !hasTargets(cfg) } : null,
+      { id: "players", label: "Jugadores", value: playersText(cfg), edit: () => playersEditor(cfg, changed) },
       { id: "servers", label: "Servidores", value: serversText(cfg.platforms), edit: () => serversEditor(cfg, changed), bad: !cfg.platforms.length },
       byGame
         ? {
@@ -708,7 +681,7 @@ function crawlerPanel(c, key) {
           }
         : { id: "tiers", label: "Elos", value: tiersText(cfg.tiers), edit: () => tiersEditor(cfg, changed), bad: !cfg.tiers.length },
       { id: "period", label: "Periodo", value: depthLabel(cfg.otp_depth), edit: () => periodEditor(cfg, changed) },
-      { id: "games", label: "Partidas", value: gamesText(cfg), edit: () => gamesEditor(cfg, changed) },
+      { id: "queues", label: "Colas", value: queuesText(cfg), edit: () => queuesEditor(cfg, changed) },
     ].filter(Boolean);
   };
 
@@ -811,15 +784,13 @@ function choiceList(options, value, onChange) {
   );
 }
 const editHint = (text) => h("p.tiny.muted", { style: { margin: 0 } }, text);
-const inlineRow = (...children) => h("div.row-wrap.small", { style: { gap: "6px" } }, ...children);
 
 function modeEditor(cfg, changed) {
   return choiceList(SEARCH_MODES, searchMode(cfg), (value) => {
     windowsOf(cfg); // guarda las ventanas de cada modo antes de cambiar
     cfg.search_mode = value;
     if (PATTERN_MODES.has(value) && !windowsOf(cfg).length) windowsOf(cfg).push(emptyWindow(value === "comps"));
-    if (PATTERN_MODES.has(value) && cfg.focus === "games" && cfg.min_mastery < 50_000) cfg.min_mastery = 50_000; // más partidas de ese campeón por llamada
-    openRow = { matchups: "windows", comps: "windows", champions: "champs" }[value] || null;
+    openRow = { matchups: "windows", comps: "windows", champions: "champs", roles: "roles" }[value] || null;
     changed({ rebuild: true });
   });
 }
@@ -925,6 +896,33 @@ function windowsEditor(cfg, changed) {
 }
 
 function champsEditor(cfg, changed) {
+  return h(
+    "div.col",
+    { style: { gap: "10px" } },
+    editHint("Marca el rol de cada uno si quieres; sin marcar, cuenta en cualquiera."),
+    champsPicker(cfg, changed),
+    cfg.champions.length
+      ? h(
+          "div",
+          h(
+            "button.btn.btn-ghost.btn-sm",
+            {
+              type: "button",
+              onclick: () => {
+                Object.assign(cfg, { champions: [], champion_roles: {} });
+                openRow = "champs";
+                changed({ rebuild: true });
+              },
+            },
+            icon("close"),
+            "Quitar todos",
+          ),
+        )
+      : null,
+  );
+}
+
+function rolesEditor(cfg, changed) {
   const preview = h("div.tiny.muted");
   const loadPreview = () => {
     if (!cfg.roles.length) return mount(preview, "");
@@ -933,16 +931,16 @@ function champsEditor(cfg, changed) {
     linePool(cfg.roles)
       .then((champs) => {
         if (cfg.roles.join(",") !== keyRoles) return;
-        if (!champs.length) return mount(preview, "Aún no hay tier list de esa línea (OP.GG o Lolalytics): vuelve a probar en un momento.");
+        if (!champs.length) return mount(preview, "Aún no hay tier list de ese rol (OP.GG o Lolalytics): vuelve a probar en un momento.");
         const shown = champs.slice(0, 14);
         mount(
           preview,
-          h("div.row-wrap", { style: { gap: "4px" }, title: champs.map((ch) => dd.name(ch)).join(", ") }, `${champs.length} campeones (de más a menos jugados):`, shown.map((ch) => champImg(ch, "xs")), champs.length > shown.length ? h("span", `+${champs.length - shown.length}`) : null),
+          h("div.row-wrap", { style: { gap: "4px" }, title: champs.map((ch) => dd.name(ch)).join(", ") }, `${champs.length} campeones:`, shown.map((ch) => champImg(ch, "xs")), champs.length > shown.length ? h("span", `+${champs.length - shown.length}`) : null),
         );
       })
       .catch((err) => mount(preview, `No se pudo saber qué campeones entran: ${err.message}`));
   };
-  const lines = h("div.role-toggles", { role: "group", "aria-label": "Líneas enteras" });
+  const lines = h("div.role-toggles", { role: "group", "aria-label": "Roles" });
   const drawLines = () =>
     mount(
       lines,
@@ -966,29 +964,7 @@ function champsEditor(cfg, changed) {
     );
   drawLines();
   loadPreview();
-  return h(
-    "div.col",
-    { style: { gap: "12px" } },
-    editHint("Sin campeones se recogen partidas de todo el ranking. Puedes añadir líneas enteras, campeones sueltos o las dos cosas: se suman."),
-    h("div.col", { style: { gap: "6px" } }, h("div.small.muted", "Líneas enteras (todos los campeones que se juegan en ellas, y solo sus partidas en esa línea)"), lines, preview),
-    h("div.col", { style: { gap: "6px" } }, h("div.small.muted", "Campeones sueltos (marca su rol si quieres; sin marcar, cualquiera)"), champsPicker(cfg, changed)),
-    h(
-      "div",
-      h(
-        "button.btn.btn-ghost.btn-sm",
-        {
-          type: "button",
-          onclick: () => {
-            Object.assign(cfg, { champions: [], roles: [], champion_roles: {} });
-            openRow = "champs";
-            changed({ rebuild: true });
-          },
-        },
-        icon("close"),
-        "Quitar todos (volver a todo el ranking)",
-      ),
-    ),
-  );
+  return h("div.col", { style: { gap: "8px" } }, lines, preview);
 }
 
 /** Campeones sueltos: buscador y una ficha por campeón con sus roles. */
@@ -1044,49 +1020,16 @@ function champsPicker(cfg, onChange) {
 }
 
 function playersEditor(cfg, changed) {
-  if (!hasTargets(cfg)) return editHint("Sin campeones elegidos se recogen partidas de cualquier jugador del ranking. Elige campeones (fila de arriba) para buscar especialistas o cualquier partida de esos campeones.");
-  const box = h("div.col", { style: { gap: "10px" } });
-  if (cfg.min_share == null) cfg.min_share = cfg.focus === "mastery" ? 0 : 0.5;
-  const setShare = (share) => {
-    cfg.min_share = share;
-    cfg.focus = share > 0 ? "otp" : "mastery";
-  };
-  const draw = () => {
-    const share = cfg.focus === "otp" ? Number(cfg.min_share) : 0;
+  const box = h("div");
+  const draw = () =>
     mount(
       box,
-      choiceList(PLAYERS, isSpecialist(cfg.focus) ? "specialist" : "games", (v) => {
-        if (v === "games") cfg.focus = "games";
-        else setShare(cfg.min_share > 0 ? cfg.min_share : 0.5);
-        if (!cfg.min_mastery) cfg.min_mastery = MASTERY_DEFAULT[cfg.focus];
+      choiceList(PLAYERS, cfg.focus === "games" ? "games" : "otp", (v) => {
+        cfg.focus = v;
         draw();
         changed();
       }),
-      inlineRow(
-        "Con al menos",
-        select(MASTERY_STEPS.map((n) => ({ value: n, label: `${fmt.compact(n)} puntos` })), cfg.min_mastery || MASTERY_DEFAULT[cfg.focus], (v) => {
-          cfg.min_mastery = Number(v);
-          changed();
-        }, "select select-sm"),
-        "de maestría con él (entre sus 3 campeones con más puntos)",
-      ),
-      isSpecialist(cfg.focus)
-        ? inlineRow(
-            "Y que juegue con él",
-            select(SHARES.map((x) => ({ value: x.value, label: x.label })), share, (v) => {
-              setShare(Number(v));
-              changed();
-            }, "select select-sm"),
-            "",
-          )
-        : null,
-      editHint(
-        cfg.focus === "games"
-          ? "Riot no deja buscar partidas por campeón: se buscan jugadores del ranking que lo tengan entre sus 3 más jugados (con ese mínimo de puntos) y se guarda toda partida suya en la que alguien lo juegue en esa línea."
-          : "Riot no deja buscar por campeón: se mira la maestría de cada jugador del ranking (1 llamada por jugador, se recuerda 7 días) y la tabla de los mejores de cada campeón de OP.GG. La maestría es de toda la vida de la cuenta y solo sirve para encontrar candidatos: si es OTP lo dice lo que juega, con sus partidas. Tras revisar 20 (o todas las del periodo si tiene menos, desde 10), si no llega, se deja de seguirle y sus partidas cuentan como de un jugador normal, no de OTP.",
-      ),
     );
-  };
   draw();
   return box;
 }
@@ -1138,50 +1081,40 @@ function periodEditor(cfg, changed) {
         draw();
         changed();
       }),
-      editHint(
-        hasTargets(cfg)
-          ? "Cuentan los jugadores que han jugado ese campeón en este periodo, y se bajan sus partidas de este mismo periodo."
-          : "La primera vez que se mira a un jugador, sus partidas de este periodo (las más recientes; ver «Partidas»). Después, solo las nuevas.",
-      ),
+      editHint("Partidas de este periodo, de jugadores que han jugado esos campeones en él."),
     );
   draw();
   return box;
 }
 
-function gamesEditor(cfg, changed) {
-  const sel = (options, value, onPick) => select(options, value, (v) => {
-    onPick(v);
-    changed();
-  }, "select select-sm");
-  return h(
-    "div.col",
-    { style: { gap: "10px" } },
-    hasTargets(cfg)
-      ? h(
-          "div.col",
-          { style: { gap: "4px" } },
-          inlineRow("Primero, de cada jugador,", sel(PER_OTP, cfg.games_per_otp ?? 30, (v) => (cfg.games_per_otp = Number(v)))),
-          editHint("Variedad antes que cantidad: primero un jugador de cada campeón, luego al menos 3 por campeón en cada elo y, cuando ya no aparezcan jugadores nuevos, el resto de sus partidas del periodo."),
-        )
-      : inlineRow("De cada jugador,", sel(PER_PLAYER, cfg.matches_per_player, (v) => (cfg.matches_per_player = Number(v)))),
-    hasTargets(cfg) && cfg.focus !== "games"
-      ? h(
-          "label.check",
-          { title: "Desmarcado, también se guardan sus partidas con otros campeones (sirven para las estadísticas generales, no para aprender de ese campeón)." },
-          h("input", {
-            type: "checkbox",
-            checked: cfg.only_target_games !== false,
-            onchange: (e) => {
-              cfg.only_target_games = e.target.checked;
+function queuesEditor(cfg, changed) {
+  const box = h("div.role-toggles", { role: "group", "aria-label": "Colas" });
+  const draw = () => {
+    const chosen = queuesOf(cfg);
+    mount(
+      box,
+      QUEUE_OPTIONS.map((q) =>
+        h(
+          `button.role-toggle${chosen.includes(q.value) ? ".on" : ""}`,
+          {
+            type: "button",
+            "aria-pressed": chosen.includes(q.value) ? "true" : "false",
+            onclick: () => {
+              const now = queuesOf(cfg); // las de ahora, no las de cuando se pintó el botón
+              if (now.length === 1 && now[0] === q.value) return; // al menos una
+              const next = now.includes(q.value) ? now.filter((x) => x !== q.value) : [...now, q.value];
+              cfg.queues = QUEUE_OPTIONS.map((o) => o.value).filter((x) => next.includes(x));
+              draw();
               changed();
             },
-          }),
-          "Solo sus partidas con ese campeón (y en esa línea)",
-        )
-      : null,
-    inlineRow("Colas:", sel(QUEUES, cfg.include_flex ? "flex" : "solo", (v) => (cfg.include_flex = v === "flex"))),
-    inlineRow("Buscar sus partidas nuevas cada", sel(RECRAWL, Number(cfg.recrawl_hours), (v) => (cfg.recrawl_hours = Number(v)))),
-  );
+          },
+          h("span", q.label),
+        ),
+      ),
+    );
+  };
+  draw();
+  return box;
 }
 
 /** Con la key gratuita, cada región (Europa, América, Asia, SEA) tiene su propio cupo: con una sola, ~25 partidas/min. */
@@ -1202,19 +1135,24 @@ function startPayload() {
   if (PATTERN_MODES.has(mode)) {
     // Buscando por partidas, los campeones salen de las ventanas (el servidor los saca de ellas).
     cfg.patterns = activeWindows(cfg).map((w) => ({ kind: w.kind, name: w.name || "", a: w.a, b: w.b, min_a: w.min_a || null, min_b: w.min_b || null }));
-    cfg.champions = [];
-    cfg.roles = [];
-    cfg.champion_roles = {};
+    Object.assign(cfg, { champions: [], roles: [], champion_roles: {} });
+  } else if (mode === "roles") {
+    Object.assign(cfg, { patterns: [], champions: [], champion_roles: {} });
   } else {
-    cfg.patterns = [];
-    if (mode === "ranking") Object.assign(cfg, { champions: [], roles: [], champion_roles: {} });
+    Object.assign(cfg, { patterns: [], roles: [] });
   }
-  for (const k of ["_matchups", "_comps", "search_mode"]) delete cfg[k];
-  if (!hasTargets(cfg) && !cfg.patterns.length) cfg.focus = "otp"; // sin campeones da igual: se recoge todo el ranking
-  if (cfg.focus === "games") cfg.only_target_games = true;
-  delete cfg.save_details; // siempre activo: no se elige
-  delete cfg.role_champions;
-  delete cfg.season_version;
+  // OTP = su campeón principal, muy por encima del segundo (sin revisar sus partidas ni mínimos de puntos); variedad:
+  // de cada jugador primero VARIETY_GAMES partidas y nunca se vuelve a por las nuevas.
+  Object.assign(cfg, {
+    focus: cfg.focus === "games" ? "games" : "otp",
+    otp_rule: "ratio",
+    queues: queuesOf(cfg),
+    games_per_otp: VARIETY_GAMES,
+    recrawl_hours: 0,
+    only_target_games: true,
+    min_share: 0,
+  });
+  for (const k of ["_matchups", "_comps", "search_mode", "save_details", "role_champions", "role_pools", "season_version", "min_mastery", "include_flex", "matches_per_player"]) delete cfg[k];
   return cfg;
 }
 
@@ -1702,10 +1640,12 @@ function otpFunnel(data) {
   if (!f?.total?.checked) return null;
   const champs = data.lines?.length ? `un campeón de ${linesText(data.lines).toLowerCase()}` : (data.champions || []).map((c) => dd.name(c)).join(" / ");
   const who = noun(data.focus);
-  const activeWho = data.focus === "otp" ? "candidatos" : who;
+  const ratio = data.focus === "otp" && data.otp_rule === "ratio";
+  const activeWho = data.focus === "otp" && !ratio ? "candidatos" : who; // por maestría, el periodo es lo último
   const label = {
     checked: "revisados",
-    champ: `con ${champs} entre sus 3 más jugados`,
+    champ: ratio ? `con ${champs} de principal` : `con ${champs} entre sus 3 más jugados`,
+    ratio: "OTPs",
     points: `con ≥ ${fmt.compact(data.min_mastery)} puntos`,
     active: `jugado en el periodo (${depthLabel(data.otp_depth).toLowerCase()}) = ${activeWho}`,
     share: `comprobados con sus partidas: ≥ ${Math.round(100 * (data.min_share ?? 0.5))} % con él = ${who}`,

@@ -337,7 +337,9 @@ def test_specialists_are_checked_with_their_own_games(keyed_svc):
     lo juega sigue hasta el final. Al descartado se le juzga por lo que juega, no por su maestría (que diría OTP)."""
     ids_a, pay_a = history("casual", 200, prefix="1", champ_for=lambda i: AATROX if i % 5 == 0 else GAREN, every_h=3)
     ids_b, pay_b = history("main", 60, prefix="2", champ_for=lambda i: AATROX if i % 4 else GAREN, every_h=3)
-    fake = HistoryRiot({"casual": ids_a, "main": ids_b}, {**pay_a, **pay_b}, {"casual": [(AATROX, 900_000)], "main": [(AATROX, 900_000)]})
+    # El casual tiene casi tantos puntos con Garen (no es OTP por maestría): lo decide lo que juega.
+    mastery = {"casual": [(AATROX, 900_000), (GAREN, 800_000)], "main": [(AATROX, 900_000)]}
+    fake = HistoryRiot({"casual": ids_a, "main": ids_b}, {**pay_a, **pay_b}, mastery)
     run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="otp", only_target_games=True)
     casual, main = progress(keyed_svc, "casual"), progress(keyed_svc, "main")
     assert casual["back_done_reason"] == "share" and casual["seen"] == 14 and casual["hits"] == 3
@@ -749,9 +751,10 @@ def test_who_counts_as_an_otp_when_classifying_a_game(keyed_svc):
     now = _now_s()
     db = keyed_svc.db
     tops = {
-        "main": [[AATROX, 300_000, now], [GAREN, 100_000, now]],  # principal, ≥ 100 K y ≥ 1,5× el segundo
+        "main": [[AATROX, 300_000, now], [GAREN, 100_000, now]],  # principal y ≥ 1,5× el segundo
         "close": [[AATROX, 300_000, now], [GAREN, 250_000, now]],  # no llega a 1,5×
-        "low": [[AATROX, 60_000, now], [GAREN, 10_000, now]],  # pocos puntos
+        "low": [[AATROX, 60_000, now], [GAREN, 10_000, now]],  # pocos puntos: desde el 26-11-2026 da igual, es OTP
+        "tiny": [[AATROX, 8_000, now], [GAREN, 1_000, now]],  # cuenta casi nueva: no
         "second": [[GAREN, 900_000, now], [AATROX, 400_000, now]],  # lo juega, pero no es su principal
     }
     with db.write() as conn:
@@ -759,7 +762,7 @@ def test_who_counts_as_an_otp_when_classifying_a_game(keyed_svc):
             conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps(top)))
         conn.execute("INSERT INTO otp_sources (puuid, champ, platform, source, fetched_at) VALUES ('board', ?, 'euw1', 'opgg', ?)", (AATROX, now))
     kinds = {p: otp_details.classify(db, p, AATROX) for p in [*tops, "board", "unknown"]}
-    assert kinds == {"main": "otp", "close": "player", "low": "player", "second": "player", "board": "otp", "unknown": "player"}
+    assert kinds == {"main": "otp", "close": "player", "low": "otp", "tiny": "player", "second": "player", "board": "otp", "unknown": "player"}
 
 
 def test_champion_games_of_non_otps_go_to_their_own_folder(keyed_svc):
@@ -1527,7 +1530,8 @@ def test_reclassified_players_move_folder_alone_without_rebuilding_everything(ke
     """Al arrancar, quien ya tiene partidas revisadas y no juega el campeón lo bastante pasa de otps a partidas_campeon:
     solo su carpeta (antes se regeneraban las dos enteras, con el recolector bloqueado minutos)."""
     ids, payloads = history("otp-a", 4, prefix="1", champ_for=lambda i: AATROX)
-    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    # Casi tantos puntos con Garen: no es OTP por maestría (lo decide lo que juega).
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000), (GAREN, 850_000)]})
     run_history(keyed_svc, fake, champions=[AATROX], focus="games", save_details=True)
     db = keyed_svc.db
     with db.write() as conn:  # lo daban por OTP; con 40 partidas revisadas, solo 4 con Aatrox: no lo es

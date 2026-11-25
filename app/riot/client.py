@@ -240,14 +240,16 @@ class RiotClient:
         end_time: int | None = None,
         start: int = 0,
         count: int = 20,
+        match_type: str | None = None,
         **kw,
     ) -> list[str]:
-        """Ids de partidas (de la más reciente a la más antigua). ``start``/``count`` paginan de 100 en 100 como mucho."""
+        """Ids de partidas (de la más reciente a la más antigua). ``start``/``count`` paginan de 100 en 100 como mucho.
+        ``match_type``: «ranked», «normal»… (``ranked_only`` es lo mismo que «ranked»)."""
         params: dict = {"start": max(0, int(start)), "count": max(1, min(count, 100))}
         if queue is not None:
             params["queue"] = queue
-        if ranked_only:
-            params["type"] = "ranked"
+        if match_type or ranked_only:
+            params["type"] = match_type or "ranked"
         if start_time:
             params["startTime"] = int(start_time)
         if end_time:
