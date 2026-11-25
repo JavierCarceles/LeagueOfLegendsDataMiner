@@ -2180,13 +2180,33 @@ class RegionWorker(threading.Thread):
         self.state["other_champ_skipped"] += 1
 
     def _details_for(self, match_id: str, payload: dict, player, got: Ingested, found: list) -> bool:
-        """Timeline y análisis: de la partida entera si encaja con una ventana; si no, del jugador con su campeón."""
+        """Timeline y análisis: de la partida entera si encaja con una ventana; con todo el ranking, de los 10 jugadores de
+        cada partida nueva; si no, del jugador con su campeón."""
         cfg = self.config
         if not cfg.save_details or got.result not in ("stored", "duplicate"):
             return False
         if cfg.patterns:
             return bool(found) and self._pattern_detail(match_id, payload, _field(player, "tier"), found)
-        return bool(cfg.targets) and got.mine_target and self._detail(match_id, payload, player)
+        if not cfg.targets:
+            return got.result == "stored" and self._ranking_detail(match_id, payload, player)
+        return got.mine_target and self._detail(match_id, payload, player)
+
+    def _ranking_detail(self, match_id: str, payload: dict, player) -> bool:
+        """Todo el ranking: el timeline y el análisis de los 10 jugadores de la partida, solo en la base de datos
+        (``otp_details.save_ranking_game``: cuentan en la gráfica del total; no van a data/ ni a GitHub). ``True`` si se
+        guardó alguno. Cuesta una llamada más por partida (el timeline)."""
+        fetched = self._detail_downloads(match_id, payload)
+        if fetched is None:
+            return False
+        payload, timeline = fetched
+        try:
+            with self.timed("analizar_guardar"):
+                saved = otp_details.save_ranking_game(self.svc.db, self.svc, payload, timeline, _field(player, "tier"))
+        except Exception:
+            log.exception("No se pudo analizar la partida %s del ranking", match_id)
+            return False
+        self.state["details"] += saved
+        return saved > 0
 
     def _count_stored(self, payload: dict, player, got: Ingested) -> None:
         """Contadores, subida a GitHub y medias del ranking de una partida ya guardada (o repetida)."""
@@ -2203,7 +2223,7 @@ class RegionWorker(threading.Thread):
             key = {"duplicate": "duplicates", "remake": "remakes"}.get(got.result, "ignored")
             self.state[key] += 1
             return
-        if not cfg.targets:  # todo el ranking: el reparto cuenta las guardadas (por campeones, las analizadas)
+        if not cfg.targets and not got.detailed:  # todo el ranking: las que no se pudieron analizar también cuentan
             self.crawler.note_session(self.region, _field(player, "tier") or "")
         # Las estadísticas exactas de Riot de sus 10 jugadores, a las medias por elo (también sin análisis).
         try:

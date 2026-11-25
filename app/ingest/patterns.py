@@ -355,12 +355,13 @@ def game_record(match: dict, timeline: dict | None, tier: str | None, catalog=No
     info = match.get("info") or {}
     players = []
     shared: dict = {}
+    tracks: dict = {}  # los recorridos de los 10, una vez: iguales desde los 10 puntos de vista
     for p in info.get("participants") or []:
         puuid = p.get("puuid")
         if not puuid:
             continue
         try:
-            dossier = otp_details.build_dossier(match, timeline, puuid, catalog, elo={"tier": tier})
+            dossier = otp_details.build_dossier(match, timeline, puuid, catalog, elo={"tier": tier}, shared=tracks)
         # un jugador raro no tira la partida entera
         except Exception:  # noqa: BLE001
             log.debug("No se pudo analizar a un jugador de %s", (match.get("metadata") or {}).get("matchId"), exc_info=True)

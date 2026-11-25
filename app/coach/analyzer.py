@@ -349,10 +349,17 @@ def _building_kind(e: dict) -> str:
 class _Game:
     """Datos de la partida indexados para consultas rápidas."""
 
-    def __init__(self, match: dict, timeline: dict | None, me: dict, catalog: ItemCatalog | None = None, *, route_all: bool = True) -> None:
+    def __init__(
+        self, match: dict, timeline: dict | None, me: dict, catalog: ItemCatalog | None = None, *, route_all: bool = True,
+        shared: dict | None = None,
+    ) -> None:
         # Rutas que rodean muros de los 10 o solo del jugador analizado (las partidas de otros jugadores que guarda el
         # recolector solo usan su recorrido: rodear los muros de los 10 era la mayor parte del tiempo de análisis).
-        self.route_all = route_all
+        # ``shared``: lo que no depende de quién se analiza (los recorridos de los 10, rodeando muros todos, y dónde
+        # pasa el tiempo cada uno), calculado una vez para los 10 análisis de una partida: así el recorrido de cada
+        # jugador es el mismo desde los 10 puntos de vista (antes solo el del analizado rodeaba muros) y no se repite.
+        self._shared = shared
+        self.route_all = route_all or shared is not None
         info = match.get("info") or {}
         self.info = info
         self.duration = duration_seconds(info)
@@ -725,6 +732,11 @@ class _Game:
 
     def _tracks(self) -> None:
         """Puntos de paso de cada jugador: frames + eventos con posición + tienda y reapariciones."""
+        shared = self._shared
+        if shared is not None and "anchors" in shared:  # ya reconstruidos para otro de los 10 análisis de la partida
+            self.raw_anchors, self.anchors, self._anchor_t = shared["raw_anchors"], shared["anchors"], shared["anchor_t"]
+            self.camp_misses, self.camp_minutes = shared["camp_misses"], shared["camp_minutes"]
+            return
         anchors: dict[int, list[tuple[int, int, int, int]]] = {pid: [] for pid in self.players}
         for pid in self.players:
             self._own_anchors(anchors, pid)
@@ -733,6 +745,10 @@ class _Game:
         for pid, camps in infer_camps(self, anchors).items():
             anchors[pid].extend(camps)
         for pid, spots in infer_lane_farm(self, anchors).items():
+            anchors[pid].extend(spots)
+        for pid, spots in infer_fights(self, anchors).items():
+            anchors[pid].extend(spots)
+        for pid, spots in infer_ward_kills(self, anchors).items():
             anchors[pid].extend(spots)
         self.raw_anchors = {pid: sorted(a) for pid, a in anchors.items()}  # sin corregir (para validar la reconstrucción)
         # Corregidos (vueltas a base, teletransportes) y andando por donde se puede: rodeando los muros salvo los
@@ -743,6 +759,11 @@ class _Game:
             fixed = _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"]))
             self.anchors[pid] = _walk(fixed, self.players[pid].get("champ")) if self.route_all or pid == me_pid else fixed
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
+        if shared is not None:
+            shared.update(
+                raw_anchors=self.raw_anchors, anchors=self.anchors, anchor_t=self._anchor_t,
+                camp_misses=getattr(self, "camp_misses", 0), camp_minutes=getattr(self, "camp_minutes", 0),
+            )
 
     def _own_anchors(self, anchors: dict[int, list], pid: int) -> None:
         """Puntos de paso propios de ``pid``: sus frames, sus compras (en la fuente), sus muertes y sus reapariciones."""
@@ -863,7 +884,8 @@ class _Game:
 # ====================================================================== análisis
 # Puntos de paso: 0 frame (exacto, cada minuto) · 1 evento propio (kill, objetivo, torre) · 2 en la fuente (compra o
 # reaparición) · 3 muerte · 4 «se queda aquí y salta» (vuelta a base o teletransporte) · 5 a distancia de combate de una
-# muerte (hizo o recibió daño; aproximado).
+# muerte (hizo o recibió daño; aproximado) · 6 campamento de jungla · 7 ruta rodeando muros · 8 farmeando en una línea ·
+# 9 pelea sin muerte (deducida del daño a campeones del minuto).
 ANCHOR_BASE, ANCHOR_DEATH, ANCHOR_HOLD, ANCHOR_NEAR = 2, 3, 4, 5
 EXACT_ANCHOR_KINDS = (0, 1, ANCHOR_BASE, ANCHOR_DEATH)  # posiciones que da Riot (el resto se deducen)
 RECALL_MS = 8_000 + 1_000  # canalización de la vuelta a base y un segundo hasta comprar
@@ -1153,6 +1175,218 @@ def _lane_farm_spot(g, pid: int, i: int, others: list[int], lanes: list) -> tupl
     return min((_closest_on(pts, mid) for pts in lanes), key=lambda q, mid=mid: geo.dist(q, mid))
 
 
+# ---------------------------------------------------------------- peleas sin muerte deducidas
+# Riot da cada minuto el daño a campeones acumulado de cada jugador, su vida y su velocidad. Quien hizo daño a campeones
+# en un minuto tuvo que estar a distancia de pegar a algún rival; si ni mató, ni asistió, ni murió (eso ya le sitúa) y
+# su recorrido no le acerca a ningún rival, fue una pelea sin muerte que la reconstrucción no veía: un gank que no salió,
+# un encontronazo en la jungla, un intercambio en el río. 25-11-2026, con las partidas del usuario: en el 8,9 % de los
+# minutos con daño a campeones (821 de 9.189) ningún rival pasaba a menos de 1.200 unidades; con esto, en el 5,3 %.
+# Validado (``track_check``, 55 partidas): posición del minuto escondida a quien pegó sin kill, error mediano 2.625 →
+# 2.192 y más de 4.000 unidades 35,2 % → 30,3 %; posición de un evento quitada, 1.130 → 1.113; los minutos de línea
+# imposibles siguen en 0. El encuentro se busca por donde se anda (rodeando muros). Probado y descartado: elegir al rival
+# por su vida de menos (todos la tienen por los súbditos), sacar de su línea a quien farmea (los minutos de línea
+# imposibles pasaban de 0 a 5) y contar el tiempo de control a rivales como pelea (empeoraba: las ralentizaciones a
+# distancia también cuentan).
+ANCHOR_FIGHT = 9  # peleando con un rival (deducido del daño a campeones de ese minuto)
+FIGHT_DMG = 200  # daño a campeones en un minuto que exige haber estado a distancia de pegar a un rival
+FIGHT_RANGE = 1_200  # a esta distancia de un rival ya pudo pegarle: no hace falta mover a nadie
+FIGHT_GAP = 500  # a qué distancia se coloca a los dos (alcance de un golpe o una habilidad corta)
+FIGHT_STEP_MS = 2_500
+FIGHT_EXPLAINED_MS = 10_000  # una kill, asistencia o muerte poco antes o en el minuto ya explica su daño
+FIGHT_HP_SHARE = 0.25  # sin pegar, acabar el minuto con un cuarto de vida de menos también es señal de pelea
+FIGHT_FARM_CS = 4  # súbditos en el minuto: estaba en su línea (no se le mueve; si pelea, el otro fue a por él)
+FIGHT_SPEED_SLACK = 1.15  # sobre su velocidad del frame (fantasmal, arrastres cortos)
+MIN_MOVE_SPEED = 325
+# Pegan de lejos, con definitivas globales o con trampas y mascotas: su daño no dice dónde estaban.
+LONG_REACH = frozenset({
+    17, 22, 30, 35, 41, 51, 57, 74, 76, 81, 96, 99, 101, 110, 115, 119, 126, 142, 143, 161, 202, 222, 235, 901,
+})
+
+
+def _minute_delta(g, pid: int, i: int, key: str, group: str | None = "damageStats") -> int:
+    """Lo que creció ``key`` (de ``damageStats``, o del frame si ``group`` es ``None``) del frame ``i - 1`` al ``i``; 0 si falta."""
+    frames = [g.pf[pid][j] or {} for j in (i - 1, i)]
+    a, b = [(f if group is None else f.get(group) or {}).get(key) for f in frames]
+    return int(b - a) if a is not None and b is not None and b > a else 0
+
+
+def _hp_missing(g, pid: int, i: int) -> int:
+    """Vida que le faltaba al acabar el minuto (le pegaron hace poco: campeones, súbditos o monstruos)."""
+    stats = (g.pf[pid][i] or {}).get("championStats") or {}
+    hp, top = stats.get("health"), stats.get("healthMax")
+    return max(0, int(top - hp)) if hp is not None and top else 0
+
+
+def _move_speed(g, pid: int, i: int) -> float:
+    """Unidades por ms a las que pudo ir en el minuto que acaba en ``i`` (su velocidad del frame, con margen)."""
+    speeds = [((g.pf[pid][j] or {}).get("championStats") or {}).get("movementSpeed") for j in (i - 1, i)]
+    return max([MIN_MOVE_SPEED, *[v for v in speeds if v]]) * FIGHT_SPEED_SLACK / 1000
+
+
+def infer_fights(g, anchors: dict[int, list]) -> dict[int, list[tuple[int, int, int, int]]]:
+    """Peleas sin muerte: a quien hizo daño a campeones en un minuto sin que nada le sitúe cerca de un rival se le junta
+    con el rival que más encaja (el que también pegó o acabó el minuto con menos vida) en el momento y el sitio en que
+    menos se desvían los dos de su recorrido, sin pasar de su velocidad. Si no da tiempo andando, no se inventa nada."""
+    out: dict[int, list] = {}
+    if not g.has_timeline or len(g.ts) < 2:
+        return out
+    tracks = {pid: sorted(anchors.get(pid) or []) for pid in g.players}
+    for i in range(1, len(g.ts)):
+        dealt = {pid: d for pid in g.players if (d := _minute_delta(g, pid, i, "totalDamageDoneToChampions")) >= FIGHT_DMG}
+        for a in sorted(dealt, key=lambda pid: -dealt[pid]):
+            for pid, anchor in _fight_points(g, tracks, a, i, dealt):
+                out.setdefault(pid, []).append(anchor)
+                bisect.insort(tracks[pid], anchor)
+    return out
+
+
+def _explained(track: list, t0: int, t1: int) -> bool:
+    """¿Ya hay algo que le sitúe peleando en ese minuto (kill, asistencia, muerte, daño en una kill o pelea deducida)?"""
+    return any(a[3] in (1, ANCHOR_DEATH, ANCHOR_NEAR, ANCHOR_FIGHT) and t0 - FIGHT_EXPLAINED_MS <= a[0] <= t1 for a in track)
+
+
+def _fight_points(g, tracks: dict[int, list], a: int, i: int, dealt: dict[int, int]) -> list[tuple[int, tuple]]:
+    """Los puntos de pelea de ``a`` (y de su rival) en el minuto que acaba en ``i``, o ``[]``."""
+    t0, t1 = g.ts[i - 1], g.ts[i]
+    if g.players[a].get("champ") in LONG_REACH or _explained(tracks[a], t0, t1):
+        return []
+    enemies = [q for q in g.players if g.players[q]["team"] != g.players[a]["team"]]
+    times = list(range(t0 + FIGHT_STEP_MS, t1, FIGHT_STEP_MS))
+    pos = {pid: [None if g.is_dead(pid, t) else interpolate(tracks[pid], t) for t in times] for pid in (a, *enemies)}
+    for q in enemies:  # ya pasa cerca de algún rival: su daño está explicado
+        if any(pa and pq and geo.dist(pa, pq) <= FIGHT_RANGE for pa, pq in zip(pos[a], pos[q])):
+            return []
+    best = None
+    a_moves = not _farming(g, a, i)
+    for q in enemies:
+        if not _fought(g, q, i):
+            continue
+        q_moves = not _explained(tracks[q], t0, t1) and not _farming(g, q, i)
+        if not (a_moves or q_moves):
+            continue
+        for k, t in enumerate(times):
+            plan = _meet(g, tracks, (a, q), t, (pos[a][k], pos[q][k]), (a_moves, q_moves), i)
+            if plan is not None and (best is None or plan[0] < best[0]):  # el rival y el momento que menos desvían
+                best = plan
+    return best[1] if best else []
+
+
+def _fought(g, q: int, i: int) -> bool:
+    """¿Hay señal de que ``q`` peleó en el minuto? Pegó a campeones o lo acabó con un cuarto de vida de menos (también si
+    hizo campamentos o súbditos, que quitan vida: no distinguirlo acierta más, muchas peleas sin muerte son en los
+    campamentos; probado el 25-11-2026: sin contar la vida de quien farmeó, 2.646 → 2.333 en vez de → 2.199)."""
+    if _minute_delta(g, q, i, "totalDamageDoneToChampions") >= FIGHT_DMG / 2:
+        return True
+    stats = (g.pf[q][i] or {}).get("championStats") or {}
+    top = stats.get("healthMax") or 0
+    return bool(top) and _hp_missing(g, q, i) >= FIGHT_HP_SHARE * top
+
+
+def _farming(g, pid: int, i: int) -> bool:
+    """Farmeó súbditos en el minuto (estaba en su línea): no se le saca de ella, es el otro quien va."""
+    return _minute_delta(g, pid, i, "minionsKilled", group=None) >= FIGHT_FARM_CS
+
+
+def _meet(g, tracks: dict[int, list], pair: tuple[int, int], t: int, spots: tuple, moves: tuple[bool, bool], i: int):
+    """(desvío, puntos) para que los dos estén a ``FIGHT_GAP`` en ``t`` sin pasar de su velocidad, o ``None``. El
+    desvío es lo que se apartan de su recorrido; ``moves``: si cada uno se puede mover (quien farmea se queda)."""
+    (a, q), (pa, pq) = pair, spots
+    if pa is None or pq is None:
+        return None
+    path = navgrid.route(pa, pq, g.players[a].get("champ"))  # por donde se anda entre los dos (rodeando muros)
+    d = navgrid.length(path)
+    need = d - FIGHT_GAP
+    if need <= 0 or geo.dist(pa, pq) <= FIGHT_GAP:
+        return None
+    a_moves, q_moves = moves
+    shares = [w for w in (0.5, 0.25, 0.75, 1.0, 0.0) if (a_moves or w == 0) and (q_moves or w == 1)]
+    best = None
+    for w in shares:
+        ma = navgrid.along(path, need * w / d)
+        mq = navgrid.along(path, 1 - need * (1 - w) / d)
+        effort = _speed_ratio(g, tracks[a], a, t, ma, i) if w > 0 else 0.0
+        if w < 1:
+            effort = max(effort, _speed_ratio(g, tracks[q], q, t, mq, i))
+        if effort > 1:
+            continue
+        points = [(a, (t, int(ma[0]), int(ma[1]), ANCHOR_FIGHT))] if w > 0 else []
+        if w < 1:
+            points.append((q, (t, int(mq[0]), int(mq[1]), ANCHOR_FIGHT)))
+        if best is None or (need, effort) < best[0]:
+            best = ((need, effort), points)
+    return best
+
+
+def _speed_ratio(g, track: list, pid: int, t: int, p, i: int) -> float:
+    """Velocidad que exige pasar por ``p`` en ``t`` (entre sus puntos de antes y de después) frente a la suya (≤ 1: puede)."""
+    j = bisect.bisect_left(track, (t,))
+    prev = track[j - 1] if j > 0 else None
+    nxt = track[j] if j < len(track) else None
+    if prev is not None and prev[3] == ANCHOR_DEATH:
+        return math.inf
+    speed = _move_speed(g, pid, i)
+    ratio = 0.0
+    if prev is not None:
+        ratio = max(ratio, geo.dist((prev[1], prev[2]), p) / max(1, t - prev[0]) / speed)
+    if nxt is not None:
+        ratio = max(ratio, geo.dist(p, (nxt[1], nxt[2])) / max(1, nxt[0] - t) / speed)
+    return ratio
+
+
+# ---------------------------------------------------------------- wards rotos deducidos
+# WARD_KILL dice quién rompió un ward rival y cuándo, no dónde; WARD_PLACED, quién lo puso y cuándo (estaba donde quien
+# lo puso). Si el recorrido de quien lo rompió no pasa cerca de ningún ward rival vivo de ese tipo, fue a por uno: se le
+# coloca junto al que le pilla más cerca de su camino y le da tiempo a alcanzar. Validado (``track_check``): posición del
+# minuto escondida a quien rompió un ward, error mediano 2.277 → 1.947 y más de 4.000 unidades 28,5 % → 20,0 %.
+ANCHOR_WARD = 10  # rompiendo un ward rival (deducido)
+WARD_BREAK_REACH = 700  # a esta distancia de un ward rival ya pudo romperlo (o verlo con la lente)
+WARD_BREAK_GAP = 400
+
+
+def infer_ward_kills(g, anchors: dict[int, list]) -> dict[int, list[tuple[int, int, int, int]]]:
+    """Puntos de paso de quien rompió un ward rival sin pasar cerca de ninguno (ver arriba)."""
+    out: dict[int, list] = {}
+    if not g.has_timeline:
+        return out
+    tracks = {pid: sorted(anchors.get(pid) or []) for pid in g.players}
+    for t, killer, kind in sorted(g.ward_kill_events):
+        if killer not in g.players or g.is_dead(killer, t):
+            continue
+        kp = interpolate(tracks[killer], t)
+        spots = [p for p in _enemy_ward_spots(g, tracks, killer, t, kind) if p is not None]
+        if kp is None or not spots or any(geo.dist(kp, p) <= WARD_BREAK_REACH for p in spots):
+            continue
+        i = max(1, min(len(g.ts) - 1, bisect.bisect_right(g.ts, t)))
+        best = None
+        for spot in spots:
+            d = geo.dist(kp, spot)
+            f = (d - WARD_BREAK_GAP) / d
+            p = (kp[0] + (spot[0] - kp[0]) * f, kp[1] + (spot[1] - kp[1]) * f)
+            if navgrid.walkable(p) and _speed_ratio(g, tracks[killer], killer, t, p, i) <= 1 and (best is None or d < best[0]):
+                best = (d, p)
+        if best is not None:
+            anchor = (t, int(best[1][0]), int(best[1][1]), ANCHOR_WARD)
+            out.setdefault(killer, []).append(anchor)
+            bisect.insort(tracks[killer], anchor)
+    return out
+
+
+def _enemy_ward_spots(g, tracks: dict[int, list], killer: int, t: int, kind: str) -> list:
+    """Sitios estimados de los wards rivales de ``kind`` que podían seguir vivos en ``t`` (donde estaba quien los puso)."""
+    team = g.players[killer]["team"]
+    spots = []
+    for pid, events in g.ward_events.items():
+        if pid not in g.players or g.players[pid]["team"] == team:
+            continue
+        for wt, wkind in events:
+            if wt > t or (wkind != kind and kind in (*STEALTH_WARDS, "CONTROL_WARD")):
+                continue
+            life = WARD_LIFE_MS.get(wkind, WARD_WINDOW_MS) if wkind != "CONTROL_WARD" else None
+            if life is None or t - wt <= life:
+                spots.append(interpolate(tracks[pid], wt))
+    return spots
+
+
 MOVE_STEP_MS = 5_000
 MOVE_GROUP_RADIUS = 2_000  # «agrupado»: al menos 2 aliados a esta distancia
 MOVE_ZONES = ("lane", "other_lane", "river", "own_jungle", "enemy_jungle", "base", "dead")
@@ -1231,9 +1465,12 @@ def analyze_game(
     tag_line: str | None = None,
     items: ItemCatalog | None = None,
     route_all: bool = True,
+    shared: dict | None = None,
 ) -> dict:
+    """Análisis de la partida desde el punto de vista de un jugador. ``shared``: el mismo diccionario (vacío al empezar)
+    para los 10 jugadores de una partida: sus recorridos y su movimiento se calculan una vez y son los mismos en los 10."""
     me_raw = find_me(match, pid=pid, puuid=puuid, game_name=game_name, tag_line=tag_line)
-    g = _Game(match, timeline, me_raw, items, route_all=route_all)
+    g = _Game(match, timeline, me_raw, items, route_all=route_all, shared=shared)
     me = g.me["pid"]
 
     deaths = [_classify_death(g, k) for k in g.kills if k["victim"] == me]
@@ -1430,7 +1667,13 @@ def _gold_lead(series: dict, metrics: dict) -> None:
 
 def _movement_metrics(g: _Game, result: dict, metrics: dict) -> None:
     """Movimiento de los 10 jugadores (``result["movement"]``) y, en las métricas, cómo repartiste tú el tiempo."""
-    movement = _movement(g)
+    shared = g._shared
+    if shared is not None and "movement" in shared:
+        movement = shared["movement"]  # el mismo para los 10 análisis de la partida (era el 74 % del tiempo de cada uno)
+    else:
+        movement = _movement(g)
+        if shared is not None:
+            shared["movement"] = movement
     if not movement:
         return
     result["movement"] = movement

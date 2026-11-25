@@ -23,12 +23,16 @@ from app.coach import geometry as geo
 FAR = 4_000  # «fallo grande»: más lejos que esto de donde estaba de verdad (el mapa mide ~15.000)
 
 
-def cases(match: dict, timeline: dict, pid: int, catalog=None, camps: bool = True):
+DEDUCED = (A.ANCHOR_CAMP, A.ANCHOR_FIGHT, A.ANCHOR_WARD)  # se deducen otra vez sin el punto quitado
+
+
+def cases(match: dict, timeline: dict, pid: int, catalog=None, camps: bool = True, fights: bool = True):
     """(fuente, puntos sin el quitado, segundo, posición real) por cada posición de un evento de cada jugador.
 
-    Los campamentos de jungla se deducen otra vez sin el punto quitado (si no, el minuto nunca estaría «limpio»)."""
+    Los campamentos de jungla y las peleas sin muerte se deducen otra vez sin el punto quitado (si no, el minuto nunca
+    estaría «limpio»)."""
     g = A._Game(match, timeline, A.find_me(match, pid=pid), catalog)
-    base = {p: [a for a in raw if a[3] != A.ANCHOR_CAMP] for p, raw in g.raw_anchors.items()}
+    base = {p: [a for a in raw if a[3] not in DEDUCED] for p, raw in g.raw_anchors.items()}
     junglers = {p for p, info in g.players.items() if info.get("smite") or info.get("role") == "JUNGLE"}
     for p, raw in base.items():
         fountain = geo.FOUNTAIN.get(g.players[p]["team"])
@@ -40,6 +44,9 @@ def cases(match: dict, timeline: dict, pid: int, catalog=None, camps: bool = Tru
                 continue  # otro punto en el mismo instante: sería hacer trampa
             if camps and p in junglers:
                 rest = sorted(rest + A.infer_camps(g, {**base, p: rest}).get(p, []))
+            if fights:
+                rest = sorted(rest + A.infer_fights(g, {**base, p: rest}).get(p, []))
+                rest = sorted(rest + A.infer_ward_kills(g, {**base, p: rest}).get(p, []))
             yield fountain, rest, t, (x, y)
 
 
@@ -56,7 +63,7 @@ def stats(errors: list[float]) -> dict:
     }
 
 
-def validate(files: list[Path], catalog=None, camps: bool = True) -> dict:
+def validate(files: list[Path], catalog=None, camps: bool = True, fights: bool = True) -> dict:
     linear: list[float] = []
     rebuilt: list[float] = []
     for f in files:
@@ -68,7 +75,7 @@ def validate(files: list[Path], catalog=None, camps: bool = True) -> dict:
         if not match or not timeline or not pid:
             continue
         try:
-            for fountain, rest, t, truth in cases(match, timeline, pid, catalog, camps):
+            for fountain, rest, t, truth in cases(match, timeline, pid, catalog, camps, fights):
                 old = A.interpolate([a for a in rest if a[3] in (0, 1, 2, 3)], t)
                 new = A.interpolate(A._reconstruct(rest, fountain), t)
                 if old and new:
@@ -125,6 +132,60 @@ def _jungle_errors(g, base: dict, p: int, fountain, max_minute: int):
             continue
         error_without = geo.dist(A.interpolate(A._reconstruct(rest, fountain), t), truth)
         yield error_without, geo.dist(A.interpolate(A._reconstruct(sorted(rest + camps), fountain), t), truth)
+
+
+def validate_fights(files: list[Path], catalog=None) -> dict:
+    """Se esconde la posición del minuto (la de Riot) de quien hizo daño a campeones en ese minuto o en el siguiente sin
+    kill, asistencia ni muerte que lo explique, y se reconstruye con y sin las peleas sin muerte deducidas."""
+    return _validate_hidden(files, A.ANCHOR_FIGHT, A.infer_fights, _dealt_damage, catalog)
+
+
+def validate_ward_kills(files: list[Path], catalog=None) -> dict:
+    """Lo mismo con quien rompió un ward rival en ese minuto o en el siguiente: con y sin colocarle junto al ward."""
+    return _validate_hidden(files, A.ANCHOR_WARD, A.infer_ward_kills, _broke_ward, catalog)
+
+
+def _dealt_damage(g, p: int, i: int) -> bool:
+    return any(A._minute_delta(g, p, j, "totalDamageDoneToChampions") >= A.FIGHT_DMG for j in (i, i + 1))
+
+
+def _broke_ward(g, p: int, i: int) -> bool:
+    t0, t1 = g.ts[i - 1], g.ts[min(i + 1, len(g.ts) - 1)]
+    return any(k == p and t0 < t <= t1 for t, k, _ in g.ward_kill_events)
+
+
+def _validate_hidden(files: list[Path], kind: int, infer, applies, catalog=None) -> dict:
+    """Esconde la posición del frame de cada jugador en los minutos en que ``applies`` y reconstruye con y sin ``infer``."""
+    without: list[float] = []
+    with_it: list[float] = []
+    for f in files:
+        g = _load_game(f, catalog)
+        if g is None:
+            continue
+        base = {p: [a for a in raw if a[3] != kind] for p, raw in g.raw_anchors.items()}
+        for p, info in g.players.items():
+            fountain = geo.FOUNTAIN.get(info["team"])
+            for i in range(1, len(g.ts) - 1):
+                errors = _hidden_errors(g, base, p, i, fountain, infer) if applies(g, p, i) else None
+                if errors is not None:
+                    without.append(errors[0])
+                    with_it.append(errors[1])
+    return {"without": stats(without), "with": stats(with_it)}
+
+
+def _hidden_errors(g, base: dict, p: int, i: int, fountain, infer) -> tuple[float, float] | None:
+    """(error sin lo deducido, error con ello) escondiendo la posición del frame ``i`` de ``p`` (``None`` si no toca)."""
+    t, truth = g.ts[i], g.frame_pos(p, i)
+    if truth is None or g.is_dead(p, t):
+        return None
+    rest = [a for a in base[p] if not (a[0] == t and a[3] == 0)]
+    if any(a[0] == t for a in rest):
+        return None
+    deduced = infer(g, {**base, p: rest}).get(p, [])
+    if not any(abs(a[0] - t) < 60_000 for a in deduced):
+        return None  # nada deducido cerca: las dos reconstrucciones serían iguales
+    error_without = geo.dist(A.interpolate(A._reconstruct(rest, fountain), t), truth)
+    return error_without, geo.dist(A.interpolate(A._reconstruct(sorted(rest + deduced), fountain), t), truth)
 
 
 LANE_NEAR = 1600  # radio de experiencia de los súbditos: a más de esto de la línea no la ganas
@@ -229,11 +290,22 @@ def main() -> int:
         print("No hay partidas en data/mis_partidas.", file=sys.stderr)
         return 1
     out = validate(files)
+    plain = validate(files, fights=False)["reconstructed"]
     print("1) Posición real de un evento quitada y reconstruida con el resto:")
-    for name, label in (("linear", "Línea recta"), ("reconstructed", "Reconstruido")):
-        s = out[name]
+    for label, s in (("Línea recta", out["linear"]), ("Sin peleas", plain), ("Reconstruido", out["reconstructed"])):
         print(f"   {label:13s} {s['n']} casos · error mediano {s['median']} u. · medio {s['mean']} · p90 {s['p90']} · "
               f"más de {FAR} u.: {s['far_pct']} %")
+    for title, out_h, labels in (
+        ("1b) Posición del minuto escondida a quien pegó a campeones sin kill que lo explique (peleas sin muerte):",
+         validate_fights(files), ("Sin peleas", "Con peleas")),
+        ("1c) Posición del minuto escondida a quien rompió un ward rival:", validate_ward_kills(files), ("Sin wards", "Con wards")),
+    ):
+        print(title)
+        for name, label in zip(("without", "with"), labels):
+            s = out_h[name]
+            if s.get("n"):
+                print(f"   {label:13s} {s['n']} casos · error mediano {s['median']} u. · medio {s['mean']} · p90 {s['p90']} · "
+                      f"más de {FAR} u.: {s['far_pct']} %")
     jg = validate_jungle(files)
     print("2) Posición del jungla escondida en un minuto (su CS sí se sabe), con lo de antes y lo de después:")
     for name, label in (("without", "Sin campamentos"), ("with_camps", "Con campamentos")):
