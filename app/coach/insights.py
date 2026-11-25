@@ -335,18 +335,33 @@ TAG_LABELS = {
     "baron_buff": "Con la mejora del barón",
     "bounty": "Recompensa regalada",
     "duel_behind": "Duelo en desventaja",
+    "seen_ward": "Visto por un ward rival",
+    "lens_unused": "Con la lente sin usar",
+    "lens_cd": "Con la lente en recarga",
 }
 
 
 # ------------------------------------------------------------------ utilidades
 def reliable(game: dict) -> bool:
     """¿Sirve esta partida para las conclusiones? No si es Swiftplay ni si alguien estuvo AFK 3 minutos o más."""
+    return unreliable_reason(game) is None
+
+
+# Quién estuvo AFK según nuestra detección por posiciones (minutos): para decir por qué una partida no tiene nota.
+AFK_WHO = (("afk_min", "Estuviste AFK {} min"), ("ally_afk_min", "Un aliado estuvo AFK {} min"), ("enemy_afk_min", "Un rival estuvo AFK {} min"))
+
+
+def unreliable_reason(game: dict) -> str | None:
+    """Por qué una partida no cuenta para tus medias ni tiene nota (``None`` si cuenta): Swiftplay o alguien AFK."""
     if game.get("queue") in EXCLUDED_QUEUES:
-        return False
+        return "Swiftplay: otro ritmo de partida"
     m = game.get("metrics") or {}
+    for key, text in AFK_WHO:
+        if (m.get(key) or 0) >= AFK_EXCLUDE_MIN:
+            return text.format(round(m[key]))
     if (m.get("riot_afk") or 0) > 0:  # Riot detectó a alguien AFK (aunque nuestra detección por posiciones no llegue a 3 min)
-        return False
-    return all((m.get(k) or 0) < AFK_EXCLUDE_MIN for k in ("afk_min", "ally_afk_min", "enemy_afk_min"))
+        return "Riot marcó a alguien como AFK"
+    return None
 
 
 def _mean(values: list[float]) -> float | None:
@@ -773,6 +788,9 @@ FLAT_WEIGHT = 0.5  # en «Errores que repites» pesa la mitad: es parte del jueg
 RISE_RATIO = 1.15
 RISE_WEIGHT = 0.25
 MIN_ELO_GAMES = 5
+# Un elo con menos partidas que esto (con tu campeón salen desde 20, a veces de 6-7 jugadores) se enseña, pero no decide
+# si un error separa elos ni a qué elo te pareces: con 21 partidas un 14 % frente a un 7 % es ruido.
+SOLID_ELO_GAMES = 30
 
 
 def elo_tiers(profile: dict | None, role: str | None, champ: int | None = None) -> tuple[dict, str]:
@@ -786,10 +804,18 @@ def elo_tiers(profile: dict | None, role: str | None, champ: int | None = None) 
     return (profile.get("roles") or {}).get(role) or {}, "role"
 
 
+def _known(block: dict, mistake_id: str) -> bool:
+    """¿Se sabe cuánto comete ese elo este tipo de error? No si se detecta desde un análisis posterior a sus partidas."""
+    return mistake_id not in (block.get("unknown") or ())
+
+
 def separation(tiers: dict, mistake_id: str) -> dict | None:
     """% de partidas con ese error en el elo más bajo y en el más alto con datos, y si de verdad separa elos (por
     errores por partida: morir aislado 3 veces por partida o 1 es muy distinto aunque ambos lo hagan en todas)."""
-    present = [g for g in ELO_GROUPS if g in tiers]
+    present = [g for g in ELO_GROUPS if g in tiers and _known(tiers[g], mistake_id)]
+    solid = [g for g in present if (tiers[g].get("games") or 0) >= SOLID_ELO_GAMES]
+    if len(solid) >= 2:
+        present = solid
     if len(present) < 2:
         return None
     low, top = present[0], present[-1]
@@ -835,8 +861,12 @@ def _add_mistake(groups: dict[str, dict], mt: dict, g: dict, severity: str, t, t
 
 
 def _tier_pcts(tiers: dict, mistake_id: str) -> dict:
-    """% de partidas con ese tipo de error en cada elo con datos (de más bajo a más alto)."""
-    return {g: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get("pct", 0.0) for g in ELO_GROUPS if g in tiers}
+    """% de partidas con ese tipo de error en cada elo con datos (de más bajo a más alto); sin los que no lo saben."""
+    return {
+        g: ((tiers[g].get("types") or {}).get(mistake_id) or {}).get("pct", 0.0)
+        for g in ELO_GROUPS
+        if g in tiers and _known(tiers[g], mistake_id)
+    }
 
 
 def _elo_weight(sep: dict | None) -> float:
@@ -895,8 +925,11 @@ def elo_errors(games: list[dict], profile: dict | None) -> dict | None:
         return None
     n = len(mine)
     count, with_type, sev, total = _count_mistakes(mine, role)
-    per_game = total / n
     all_ids = set(count) | {k for t in tiers.values() for k in (t.get("types") or {})}
+    # Los tipos que ningún elo sabe (la lente sin usar: sus partidas son de antes) no suman a tu total, que si no saldría
+    # inflado frente al de ellos.
+    unknown = {mid for mid in all_ids if not any(_known(t, mid) for t in tiers.values())}
+    per_game = (total - sum(count[mid] for mid in unknown)) / n
     sep_ids = {mid for mid in all_ids if (sep := separation(tiers, mid)) and not sep["flat"]}
     rows = _elo_type_rows(all_ids, tiers, count, with_type, n)
     levels = _elo_levels(tiers)
@@ -987,14 +1020,17 @@ def _elo_levels(tiers: dict) -> list[dict]:
         {
             "tier": g, "label": ELO_LABEL[g], "games": tiers[g]["games"], "players": tiers[g].get("players"),
             "per_game": tiers[g]["per_game"], "severity": tiers[g].get("severity"),
+            "few": tiers[g]["games"] < SOLID_ELO_GAMES,
         }
         for g in ELO_GROUPS if g in tiers
     ]
 
 
 def _closest(levels: list[dict], key: str, value: float) -> str | None:
-    """Elo cuyo ``key`` (errores por partida) queda más cerca de tu valor (None si no hay elos)."""
-    return min(levels, key=lambda lv: abs(lv[key] - value))["tier"] if levels else None
+    """Elo cuyo ``key`` (errores por partida) queda más cerca de tu valor (None si no hay elos); los de pocas partidas,
+    solo si no hay otros."""
+    pool = [lv for lv in levels if not lv.get("few")] or levels
+    return min(pool, key=lambda lv: abs(lv[key] - value))["tier"] if pool else None
 
 
 # ------------------------------------------------------------------ movimiento (posiciones reconstruidas)

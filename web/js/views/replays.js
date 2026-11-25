@@ -58,6 +58,9 @@ const TAG_LABEL = {
   duel_behind: ["Duelo en desventaja", "bad"],
   no_prio: ["Sin prioridad", ""],
   late_recall: ["Base a destiempo", "bad"],
+  seen_ward: ["Visto por un ward", "bad"],
+  lens_unused: ["Lente sin usar", "bad"],
+  lens_cd: ["Lente en recarga", ""],
   late: ["Llegada tarde", "bad"],
   unconverted: ["Ventaja sin convertir", "bad"],
   baron_wasted: ["Barón sin aprovechar", "bad"],
@@ -236,7 +239,7 @@ function gameCard(g, hasRofl = false) {
       g.has_timeline && !i.high && !i.medium ? h("span.tiny.good", "sin errores importantes") : null,
       hasRofl ? h("span.chip-good", { title: "La repetición (.rofl) está en tu ordenador: se abre en el cliente sin descargarla" }, ".rofl en tu PC") : null,
     ),
-    h("div.right", scorePill(g.score), h("div.tiny.muted", fmt.ago(g.game_start))),
+    h("div.right", scorePill(g.score, g.unreliable), h("div.tiny.muted", fmt.ago(g.game_start))),
     h("span.replay-go", icon("play")),
   );
 }
@@ -293,7 +296,7 @@ function headCard(a) {
         kpi("KDA", `${m.kills}/${m.deaths}/${m.assists}`, m.kp !== null && m.kp !== undefined ? `KP ${fmt.pct(m.kp, 0)}` : null),
         kpi("CS/min", fmt.num(m.cs_min, 1), m.cs10 !== undefined && m.cs10 !== null ? `CS@10 ${m.cs10}` : null),
         kpi("Errores", h("span", h("span.bad", String(counts.high)), " · ", h("span.warn", String(counts.medium))), "graves · a mejorar"),
-        kpi("Nota", scorePill(a.score), `vs ${TIER_LABEL[a.target_tier] || a.target_tier}`),
+        kpi("Nota", scorePill(a.score, a.unreliable), a.unreliable || `vs ${TIER_LABEL[a.target_tier] || a.target_tier}`),
       ),
     ),
   );

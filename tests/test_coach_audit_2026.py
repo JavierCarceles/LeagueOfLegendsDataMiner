@@ -86,6 +86,16 @@ def test_games_with_a_riot_flagged_afk_are_not_reliable():
     assert insights.reliable({"queue": 420, "metrics": run()["metrics"]})
 
 
+def test_a_game_without_score_says_why():
+    """Sin nota no es un «—» mudo: Swiftplay, tú o alguien AFK 3 minutos o más, o un AFK que marcó Riot."""
+    assert insights.unreliable_reason({"queue": 480, "metrics": {}}) == "Swiftplay: otro ritmo de partida"
+    assert insights.unreliable_reason({"queue": 420, "metrics": {"afk_min": 6.0, "riot_afk": 1}}) == "Estuviste AFK 6 min"
+    assert insights.unreliable_reason({"queue": 420, "metrics": {"ally_afk_min": 3.4}}) == "Un aliado estuvo AFK 3 min"
+    assert insights.unreliable_reason({"queue": 420, "metrics": {"enemy_afk_min": 2.0, "riot_afk": 1}}) == "Riot marcó a alguien como AFK"
+    assert insights.unreliable_reason({"queue": 420, "metrics": {"afk_min": 2.9}}) is None
+    assert insights.reliable({"queue": 420, "metrics": {"afk_min": 2.9}}) and not insights.reliable({"queue": 480, "metrics": {}})
+
+
 def test_ready_without_goals_does_not_claim_you_meet_them():
     games = [{"queue": 420, "role": "TOP", "metrics": {"deaths_pre14": 0, "cs_min": 9, "vision_min": 1, "kp": 60, "time_dead_pct": 3,
               "idle_pct": 5, "gold_hoard_min": 0, "obj_participation": 70, "obj_lost_far": 0, "first_item_min": 9, "deaths_to_jungler_pre14": 0}}] * 12

@@ -136,6 +136,61 @@ def test_tipo_que_no_separa_elos_pesa_la_mitad():
     assert insights.separation(tiers, "death_solo")["flat"] is True
 
 
+def test_tipo_sin_datos_en_los_elos_no_cuenta_como_cero():
+    """La lente sin usar se detecta desde un análisis posterior a casi todas las partidas de los OTPs: no es que no la
+    cometan (0 %), es que no se sabe. Ni «peor que los mejores» ni «no separa elos», y no infla tu total."""
+    block = {"games": 100, "per_game": 2.0, "unknown": ["death_lens_unused"], "types": {"death_isolated": {"pct": 30, "per_game": 0.4}}}
+    tiers = {"PLATINUM": block, "CHALLENGER": {**block, "types": {"death_isolated": {"pct": 10, "per_game": 0.1}}}}
+    assert insights.separation(tiers, "death_lens_unused") is None
+    assert insights.separation(tiers, "death_isolated")["flat"] is False
+    mine = [
+        {"match_id": f"M{i}", "queue": 420, "champ": 120, "role": "JUNGLE", "win": True, "has_timeline": True, "metrics": {},
+         "mistakes": [["death", "medium", 600, ["seen_ward", "lens_unused"], "Te vio un ward"], ["death", "medium", 900, ["isolated"], "Aislado"]]}
+        for i in range(6)
+    ]
+    e = insights.elo_errors(mine, {"roles": {"JUNGLE": tiers}, "champs": {}})
+    lens = next(r for r in e["types"] if r["id"] == "death_lens_unused")
+    assert lens["status"] is None and lens["separates"] is None and lens["tiers"] == {}
+    assert e["per_game"] == 1  # solo el aislado: la lente no la sabe ningún elo
+    rec = insights.recurring_mistakes(mine, {"JUNGLE": tiers})
+    lens_rec = next(r for r in rec["items"] if r["id"] == "death_lens_unused")
+    assert lens_rec["separates"] is None and lens_rec["elo"] is None
+
+
+def test_elos_con_pocas_partidas_no_deciden_si_un_error_separa_elos():
+    """Con tu campeón un elo sale desde 20 partidas (6-7 jugadores): se enseña, pero no decide si un error separa elos
+    ni a qué elo te pareces mientras haya al menos dos con 30 o más."""
+    def block(games, pct, per_game):
+        return {"games": games, "players": 7, "per_game": per_game, "types": {"death_solo": {"pct": pct, "per_game": pct / 100}}}
+
+    tiers = {"BRONZE": block(21, 30, 4.0), "PLATINUM": block(120, 10, 3.0), "CHALLENGER": block(800, 9.5, 2.0)}
+    sep = insights.separation(tiers, "death_solo")
+    assert sep["low"] == "PLATINUM" and sep["flat"] is True  # con Bronce (21) habría «separado»: 30 % frente a 9,5 %
+    assert insights.separation({"BRONZE": block(21, 30, 4.0), "CHALLENGER": block(800, 9.5, 2.0)}, "death_solo")["low"] == "BRONZE"
+    mine = [{"match_id": f"M{i}", "queue": 420, "champ": 120, "role": "JUNGLE", "win": True, "has_timeline": True, "metrics": {},
+             "mistakes": [["death", "medium", 600, ["solo"], "1 contra 1"]] * 4} for i in range(6)]
+    e = insights.elo_errors(mine, {"roles": {"JUNGLE": tiers}, "champs": {}})
+    assert [lv["few"] for lv in e["levels"]] == [True, False, False]
+    assert e["closest"] == "PLATINUM"  # 4 por partida: el más cercano sería Bronce, pero tiene pocas
+
+
+def test_el_perfil_por_elo_dice_si_aun_se_esta_calculando(tmp_path):
+    """La primera vez el perfil tarda (lee todas las partidas): «Mi progreso» lo avisa y vuelve a pedirlo hasta tenerlo."""
+    import threading
+    from types import SimpleNamespace
+
+    prof = elo_profile.EloProfile(SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path)))
+    assert prof.pending() is False  # ni datos ni cálculo en marcha
+    gate = threading.Event()
+    prof.thread = threading.Thread(target=gate.wait, daemon=True)
+    prof.thread.start()
+    assert prof.pending() is True
+    prof.data = {"roles": {}}
+    assert prof.pending() is False  # ya hay uno (aunque se esté rehaciendo)
+    gate.set()
+    prof.thread.join(1)
+
+
 def test_old_digests_are_refreshed_from_the_saved_analysis(keyed_svc):
     services = keyed_svc
     """Resúmenes de un formato anterior (sin datos para las comprobaciones por campeón): se rehacen del análisis

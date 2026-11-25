@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from app.coach.benchmarks import METRICS
+from app.coach.insights import reliable
 from app.ingest.otp_details import FILES_DIR, TIER_ORDER, _slug
 
 MIN_MY_GAMES = 5  # partidas tuyas con ese campeón y rol para compararlas
@@ -61,7 +62,9 @@ def compare(svc, games: list[dict], target_tier: str | None) -> list[dict]:
         return []
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for g in games:
-        if g.get("champ") and g.get("role") and g.get("has_timeline"):
+        # Solo las fiables, como el resto de «Mi progreso»: una partida con un AFK (50 % de minutos vacíos) disparaba la
+        # media de 25 partidas y decía «te separa minutos vacíos» con un 0 % en las demás.
+        if g.get("champ") and g.get("role") and g.get("has_timeline") and reliable(g):
             groups[(g["champ"], g["role"])].append(g)
     out = []
     for (champ, role), mine in sorted(groups.items(), key=lambda kv: -len(kv[1])):

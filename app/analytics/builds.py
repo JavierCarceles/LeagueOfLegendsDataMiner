@@ -986,15 +986,34 @@ class _Lanes:
         return f"{self.state(a)} y {self.state(b)}"
 
 
+def _pending_side(lx: _Lanes, label: str, a: str, b: str, prio: str) -> str | None:
+    """La frase de un lado del mapa con alguna de sus dos líneas aún sin rival (draft a medias): sin dar la prioridad
+    por segura, que depende de la que falta. ``None`` si ya se conocen las dos."""
+    known = [r for r in (a, b) if lx.known(r)]
+    if len(known) == 2:
+        return None
+    if not known:
+        return f"{label}: {LANE_NAME[a]} y {LANE_NAME[b]} aún sin rival; se sabrá al elegirlos."
+    other = LANE_NAME[b if known[0] == a else a]
+    why = lx.why(a, b)
+    return {
+        "ours": f"{label}: {why}; tendréis prioridad si {other} no pierde la suya.",
+        "theirs": f"{label}: {why}; no tendréis prioridad salvo que {other} gane la suya.",
+        "split": f"{label}: {why}; la prioridad dependerá de {other}.",
+    }[prio]
+
+
 def _objective_texts(lx: _Lanes, prio: dict[str, str]) -> tuple[str, str]:
     """Las frases del dragón y de larvas y heraldo según la prioridad en cada lado del mapa."""
+    pending_dragon = _pending_side(lx, "Dragón", "MID", "ADC", prio["dragon"])
+    pending_top = _pending_side(lx, "Larvas y heraldo", "TOP", "MID", prio["top_side"])
     dragon = {"ours": f"Dragón: tenéis prioridad ({lx.why('MID', 'ADC')}); preparadlo juntos 1 minuto antes.",
               "theirs": f"Dragón: no tenéis prioridad ({lx.why('MID', 'ADC')}); no lo fuercéis, cambiadlo por larvas, heraldo o una torre arriba.",
               "split": f"Dragón: prioridad repartida ({lx.why('MID', 'ADC')}); disputadlo solo si mid y bot empujan antes que los suyos."}[prio["dragon"]]
     top_side = {"ours": f"Larvas y heraldo: tenéis prioridad ({lx.why('TOP', 'MID')}); jugad ese lado.",
                 "theirs": f"Larvas y heraldo: no tenéis prioridad ({lx.why('TOP', 'MID')}); cededlos y jugad el lado del dragón.",
                 "split": f"Larvas y heraldo: prioridad repartida ({lx.why('TOP', 'MID')}); van al que empuje primero top y mid."}[prio["top_side"]]
-    return dragon, top_side
+    return pending_dragon or dragon, pending_top or top_side
 
 
 def _jungle_text(lanes: dict[str, int], theirs: dict[str, str]) -> str:

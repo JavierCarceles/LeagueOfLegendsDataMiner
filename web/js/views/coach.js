@@ -56,6 +56,11 @@ export async function render(container, args = []) {
 
 const busy = (el) => el?.contains(document.activeElement) && document.activeElement !== document.body;
 
+// Mientras se calcula el perfil por elo (la primera vez tarda un minuto): cuándo se pidió el resumen, para volver a
+// pedirlo cada 15 s hasta tenerlo (0 = ya está).
+let eloPendingAt = 0;
+const ELO_RETRY_MS = 15000;
+
 async function refresh(full) {
   let data;
   try {
@@ -78,7 +83,8 @@ async function refresh(full) {
   if (!busy(headEl)) mount(headEl, profileCard(data));
   const c = data.tracker.counts;
   const count = c.ready + c.partial + c.pending;
-  if ((full || count !== lastCount) && !busy(bodyEl)) {
+  const eloRetry = eloPendingAt > 0 && Date.now() - eloPendingAt > ELO_RETRY_MS;
+  if ((full || count !== lastCount || eloRetry) && !busy(bodyEl)) {
     lastCount = count;
     await loadSummary(data);
   }
@@ -89,6 +95,7 @@ async function loadSummary(data) {
   try {
     const s = await api.get("/api/coach/summary", { queue: prefs.queue, role: prefs.role, last: prefs.last });
     if (!root || mode !== "summary" || !fresh()) return;
+    eloPendingAt = s.elo_pending ? Date.now() : 0;
     mount(bodyEl, summaryView(s, data));
   } catch (err) {
     mount(bodyEl, errorBox(err));
@@ -602,6 +609,9 @@ function readinessCard(s) {
           r.errors ? ` · errores ${fmt.num(r.errors.mine, 1)} por partida (${ELO_LABEL[r.errors.tier] || r.errors.tier}: ${fmt.num(r.errors.target, 1)})` : "",
           ` · propósitos cumplidos ${r.goals_rate !== null ? r.goals_rate + " %" : "— (añade alguno)"} · últimas ${r.games} partidas`,
         ),
+        s.elo_pending
+          ? h("div.tiny.muted", icon("refresh"), " Calculando tus errores frente a cada elo (la primera vez tarda un minuto): la nota se completará sola.")
+          : null,
       ),
     ),
   );
@@ -894,6 +904,7 @@ function eloErrorsCard(e) {
       h("span.elo-val.num", fmt.num(sep, 1), h("span.faint", ` / ${fmt.num(total, 1)}`)),
     );
   const tiers = levels.map((l) => l.tier);
+  const few = new Set(levels.filter((l) => l.few).map((l) => l.tier));
   const champ = e.champ ? dd.name(e.champ) : null;
   const rows = (e.types || []).filter((t) => t.status === "worse" || t.mine_pct > 0 || t.separates);
   const withChamp = champ ? ` con ${champ}` : "";
@@ -912,7 +923,7 @@ function eloErrorsCard(e) {
     h(
       "div.elo-bars",
       bar("Tú", e.per_game, e.per_game_sep, "me", `${e.games} partidas tuyas`),
-      levels.map((l) => bar(l.label, l.per_game, l.per_game_sep, l.tier === e.closest_sep ? "near" : "", `${fmt.int(l.games)} partidas de ${l.players} jugadores`)),
+      levels.map((l) => bar(fewLabel(l.label, l.few), l.per_game, l.per_game_sep, eloRowClass(l, e.closest_sep), eloRowTitle(l))),
     ),
     normalsNote(e),
     rows.length
@@ -920,7 +931,7 @@ function eloErrorsCard(e) {
           "div.table-wrap",
           h(
             "table.table.elo-table",
-            h("thead", h("tr", h("th", "Error"), h("th.num", "Tú"), tiers.map((t) => h("th.num", ELO_LABEL[t] || t)), h("th", ""))),
+            h("thead", h("tr", h("th", "Error"), h("th.num", "Tú"), tiers.map((t) => h("th.num", { title: few.has(t) ? FEW_TITLE : null }, fewLabel(ELO_LABEL[t] || t, few.has(t)))), h("th", ""))),
             h(
               "tbody",
               rows.map((t) => eloTypeRow(t, tiers)),
@@ -928,8 +939,30 @@ function eloErrorsCard(e) {
           ),
         )
       : null,
-    h("p.tiny.muted", { style: { margin: 0 } }, "Porcentaje de partidas con al menos un error de ese tipo. «Los mejores» es el elo más alto con datos; con pocas partidas tuyas, solo se marca lo que se sale del ruido."),
+    h(
+      "p.tiny.muted",
+      { style: { margin: 0 } },
+      "Porcentaje de partidas con al menos un error de ese tipo. «Los mejores» es el elo más alto con datos; con pocas partidas tuyas, solo se marca lo que se sale del ruido.",
+      few.size ? ` * ${FEW_TITLE}.` : "",
+    ),
   );
+}
+
+const FEW_TITLE = "Menos de 30 partidas: orientativo, no decide si un error separa elos ni a qué elo te pareces";
+
+/** Nombre de un elo con asterisco si tiene pocas partidas. */
+function fewLabel(label, few) {
+  return few ? `${label}*` : label;
+}
+
+/** Clase de la barra de un elo: el más parecido a ti (≈) y, aparte, los de pocas partidas (más tenues). */
+function eloRowClass(l, closest) {
+  return [l.tier === closest ? "near" : "", l.few ? "few" : ""].filter(Boolean).join(".");
+}
+
+function eloRowTitle(l) {
+  const base = `${fmt.int(l.games)} partidas de ${l.players} jugadores`;
+  return l.few ? `${base}. ${FEW_TITLE}.` : base;
 }
 
 /** Aviso de cuántas de tus partidas son normales (rivales más flojos que en clasificatorias); null si ninguna. */
@@ -949,7 +982,7 @@ function eloTypeRow(t, tiers) {
     `tr${t.separates === false ? ".flat" : ""}`,
     h("td", t.title, eloTypeNote(t)),
     h(`td.num${eloTypeClass(t.status)}`, `${fmt.num(t.mine_pct, 0)} %`),
-    tiers.map((g) => h("td.num.muted", `${fmt.num(t.tiers[g] ?? 0, 0)} %`)),
+    tiers.map((g) => h("td.num.muted", t.tiers[g] === undefined ? "—" : `${fmt.num(t.tiers[g], 0)} %`)),
     h("td", eloStatusPill(t.status)),
   );
 }
@@ -1288,7 +1321,8 @@ function deathsCard(s) {
     const k = deathKind(p.tags);
     kinds[k] = (kinds[k] || 0) + 1;
   }
-  const context = ["fight_won", "fight_even", "traded", "game_end"];
+  // Con contexto: no son el error (la lente en recarga: la usaste y aun así te vieron).
+  const context = ["fight_won", "fight_even", "traded", "game_end", "lens_cd"];
   const tagRows = Object.entries(d.tags || {})
     .filter(([k]) => k !== "early" && !context.includes(k))
     .slice(0, 7)
@@ -1569,8 +1603,11 @@ function contextChips(g) {
   return out;
 }
 
-export function scorePill(score) {
-  if (score === null || score === undefined) return h("span.score", "—");
+/** Nota de fundamentos; sin nota, el motivo (Swiftplay o alguien AFK: no cuenta para tus medias) en vez de un «—» mudo. */
+export function scorePill(score, why = null) {
+  if (score === null || score === undefined) {
+    return why ? h("span.score.score-na", { title: `${why}: no cuenta para tus medias ni tiene nota` }, "Sin nota") : h("span.score", "—");
+  }
   return h(`span.score.${scoreClass(score)}`, { title: "Nota de fundamentos 0-10 (5 = como la referencia de tu elo objetivo)" }, fmt.num(score, 1));
 }
 
@@ -1599,7 +1636,7 @@ function gameRows(games) {
           h("div", h("div.kda", `${g.kills} / ${g.deaths} / ${g.assists}`), h("div.tiny", { class: g.win ? "good" : "bad" }, g.win ? "Victoria" : "Derrota", h("span.muted", ` · ${fmt.duration(g.duration)}`))),
           h("div.tiny.muted", `${fmt.num(g.cs_min, 1)} CS/min`, h("br"), `KP ${fmt.pct(g.kp, 0)}`),
           h("div.row-wrap.game-chips", chips(g)),
-          h("div.right", scorePill(g.score), h("div.tiny.muted", fmt.ago(g.game_start))),
+          h("div.right", scorePill(g.score, g.unreliable), h("div.tiny.muted", fmt.ago(g.game_start))),
         );
   const rest = games.slice(5);
   const more = rest.length === 1 ? "partida más" : "partidas más";
