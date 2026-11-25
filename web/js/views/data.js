@@ -559,7 +559,8 @@ function champsText(cfg) {
 }
 function rolesText(cfg, poolSize = null) {
   if (!cfg.roles?.length) return "Ninguno: elige alguno";
-  return `${linesText(cfg.roles)}${poolSize ? ` (${poolSize} campeones)` : ""}`;
+  const pool = poolSize ? ` (${poolSize} campeones)` : "";
+  return linesText(cfg.roles) + pool;
 }
 const playersText = (cfg) => (cfg.focus === "games" ? "Cualquiera" : "OTPs");
 /** Colas elegidas; una configuración antigua solo tenía «con Flex o no». */
@@ -1482,7 +1483,8 @@ function updateEloChart(box, details, ranking) {
   const otpTotal = ELO_ORDER.reduce((n, t) => n + otpOf(t, counts[t] || 0), 0);
   const approx = estimated ? "~" : "";
   const title = box.querySelector(".elo-chart-title");
-  if (title) title.textContent = `Partidas analizadas por elo: ${fmt.int(total)}${split ? ` · ${approx}${fmt.int(otpTotal)} de OTPs` : ""}`;
+  const otpText = split ? ` · ${approx}${fmt.int(otpTotal)} de OTPs` : "";
+  if (title) title.textContent = `Partidas analizadas por elo: ${fmt.int(total)}${otpText}`;
   const sub = box.querySelector(".elo-chart-sub");
   if (sub) sub.textContent = ranking ? "todo el ranking: los 10 jugadores de cada partida (no se suben a GitHub) · desde que arrancó el recolector" : "desde que arrancó el recolector";
   box.querySelectorAll(".elo-chart-y span").forEach((el) => {
