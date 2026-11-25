@@ -267,7 +267,7 @@ class VideoCollector:
     def _collect(self, vid: str, folder: Path) -> dict | None:
         from app.videos import transcript, youtube
 
-        info = youtube.video_info(vid, self.root)
+        info = self._info(vid)
         if info.get("is_live") or info.get("live_status") in ("is_live", "is_upcoming"):
             raise youtube.VideoError("Es un directo en curso o programado: se recoge cuando termine", "otro")
         data = _metadata(vid, info)
@@ -278,6 +278,8 @@ class VideoCollector:
         text, notes = transcript.collect(vid, info, folder, self.root, self.stop_event.is_set)
         data["transcripcion"] = text
         data["avisos"] = notes
+        if info.get("_plan_b"):
+            notes.insert(0, f"metadatos reducidos (yt-dlp falló: {info['_plan_b']})")
         if self.stop_event.is_set():
             return None
         self._step_label("frames (¿es una partida?)")
@@ -287,6 +289,22 @@ class VideoCollector:
         if text is None and not (data["frames"] or {}).get("partida"):
             data["avisos"].append("sin transcripción ni partida: solo metadatos")
         return data
+
+    def _info(self, vid: str) -> dict:
+        """Metadatos con yt-dlp; si falla por algo raro (no por vídeo privado ni por límite), plan B con oEmbed:
+        título y canal, y la transcripción sale por youtube-transcript-api."""
+        from app.videos import youtube
+
+        try:
+            return youtube.video_info(vid, self.root)
+        except youtube.VideoError as exc:
+            if exc.kind != "otro":
+                raise
+            basic = youtube.oembed(vid)
+            if basic is None:
+                raise
+            log.info("Vídeos: yt-dlp falló con %s (%s); sigo con oEmbed.", vid, str(exc)[:160])
+            return {**basic, "_plan_b": str(exc)[:300]}
 
     def _check_language(self, queued: dict, info: dict) -> None:
         """De una búsqueda solo interesan vídeos en español o inglés (un enlace pegado a mano entra siempre)."""
@@ -378,12 +396,23 @@ class VideoCollector:
             if self.stop_event.is_set():
                 return None
             try:
-                return youtube.download(vid, folder, fmt, self.root, format_sort=youtube.VIDEO_SORT)
+                return youtube.download(vid, folder, fmt, self.root, format_sort=youtube.VIDEO_SORT,
+                                        progress_hooks=[self._download_hook(label)])
             except youtube.VideoError as exc:
                 if exc.kind == "limite":
                     raise
                 notes.append(f"descarga {fmt} fallida: {str(exc)[:160]}")
         return None
+
+    def _download_hook(self, label: str):
+        """Progreso de yt-dlp para la web («descargando… 45 %»)."""
+
+        def hook(event: dict) -> None:
+            total = event.get("total_bytes") or event.get("total_bytes_estimate")
+            if event.get("status") == "downloading" and total:
+                self._step_label(label, min(1.0, float(event.get("downloaded_bytes") or 0) / float(total)))
+
+        return hook
 
     # ------------------------------------------------------------------ herramientas de imagen
     def _tools(self):

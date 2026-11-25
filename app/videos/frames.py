@@ -23,6 +23,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+# Pocos hilos para decodificar: el recolector va en segundo plano y el PC tiene que seguir yendo fino.
+DECODE_THREADS = 2
+os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", f"threads;{DECODE_THREADS}")
+cv2.setNumThreads(DECODE_THREADS)
+
 ASSETS = Path(__file__).with_name("assets")
 MAP_MIN = -120
 MAP_MAX_X = 14870

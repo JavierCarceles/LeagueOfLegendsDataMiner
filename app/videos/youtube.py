@@ -27,6 +27,8 @@ VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 YT_HOST = re.compile(r"^(?:https?://)?(?:[\w-]+\.)*(?:youtube\.com|youtu\.be|youtube-nocookie\.com)(?:/|$)", re.IGNORECASE)
 WATCH = "https://www.youtube.com/watch?v="
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"}
+# Sin esto, desde la UE YouTube manda a la página de consentimiento de cookies en vez de al canal o a la búsqueda.
+CONSENT = {"SOCS": "CAI", "CONSENT": "YES+1"}
 TIMEOUT_S = 30
 COOKIES_FILE = "cookies.txt"  # opcional, en data/videos: para vídeos con restricción de edad o si YouTube pide iniciar sesión
 
@@ -252,7 +254,7 @@ def scrape_search(query: str, n: int) -> list[dict]:
     """Resultados leyendo la página de búsqueda de YouTube (si yt-dlp falla)."""
     try:
         html = requests.get(
-            f"https://www.youtube.com/results?search_query={quote_plus(query)}", headers=HEADERS, timeout=TIMEOUT_S
+            f"https://www.youtube.com/results?search_query={quote_plus(query)}", headers=HEADERS, cookies=CONSENT, timeout=TIMEOUT_S
         ).text
     except requests.RequestException as exc:
         raise VideoError(f"No se pudo buscar en YouTube: {exc}") from exc
@@ -288,7 +290,7 @@ def rss(url: str) -> list[dict]:
             raise VideoError(f"No se encontró el canal de {url}")
         feed = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
     try:
-        root = ET.fromstring(requests.get(feed, headers=HEADERS, timeout=TIMEOUT_S).content)
+        root = ET.fromstring(requests.get(feed, headers=HEADERS, cookies=CONSENT, timeout=TIMEOUT_S).content)
     except (requests.RequestException, ET.ParseError) as exc:
         raise VideoError(f"No se pudo leer el RSS de YouTube: {exc}") from exc
     ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
@@ -306,18 +308,22 @@ def _channel_id(url: str) -> str | None:
     if match:
         return match.group(1)
     try:
-        html = requests.get(url.removesuffix("/videos"), headers=HEADERS, timeout=TIMEOUT_S).text
+        html = requests.get(url.removesuffix("/videos"), headers=HEADERS, cookies=CONSENT, timeout=TIMEOUT_S).text
     except requests.RequestException:
         return None
-    match = re.search(r'"(?:channelId|externalId)":"(UC[\w-]{22})"', html)
-    return match.group(1) if match else None
+    for pattern in (r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', r'"externalId":"(UC[\w-]{22})"',
+                    r'"channelId":"(UC[\w-]{22})"'):
+        match = re.search(pattern, html)
+        if match:
+            return match.group(1)
+    return None
 
 
 def oembed(video_id: str) -> dict | None:
     """Título y canal sin yt-dlp (plan B de los metadatos)."""
     try:
         response = requests.get(
-            f"https://www.youtube.com/oembed?url={quote_plus(watch_url(video_id))}&format=json", headers=HEADERS, timeout=TIMEOUT_S
+            f"https://www.youtube.com/oembed?url={quote_plus(watch_url(video_id))}&format=json", headers=HEADERS, cookies=CONSENT, timeout=TIMEOUT_S
         )
         if response.status_code != 200:
             return None
