@@ -182,6 +182,34 @@ def _invalid(objectives: list[dict]) -> bool:
     return False
 
 
+BIG_OBJECTIVES = ("dragon", "elder", "baron")
+
+
+def clocks_for_patch(patch) -> dict[str, int] | None:
+    """Relojes de la temporada de un parche (``16.23`` → 2026); para partidas de las que ya se sabe que son de la Grieta
+    sin Swiftplay (los dossiers guardan si los relojes cuadraron)."""
+    return SEASON_CLOCKS.get(season_of(patch) or "")
+
+
+def big_spawns(objectives: list[dict], clocks: dict[str, int], end: int) -> list[tuple[int, str]] | None:
+    """(ms, tipo) de cada aparición de dragón, ancestral y barón antes de ``end``: las de los que murieron y la que
+    quedaba por salir de cada uno. ``objectives``: ordenados por tiempo, con ``kind``, ``team`` y ``t`` (ms). ``None``
+    si los relojes no cuadran con la partida."""
+    clock = _SpawnClock(clocks)
+    out: list[tuple[int, str]] = []
+    try:
+        for o in objectives:
+            spawn = clock.spawn(o)
+            if o["kind"] in BIG_OBJECTIVES:
+                out.append((spawn, o["kind"]))
+    except _ClocksMismatch:
+        return None
+    for spawn, kind in ((clock.next_dragon, "dragon"), (clock.next_baron, "baron"), (clock.next_elder, "elder")):
+        if spawn is not None and spawn < end:
+            out.append((spawn, kind))
+    return sorted(out)
+
+
 def alive_at(objectives: list[dict], clocks: dict[str, int], t: int) -> list[str]:
     """Objetivos vivos en el mapa en el instante ``t`` según los relojes (``dragon``, ``elder``, ``grubs``…)."""
     out: list[str] = []

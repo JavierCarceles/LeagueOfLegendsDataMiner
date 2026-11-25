@@ -21,18 +21,19 @@ import gzip
 import hashlib
 import json
 import os
+import statistics
 import sys
 import threading
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from app.coach import champ_checks, route_macro, rule_metrics
+from app.coach import champ_checks, consistency, route_macro, rule_metrics
 from app.logbus import get_logger
 
 log = get_logger("elo-profile")
 
-VERSION = 9  # 9: hábitos de macro_habits (objetivos que acaban en torre, ritmo del jungla, Farsight); 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
+VERSION = 10  # 10: constancia entre partidas (C-11) y muertes caras (C-7, C-9, C-12, C-13); 9: hábitos de macro_habits (objetivos que acaban en torre, ritmo del jungla, Farsight); 8: los tipos sin datos en un elo («unknown») no cuentan como 0 %; 7: Hierro-Bronce y Plata-Oro aparte, Yuumi sin botas y la lente en recarga no cuentan; 2: medias de movimiento (mv_*) por elo; 3: roams y contraganks (rm_*); 4: reglas medibles (rl_*); 5: destinos de roam y visión; 6: visión y jungla exactas de Riot
 CACHE = Path(".cache") / "errores_por_elo.json"
 RECORDS_CACHE = Path(".cache") / "errores_por_elo_partidas.json.gz"  # lo de cada fichero de partidas (ver _FileCache)
 SOURCES = ("otps", "partidas_campeon")
@@ -51,6 +52,7 @@ GROUP_LABEL = {"BRONZE": "Hierro-Bronce", "GOLD": "Plata-Oro", "PLATINUM": "Plat
 MIN_GROUP_GAMES = 30  # partidas de un elo (en un rol o campeón) para enseñarlo
 MIN_CHAMP_GAMES = 20
 COUNTED = ("high", "medium", "low")
+MIN_CONSISTENCY_PLAYERS = 15  # jugadores con 10 partidas o más para dar la constancia de un elo
 MOVE_KEYS = (
     "mv_lane_pre14", "mv_river_pre14", "mv_enemy_jungle_pre14", "mv_base_pct", "mv_grouped_late", "mv_side_alone_late",
 ) + route_macro.KEYS + rule_metrics.KEYS
@@ -89,8 +91,12 @@ class _Agg:
         self.total = 0
         self.move: dict[str, list[float]] = defaultdict(list)
         self.eligible: Counter = Counter()  # partidas que pueden tener cada tipo de ``LATER_TYPES``
+        self.deaths: dict[str, list[tuple[int, float]]] = defaultdict(list)  # jugador -> (inicio, muertes) de cada partida
 
-    def add(self, mistakes: list[tuple[str, str]], player: str, metrics: dict | None = None, caps=()) -> None:
+    def add(self, mistakes: list[tuple[str, str]], player: str, metrics: dict | None = None, caps=(), sample=None) -> None:
+        """``sample``: (inicio, muertes) de la partida, para la constancia de cada jugador."""
+        if sample is not None and isinstance(sample[1], (int, float)):
+            self.deaths[player].append((sample[0] or 0, float(sample[1])))
         for mid in caps:
             self.eligible[mid] += 1
         for k in MOVE_KEYS:
@@ -123,7 +129,16 @@ class _Agg:
             "unknown": [mid for mid in LATER_TYPES if self.eligible[mid] < MIN_GROUP_GAMES],
             # Medias de movimiento (posiciones reconstruidas; solo partidas analizadas con la versión 14 o más).
             "move": {k: round(sum(v) / len(v), 2) for k, v in self.move.items() if len(v) >= MIN_GROUP_GAMES} or None,
+            "consistency": self._consistency(),
         }
+
+    def _consistency(self) -> dict | None:
+        """Mediana entre los jugadores con 10 partidas o más de su constancia (``consistency.summary``)."""
+        per_player = [s for games in self.deaths.values() if (s := consistency.summary([d for _, d in sorted(games)]))]
+        if len(per_player) < MIN_CONSISTENCY_PLAYERS:
+            return None
+        out = {k: round(statistics.median(p[k] for p in per_player), 2) for k in ("deaths_sd", "worst_deaths")}
+        return {**out, "players": len(per_player)}
 
 
 def _files(data_dir: Path) -> list[Path]:
@@ -161,18 +176,23 @@ def _record(d: dict, role: str | None, player: str) -> dict | None:
     rec.update(role=d.get("role") or role, champ=d.get("champ"), tier=d.get("tier"), player=player)
     moments = lens_on_cooldown(a.get("moments") or [], [w[0] for w in (d.get("events") or {}).get("wards_killed") or []])
     rec["mistakes"] = game_mistakes(moments, rec["role"], rec.get("champ"))
-    rec["move"] = {k: (a.get("metrics") or {}).get(k) for k in MOVE_KEYS}
-    rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in (a.get("metrics") or {})]
-    try:
-        rec["move"].update(route_macro.from_dossier(d))
-    # un dossier raro no puede parar el perfil
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        rec["move"].update(rule_metrics.from_dossier(d))
-    except Exception:  # noqa: BLE001
-        pass
+    metrics = a.get("metrics") or {}
+    rec.update(start=d.get("game_start"), deaths=metrics.get("deaths"))
+    rec["move"] = {k: metrics.get(k) for k in MOVE_KEYS}
+    rec["caps"] = [mid for mid, key in LATER_TYPES.items() if key in metrics]
+    rec["move"].update(_dossier_moves(d))
     return rec
+
+
+def _dossier_moves(d: dict) -> dict:
+    """Las medidas de ``route_macro`` y ``rule_metrics`` de un dossier."""
+    out: dict = {}
+    for measure in (route_macro.from_dossier, rule_metrics.from_dossier):
+        try:
+            out.update(measure(d))
+        except Exception:  # noqa: BLE001
+            continue  # un dossier raro no puede parar el perfil
+    return out
 
 
 def _game_key(d: dict) -> tuple:
@@ -348,9 +368,10 @@ def _aggregate(records: list[dict], champ_refs: dict[tuple, dict], catalog, cham
         name = (champ_name(r["champ"]) if champ_name and r.get("champ") else None) or "tu campeón"
         extra = champ_checks.check(r, champ_refs.get(key), catalog, name)
         mistakes = r["mistakes"] + game_mistakes(extra, r["role"], r.get("champ"))
-        roles[r["role"]][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
+        sample = (r.get("start"), r.get("deaths"))
+        roles[r["role"]][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or (), sample)
         if r.get("champ"):
-            champs[key][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or ())
+            champs[key][group].add(mistakes, r["player"], r.get("move"), r.get("caps") or (), sample)
     return roles, champs
 
 

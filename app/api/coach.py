@@ -387,7 +387,7 @@ def summary(
     _add_champ_checks(svc, games, prof)
     data = insights.summarize(games, refs, store.list_goals(svc.db, active_only=True), _build_refs(svc, top), prof.get() if prof else None)
     # Hábitos entre partidas: con todas tus partidas recientes (los filtros romperían las rachas y las sesiones).
-    data["habits"] = insights.habits(store.list_games(svc.db, puuids, limit=HABITS_GAMES))
+    data["habits"] = insights.habits(store.list_games(svc.db, puuids, limit=HABITS_GAMES), prof.get() if prof else None)
     data["habits"]["reviews"] = store.review_stats(svc.db, since=int(time.time()) - 7 * 86_400)
     roles_played = {g["role"] for g in games if g["role"]}
     rank = (profile.get("settings") or {}).get("rank") or {}

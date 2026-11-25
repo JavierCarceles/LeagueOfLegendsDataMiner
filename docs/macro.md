@@ -944,8 +944,27 @@ error: van como hábitos en «Cómo te mueves por el mapa», comparados con cada
 | C-14 | Muertes bajo su torre ≤ 10 s después de una kill de tu equipo allí | 0,10 → 0,11 | 0,06 → 0,11 | 0,07 → 0,07 | 0,06 → 0,13 | 0,05 → 0,06 | No: no separa elos (en elo alto se divea más) |
 
 Con tu campeón, las referencias son las de sus OTPs: con Hecarim (Platino → Aspirante) el full clear y la primera vuelta no
-cambian con el elo (3,3-3,4 min) y salen sin flecha. Sin hacer aún (necesitan datos que el análisis no guarda o más
-trabajo): C-2 (larvas o dragón según la prioridad a las 8:00), C-3 (dispersión de las peleas, métrica de equipo), C-7
-(muerte ante el pico de poder del rival: haría falta el nivel y los objetos del que te mata), C-8 (placas mientras tu rival
-roamea), C-9 (la muerte cara antes de un objetivo con la tabla de reaparición: hoy lo cubre en parte «objetivos rivales
-estando tú muerto»), C-10 (recompensas de objetivo: su umbral no es público), C-11 a C-13.
+cambian con el elo (3,3-3,4 min) y salen sin flecha.
+
+Segunda tanda (25-11-2026, 50.328 partidas; misma tabla, Hierro-Bronce → Aspirante):
+
+| Detección | Medida | Jungla | Top | Mid | ADC | Support | ¿Se enseña? |
+|---|---|---|---|---|---|---|---|
+| C-9 | Muertes en las que reapareces después de que salga el dragón, el ancestral o el barón (tabla de reaparición y relojes de `clocks`) | 0,76 → 0,50 | 0,77 → 0,61 | 0,79 → 0,47 | 0,68 → 0,48 | 0,70 → 0,45 | Sí, los 5 roles |
+| C-9 | …y el rival se lo lleva antes de que llegues (60 s tras reaparecer) | 0,31 → 0,20 | 0,27 → 0,20 | 0,29 → 0,14 | 0,24 → 0,18 | 0,24 → 0,16 | Sí, los 5 roles |
+| C-7 | Muertes ante tu rival de línea (solo o con uno) ≤ 60 s después de que suba a 6, 11 o 16 (su experiencia de cada minuto; 2.400, 7.300 y 14.700 de experiencia, comprobados con los frames) | 0,15 → 0,09 | 0,43 → 0,28 | 0,32 → 0,15 | 0,20 → 0,15 | 0,08 → 0,02 | Sí (jungla, top, mid y ADC) |
+| C-12 | Muertes sin ningún aliado en la jugada en los 3 min tras perder vuestra primera torre | 0,31 → 0,19 | 0,43 → 0,43 | 0,40 → 0,20 | 0,29 → 0,23 | 0,27 → 0,17 | Sí (jungla, mid y support) |
+| C-13 | ADC sin desplazamientos (Jinx, Aphelios, Ashe…): muertes en top o bot pasado el río tras la primera torre | | | | 0,53 → 0,27 | | Sí (ADC con esos campeones) |
+| C-10 | Muertes cada 10 min yendo 3.000 de oro por detrás desde el 14 | 3,50 → 2,86 | 2,81 → 2,79 | 2,98 → 2,40 | 2,93 → 2,63 | 2,99 → 2,69 | Sí (jungla y mid) |
+| C-10 | Objetivos que cogéis de los que caen yendo así, % | 16,9 → 16,7 | 17,8 → 13,6 | 17,4 → 16,6 | 17,2 → 16,3 | 18,2 → 17,0 | No: no separa elos |
+| C-3 | % que baja la dispersión de las kills del 0-10 al 20+ (partidas de 25 min o más) | 20,3 → 20,3 | 18,5 → 22,5 | 20,6 → 20,9 | 20,8 → 19,7 | 20,5 → 20,4 | No: no separa elos (el estudio de Riot daba −35 % en Oro y −56 % en Aspirante con otra medida) |
+| C-8 | Minutos (3-14) con tu rival de top o mid lejos de su línea en los que sigues en la tuya farmeando, % | | 60,6 → 63,3 | 47,5 → 34,8 | | | No: no separa elos |
+
+**C-11, constancia entre partidas** (`app/coach/consistency.py`, en «Hábitos»): con las últimas 20 partidas de cada
+jugador con 10 o más (mediana por jugador), la desviación de sus muertes baja de 3,1-3,4 a 2,4-2,7 en los cinco roles y
+las muertes de su 20 % de partidas peores, de 11-12,7 a 8,7-10,3. La desviación del CS/min sube con el elo (no sirve) y
+la de los errores graves solo baja en jungla (0,55 → 0,40).
+
+Sin hacer: C-2 (larvas o dragón según la prioridad a las 8:00) necesita la posición de los 10 jugadores a esa hora, que
+los dossiers no guardan (solo la tuya y la de tu rival de línea): habría que añadirlo al análisis y validarlo con las
+partidas nuevas. C-10 (recompensas de objetivo) sin el umbral público solo se mide con la diferencia de oro.

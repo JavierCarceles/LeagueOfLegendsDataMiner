@@ -15,14 +15,35 @@ hace cada elo en «Cómo te mueves por el mapa» y ninguno se marca como error s
 - **C-14 El «disparo de más» en un dive**: tu muerte bajo una torre rival en pie en los 10 s siguientes a una kill de tu
   equipo en el mismo sitio (ya estaba la kill y alguien se come un disparo de más). Medido el 25-11-2026: no separa
   elos (0,06-0,11 por partida en todos, algo más en elo alto, que divea más): se calcula, pero no se enseña.
+- **C-3 Peleas tardías concentradas**: cuánto baja la dispersión de las kills de la partida (de los dos equipos) del
+  0-10 al 20+ (la «SDist» del estudio de Riot por elo: en Oro baja la mitad que en Aspirante). Es de equipo.
+- **C-7 Muerte ante el pico de poder del rival**: tu muerte ante tu rival de línea (solo o con un aliado suyo) en los
+  60 s siguientes a que subiera a 6, 11 o 16 (por su experiencia de cada minuto: sus objetos no se guardan).
+- **C-8 Placas mientras el rival roamea**: minutos (del 3 al 14) en que tu rival de top o mid está lejos de su línea;
+  ¿te quedas en la tuya farmeando?
+- **C-9 Muerte cara antes de un objetivo**: muertes en las que reapareces después de que salga el dragón, el ancestral o
+  el barón (con la tabla de reaparición y los relojes de ``clocks``), y cuántas acaban con el objetivo para el rival.
+- **C-10 Por detrás**: desde el 14, con tu equipo 3.000 de oro o más por detrás (cuando suele haber recompensas de
+  objetivo), qué parte de los objetivos que caen cogéis y cuánto mueres.
+- **C-12 Solo tras perder la primera torre**: tus muertes sin ningún aliado en la jugada en los 3 min siguientes.
+- **C-13 ADC sin desplazamientos en una lateral**: con Jinx, Aphelios, Ashe… tus muertes en top o bot pasado el río
+  tras caer la primera torre.
 
-Entradas como las de ``route_macro.features``: kills ``[segundo, matador, víctima, x, y, asistentes]``, objetivos
-``[segundo, tipo, equipo que lo coge, x, y]``, estructuras ``[segundo, equipo dueño, tipo, línea, x, y]``, CS por
-minuto (índice = minuto) y vueltas a base ``{"t", "dead", …}``.
+C-2 (larvas o dragón según la prioridad de las líneas a las 8:00) necesita la posición de los 10 jugadores a esa hora,
+que los dossiers no guardan: va en el análisis (``analyzer``) y se valida con las partidas nuevas.
+
+Entradas (``Game``) como las de ``route_macro.features``: kills ``[segundo, matador, víctima, x, y, asistentes]``,
+objetivos ``[segundo, tipo, equipo que lo coge, x, y]``, estructuras ``[segundo, equipo dueño, tipo, línea, x, y]``, CS
+por minuto (índice = minuto) y vueltas a base ``{"t", "dead", …}``.
 """
 
 from __future__ import annotations
 
+import math
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+from app.coach import clocks as clk
 from app.coach import geometry as geo
 
 EPIC = ("dragon", "elder", "grubs", "herald", "baron")
@@ -50,7 +71,62 @@ TURRETS = {
           (13866, 4505), (13327, 8226), (13624, 10572), (12611, 13084), (13052, 12612)),
 }
 
-KEYS = ("rm_obj_convert_pct", "rm_jg_clear_min", "rm_first_back_min", "rm_jg_idle_min", "rm_farsight10", "rm_dive_extra")
+# C-3
+SPREAD_EARLY_S = 600
+SPREAD_LATE_S = 1_200
+SPREAD_MIN_KILLS = 4
+SPREAD_MIN_MINUTES = 25
+# C-7: experiencia total para llegar a cada nivel (comprobada con los frames de las partidas guardadas)
+SPIKE_XP = {6: 2_400, 11: 7_300, 16: 14_700}
+SPIKE_WINDOW_S = 60
+# C-8
+PUNISH_ROLES = ("TOP", "MID")
+OPP_ROAM_FAR = 4_000
+PUNISH_MINUTES = (3, 14)
+PUNISH_LANE = 2_500  # «en tu línea»: a menos de esto de ella
+PUNISH_CS = 4  # CS ese minuto para contar que te quedaste farmeando
+# C-9
+DEAD_SPAWN_BACK_S = 60  # de la fuente al foso: si lo cogen antes de que llegues, lo perdiste por esa muerte
+# C-10
+BEHIND_FROM_MIN = 14
+BEHIND_GOLD = 3_000
+BEHIND_MIN_MINUTES = 3
+BEHIND_OBJECTIVES = ("dragon", "elder", "herald", "baron")
+# C-12
+TOWER_AFTER_S = 180
+ALONE_WINDOW_S = 15  # una jugada: kills a menos de esto…
+ALONE_NEAR = 2_500  # …y de esta distancia de tu muerte
+# C-13: ADC sin saltos ni desplazamientos (Sivir, Draven y Twitch solo tienen velocidad o camuflaje)
+IMMOBILE_ADCS = frozenset({15, 21, 22, 29, 50, 96, 110, 115, 119, 147, 202, 222, 235, 498, 523, 800})
+
+KEYS = (
+    "rm_obj_convert_pct", "rm_jg_clear_min", "rm_first_back_min", "rm_jg_idle_min", "rm_farsight10", "rm_dive_extra",
+    "rm_fight_spread_drop", "rm_spike_deaths", "rm_punish_roam_pct", "rm_dead_spawn", "rm_dead_spawn_lost",
+    "rm_behind_obj_pct", "rm_behind_deaths10", "rm_alone_after_tower", "rm_adc_side_deaths",
+)
+
+
+@dataclass
+class Game:
+    """Lo que hace falta de una partida (tuya o del dossier de un OTP) para medir estos hábitos."""
+
+    me: int
+    team: int | None
+    role: str | None
+    kills: list
+    pos: Callable[[int], tuple | None]
+    dead: list[tuple[int, int]] = field(default_factory=list)
+    objectives: list | None = None
+    buildings: list | None = None
+    cs: list | None = None
+    backs: list | None = None
+    wards: list | None = None
+    minutes: float | None = None
+    champ: int | None = None
+    clocks: dict | None = None  # relojes de la temporada, solo si cuadran con esta partida (C-9)
+    opp: int | None = None  # tu rival de línea (participante)
+    opp_frames: list | None = None  # su posición y su experiencia cada minuto: (x, y, xp), None donde falte
+    gold_diff: list | None = None  # oro de tu equipo menos el del rival, cada minuto
 
 
 def team_of(pid) -> int | None:
@@ -64,31 +140,26 @@ def team_of(pid) -> int | None:
     return 200 if 6 <= pid <= 10 else None
 
 
-def habits(
-    *,
-    me: int,
-    team: int | None,
-    role: str | None,
-    kills: list,
-    objectives: list | None,
-    buildings: list | None,
-    cs: list | None,
-    backs: list | None,
-    wards: list | None,
-    minutes: float | None,
-    pos,
-    dead: list[tuple[int, int]],
-) -> dict:
+def habits(g: Game) -> dict:
     """Todas las métricas de la partida que se pueden calcular con lo que hay (las demás no salen)."""
     out: dict = {}
-    if team:
-        out.update(objective_conversion(objectives, buildings, kills, team))
-        out.update(dive_extra(kills, buildings, me, team))
-    out.update(farsight(wards, minutes))
-    if role == "JUNGLE":
-        out.update(jungle_pace(cs, backs))
-        if team:
-            out.update(jungle_idle(cs, kills, me, team, objectives, pos, dead))
+    if g.team:
+        out.update(objective_conversion(g.objectives, g.buildings, g.kills, g.team))
+        out.update(dive_extra(g.kills, g.buildings, g.me, g.team))
+        out.update(dead_at_spawn(g))
+        out.update(behind(g))
+        out.update(alone_after_tower(g))
+    out.update(farsight(g.wards, g.minutes))
+    out.update(fight_spread(g.kills, g.minutes))
+    out.update(spike_deaths(g))
+    if g.role in PUNISH_ROLES:
+        out.update(punish_roams(g))
+    if g.role == "ADC" and g.champ in IMMOBILE_ADCS:
+        out.update(adc_side_deaths(g))
+    if g.role == "JUNGLE":
+        out.update(jungle_pace(g.cs, g.backs))
+        if g.team:
+            out.update(jungle_idle(g.cs, g.kills, g.me, g.team, g.objectives, g.pos, g.dead))
     return out
 
 
@@ -220,3 +291,166 @@ def dive_extra(kills: list, buildings: list | None, me: int, team: int) -> dict:
         ):
             count += 1
     return {"rm_dive_extra": count}
+
+
+# ------------------------------------------------------------------ C-3
+def _spread(points: list[tuple]) -> float:
+    """Dispersión de unas posiciones: distancia cuadrática media a su centro."""
+    cx = sum(p[0] for p in points) / len(points)
+    cy = sum(p[1] for p in points) / len(points)
+    return math.sqrt(sum((p[0] - cx) ** 2 + (p[1] - cy) ** 2 for p in points) / len(points))
+
+
+def fight_spread(kills: list, minutes: float | None) -> dict:
+    """% que baja la dispersión de las kills de la partida (de los dos equipos) del 0-10 al 20+ (partidas de 25 min o más)."""
+    if not minutes or minutes < SPREAD_MIN_MINUTES:
+        return {}
+    early = [(k[3], k[4]) for k in kills if k[0] < SPREAD_EARLY_S and k[3] is not None]
+    late = [(k[3], k[4]) for k in kills if k[0] >= SPREAD_LATE_S and k[3] is not None]
+    if len(early) < SPREAD_MIN_KILLS or len(late) < SPREAD_MIN_KILLS:
+        return {}
+    first = _spread(early)
+    return {"rm_fight_spread_drop": round(100 * (first - _spread(late)) / first, 1)} if first > 0 else {}
+
+
+# ------------------------------------------------------------------ C-7
+def _spikes(frames: list) -> list[float]:
+    """Segundo en que tu rival llega a 6, 11 y 16 (interpolando su experiencia de cada minuto)."""
+    xp = [f[2] if f else None for f in frames]
+    out = []
+    for target in SPIKE_XP.values():
+        minute = _reach_minute(xp, target, len(xp) - 1)
+        if minute is not None:
+            out.append(minute * 60)
+    return out
+
+
+def spike_deaths(g: Game) -> dict:
+    """Tus muertes ante tu rival de línea (solo o con un aliado suyo) en los 60 s siguientes a que subiera a 6, 11 o 16."""
+    if not g.opp or not g.opp_frames:
+        return {}
+    spikes = _spikes(g.opp_frames)
+    n = sum(
+        1 for k in g.kills
+        if k[2] == g.me and k[1] == g.opp and len(k[5] or []) <= 1 and any(0 <= k[0] - s <= SPIKE_WINDOW_S for s in spikes)
+    )
+    return {"rm_spike_deaths": n}
+
+
+# ------------------------------------------------------------------ C-8
+def _gained(cs: list, m: int) -> float:
+    a, b = cs[m], cs[m + 1]
+    return 0 if a is None or b is None else b - a
+
+
+def _opp_away(frame, points) -> bool:
+    """¿Tu rival está lejos de su línea en ese minuto (y fuera de su base)?"""
+    if not frame or frame[0] is None:
+        return False
+    p = (frame[0], frame[1])
+    return not geo.zone(p).startswith("base") and geo.dist_polyline(p, points) > OPP_ROAM_FAR
+
+
+def punish_roams(g: Game) -> dict:
+    """% de los minutos (del 3 al 14) con tu rival lejos de su línea en los que tú sigues en la tuya farmeando."""
+    lane = geo.ROLE_LANE.get(g.role or "")
+    if not lane or not g.opp_frames or not g.cs:
+        return {}
+    points, _ = geo.LANES[lane]
+    first, last = PUNISH_MINUTES
+    roams = punished = 0
+    for m in range(first, min(last, len(g.opp_frames), len(g.cs) - 1)):
+        p = g.pos(m * 60_000)
+        if p is None or not _opp_away(g.opp_frames[m], points):
+            continue  # estabas muerto o tu rival no se había ido
+        roams += 1
+        if geo.dist_polyline(p, points) <= PUNISH_LANE and _gained(g.cs, m) >= PUNISH_CS:
+            punished += 1
+    return {"rm_punish_roam_pct": round(100 * punished / roams, 1)} if roams else {}
+
+
+# ------------------------------------------------------------------ C-9
+def _lost_after(objs: list[dict], hit: tuple[int, str], team: int | None, until: float) -> bool:
+    """¿El rival se llevó ese objetivo (el primero de ese foso tras salir) antes de ``until``?"""
+    spawn, kind = hit
+    pit = ("baron",) if kind == "baron" else ("dragon", "elder")
+    taken = next((o for o in objs if o["kind"] in pit and o["t"] >= spawn), None)
+    return taken is not None and taken["team"] != team and taken["t"] <= until
+
+
+def dead_at_spawn(g: Game) -> dict:
+    """Muertes en las que reapareces después de que salga el dragón, el ancestral o el barón, y en cuántas se lo lleva
+    el rival antes de que puedas llegar (60 s tras reaparecer)."""
+    if not g.clocks or not g.minutes:
+        return {}
+    objs = [{"kind": o[1], "team": o[2], "t": int(o[0] * 1000)} for o in sorted(g.objectives or [], key=lambda o: o[0])]
+    spawns = clk.big_spawns(objs, g.clocks, int(g.minutes * 60_000))
+    if spawns is None:
+        return {}
+    n = lost = 0
+    for start, end in g.dead:
+        hit = next(((s, kind) for s, kind in spawns if start < s <= end), None)
+        if hit is None:
+            continue
+        n += 1
+        if _lost_after(objs, hit, g.team, end + DEAD_SPAWN_BACK_S * 1000):
+            lost += 1
+    return {"rm_dead_spawn": n, "rm_dead_spawn_lost": lost}
+
+
+# ------------------------------------------------------------------ C-10
+def behind(g: Game) -> dict:
+    """Desde el 14, con tu equipo 3.000 de oro o más por detrás: % de los objetivos que caen que cogéis vosotros y tus
+    muertes por cada 10 min así."""
+    diff = g.gold_diff or []
+    minutes = {m for m in range(BEHIND_FROM_MIN, len(diff)) if diff[m] is not None and diff[m] <= -BEHIND_GOLD}
+    if len(minutes) < BEHIND_MIN_MINUTES:
+        return {}
+    taken = [o[2] == g.team for o in g.objectives or [] if o[1] in BEHIND_OBJECTIVES and int(o[0] // 60) in minutes]
+    deaths = sum(1 for k in g.kills if k[2] == g.me and int(k[0] // 60) in minutes)
+    out = {"rm_behind_deaths10": round(10 * deaths / len(minutes), 2)}
+    if taken:
+        out["rm_behind_obj_pct"] = round(100 * sum(taken) / len(taken), 1)
+    return out
+
+
+# ------------------------------------------------------------------ C-12
+def _died_alone(kills: list, k: list, me: int, team: int | None) -> bool:
+    """¿Ningún aliado mató, murió ni asistió en esa jugada (15 s y 2.500 alrededor de tu muerte)?"""
+    t, p = k[0], (k[3], k[4])
+    for j in kills:
+        if j is k or abs(j[0] - t) > ALONE_WINDOW_S or j[3] is None or geo.dist(p, (j[3], j[4])) > ALONE_NEAR:
+            continue
+        if any(team_of(x) == team and x != me for x in (j[1], j[2], *(j[5] or []))):
+            return False
+    return True
+
+
+def alone_after_tower(g: Game) -> dict:
+    """Tus muertes sin ningún aliado en la jugada en los 3 min siguientes a perder vuestra primera torre."""
+    if g.buildings is None:
+        return {}
+    first = min((b[0] for b in g.buildings if b[1] == g.team and b[2] == "tower"), default=None)
+    if first is None:
+        return {}
+    n = sum(
+        1 for k in g.kills
+        if k[2] == g.me and k[3] is not None and first <= k[0] <= first + TOWER_AFTER_S and _died_alone(g.kills, k, g.me, g.team)
+    )
+    return {"rm_alone_after_tower": n}
+
+
+# ------------------------------------------------------------------ C-13
+def adc_side_deaths(g: Game) -> dict:
+    """Con un ADC sin desplazamientos: tus muertes en top o bot pasado el río después de caer la primera torre."""
+    if g.buildings is None or not g.team:
+        return {}
+    first = min((b[0] for b in g.buildings if b[2] == "tower"), default=None)
+    if first is None:
+        return {}
+    n = sum(
+        1 for k in g.kills
+        if k[2] == g.me and k[0] >= first and k[3] is not None
+        and geo.zone((k[3], k[4])) in ("top", "bot") and geo.side_of((k[3], k[4])) != g.team
+    )
+    return {"rm_adc_side_deaths": n}

@@ -13,6 +13,7 @@ Funciona igual con tus partidas (el análisis guardado) y con las de los OTPs (s
 
 from __future__ import annotations
 
+from app.coach import clocks as clk
 from app.coach import geometry as geo
 from app.coach import macro_habits
 from app.coach.analyzer import interpolate
@@ -70,11 +71,13 @@ def features(
     objectives: list | None = None,
     buildings: list | None = None,
     backs: list | None = None,
+    extra: dict | None = None,
 ) -> dict:
     """Métricas de una partida. ``anchors`` en ms; ``kills``: [segundo, matador, víctima, x, y, asistentes];
     ``wards``: los tuyos, [segundo, tipo]; ``objectives``: [segundo, tipo, equipo, x, y]; ``buildings``: [segundo,
     equipo dueño, tipo, línea, x, y]; ``backs``: tus vueltas a base. Con ellos, también los hábitos de
-    ``macro_habits``."""
+    ``macro_habits``; ``extra``, lo demás que estos usan (``champ``, ``clocks``, ``opp``, ``opp_frames`` y
+    ``gold_diff``, ver ``macro_habits.Game``)."""
     if len(anchors) < 5 or not role:
         return {}
     times = [a[0] for a in anchors]
@@ -93,12 +96,11 @@ def features(
     out.update(_vision(pos, team, wards, objectives))
     if role == "SUPPORT" and adc:
         out["rm_adc_alone_deaths"] = _adc_alone_deaths(pos, kills, adc)
-    out.update(
-        macro_habits.habits(
-            me=me, team=team, role=role, kills=kills, objectives=objectives, buildings=buildings, cs=cs, backs=backs,
-            wards=wards, minutes=times[-1] / 60_000, pos=pos, dead=dead,
-        )
+    game = macro_habits.Game(
+        me=me, team=team, role=role, kills=kills, pos=pos, dead=dead, objectives=objectives, buildings=buildings, cs=cs,
+        backs=backs, wards=wards, minutes=times[-1] / 60_000, **(extra or {}),
     )
+    out.update(macro_habits.habits(game))
     return out
 
 
@@ -278,18 +280,44 @@ def _track(track: dict) -> tuple[list, list]:
     return anchors, dead
 
 
+def _extra(a: dict, champ, patch, opp_frames: list) -> dict:
+    """Lo que usan los hábitos de ``macro_habits`` además de lo de siempre."""
+    return {
+        "champ": champ,
+        "clocks": clk.clocks_for_patch(patch) if a.get("clocks") else None,  # solo si los relojes cuadraron
+        "opp": a.get("opponent"),
+        "opp_frames": opp_frames,
+        "gold_diff": (a.get("series") or {}).get("team_gold_diff"),
+    }
+
+
+def _frames_from_track(track: dict, xp: list) -> list:
+    """(x, y, experiencia) de tu rival en cada minuto, con su recorrido reconstruido (tus partidas)."""
+    anchors, dead = _track(track)
+    if len(anchors) < 2:
+        return [(None, None, v) for v in xp]
+    times = [x[0] for x in anchors]
+    out = []
+    for m, v in enumerate(xp):
+        p = None if _dead(dead, m * 60_000) else interpolate(anchors, m * 60_000, times)
+        out.append((p[0], p[1], v) if p else (None, None, v))
+    return out
+
+
 def from_analysis(a: dict) -> dict:
     """Desde un análisis guardado (tus partidas): su repetición (recorridos y kills) y sus series de CS."""
     replay = a.get("replay") or {}
     me = a.get("me")
-    anchors, dead = _track((replay.get("tracks") or {}).get(str(me)) or {})
+    tracks = replay.get("tracks") or {}
+    anchors, dead = _track(tracks.get(str(me)) or {})
     team = a.get("team")
     series = a.get("series") or {}
+    opp_frames = _frames_from_track(tracks.get(str(a.get("opponent"))) or {}, series.get("opp_xp") or [])
     return features(
         anchors, dead, replay.get("kills") or [], me=me, role=a.get("role"), ally_jungler=a.get("ally_jungler"),
         enemy_jungler=a.get("enemy_jungler"), adc=_adc_of(a, team), cs=series.get("cs"), opp_cs=series.get("opp_cs"),
         team=team, wards=a.get("my_wards"), objectives=replay.get("objectives"), buildings=replay.get("buildings"),
-        backs=(a.get("build") or {}).get("backs"),
+        backs=(a.get("build") or {}).get("backs"), extra=_extra(a, a.get("champ"), a.get("patch"), opp_frames),
     )
 
 
@@ -299,12 +327,14 @@ def from_dossier(d: dict) -> dict:
     anchors, dead = _track(d.get("track") or {})
     team = a.get("team")
     map_events = d.get("map_events") or {}
+    opp_frames = [(f.get("x"), f.get("y"), f.get("xp")) for f in d.get("opponent_frames") or []]
     return features(
         anchors, dead, map_events.get("kills") or [], me=a.get("me"), role=d.get("role") or a.get("role"),
         ally_jungler=a.get("ally_jungler"), enemy_jungler=a.get("enemy_jungler"), adc=_adc_of(a, team),
         cs=[f.get("cs") for f in d.get("frames") or []], opp_cs=[f.get("cs") for f in d.get("opponent_frames") or []],
         team=team, wards=(d.get("events") or {}).get("wards_placed"), objectives=map_events.get("objectives"),
         buildings=map_events.get("buildings"), backs=(a.get("build") or {}).get("backs"),
+        extra=_extra(a, d.get("champ"), d.get("patch") or a.get("patch"), opp_frames),
     )
 
 

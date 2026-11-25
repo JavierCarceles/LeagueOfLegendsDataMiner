@@ -852,11 +852,16 @@ function movementCard(m) {
   );
 }
 
-/** Subtítulo antes de la primera fila de un grupo (reglas de macro o visión útil); null si no toca. */
+const MOVE_SUBHEADS = {
+  vision: "Visión útil: para los objetivos y para seguir al jungla rival (dónde estabas al poner cada ward)",
+  macro: "Ritmo y objetivos: lo que más separa los elos según las guías de 2026 (encadenar objetivos, ritmo del jungla)",
+  deaths: "Muertes que cuestan caro: al salir un objetivo, ante el pico de poder de tu rival o solo tras perder una torre",
+  rules: "Reglas de las guías de macro que se pueden medir: visión, vueltas a base, roams y teletransporte",
+};
+
+/** Subtítulo antes de la primera fila de un grupo (visión, ritmo, muertes caras o reglas); null si no toca. */
 function moveSubhead(r, prev, cols) {
-  let text = null;
-  if (r.group === "rules" && prev?.group !== "rules") text = "Reglas de las guías de macro que se pueden medir: visión, vueltas a base, roams y teletransporte";
-  else if (r.group === "vision" && prev?.group !== "vision") text = "Visión útil: para los objetivos y para seguir al jungla rival (dónde estabas al poner cada ward)";
+  const text = prev?.group === r.group ? null : MOVE_SUBHEADS[r.group];
   return text ? h("tr.elo-subhead", h("td", { colSpan: cols }, h("span.tiny.muted", text))) : null;
 }
 
@@ -867,14 +872,19 @@ function standingOf(r) {
   return ["", ""];
 }
 
+/** Flecha de hacia dónde van los elos altos en una medida (null si la diferencia no es clara). */
+function trendMark(r) {
+  if (!r.trend) return null;
+  const up = r.trend === "up";
+  return h("span.tiny.muted", { title: up ? "Los elos altos tienen más" : "Los elos altos tienen menos" }, up ? " ↑" : " ↓");
+}
+
 /** Fila de la tabla de movimiento: la medida (y hacia dónde van los elos altos), tú, tu rival y cada elo. */
 function moveRow(r, tiers) {
   const [cls, title] = standingOf(r);
-  const trendTitle = r.trend === "up" ? "Los elos altos tienen más" : "Los elos altos tienen menos";
-  const arrow = r.trend === "up" ? " ↑" : " ↓";
   return h(
     "tr",
-    h("td", r.label, r.trend ? h("span.tiny.muted", { title: trendTitle }, arrow) : null),
+    h("td", r.label, trendMark(r)),
     h(`td.num${cls}`, { title }, h("b", moveVal(r, r.mine))),
     h("td.num.muted", r.opp === null || r.opp === undefined ? "—" : moveVal(r, r.opp)),
     tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : moveVal(r, r.tiers[t]))),
@@ -1153,7 +1163,7 @@ function habitsCard(s) {
   const t = hb.tilt;
   const leads = hb.leads;
   const pools = hb.pool || [];
-  if (!t && !leads && !pools.length) return null;
+  if (!t && !leads && !pools.length && !hb.consistency) return null;
   const alerts = [t?.tilted, (leads?.wasted || 0) >= 2, pools.some((p) => p.wide)].filter(Boolean).length;
   const body = () =>
     h(
@@ -1161,6 +1171,7 @@ function habitsCard(s) {
       t ? tiltHabit(t) : null,
       leads ? leadsHabit(leads) : null,
       hb.reviews ? reviewsHabit(hb.reviews) : null,
+      hb.consistency ? consistencyHabit(hb.consistency) : null,
       pools.map((p) => poolHabit(p)),
     );
   return collapsible("progreso.habitos", [icon("activity"), "Hábitos: tilt, sesiones y pool"], body, {
@@ -1244,6 +1255,36 @@ function reviewsHabit(r) {
 function reviewsText(r) {
   if (!r.week) return "No has revisado ninguna partida esta semana.";
   return `Has revisado ${r.week} ${r.week === 1 ? "partida" : "partidas"} esta semana (${r.games} en total).`;
+}
+
+/** Constancia entre partidas: tus muertes de una partida a otra y en tus peores partidas, frente a cada elo. */
+function consistencyHabit(c) {
+  const tiers = Object.keys(ELO_LABEL).filter((t) => c.rows.some((r) => r.tiers?.[t] !== undefined));
+  return h(
+    "div.habit",
+    h("div.small", { style: { fontWeight: 650 } }, icon("activity"), " Constancia entre partidas"),
+    h("div.tiny.muted", { style: { marginTop: "6px" } }, `Tus últimas ${c.games} partidas de ${ROLE_LABEL[c.role] || c.role}, frente a los jugadores de cada elo con las suyas (la mitad de ellos están por debajo de ese valor).`),
+    h(
+      "div.table-wrap",
+      h(
+        "table.table.elo-table",
+        h("thead", h("tr", h("th", "Qué"), h("th.num", "Tú"), tiers.map((t) => h("th.num", ELO_LABEL[t])))),
+        h("tbody", c.rows.map((r) => consistencyRow(r, tiers))),
+      ),
+    ),
+    tiers.length ? null : h("div.tiny.muted", "La comparación con cada elo aparecerá cuando haya jugadores con 10 partidas o más de tu rol en varios elos."),
+  );
+}
+
+/** Fila de la constancia: la medida, tú (en verde o rojo según el elo más alto y el más bajo) y cada elo. */
+function consistencyRow(r, tiers) {
+  const [cls, title] = standingOf(r);
+  return h(
+    "tr",
+    h("td", r.label, trendMark(r)),
+    h(`td.num${cls}`, { title }, h("b", fmt.num(r.mine, 1))),
+    tiers.map((t) => h("td.num.muted", r.tiers?.[t] === undefined ? "—" : fmt.num(r.tiers[t], 1))),
+  );
 }
 
 /** Tu pool en un rol: el aviso si es demasiado amplio y tus campeones (o el núcleo propuesto). */

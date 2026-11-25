@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from collections import Counter, defaultdict
 
-from app.coach import learn
+from app.coach import consistency, learn
 from app.coach.rule_metrics import ROWS as RULE_ROWS
 from app.coach.benchmarks import CATEGORIES, METRICS, References, applies
 
@@ -1068,6 +1068,7 @@ ROUTE_ROWS = [
     ("rm_ward_enemy_jg10", "Wards en la jungla rival antes del 10 (seguir al jungla rival)", ("JUNGLE", "SUPPORT"), ""),
     ("rm_ward_enemy_jg_pct", "Wards en la jungla rival (antes del 14, de todos los tuyos)", ("TOP", "JUNGLE", "SUPPORT"), "%"),
     ("rm_ward_lane_pct", "Wards en tu línea (antes del 14, de todos los tuyos)", ("SUPPORT",), "%"),
+    ("rm_farsight10", "Farsight (trinket azul) cada 10 min", ("TOP", "MID", "ADC"), ""),
     # De macro/macro_internet_por_elo.md (validado el 25-11-2026 con 48.229 partidas, Hierro-Bronce → Aspirante): jungla,
     # full clear 4,15 → 3,5 min, primera vuelta a base 4,7 → 3,4 y minutos parado del 4 al 14 0,27 → 0,05; Farsight cada
     # 10 min, top 0,02 → 0,50, mid 0,17 → 0,89 y ADC 0,26 → 0,95 (jungla y support no lo usan); objetivos de tu equipo
@@ -1077,9 +1078,24 @@ ROUTE_ROWS = [
     ("rm_jg_clear_min", "Minuto en que acabas el primer full clear (24 de CS)", ("JUNGLE",), ""),
     ("rm_first_back_min", "Minuto de tu primera vuelta a base (sin haber muerto)", ("JUNGLE",), ""),
     ("rm_jg_idle_min", "Minutos parado del 4 al 14 (sin CS, kills ni objetivos)", ("JUNGLE",), ""),
-    ("rm_farsight10", "Farsight (trinket azul) cada 10 min", ("TOP", "MID", "ADC"), ""),
+    # Muertes que cuestan caro (validado el 25-11-2026 con 50.328 partidas, Hierro-Bronce → Aspirante): reaparecer después
+    # de que salga el dragón, el ancestral o el barón 0,68-0,79 → 0,45-0,61 por partida en los cinco roles (y que el
+    # rival se lo lleve antes de que llegues, 0,24-0,31 → 0,14-0,20); morir ante tu rival justo después de que suba a 6,
+    # 11 o 16, top 0,43 → 0,28, mid 0,32 → 0,15, jungla 0,15 → 0,09; morir solo tras perder vuestra primera torre, jungla
+    # 0,31 → 0,19, support 0,27 → 0,17, mid 0,40 → 0,20; ADC sin desplazamientos muerto en una lateral pasado el río,
+    # 0,53 → 0,27; muertes cada 10 min yendo 3.000 por detrás, jungla 3,5 → 2,9 y mid 3,0 → 2,4. Medido y sin diferencia
+    # (no sale): la dispersión de las peleas tardías (C-3, 18-24 % en todos), quedarte farmeando cuando tu rival roamea
+    # (C-8) y los objetivos que cogéis yendo por detrás (C-10, 14-19 %).
+    ("rm_dead_spawn", "Muertes en las que reapareces después de que salga el dragón o el barón", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), ""),
+    ("rm_dead_spawn_lost", "De ellas, el rival se lo lleva antes de que llegues", ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT"), ""),
+    ("rm_spike_deaths", "Muertes ante tu rival justo después de que suba a 6, 11 o 16 (60 s)", ("TOP", "JUNGLE", "MID", "ADC"), ""),
+    ("rm_alone_after_tower", "Muertes solo (sin aliados en la jugada) en los 3 min tras perder vuestra primera torre", ("JUNGLE", "MID", "SUPPORT"), ""),
+    ("rm_adc_side_deaths", "Muertes en una lateral pasado el río tras la primera torre (ADC sin desplazamientos)", ("ADC",), ""),
+    ("rm_behind_deaths10", "Muertes cada 10 min yendo 3.000 de oro por detrás (desde el 14)", ("JUNGLE", "MID"), ""),
 ]
 VISION_KEYS = {"rm_wards_pre14", "rm_obj_ward_pct", "rm_pink_obj", "rm_ward_enemy_jg10", "rm_ward_enemy_jg_pct", "rm_ward_lane_pct", "rm_farsight10"}
+MACRO_KEYS = {"rm_obj_convert_pct", "rm_jg_clear_min", "rm_first_back_min", "rm_jg_idle_min"}
+DEATH_KEYS = {"rm_dead_spawn", "rm_dead_spawn_lost", "rm_spike_deaths", "rm_alone_after_tower", "rm_adc_side_deaths", "rm_behind_deaths10"}
 
 
 def _move_value(mv: dict | None, phase: str, field: str) -> float | None:
@@ -1138,10 +1154,14 @@ def _move_rows(mine: list[dict], role: str, tiers: dict) -> list[dict]:
 
 
 def _route_group(field: str, key: str) -> str:
-    """Grupo de una fila de roams y visión: «rules» (reglas medibles), «vision» o «routes»."""
+    """Grupo de una fila: «rules» (reglas medibles), «vision», «macro» (ritmo y objetivos), «deaths» (muertes caras) o
+    «routes» (roams)."""
     if field == "rules":
         return "rules"
-    return "vision" if key in VISION_KEYS else "routes"
+    for group, keys in (("vision", VISION_KEYS), ("macro", MACRO_KEYS), ("deaths", DEATH_KEYS)):
+        if key in keys:
+            return group
+    return "routes"
 
 
 def _route_rows(mine: list[dict], role: str, tiers: dict) -> list[dict]:
@@ -1375,9 +1395,41 @@ def review_moments(moments: list[dict], n: int = REVIEW_MOMENTS) -> list[dict]:
     return sorted(picked, key=lambda m: m["t"])
 
 
-def habits(games: list[dict]) -> dict:
-    """Hábitos entre partidas (tilt, sesiones, pool de campeones) y ventajas que se escapan."""
-    return {"tilt": tilt_report(games), "pool": pool_report(games), "leads": leads_report(games)}
+def habits(games: list[dict], profile: dict | None = None) -> dict:
+    """Hábitos entre partidas (tilt, sesiones, pool de campeones, constancia) y ventajas que se escapan."""
+    return {
+        "tilt": tilt_report(games),
+        "pool": pool_report(games),
+        "leads": leads_report(games),
+        "consistency": consistency_report(games, profile),
+    }
+
+
+CONSISTENCY_ROWS = (
+    ("deaths_sd", "Cuánto cambian tus muertes de una partida a otra (desviación)"),
+    ("worst_deaths", "Muertes en tu 20 % de partidas peores"),
+)
+
+
+def consistency_report(games: list[dict], profile: dict | None) -> dict | None:
+    """C-11: tus últimas 20 partidas fiables de tu rol más jugado (``games``, de la más reciente a la más antigua) frente
+    a la mediana de los jugadores de cada elo con sus últimas 20 (``consistency``)."""
+    pool = [g for g in games if reliable(g) and g.get("role") and isinstance((g.get("metrics") or {}).get("deaths"), (int, float))]
+    if len(pool) < consistency.MIN_GAMES:
+        return None
+    role = Counter(g["role"] for g in pool).most_common(1)[0][0]
+    deaths = [float(g["metrics"]["deaths"]) for g in pool if g["role"] == role][: consistency.RECENT]
+    mine = consistency.summary(list(reversed(deaths)))
+    if mine is None:
+        return None
+    tiers, _ = elo_tiers(profile, role)
+    rows = []
+    for key, label in CONSISTENCY_ROWS:
+        elo = {t: b["consistency"][key] for t, b in tiers.items() if (b.get("consistency") or {}).get(key) is not None}
+        row = {"key": key, "label": label, "unit": "", "mine": mine[key], "tiers": elo or None}
+        row.update(_move_trend(row))
+        rows.append(row)
+    return {"role": role, "games": len(deaths), "rows": rows}
 
 
 def _death_context(metric: str, tags: dict) -> str:
