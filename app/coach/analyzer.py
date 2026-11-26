@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import bisect
 import math
+import statistics
 from collections import Counter, defaultdict
 from itertools import permutations
 
@@ -84,7 +85,7 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 # 14: posiciones reconstruidas (vuelta a base con su canalización en vez de cruzar el mapa andando, saltos imposibles
 #     andando = teletransporte, quien hizo o recibió daño en cada muerte y las kills especiales) y movimiento de los 10
 #     jugadores cada 5 s (línea, río, junglas, base; agrupado o solo en una línea lateral pasado el 14).
-ANALYSIS_VERSION = 14
+ANALYSIS_VERSION = 15  # 15: reconstrucción de recorridos comprobada con tu partida grabada (26-11-2026)
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -331,6 +332,10 @@ def _player_entry(pid: int, p: dict, role: str | None, team: int) -> dict:
         "smite": SMITE in (_num(p.get("summoner1Id")), _num(p.get("summoner2Id"))),
         # Monstruos de la jungla rival que mató en toda la partida (exacto, de Riot; None si no viene)
         "enemy_camps": (p.get("challenges") or {}).get("enemyJungleMonsterKills"),
+        # Lo que hizo en la jungla en toda la partida (exacto, de Riot): escuttles y CS de la jungla rival. Acotan qué
+        # campamentos se le pueden poner (sin esto, sus escuttles e invasiones salían como campamentos suyos).
+        "scuttles": (p.get("challenges") or {}).get("scuttleCrabKills"),
+        "enemy_cs": p.get("totalEnemyJungleMinionsKilled"),
     }
 
 
@@ -480,6 +485,7 @@ class _Game:
         self.kills: list[dict] = []
         self.special_kills: list[tuple[int, int, tuple[int, int]]] = []
         self.objectives: list[dict] = []
+        self.epic_kills: list[tuple[int, int]] = []  # (momento, quién lo remató): cada dragón, Heraldo, larva o Barón da CS de jungla
         self.buildings: list[dict] = []
         self.wards: dict[int, list[int]] = {pid: [] for pid in self.players}
         self.ward_events: dict[int, list[tuple[int, str]]] = {pid: [] for pid in self.players}  # (t, tipo)
@@ -505,7 +511,9 @@ class _Game:
             "ITEM_SOLD": self._on_item,
             "ITEM_UNDO": self._on_item,
             "ITEM_DESTROYED": self._on_item,
+            "DRAGON_SOUL_GIVEN": self._on_soul,
         }
+        self.rift: tuple[str, int] | None = None  # (elemento del mapa, desde cuándo): cambia los caminos (``navgrid``)
         for e in self.events:
             kind = e.get("type")
             handler = handlers.get(kind) if isinstance(kind, str) else None
@@ -513,6 +521,14 @@ class _Game:
                 handler(e, _num(e.get("timestamp")))
         self._deaths()
         self._tracks()
+
+    def _on_soul(self, e: dict, t: int) -> None:
+        """DRAGON_SOUL_GIVEN: con el segundo dragón llega uno de equipo 0 con el elemento en que se convierte el mapa
+        (Hextech, Infernal, Mountain, Cloud, Ocean o Chemtech; en tus 57 partidas, siempre 0-1 s después del dragón).
+        El de cuando un equipo consigue el alma trae el mismo elemento: vale el primero."""
+        name = e.get("name")
+        if self.rift is None and isinstance(name, str) and name:
+            self.rift = (name, t + RIFT_DELAY_MS)
 
     def _on_level_up(self, e: dict, t: int) -> None:
         """LEVEL_UP: nivel de cada jugador con su momento."""
@@ -594,6 +610,7 @@ class _Game:
         if team not in (100, 200):
             return
         assists = [_num(a) for a in e.get("assistingParticipantIds") or []]
+        self.epic_kills.append((t, killer))
         if monster == "grubs" and self._merge_grubs(team, t, [killer, *assists]):
             return
         self.objectives.append(
@@ -789,7 +806,8 @@ class _Game:
         self.anchors = {}
         for pid, items in self.raw_anchors.items():
             fixed = _reconstruct(items, geo.FOUNTAIN.get(self.players[pid]["team"]))
-            self.anchors[pid] = _walk(fixed, self.players[pid].get("champ")) if self.route_all or pid == me_pid else fixed
+            fixed = _leave_base(fixed, self.players[pid].get("champ"), self.rift, lambda t, pid=pid: self.move_speed(pid, t))
+            self.anchors[pid] = _walk(fixed, self.players[pid].get("champ"), self.rift) if self.route_all or pid == me_pid else fixed
         self._anchor_t = {pid: [a[0] for a in items] for pid, items in self.anchors.items()}
         if shared is not None:
             shared.update(
@@ -819,7 +837,8 @@ class _Game:
             far = k.get("far") or set()
             self._taker_anchors(anchors, k["t"], [p for p in (k["killer"], *k["assists"]) if p not in far], k["pos"])
             for pid in k.get("damagers") or ():
-                if pid not in (k["killer"], *k["assists"]) and pid not in far and not self.is_dead(pid, k["t"]):
+                if pid not in (k["killer"], *k["assists"]) and pid not in far and not self.is_dead(pid, k["t"]) \
+                        and _near_fits(anchors.get(pid) or [], k["t"], k["pos"]):
                     _add_anchor(anchors, pid, k["t"], k["pos"], 5)
 
     def _event_anchors(self, anchors: dict[int, list]) -> None:
@@ -861,6 +880,20 @@ class _Game:
         before = [a for a in items if a[0] <= t]
         after = [a for a in items if a[0] > t]
         return [(a[1], a[2]) for a in ([before[-1]] if before else []) + ([after[0]] if after else [])]
+
+    def move_speed(self, pid: int, t: int) -> float | None:
+        """Velocidad de movimiento de ``pid`` (unidades por ms) según Riot: la mediana de los frames de alrededor de ``t``
+        (uno antes y dos después, ya con lo que acabara de comprar). Incluye campeón, botas, objetos y runas; con la
+        mediana, un frame que pilla un acelerón (Fantasmal) o una ralentización no la tuerce."""
+        frames = self.pf.get(pid) or []
+        i = bisect.bisect_left(self.ts, t)
+        values = []
+        for j in (i - 1, i, i + 1):
+            if 0 <= j < len(frames):
+                v = _num(((frames[j] or {}).get("championStats") or {}).get("movementSpeed"))
+                if v > 0:
+                    values.append(v)
+        return statistics.median(values) / 1000 if values else None
 
     def pos_at(self, pid: int, t: int) -> tuple[float, float] | None:
         """Posición estimada (interpolada) o ``None`` si estaba muerto o no se sabe."""
@@ -932,6 +965,24 @@ NEAR_BASE = 1500
 # esperar» en vez de la línea recta empeoraban; el umbral del teletransporte y los puntos de daño apenas cambian nada.
 
 
+NEAR_MAX_SPEED = 0.45  # unidades por ms: más rápido que esto entre sus posiciones exactas, el daño fue antes y en otro sitio
+
+
+def _near_fits(items: list, t: int, p) -> bool:
+    """¿Pudo estar ``pid`` donde murió la víctima? Riot cuenta el daño de unos segundos antes de la muerte: si para llegar
+    desde su posición exacta de antes o ir a la de después hace falta ir más rápido que ``NEAR_MAX_SPEED``, le pegó en
+    otro sitio (tu Hecarim grabado el 26-11-2026: pegó a Orianna en el río, ella murió 19 s después en mid y él ya
+    estaba en los krugs)."""
+    if p is None:
+        return False
+    before = max((a for a in items if a[0] <= t and a[3] in EXACT_ANCHOR_KINDS), key=lambda a: a[0], default=None)
+    after = min((a for a in items if a[0] > t and a[3] in EXACT_ANCHOR_KINDS), key=lambda a: a[0], default=None)
+    for a in (before, after):
+        if a is not None and a[0] != t and geo.dist((a[1], a[2]), p) / abs(a[0] - t) > NEAR_MAX_SPEED:
+            return False
+    return True
+
+
 def _add_anchor(anchors: dict[int, list], pid: int, t: int, p, kind: int) -> None:
     """Añade un punto de paso a ``pid`` (si es de la partida y hay posición)."""
     if pid in anchors and p is not None:
@@ -956,9 +1007,10 @@ def interpolate(items: list[tuple[int, int, int, int]], t: int, times: list[int]
     return prev[1] + (nxt[1] - prev[1]) * f, prev[2] + (nxt[2] - prev[2]) * f
 
 
-def _walk(anchors: list[tuple[int, int, int, int]], champ: int | None) -> list[tuple[int, int, int, int]]:
-    """Los puntos de paso con las rutas que rodean muros entre cada dos (tipo 7; no en los tramos «quieto y salta»)."""
-    return [(int(a[0]), int(a[1]), int(a[2]), int(a[3])) for a in navgrid.route_track(anchors, champ)]
+def _walk(anchors: list[tuple[int, int, int, int]], champ: int | None, rift: tuple[str, int] | None = None) -> list[tuple[int, int, int, int]]:
+    """Los puntos de paso con las rutas que rodean muros entre cada dos (tipo 7; no en los tramos «quieto y salta»). Desde
+    que el mapa cambia con el alma del dragón (``rift``), con sus muros, portales y corrientes."""
+    return [(int(a[0]), int(a[1]), int(a[2]), int(a[3])) for a in navgrid.route_track(anchors, champ, rift)]
 
 
 def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, int] | None) -> list[tuple[int, int, int, int]]:
@@ -981,6 +1033,40 @@ def _reconstruct(anchors: list[tuple[int, int, int, int]], fountain: tuple[int, 
     return [tuple(a) for a in out]
 
 
+RIFT_DELAY_MS = 10_000  # el terreno nuevo entra unos segundos después del aviso (la transición dura 4,5-9 s)
+ANCHOR_ARRIVE = 12  # llega andando a tope desde la fuente al sitio del siguiente punto (y espera allí)
+LEAVE_SPEED = 0.42  # unidades por ms si Riot no da su velocidad (la de un campeón con botas)
+# Sobre su velocidad de los frames, por el Homeguard de la base (+80 % que baja a +40 % en 4 s; +150 % → +65 % desde el
+# 14:00; se pierde al entrar en la jungla). Medido con las 57 partidas: 1,2 sale mejor que 1,0-1,3 y que calcular el
+# Homeguard paso a paso (los jugadores no salen nada más comprar).
+LEAVE_BOOST = 1.2
+LEAVE_MIN = 2_500  # más cerca que esto, da igual
+LEAVE_BASE = True
+
+
+def _leave_base(items: list, champ: int | None, rift: tuple[str, int] | None, speed_at=None) -> list:
+    """Al salir de la fuente (tras comprar o reaparecer) se va a tope hacia donde se le ve después, no a paso lento hasta
+    llenar el tramo: llega antes y espera allí. Visto en tu Hecarim grabado el 26-11-2026 (de la base al dragón de las
+    7:00 por su jungla, mientras la app aún lo tenía en mid). La velocidad es la suya de ese momento según Riot
+    (``speed_at``: campeón, botas, objetos y runas) por ``LEAVE_BOOST``. Con las 57 partidas guardadas (12.599 minutos
+    escondidos de los 10 jugadores), error mediano 1.985 → 1.557 unidades y fallos de más de 3.000, 36,9 % → 26,3 %."""
+    if not LEAVE_BASE:
+        return items
+    out = []
+    for i, a in enumerate(items):
+        out.append(a)
+        if a[3] != ANCHOR_BASE or i + 1 >= len(items) or items[i + 1][3] in (ANCHOR_BASE, ANCHOR_HOLD):
+            continue
+        b = items[i + 1]
+        element = rift[0] if rift and a[0] >= rift[1] else None
+        far = navgrid.length(navgrid.route((a[1], a[2]), (b[1], b[2]), champ, element))
+        speed = (speed_at(a[0]) if speed_at else None) or LEAVE_SPEED
+        need = far / (speed * LEAVE_BOOST)
+        if far > LEAVE_MIN and b[0] - a[0] > need + 5_000:
+            out.append((int(a[0] + need), b[1], b[2], ANCHOR_ARRIVE))
+    return out
+
+
 def _jump_start(prev: list[int], anchor: tuple[int, int, int, int], fountain: tuple[int, int] | None) -> int | None:
     """Si de ``prev`` a ``anchor`` hubo vuelta a base o teletransporte, desde cuándo se queda quieto (si no, ``None``)."""
     t, x, y, kind = anchor
@@ -999,9 +1085,15 @@ ANCHOR_CAMP = 6  # en un campamento de jungla (deducido del CS de jungla de ese 
 # reconstruye con la de antes, la de después y los campamentos que encajan con su CS. En los 244 casos en que farmeaba,
 # error medio 3.602 → 3.069 unidades y fallos de más de 4.000, 40 % → 30 %. Probados: aparición 1:00/1:30/1:45,
 # reaparición 2:15/2:30/3:00, CS por campamento 4-10 y limpieza 4-15 s.
-CAMP_CS = 5  # CS de jungla de media por campamento (unos dan 4 y otros más)
-CAMP_SPAWN_MS = 90_000
-CAMP_RESPAWN_MS = 150_000
+# Tiempos oficiales desde el parche 26.1 (API 16.1; comprobados en las notas hasta 26.23 y en la wiki oficial el
+# 26-11-2026): azul, rojo, lobos y rapaces salen a las 0:55; gromp y krugs, a la 1:07; los pequeños reaparecen a los
+# 2:15 de morir el último monstruo y los bufos a los 5:00. Cada campamento da 4 de CS. Antes de 2026 era todo a la
+# 1:30/1:42 y aquí ponía 1:30 y 5 de CS: en tus 57 partidas los junglas suben a nivel 2 entre los 68 y los 79 s.
+CAMP_CS = 4
+CAMP_SPAWN_MS = 55_000
+LATE_CAMPS = ("gromp", "krugs")
+LATE_SPAWN_MS = 67_000
+CAMP_RESPAWN_MS = 135_000
 CAMP_RESPAWN_BUFF_MS = 300_000  # rojo y azul: 5:00 (con la de los pequeños, el rojo «revivía» a los 2:30)
 BUFFS = ("red", "blue")
 SKIPPED_NEAR = 1_300  # en un tramo saltado (kill, muerte), el campamento donde estaba al empezar o al acabar
@@ -1015,10 +1107,53 @@ NEAR_CAMP_REST = 1_500  # «sigue en el campamento de antes» (los pocos CS que 
 CAMP_MAX_SPEED = 0.60
 CAMP_CANDIDATES = 6  # los campamentos vivos más cerca del tramo (para no probar todas las combinaciones)
 CAMP_MAX = 4
+CAMP_GAPS = 4  # trozos de un tramo entre los que se reparten sus campamentos, como mucho
+
+
+SCUTTLE_SPAWN_MS = 175_000  # las escuttles salen a las 2:55 (parche 26.1; antes 3:30) y reaparecen a los 2:30
+SCUTTLE_RESPAWN_MS = 150_000
+EPIC_CS = 4  # CS de jungla de un dragón, Heraldo, larva o Barón (para quien lo remata): no es un campamento
 
 
 def _camp_sites() -> list[tuple[str, tuple[float, float]]]:
-    return [(f"{team}_{name}", pos) for (team, name), pos in geo.CAMPS.items()]
+    """Los campamentos de los dos equipos (``100_red``…) y las dos escuttles (``0_scuttle_top``/``_bot``, de nadie)."""
+    camps = [(f"{team}_{name}", pos) for (team, name), pos in geo.CAMPS.items()]
+    return camps + [(f"0_scuttle_{side}", pos) for side, pos in geo.SCUTTLE.items()]
+
+
+def _is_scuttle(name: str) -> bool:
+    return name.startswith("0_scuttle")
+
+
+def _jungle_budget(g, pid: int) -> dict:
+    """Lo que le queda por colocar a un jungla en toda la partida según Riot: escuttles y campamentos rivales (``None``:
+    sin dato, sin tope)."""
+    info = g.players.get(pid) or {}
+    enemy_cs = info.get("enemy_cs")
+    return {"scuttles": info.get("scuttles"), "enemy": None if enemy_cs is None else round(_num(enemy_cs) / CAMP_CS)}
+
+
+def _camp_candidates(sites: list, team: int, budget: dict) -> list:
+    """Los sitios que le caben: sin escuttles si ya hizo todas las suyas y sin campamentos rivales si ya agotó su CS
+    de la jungla rival (o si no hizo ninguno: dato exacto de Riot)."""
+    out = []
+    for name, pos in sites:
+        if _is_scuttle(name):
+            if budget.get("scuttles") is not None and budget["scuttles"] <= 0:
+                continue
+        elif not name.startswith(f"{team}_") and budget.get("enemy") is not None and budget["enemy"] <= 0:
+            continue
+        out.append((name, pos))
+    return out
+
+
+def _spend_budget(budget: dict, team: int, names) -> None:
+    for name in names:
+        if _is_scuttle(name):
+            if budget.get("scuttles") is not None:
+                budget["scuttles"] -= 1
+        elif not name.startswith(f"{team}_") and budget.get("enemy") is not None:
+            budget["enemy"] -= 1
 
 
 def _camp_paces(g, pid: int, a: int, b: int) -> list[tuple[int, float]]:
@@ -1056,33 +1191,42 @@ def infer_camps(g, anchors: dict[int, list], hidden: frozenset = frozenset()) ->
     g.camp_minutes = 0
     if not g.has_timeline or len(g.ts) < 2:
         return out
-    known = {pid: sorted(a[0] for a in anchors.get(pid) or [] if a[3] not in (0, ANCHOR_CAMP)) for pid in junglers}
+    known = {pid: sorted(a for a in anchors.get(pid) or [] if a[3] not in (0, ANCHOR_CAMP)) for pid in junglers}
     visible = {pid: [i for i in range(len(g.ts)) if (pid, i) not in hidden and g.frame_pos(pid, i) is not None] for pid in junglers}
     # Tramos de todos los junglas en orden de tiempo (los campamentos que hace uno no están vivos para el otro).
     spans = sorted(
         (g.ts[a], g.ts[b], pid, a, b)
         for pid in junglers for a, b in zip(visible[pid], visible[pid][1:])
     )
+    budgets = {pid: _jungle_budget(g, pid) for pid in junglers}
     for span in spans:
-        _camp_span(g, sites, killed, out, known[span[2]], span)
+        _camp_span(g, sites, killed, out, known[span[2]], span, budgets[span[2]])
     return out
 
 
-def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], known: list[int], span: tuple) -> None:
+def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], known: list, span: tuple,
+               budget: dict | None = None) -> None:
     """Un tramo de un jungla entre dos frames: lo coloca en los campamentos que encajan con su CS (o lo da por «sin cuadrar»)."""
     t0, t1, pid, a, b = span
     c = [g.fval(pid, i, "jungleMinionsKilled") for i in range(a, b + 1)]
     if any(v is None for v in c):
         return
-    k = round((c[-1] - c[0]) / CAMP_CS)
+    epics = sum(1 for t, killer in getattr(g, "epic_kills", ()) if killer == pid and t0 < t <= t1)
+    # El CS de sus dragones, Heraldos y larvas no es de campamentos; y uno a medias (el que hacía al tomarse el frame: los
+    # 6 de CS de un campamento y medio) no cuenta hasta que lo acaba: se ve en el minuto siguiente.
+    k = _camps_done(c[-1] - c[0] - EPIC_CS * epics)
     if k <= 0:
         return
+    budget = budget if budget is not None else {}
+    team = g.players[pid]["team"]
     p0, p1 = g.frame_pos(pid, a), g.frame_pos(pid, b)
-    # Solo tramos «limpios»: vivo, sin pasar por base y sin otros puntos conocidos entre medias. En los que no, lo que
-    # hizo no se coloca, pero sí cuenta como hecho: si no, ese campamento seguía «vivo» y otro tramo lo repetía (tu rojo
-    # del principio, con una kill a los 1:33 en medio, volvía a salir hecho a los 2:24).
-    if g.dead_overlap(pid, t0, t1) or any(t0 < t < t1 for t in known):
-        _mark_skipped(sites, killed, (t0, t1), (p0, p1), k)
+    inside = [x for x in known if t0 < x[0] < t1 and x[3] != ANCHOR_NEAR]  # los «cerca» de una muerte son aproximados
+    if inside or g.dead_overlap(pid, t0, t1):
+        # Con kills, objetivos, muertes o vueltas a base en medio: el tramo se parte entre cada dos puntos conocidos y
+        # los campamentos se reparten entre los trozos (antes de una vuelta a base, acaba donde la hizo). Antes se
+        # saltaba entero y el jungla se quedaba quieto donde se le vio (tu Hecarim grabado el 26-11-2026: 50 s en el
+        # río del 8:00 mientras hacía krugs y rapaces antes de volver a base).
+        _camp_pieces(g, sites, killed, out, span, c, k, (p0, p1), inside, budget)
         return
     g.camp_minutes += 1
     last = (out.get(pid) or [None])[-1]
@@ -1090,8 +1234,9 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
         return  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
     # Sin ningún monstruo de la jungla rival en toda la partida (dato exacto de Riot), sus campamentos no se le ponen.
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
-    candidates = [s for s in sites if s[0].startswith(f"{g.players[pid]['team']}_")] if own_only else sites
-    best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX))
+    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget)
+    xp = _span_xp(g, pid, a, b) if not epics else None
+    best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX), xp)
     fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
     if fits is None:
         g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
@@ -1101,15 +1246,136 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     for j in range(1, len(c)):
         due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
     _place_camps(out, killed, span, p0, best, fits, due)
+    _spend_budget(budget, team, [name for name, _ in best[1]])
+
+
+CAMP_PARTIAL = 1  # CS que pueden faltar para dar un campamento por acabado (de 4: con 3 ya está casi hecho)
+
+
+def _camps_done(cs: float) -> int:
+    """Campamentos acabados con ese CS de jungla (4 cada uno desde el parche 26.1)."""
+    return int((cs + CAMP_PARTIAL) // CAMP_CS) if cs > 0 else 0
+
+
+def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], span: tuple, c: list, k: int, ends: tuple,
+                 inside: list, budget: dict) -> None:
+    """Un tramo con puntos conocidos en medio: los ``k`` campamentos de su CS se reparten entre los trozos en que da
+    tiempo (la combinación con menos rodeo). Si no cabe ninguna, se dan por hechos como antes (``_mark_skipped``)."""
+    t0, t1, pid, a, _b = span
+    team = g.players[pid]["team"]
+    gaps = _camp_gaps(g, pid, (t0, ends[0]), inside, (t1, ends[1]))
+    paces = _camp_paces(g, pid, a, span[4])
+    own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
+    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget)
+    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces)
+    if plan is None:
+        _mark_skipped(sites, killed, (t0, t1), ends, k)
+        return
+    g.camp_minutes += 1
+    due = []
+    for j in range(1, len(c)):
+        due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
+    for (gs, ps, ge, _pe), route, fits in plan:
+        _place_camps(out, killed, (gs, ge, pid), ps, route, fits, due[: len(route[1])])
+        due = due[len(route[1]):]
+        _spend_budget(budget, team, [name for name, _ in route[1]])
+
+
+def _camp_gaps(g, pid: int, start: tuple, inside: list, end: tuple) -> list[tuple]:
+    """Trozos donde pudo hacer campamentos: ``(desde, posición, hasta, posición o None)``. ``None``: acaba en una vuelta
+    a base (donde la hizo no se sabe: en su último campamento). Muerto o comprando en la fuente, nada."""
+    points = [(start[0], start[1], 0), *((t, (x, y), kind) for t, x, y, kind in inside), (end[0], end[1], 0)]
+    gaps = []
+    for (ta, pa, ka), (tb, pb, kb) in zip(points, points[1:]):
+        if ka == ANCHOR_DEATH or g.dead_overlap(pid, ta, tb) or (ka == ANCHOR_BASE and kb == ANCHOR_BASE):
+            continue
+        if kb == ANCHOR_BASE and ka != ANCHOR_BASE and geo.dist(pa, pb) > NEAR_BASE:
+            tb, pb = tb - RECALL_MS, None  # canalizó la vuelta antes de aparecer en la fuente
+        if tb - ta >= CAMP_CLEAR_MS:
+            gaps.append((ta, pa, tb, pb))
+    if len(gaps) > CAMP_GAPS:  # en una pelea con muchas kills: solo los trozos más largos (en los cortos no cabe nada)
+        longest = sorted(sorted(gaps, key=lambda x: x[2] - x[0], reverse=True)[:CAMP_GAPS])
+        gaps = longest
+    return gaps
+
+
+def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: list) -> list | None:
+    """El reparto de ``k`` campamentos entre los trozos que cabe y menos rodeo hace: [(trozo, ruta, ritmo)] o ``None``."""
+    best = None
+    for counts in _compositions(k, len(gaps)):
+        dead = dict(killed)  # lo que hace en un trozo no está vivo en el siguiente
+        plan, extra = [], 0.0
+        for gap, n in zip(gaps, counts):
+            if not n:
+                continue
+            step = _camp_piece(gap, n, sites, dead, paces)
+            if step is None:
+                break
+            route, fits = step
+            plan.append((gap, route, fits))
+            extra += route[0] - (geo.dist(gap[1], gap[3]) if gap[3] is not None else 0.0)
+            t = gap[0]
+            for name, _ in route[1]:
+                dead[name] = t  # basta con que no esté vivo para el trozo siguiente
+        else:
+            if plan and (best is None or extra < best[0]):
+                best = (extra, plan)
+    return best[1] if best else None
+
+
+def _camp_piece(gap: tuple, n: int, sites: list, killed: dict[str, int], paces: list) -> tuple | None:
+    """Ruta y ritmo de ``n`` campamentos en un trozo, o ``None`` si no da tiempo. En el que acaba en una vuelta a base
+    va a su ritmo (y espera en el último campamento a volver), no estirado hasta llenar el trozo."""
+    ts, ps, te, pe = gap
+    if pe is not None:
+        route = _camp_route(sites, killed, (ps, pe), te, n)
+        if route is None or len(route[1]) < n:
+            return None
+        fits = _camp_fit(paces, te - ts, route)
+        return (route, fits) if fits else None
+    alive = sorted(((name, pos) for name, pos in sites if _alive(name, killed, te)), key=lambda s: geo.dist(s[1], ps))
+    best = None
+    for combo in permutations(alive[:CAMP_CANDIDATES], n):
+        length = _route_length(ps, combo, combo[-1][1])
+        if best is None or length < best[0]:
+            best = (length, combo)
+    if best is None:
+        return None
+    for clear_ms, speed in paces:
+        walk = best[0] / speed if speed > 0 else 0.0
+        if walk + n * clear_ms <= te - ts:
+            return best, (clear_ms, max(1.0, walk))
+    return None
+
+
+def _compositions(k: int, parts: int):
+    """Todas las formas de repartir ``k`` en ``parts`` sumandos (con ceros)."""
+    if parts <= 0:
+        return
+    if parts == 1:
+        yield (k,)
+        return
+    for first in range(k + 1):
+        for rest in _compositions(k - first, parts - 1):
+            yield (first, *rest)
 
 
 def _respawn_ms(name: str) -> int:
-    """Lo que tarda en reaparecer un campamento (``100_red``…): los bufos, 5:00; los demás, ``CAMP_RESPAWN_MS``."""
+    """Lo que tarda en reaparecer un campamento (``100_red``…): los bufos, 5:00; las escuttles, 2:30; los demás, 2:15."""
+    if _is_scuttle(name):
+        return SCUTTLE_RESPAWN_MS
     return CAMP_RESPAWN_BUFF_MS if name.rsplit("_", 1)[-1] in BUFFS else CAMP_RESPAWN_MS
 
 
+def _spawn_ms(name: str) -> int:
+    """Cuándo sale por primera vez: escuttles 2:55, gromp y krugs 1:07, el resto 0:55."""
+    if _is_scuttle(name):
+        return SCUTTLE_SPAWN_MS
+    return LATE_SPAWN_MS if name.rsplit("_", 1)[-1] in LATE_CAMPS else CAMP_SPAWN_MS
+
+
 def _alive(name: str, killed: dict[str, int], t: int) -> bool:
-    return t >= CAMP_SPAWN_MS and (name not in killed or killed[name] + _respawn_ms(name) <= t)
+    return t >= _spawn_ms(name) and (name not in killed or killed[name] + _respawn_ms(name) <= t)
 
 
 def _mark_skipped(sites: list, killed: dict[str, int], times: tuple[int, int], ends: tuple, k: int) -> None:
@@ -1123,21 +1389,51 @@ def _mark_skipped(sites: list, killed: dict[str, int], times: tuple[int, int], e
             continue
         near = [name for name, pos in sites if _alive(name, killed, t1) and geo.dist(p, pos) <= SKIPPED_NEAR]
         for name in near[: k - marked]:
-            killed[name] = max(t, CAMP_SPAWN_MS) + CAMP_CLEAR_MS
+            killed[name] = max(t, _spawn_ms(name)) + CAMP_CLEAR_MS
             marked += 1
 
 
-def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int) -> tuple[float, tuple] | None:
-    """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos)."""
+# Experiencia de cada campamento (la base de la wiki oficial, 26.1) y lo que de verdad da según el nivel del jungla
+# (medido en tus 57 partidas: la experiencia de un minuto sin kills entre la base de sus campamentos; dispersión ±5-8 %).
+CAMP_XP = {"blue": 95, "red": 95, "wolves": 80, "raptors": 70, "gromp": 120, "krugs": 121, "scuttle": 100}
+XP_FACTOR = {1: 2.33, 2: 1.82, 3: 1.84, 4: 2.10, 5: 2.28, 6: 2.29, 7: 2.31, 8: 2.38, 9: 2.49, 10: 2.45}
+XP_WEIGHT = 20.0  # unidades de rodeo que vale cada punto de experiencia que no cuadra (medido: 0-50)
+
+
+def _camp_xp(name: str) -> int:
+    return CAMP_XP.get(name.rsplit("_", 1)[-1], 95)
+
+
+def _span_xp(g, pid: int, a: int, b: int) -> tuple[float, float] | None:
+    """(experiencia ganada en el tramo, cuánto da cada punto de base de campamento a su nivel), o ``None`` si esa
+    experiencia no es solo de campamentos (súbditos de una línea entre medias) o falta el dato."""
+    xa, xb = g.fval(pid, a, "xp"), g.fval(pid, b, "xp")
+    la, lb = g.fval(pid, a, "minionsKilled"), g.fval(pid, b, "minionsKilled")
+    levels = [g.fval(pid, i, "level") for i in (a, b)]
+    if xa is None or xb is None or None in levels or (la is not None and lb is not None and lb > la):
+        return None
+    if any(int(lv) not in XP_FACTOR for lv in levels):
+        return None  # solo en los niveles en que está medido (más arriba casi no quedan tramos solo de campamentos)
+    factor = sum(XP_FACTOR[int(lv)] for lv in levels) / 2  # sube de nivel entre medias: lo de los dos
+    return xb - xa, factor
+
+
+def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int, xp: tuple | None = None) -> tuple[float, tuple] | None:
+    """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos).
+    Con ``xp`` (la experiencia que ganó y lo que da cada punto de base a su nivel) gana la combinación cuya experiencia
+    cuadra con la de Riot: rojo, krugs y rapaces no dan lo mismo que rojo, rapaces y lobos (tu primer despeje grabado)."""
     p0, p1 = ends
     alive = [(name, pos) for name, pos in sites if _alive(name, killed, t1)]
     alive.sort(key=lambda s, p0=p0, p1=p1: geo._dist_segment(s[1], p0, p1))
     alive = alive[:CAMP_CANDIDATES]
-    best = None
+    best, best_score = None, math.inf
     for combo in permutations(alive, min(k, len(alive))):
         length = _route_length(p0, combo, p1)
-        if best is None or length < best[0]:
-            best = (length, combo)
+        score = length
+        if xp is not None:
+            score += XP_WEIGHT * abs(xp[0] - xp[1] * sum(_camp_xp(name) for name, _ in combo))
+        if score < best_score:
+            best, best_score = (length, combo), score
     return best
 
 
@@ -1171,7 +1467,7 @@ def _place_camps(
     t, here = t0, p0
     for n, (name, pos) in enumerate(combo):
         t += geo.dist(here, pos) / speed if speed > 0 else 0
-        t = max(t, CAMP_SPAWN_MS)
+        t = max(t, _spawn_ms(name))
         if n < len(due) and t + clear_ms > due[n]:
             t = max(t0, due[n] - clear_ms)  # el CS dice que ya lo había hecho a esa hora
         out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))

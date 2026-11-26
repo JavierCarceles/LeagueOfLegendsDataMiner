@@ -111,13 +111,13 @@ def walkable(p) -> bool:
 
 
 @lru_cache(maxsize=200_000)
-def _line_clear(a: tuple[int, int], b: tuple[int, int]) -> bool:
+def _line_clear(a: tuple[int, int], b: tuple[int, int], rift: str | None = None) -> bool:
     """¿Se ve b desde a sin cruzar un muro? (muestreo cada media celda). Con caché: las rutas de una partida y de otras
-    repiten muchos tramos (el análisis de cada partida hacía ~10.000 comprobaciones)."""
+    repiten muchos tramos (el análisis de cada partida hacía ~10.000 comprobaciones). ``rift``: el mapa del alma."""
     ax, ay = a
     dx, dy = b[0] - ax, b[1] - ay
     steps = max(abs(dx), abs(dy)) * 2
-    free = _FREE
+    free = _free_for(rift)
     for i in range(1, steps):
         f = i / steps
         if not free[round(ay + dy * f) * N + round(ax + dx * f)]:
@@ -142,6 +142,108 @@ def _nearest_walkable(c: tuple[int, int]) -> tuple[int, int]:
 
 
 _FREE = [WALK[i // N][i % N] for i in range(N * N)]
+
+# ---------------------------------------------------------------- el mapa según el alma del dragón
+# Con el segundo dragón la Grieta se convierte en la de su elemento (evento DRAGON_SOUL_GIVEN de equipo 0) y cambian
+# los caminos: huecos que se abren (``open``), rocas que cierran pasos (``close``), portales (``portals``: boca, salida
+# y si es de ida y vuelta) y corrientes que dan velocidad (``fast``: anillos ``(x, y, radio exterior, radio interior)``
+# cuyo coste por celda se multiplica por ``factor``). Zonas en coordenadas del juego: círculos ``(x, y, radio)``.
+# Sacado el 26-11-2026 de los minimapas de cada elemento del propio juego (CommunityDragon, 1 px ≈ 29 u; las rocas
+# cuadran a ±200 u con sus efectos visuales), la wiki oficial y el bin de los portales. Infernal ya no quema muros
+# (parche 14.1); Océano y Quimtech solo cambian la visión (matorrales, plantas), no por dónde se anda.
+RIFT_CHANGES: dict[str, dict] = {
+    "Mountain": {
+        "close": (  # rocas: a la entrada de las junglas, junto a los bufos y en la boca del foso del dragón
+            (8295, 5255, 230), (7565, 3005, 230), (3435, 8235, 170), (11510, 6535, 170), (7305, 11935, 250),
+            (10290, 4810, 200),
+        ),
+        "open": (  # la punta de muro que sustituye cada roca y las dos entradas nuevas del foso del dragón
+            (7845, 2815, 300), (3145, 8540, 250), (11785, 6280, 250), (7050, 12030, 300), (10610, 4425, 280),
+            (9880, 5015, 220),
+        ),
+    },
+    "Hextech": {
+        "portals": (
+            ((4240, 9120), (5670, 11050), True),  # junto al azul azul ↔ detrás del foso del Barón
+            ((11480, 5880), (9740, 3720), True),  # junto al azul rojo ↔ detrás del foso del dragón
+            ((2550, 3800), (3800, 6350), False),  # base azul → sus lobos (solo de ida)
+            ((3900, 2450), (6900, 2750), False),  # base azul → camino de su rojo
+            ((12550, 11000), (11700, 8750), False),  # base roja → sus lobos
+            ((11170, 12400), (8800, 12180), False),  # base roja → camino de su rojo
+        ),
+    },
+    "Cloud": {  # +20 % de velocidad (+35 % fuera de combate) dentro de un anillo alrededor de cada bufo
+        "fast": ((3821, 7901, 1500, 750), (7765, 4020, 1500, 750), (11032, 6991, 1500, 750), (7102, 10901, 1500, 750)),
+        "factor": 0.74,
+    },
+    "Infernal": {},
+    "Ocean": {},
+    "Chemtech": {},
+}
+# Un portal: 0,75 s canalizando, 2,25 s de vuelo y un dash corto al llegar (~3,2 s): como andar unas 1.200 u.
+PORTAL_COST = 10.0  # en celdas de andar (~117 u cada una)
+PORTAL_MOUTH = 400  # radio de cada boca de un portal (posiciones a ±300-500 u)
+
+
+def _cells_in(x: float, y: float, r: float) -> list[int]:
+    """Índices de las celdas cuyo centro está a ``r`` o menos de (x, y)."""
+    cx, cy = cell((x, y))
+    reach = int(r / min(CELL_X, CELL_Y)) + 1
+    out = []
+    for yy in range(max(0, cy - reach), min(N, cy + reach + 1)):
+        for xx in range(max(0, cx - reach), min(N, cx + reach + 1)):
+            if math.dist(center((xx, yy)), (x, y)) <= r:
+                out.append(yy * N + xx)
+    return out
+
+
+@lru_cache(maxsize=8)
+def _free_for(rift: str | None) -> list[bool]:
+    """Las celdas por las que se anda con el mapa de ese elemento (``None``: el de siempre)."""
+    changes = RIFT_CHANGES.get(rift or "") or {}
+    if not changes.get("open") and not changes.get("close"):
+        return _FREE
+    free = list(_FREE)
+    for x, y, r in changes.get("open") or ():
+        for i in _cells_in(x, y, r):
+            free[i] = True
+    for x, y, r in changes.get("close") or ():
+        for i in _cells_in(x, y, r):
+            free[i] = False
+    return free
+
+
+@lru_cache(maxsize=8)
+def _links_for(rift: str | None) -> dict[int, tuple[tuple[int, float], ...]]:
+    """Saltos extra del A* con el mapa de ese elemento: de cada celda de una boca de portal a la celda central de la otra."""
+    links: dict[int, list[tuple[int, float]]] = {}
+    for a, b, both in (RIFT_CHANGES.get(rift or "") or {}).get("portals") or ():
+        for src, dst in ((a, b), (b, a)) if both else ((a, b),):
+            target = cell(dst)
+            for i in _cells_in(src[0], src[1], PORTAL_MOUTH):
+                links.setdefault(i, []).append((target[1] * N + target[0], PORTAL_COST))
+    return {k: tuple(v) for k, v in links.items()}
+
+
+@lru_cache(maxsize=8)
+def _cost_for(rift: str | None) -> dict[int, float]:
+    """Multiplicador del coste de andar por cada celda con corriente (Nube); vacío si no hay."""
+    changes = RIFT_CHANGES.get(rift or "") or {}
+    factor = changes.get("factor", 1.0)
+    out: dict[int, float] = {}
+    for x, y, outer, *inner in changes.get("fast") or ():
+        hole = set(_cells_in(x, y, inner[0])) if inner else set()
+        out.update({i: factor for i in _cells_in(x, y, outer) if i not in hole})
+    return out
+
+
+def portal_hop(p, q, rift: str | None) -> bool:
+    """¿Es el tramo de p a q el cruce de un portal (de una boca a la otra)?"""
+    for a, b, both in (RIFT_CHANGES.get(rift or "") or {}).get("portals") or ():
+        for src, dst in ((a, b), (b, a)) if both else ((a, b),):
+            if math.dist(p, src) <= PORTAL_MOUTH + CELL_X and math.dist(q, dst) <= PORTAL_MOUTH + CELL_X:
+                return True
+    return False
 _STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0), (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414))
 # A* ponderado: la heurística (octil) pesa un 30 % más. Explora unas 5 veces menos celdas y las rutas salen como mucho
 # un 30 % más largas que la óptima (en la práctica, casi iguales tras el suavizado). Con ~6.500 tramos por partida, el
@@ -150,15 +252,16 @@ HEURISTIC_WEIGHT = 2.0
 
 
 @lru_cache(maxsize=50_000)
-def _route(a: tuple[int, int], b: tuple[int, int], wall: float) -> tuple[tuple[int, int], ...]:
-    """Celdas de a a b (A*), suavizadas. wall: coste de pisar un muro (alto = rodearlo)."""
+def _route(a: tuple[int, int], b: tuple[int, int], wall: float, rift: str | None = None) -> tuple[tuple[int, int], ...]:
+    """Celdas de a a b (A*), suavizadas. wall: coste de pisar un muro (alto = rodearlo). ``rift``: el mapa del alma."""
     a, b = _nearest_walkable(a), _nearest_walkable(b)
-    if a == b or _line_clear(a, b):
+    special = bool(_links_for(rift) or _cost_for(rift))
+    if a == b or (not special and _line_clear(a, b, rift)):
         return (a, b)
-    path = _astar(a, b, wall)
+    path = _astar(a, b, wall, rift)
     if path is None:
         return (a, b)
-    return _smooth(path)
+    return _smooth(path, rift)
 
 
 def _heuristic(x: int, y: int, bx: int, by: int) -> float:
@@ -167,8 +270,8 @@ def _heuristic(x: int, y: int, bx: int, by: int) -> float:
     return HEURISTIC_WEIGHT * (max(dx, dy) + 0.414 * min(dx, dy))
 
 
-def _astar(a: tuple[int, int], b: tuple[int, int], wall: float) -> list[tuple[int, int]] | None:
-    """Celdas del camino de a a b con A* (8 vecinos), o None si b no se alcanza."""
+def _astar(a: tuple[int, int], b: tuple[int, int], wall: float, rift: str | None = None) -> list[tuple[int, int]] | None:
+    """Celdas del camino de a a b con A* (8 vecinos y los portales del mapa del alma), o None si b no se alcanza."""
     bx, by = b
     start, goal = a[1] * N + a[0], by * N + bx
     openq = [(_heuristic(a[0], a[1], bx, by), 0.0, start)]
@@ -181,7 +284,7 @@ def _astar(a: tuple[int, int], b: tuple[int, int], wall: float) -> list[tuple[in
             break
         if g > cost.get(cur, inf):
             continue
-        _expand(cur, g, wall, b, openq, came, cost)
+        _expand(cur, g, wall, b, openq, came, cost, rift)
     if goal not in came:
         return None
     idx = [goal]
@@ -190,11 +293,20 @@ def _astar(a: tuple[int, int], b: tuple[int, int], wall: float) -> list[tuple[in
     return [(i % N, i // N) for i in reversed(idx)]
 
 
-def _expand(cur: int, g: float, wall: float, b: tuple[int, int], openq: list, came: dict[int, int], cost: dict[int, float]) -> None:
-    """Abre los 8 vecinos de la celda ``cur`` del A*: apunta los que mejoran su coste y los mete en la cola."""
+def _expand(cur: int, g: float, wall: float, b: tuple[int, int], openq: list, came: dict[int, int], cost: dict[int, float],
+            rift: str | None = None) -> None:
+    """Abre los 8 vecinos de la celda ``cur`` del A* (y la otra boca si es un portal): apunta los que mejoran su coste y
+    los mete en la cola."""
     bx, by = b
-    free, push, inf = _FREE, heapq.heappush, math.inf
+    free, push, inf = _free_for(rift), heapq.heappush, math.inf
+    slow = _cost_for(rift)
     cy, cx = divmod(cur, N)
+    for nxt, step in _links_for(rift).get(cur, ()):
+        ng = g + step
+        if ng < cost.get(nxt, inf):
+            cost[nxt] = ng
+            came[nxt] = cur
+            push(openq, (ng + _heuristic(nxt % N, nxt // N, bx, by), ng, nxt))
     for dx, dy, step in _STEPS:
         nx, ny = cx + dx, cy + dy
         if not (0 <= nx < N and 0 <= ny < N):
@@ -202,32 +314,41 @@ def _expand(cur: int, g: float, wall: float, b: tuple[int, int], openq: list, ca
         nxt = ny * N + nx
         # En diagonal no se cortan esquinas: las dos celdas de al lado también tienen que ser suelo.
         ok = free[nxt] and (dx == 0 or dy == 0 or (free[cy * N + nx] and free[ny * N + cx]))
-        ng = g + (step if ok else step * wall)
+        ng = g + (step * slow.get(nxt, 1.0) if ok else step * wall)
         if ng < cost.get(nxt, inf):
             cost[nxt] = ng
             came[nxt] = cur
             push(openq, (ng + _heuristic(nx, ny, bx, by), ng, nxt))
 
 
-def _smooth(path: list[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
-    """Suavizado: de cada punto, avanza mientras el siguiente se vea en línea recta."""
+def _smooth(path: list[tuple[int, int]], rift: str | None = None) -> tuple[tuple[int, int], ...]:
+    """Suavizado: de cada punto, avanza mientras el siguiente se vea en línea recta (sin saltarse un portal)."""
     out = [path[0]]
     i = 0
+    links = _links_for(rift)
     while i < len(path) - 1:
         j = i + 1
-        while j + 1 < len(path) and _line_clear(path[i], path[j + 1]):
+        while j + 1 < len(path) and _line_clear(path[i], path[j + 1], rift) and not _hop(path[j], path[j + 1], links):
             j += 1
         out.append(path[j])
         i = j
     return tuple(out)
 
 
-def route(p, q, champ: int | None = None) -> list[tuple[float, float]]:
-    """Puntos de paso de p a q rodeando muros (incluye p y q). Línea recta si no hay muro en medio."""
+def _hop(c: tuple[int, int], d: tuple[int, int], links: dict) -> bool:
+    """¿Es de ``c`` a ``d`` un salto de portal?"""
+    target = d[1] * N + d[0]
+    return any(nxt == target for nxt, _ in links.get(c[1] * N + c[0], ()))
+
+
+def route(p, q, champ: int | None = None, rift: str | None = None) -> list[tuple[float, float]]:
+    """Puntos de paso de p a q rodeando muros (incluye p y q). Línea recta si no hay muro en medio. ``rift``: el
+    elemento del mapa (``RIFT_CHANGES``) si ya cambió con el alma del dragón."""
     a, b = cell(p), cell(q)
-    if a == b or _line_clear(a, b):
+    special = bool(_links_for(rift) or _cost_for(rift))
+    if a == b or (not special and _line_clear(a, b, rift)):
         return [p, q]
-    cells = _route(a, b, WALL_HOPPERS.get(champ or 0, WALL_COST))
+    cells = _route(a, b, WALL_HOPPERS.get(champ or 0, WALL_COST), rift)
     mid = [center(c) for c in cells[1:-1]]
     return [p, *mid, q]
 
@@ -254,11 +375,15 @@ def along(points: list[tuple[float, float]], f: float) -> tuple[float, float]:
 ANCHOR_ROUTE = 7  # punto de paso de una ruta (rodeando muros), añadido entre dos puntos conocidos
 
 
-def route_track(anchors: list[list], champ: int | None = None) -> list[list]:
+PORTAL_LENGTH = 1200.0  # lo que «cuesta» cruzar un portal al repartir el tiempo del tramo (~3,2 s, en unidades de andar)
+
+
+def route_track(anchors: list[list], champ: int | None = None, rift: tuple[str, float] | None = None) -> list[list]:
     """Puntos de paso de la repetición (``[segundo, x, y, tipo]``) con las rutas que rodean muros entre cada dos.
 
     No se tocan los tramos «quieto y salta» (3 muerte, 4 vuelta a base o teletransporte): ahí no se anda. A cada punto
-    nuevo se le da su hora repartiendo el tiempo del tramo según la distancia (velocidad constante)."""
+    nuevo se le da su hora repartiendo el tiempo del tramo según la distancia (velocidad constante; un portal casi no
+    cuenta). ``rift``: (elemento, desde cuándo, en las unidades de tiempo de los puntos) el mapa cambió con el alma."""
     out: list[list] = []
     for i, a in enumerate(anchors):
         out.append(list(a))
@@ -267,15 +392,17 @@ def route_track(anchors: list[list], champ: int | None = None) -> list[list]:
         b = anchors[i + 1]
         if b[0] <= a[0]:
             continue
-        pts = route((a[1], a[2]), (b[1], b[2]), champ)
+        element = rift[0] if rift and a[0] >= rift[1] else None
+        pts = route((a[1], a[2]), (b[1], b[2]), champ, element)
         if len(pts) <= 2:
             continue
-        total = length(pts)
+        legs = [PORTAL_LENGTH if portal_hop(pts[j - 1], pts[j], element) else math.dist(pts[j - 1], pts[j]) for j in range(1, len(pts))]
+        total = sum(legs)
         if total <= 0:
             continue
         done = 0.0
         for j in range(1, len(pts) - 1):
-            done += math.dist(pts[j - 1], pts[j])
+            done += legs[j - 1]
             out.append([round(a[0] + (b[0] - a[0]) * done / total, 1), int(pts[j][0]), int(pts[j][1]), ANCHOR_ROUTE])
     return out
 
