@@ -70,6 +70,9 @@ class Services:
         from app.videos.collector import VideoCollector
 
         self.videos = VideoCollector(self)
+        from app.recorder import GameRecorder
+
+        self.recorder = GameRecorder(self)
         self.startup_done = threading.Event()
         self.legacy_running = False
 
@@ -124,6 +127,8 @@ class Services:
         diag.sampler.start(getattr(self, "shutdown_event", None))
         # Seguimiento automático de tus partidas (no hace nada sin perfil guardado).
         self.tracker.start()
+        # Grabación de la pantalla mientras juegas y análisis de la grabación al terminar (app/recorder.py).
+        self.recorder.start()
         # Draft en vivo: la selección de campeones del cliente de LoL, y al terminar, tu build al cliente.
         self.draft_live.start()
         # Precarga de OP.GG, Lolalytics y notas de parche en segundo plano.
@@ -264,6 +269,7 @@ class Services:
         self.calibrator.shutdown()
         self.draft_live.shutdown()
         self.videos.shutdown()
+        self.recorder.shutdown()
         self.local_replays.stop()
         self.my_games_files.stop()
         from app.external.base import shutdown_fetches

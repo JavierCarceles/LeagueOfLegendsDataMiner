@@ -23,7 +23,7 @@ from app.logbus import get_logger
 log = get_logger("videos")
 
 BASE_REQ = BASE_DIR / "requirements-videos.txt"
-BASE_MODULES = ("yt_dlp", "youtube_transcript_api", "cv2", "numpy")
+BASE_MODULES = ("yt_dlp", "youtube_transcript_api", "cv2", "numpy", "imageio_ffmpeg")
 VOICE_MODULES = ("faster_whisper",)
 STAMP = ".tempu-videos.json"  # en el entorno de Python (como la huella de requirements.txt de run.py)
 UPDATE_EVERY_S = 24 * 3600
