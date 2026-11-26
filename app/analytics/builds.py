@@ -37,6 +37,8 @@ físico, con curanderos, con tanques o con asesinos, cada uno con plan normal, d
 from __future__ import annotations
 
 import json
+import threading
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -214,7 +216,26 @@ def _otp_items(svc, champ: int, role: str) -> dict | None:
     return {"groups": groups or {}, "best": best}
 
 
+_OWN_TTL_S = 30 * 60
+_own_cache: dict[tuple, tuple[float, dict | None]] = {}
+_own_lock = threading.Lock()
+
+
 def _own_items(svc, cat, champ: int, role: str) -> dict | None:
+    """Objetos legendarios de las partidas guardadas de ese campeón y rol, guardados 30 min: la consulta lee miles de
+    filas y en el draft se pide para los 10 campeones (con el PC cargado llegó a 113 s cada una el 26-11-2026)."""
+    key = (str(getattr(svc.db, "path", id(svc.db))), champ, role, cat is not None)
+    with _own_lock:
+        hit = _own_cache.get(key)
+    if hit and time.monotonic() - hit[0] < _OWN_TTL_S:
+        return hit[1]
+    out = _own_items_query(svc, cat, champ, role)
+    with _own_lock:
+        _own_cache[key] = (time.monotonic(), out)
+    return out
+
+
+def _own_items_query(svc, cat, champ: int, role: str) -> dict | None:
     rows = svc.db.query("SELECT items, win FROM participants WHERE champ = ? AND role = ? AND items IS NOT NULL", (champ, role))
     if len(rows) < MIN_OWN_GAMES:
         return None

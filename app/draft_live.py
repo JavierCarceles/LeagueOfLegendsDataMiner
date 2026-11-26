@@ -416,6 +416,7 @@ class DraftLive:
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._imported: tuple | None = None
+        self._import_thread: threading.Thread | None = None  # la importación en curso (va aparte del bucle del draft)
         self._share_for: tuple | None = None  # (partida, función): una consulta de roles por selección, no por segundo
         self._next_profile = 0.0
         self.state: dict = {"active": False, "client": False, "draft": None, "import": None, "updated": None, "error": None}
@@ -503,8 +504,18 @@ class DraftLive:
         key = (draft.get("game_id"), me.get("champ"), tuple(sorted(draft["enemy"].items())))
         if draft["complete"] and prefs["auto_import"] and key != self._imported and me.get("role"):
             self._imported = key
-            self.import_now(draft)
+            # En otro hilo: calcular la build puede tardar (con el PC cargado, minutos el 26-11-2026) y mientras tanto
+            # el draft tiene que seguir viendo el cliente cada segundo (cambios de campeón de última hora).
+            self._import_thread = threading.Thread(target=self._import_latest, args=(draft, key), name="draft-import", daemon=True)
+            self._import_thread.start()
         return POLL_IN_SELECT_S
+
+    def _import_latest(self, draft: dict, key: tuple) -> None:
+        try:
+            # Vale mientras sea el último draft y sigas en la selección (ya en partida, el cliente no la usaría).
+            self.import_now(draft, current=lambda: self._imported == key and bool(self.state.get("active")))
+        except Exception:  # noqa: BLE001 - el cliente es opcional: nunca tumbar nada
+            log.debug("Draft en vivo: importar la build", exc_info=True)
 
     def _import_failed(self, message: str) -> dict:
         result = {"status": "error", "errors": [message], "at": time.time()}
@@ -522,11 +533,16 @@ class DraftLive:
             log.debug("Página de runas de OP.GG", exc_info=True)
             return None
 
-    def import_now(self, draft: dict | None = None, f=None) -> dict:
-        """Importa la build del Draft para tu campeón (también a mano, desde la web)."""
+    def import_now(self, draft: dict | None = None, f=None, current=None) -> dict:
+        """Importa la build del Draft para tu campeón (también a mano, desde la web). ``current()`` dice si ese draft
+        sigue siendo el último: si cambiaste de campeón mientras se calculaba, no se pisa la build del nuevo."""
         from app.analytics import builds
 
+        if current is not None and not current():
+            return {"status": "stale", "at": time.time()}
         with self._lock:
+            if current is not None and not current():
+                return {"status": "stale", "at": time.time()}
             draft = draft or self.state.get("draft")
             me = (draft or {}).get("me") or {}
             if not draft or not me.get("champ") or not me.get("role"):
@@ -540,6 +556,9 @@ class DraftLive:
             spells, source = spells_for(svc, rec, me["champ"], me["role"])
             rec = {**rec, "spells": spells}
             name = svc.dd.name(me["champ"])
+            if current is not None and not current():
+                log.info("Build de %s sin importar: cambiaste de campeón mientras se calculaba.", name)
+                return {"status": "stale", "at": time.time()}
             opp = rec.get("opponent")
             done = apply_import(lcu, rec, name, svc.dd.name(opp) if opp else None, get_prefs(svc.db), self._extra_runes(me))
             result = {"status": _import_status(done), "champ": me["champ"], "role": me["role"], "opponent": opp, "spells_source": source,

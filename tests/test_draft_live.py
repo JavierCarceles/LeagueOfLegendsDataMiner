@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -238,11 +240,41 @@ def test_watcher_follows_champ_select_and_imports_once(api, monkeypatch):
     assert live.state["active"] and not live.state["draft"]["complete"] and calls == []
     current["s"] = session(phase="FINALIZATION")
     live.poll()
+    live._import_thread.join(5)  # la build se importa aparte: el bucle del draft no espera
     live.poll()  # la misma selección: no se vuelve a importar
     assert calls == [(HECARIM, "F")] and live.state["import"]["status"] == "ok"
     monkeypatch.setattr(lcu, "gameflow_phase", lambda: "InProgress")
     live.poll()
     assert live.state["active"] is False
+
+
+def test_a_last_moment_champion_change_is_seen_while_the_build_is_computed(api, monkeypatch):
+    # El 26-11-2026 la build tardó minutos en calcularse con el PC cargado y, mientras, el draft no vio el cambio de
+    # campeón de última hora: ahora se calcula aparte y la del campeón viejo no pisa la del nuevo.
+    _client, svc = api
+    live = svc.draft_live
+    calls, release = [], threading.Event()
+    current = {"s": session(phase="FINALIZATION")}
+    monkeypatch.setattr(lcu, "gameflow_phase", lambda: "ChampSelect")
+    monkeypatch.setattr(lcu, "champ_select_session", lambda: current["s"])
+    monkeypatch.setattr(live, "_share", lambda: share)
+    monkeypatch.setattr(dl, "apply_import", lambda client, rec, name, opp, prefs, extra: calls.append(rec["champ"]) or {"runes": [1], "spells": [4, 11], "items": 3, "errors": []})
+    from app.analytics import builds
+
+    def slow(svc_, f, ally, enemy, sources="all"):
+        release.wait(5)
+        return {"ally": [{**REC, "champ": ally["JUNGLE"]}], "enemy": []}
+
+    monkeypatch.setattr(builds, "recommend", slow)
+    live.poll()  # completo con Hecarim: empieza a calcular su build (lenta)
+    first = live._import_thread
+    current["s"] = session(phase="FINALIZATION", my_champ=LEE, enemy=(DARIUS, HECARIM, SYNDRA, KAISA, NAUTILUS))
+    live.poll()  # el draft ve el cambio aunque la build anterior siga calculándose
+    assert live.state["draft"]["me"]["champ"] == LEE and calls == []
+    release.set()
+    first.join(5)
+    live._import_thread.join(5)
+    assert calls == [LEE] and live.state["import"]["champ"] == LEE
 
 
 class FakeAccountClient:

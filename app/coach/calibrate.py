@@ -82,7 +82,7 @@ class TierCalibrator:
         if not profile or not svc.keys.get():
             self.state.update(status="idle")
             return 0
-        if getattr(svc.settings, "pause_in_game", True) and (getattr(svc, "tracker", None) and svc.tracker.state.get("in_game")):
+        if getattr(svc.settings, "pause_in_game", True) and (getattr(svc, "tracker", None) and (svc.tracker.state.get("busy") or svc.tracker.state.get("in_game"))):
             self.state.update(status="paused")
             return 0
         tier, platform = profile["target_tier"], profile["platform"]

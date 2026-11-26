@@ -591,7 +591,8 @@ class AutoPush:
 
     def _in_game(self) -> bool:
         tracker = getattr(self.svc, "tracker", None)
-        return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
+        state = getattr(tracker, "state", None) or {}
+        return bool(tracker is not None and (state.get("busy") or state.get("in_game")))
 
     def _run(self, wait_summaries: bool = False) -> None:
         stop = getattr(self.svc, "shutdown_event", None)

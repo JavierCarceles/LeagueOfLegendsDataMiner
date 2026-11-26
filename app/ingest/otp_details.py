@@ -1202,9 +1202,9 @@ def start_reanalysis(svc) -> threading.Thread | None:
 
 
 def _in_game(svc) -> bool:
-    """Si estás en partida (lo dice el seguimiento en vivo): mientras, el re-análisis espera."""
+    """Si eliges campeón o estás en partida (lo dice el seguimiento en vivo): mientras, el re-análisis espera."""
     tracker = getattr(svc, "tracker", None)
-    return bool(tracker is not None and tracker.state.get("in_game"))
+    return bool(tracker is not None and (tracker.state.get("busy") or tracker.state.get("in_game")))
 
 
 def _reanalysis_run(svc, db, stop, pending: int, unclassified: int, stale: bool, moved: list[tuple[str, int]]) -> None:

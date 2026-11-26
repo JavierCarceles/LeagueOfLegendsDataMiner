@@ -1,6 +1,8 @@
 """La validación de la reconstrucción de recorridos (``app.coach.track_check``), sola al arrancar la app.
 
-Unos minutos después de abrir la app (nunca mientras juegas) se ejecuta como un proceso aparte a prioridad baja, y su
+Unos minutos después de abrir la app (nunca mientras juegas) se ejecuta como un proceso aparte a prioridad baja: si
+empiezas a elegir campeón o a jugar a mitad, el proceso se congela (no gasta CPU) y sigue donde iba al acabar, y si se
+cierra la app, se corta (no se queda suelto gastando CPU junto al de la app nueva). Su
 resultado queda en ``data/registro/track_check.txt`` con la fecha, la versión del código y cuántas partidas usó: lo
 más reciente arriba y las anteriores debajo, así se ve si las cifras mejoran con cada cambio del análisis. El fichero
 se sube a GitHub con el resto de ``data/``.
@@ -27,7 +29,8 @@ RUN_MARK = "=== "
 KEEP_RUNS = 20
 DELAY_S = 180  # que arranque antes todo lo demás
 IN_GAME_WAIT_S = 60
-TIMEOUT_S = 45 * 60
+TIMEOUT_S = 45 * 60  # de trabajo de verdad: el tiempo congelado mientras juegas no cuenta
+CHECK_S = 3.0  # cada cuánto se mira si estás eligiendo campeón o jugando
 _RUN_SPLIT = re.compile(r"(?m)^(?==== )")
 
 
@@ -55,7 +58,9 @@ def run(svc, delay: float = DELAY_S, execute=None) -> bool:
             return False
     t0 = time.time()
     started = time.strftime("%Y-%m-%d %H:%M")
-    output, ok = (execute or _execute)()
+    output, ok = execute() if execute else _execute(stop, lambda: _in_game(svc))
+    if stop is not None and stop.is_set():
+        return False
     data_dir = Path(svc.settings.data_dir)
     entry = _entry(started, ok, len(games(data_dir)), time.time() - t0, output)
     write(data_dir / "registro" / FILE, entry)
@@ -73,25 +78,58 @@ def _wait(stop, seconds: float) -> bool:
 
 def _in_game(svc) -> bool:
     tracker = getattr(svc, "tracker", None)
-    return bool(tracker is not None and getattr(tracker, "state", {}).get("in_game"))
+    state = getattr(tracker, "state", None) or {}
+    return bool(tracker is not None and (state.get("busy") or state.get("in_game")))
 
 
-def _execute() -> tuple[str, bool]:
-    """``python -m app.coach.track_check`` aparte (si falla o tarda, la app ni se entera) y a prioridad baja."""
+def _execute(stop=None, busy=None) -> tuple[str, bool]:
+    """``python -m app.coach.track_check`` aparte (si falla o tarda, la app ni se entera) y a prioridad baja. Mientras
+    ``busy()`` (eliges campeón o juegas) el proceso está congelado; si ``stop`` se activa (se cierra la app), se corta."""
     env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
     try:
-        proc = subprocess.run(
-            [sys.executable, "-m", "app.coach.track_check"], cwd=BASE_DIR, env=env, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=TIMEOUT_S, creationflags=flags, check=False,
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "app.coach.track_check"], cwd=BASE_DIR, env=env, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=flags,
         )
-    except subprocess.TimeoutExpired:
-        return f"Tardó más de {TIMEOUT_S // 60} min y se cortó.", False
     except OSError as exc:
         return f"No se pudo ejecutar: {exc}", False
+    worked, frozen = 0.0, False
+    while True:
+        try:
+            out, err = proc.communicate(timeout=CHECK_S)  # sin perder salida: se puede volver a llamar
+            break
+        except subprocess.TimeoutExpired:
+            pass
+        if (stop is not None and stop.is_set()) or worked > TIMEOUT_S:
+            _freeze(proc, False)
+            proc.kill()
+            proc.communicate()
+            if worked > TIMEOUT_S:
+                return f"Tardó más de {TIMEOUT_S // 60} min y se cortó.", False
+            return "Se cerró la app a mitad.", False
+        playing = bool(busy and busy())
+        if playing != frozen:
+            frozen = _freeze(proc, playing) and playing
+        if not frozen:
+            worked += CHECK_S
     if proc.returncode != 0:
-        return f"{proc.stdout}\n{proc.stderr}".strip()[-4000:], False
-    return proc.stdout.strip(), True
+        return f"{out}\n{err}".strip()[-4000:], False
+    return out.strip(), True
+
+
+def _freeze(proc, on: bool) -> bool:
+    """Congela (``on``) o despierta el proceso y sus hijos. ``False`` si no se pudo (sigue funcionando sin congelar)."""
+    try:
+        import psutil
+
+        root = psutil.Process(proc.pid)
+        for p in [root, *root.children(recursive=True)]:
+            p.suspend() if on else p.resume()
+        return True
+    except Exception:  # noqa: BLE001 - sin psutil o el proceso ya acabó: no es imprescindible
+        log.debug("No se pudo %s la validación", "congelar" if on else "despertar", exc_info=True)
+        return False
 
 
 def _commit() -> str:

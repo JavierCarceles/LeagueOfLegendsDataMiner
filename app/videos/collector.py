@@ -185,7 +185,7 @@ class VideoCollector:
             return "manual"
         if getattr(self.svc.settings, "pause_in_game", True):
             tracker = getattr(self.svc, "tracker", None)
-            if tracker is not None and tracker.state.get("in_game"):
+            if tracker is not None and (tracker.state.get("busy") or tracker.state.get("in_game")):
                 return "en_partida"
         if time.time() < self.limited_until:
             return "youtube_frena"
@@ -700,11 +700,13 @@ def _clean_temp(older_than_s: float = 600) -> None:
 
 def analyze_file(path: Path, duration: float, tools, method: str, should_stop, progress, champ_name,
                  ckpt: Checkpoint | None = None, on_threads=None, step: float | None = None,
-                 text_s: float = 10) -> dict | None:
+                 text_s: float = 10, champion: str | None = None) -> dict | None:
     """Minimapa, reloj, cámara, campeón e iconos de un vídeo de partida ya en disco (de YouTube o grabado aquí).
 
     ``should_stop()`` se consulta durante la pasada (``True`` = parar); ``progress(texto, fracción)`` informa del avance
-    y ``champ_name(clave)`` da el nombre del campeón. ``None`` si se paró a mitad."""
+    y ``champ_name(clave)`` da el nombre del campeón. ``champion`` es la clave de Data Dragon del campeón del jugador si
+    ya se sabe (en tus grabaciones, del cliente): con ella el HUD tiene las plantillas de sus habilidades aunque la sonda
+    no lo reconozca. ``None`` si se paró a mitad."""
     from app.videos import frames as vf
 
     box, probe_frames = _probe_file(path, duration, tools)
@@ -721,7 +723,9 @@ def analyze_file(path: Path, duration: float, tools, method: str, should_stop, p
     guess = vf.vote_champion(probe_keys)
     hud = getattr(tools, "hud", None)
     # Las barras y los invocadores, con todos los frames de la sonda (con minimapa): con más frames, más claros.
-    tools.hud_layout = hud.calibrate(probe_frames, tools.ability_slots, guess["clave"] if guess else None) if hud else None
+    # Sin el campeón, las habilidades salen «?» toda la partida (pasó el 26-11-2026 con tu Hecarim grabado en 4K).
+    key = champion or (guess["clave"] if guess else None)
+    tools.hud_layout = hud.calibrate(probe_frames, tools.ability_slots, key) if hud else None
     tools.text_every = max(1, round(text_s / step))  # el texto del HUD (OCR: oro, vida y recurso exactos) cada 10 s, sin recortar
     cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
     label = f"frames ({workers} hilos)"

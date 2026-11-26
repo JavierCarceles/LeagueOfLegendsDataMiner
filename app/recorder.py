@@ -42,6 +42,7 @@ MAX_PENDING_VIDEOS = 20  # vídeos sin analizar como mucho (si el análisis no p
 MAX_TRIES = 3  # intentos de análisis con error antes de borrar el vídeo
 STEP_S = 1.0  # una muestra por segundo (el doble que los vídeos de YouTube: el vídeo se borra después)
 MIN_VIDEO_S = 120  # menos que esto (remake, cierre en la carga) no se analiza
+BUSY_CHECK_S = 3.0  # cada cuánto mira el análisis si has vuelto a la selección de campeones o a jugar
 META_ENABLED = "recorder:enabled"
 META_METHOD = "recorder:method"
 VERSION = 2  # 2: HUD (vida, recurso, habilidades, invocadores, oro) y una muestra por segundo
@@ -230,7 +231,21 @@ class GameRecorder:
         data = session.get("gameData") or {}
         queue = (data.get("queue") or {}).get("id")
         game_id = data.get("gameId") or None
-        return {"game_id": game_id, "cola": queue, "match_id": self._match_id(game_id)}
+        return {"game_id": game_id, "cola": queue, "match_id": self._match_id(game_id), "campeon": self._my_champion(data)}
+
+    def _my_champion(self, data: dict) -> int | None:
+        """Tu campeón (id): el de la partida que arranca en el cliente o, si no sale, el que vio el draft en vivo. Con él
+        el análisis tiene las plantillas de tus habilidades desde el principio."""
+        try:
+            me = lcu._get("/lol-summoner/v1/current-summoner", timeout=2.0) or {}
+        except Exception:  # noqa: BLE001 - sin cuenta en el cliente, queda el draft
+            me = {}
+        for pick in data.get("playerChampionSelections") or []:
+            if (me.get("puuid") and pick.get("puuid") == me.get("puuid")) or (
+                    me.get("internalName") and pick.get("summonerInternalName") == me.get("internalName")):
+                return int(pick.get("championId") or 0) or None
+        draft = (getattr(getattr(self.svc, "draft_live", None), "state", None) or {}).get("draft") or {}
+        return int((draft.get("me") or {}).get("champ") or 0) or None
 
     def _match_id(self, game_id) -> str | None:
         """``EUW1_7412345678``: el id de Riot de la partida (con el servidor de tu perfil) para cruzarla con su timeline."""
@@ -284,7 +299,7 @@ class GameRecorder:
         if not deps.ensure_base():
             return
         from app.videos.camera import glances
-        from app.videos.collector import analyze_file
+        from app.videos.collector import Checkpoint, analyze_file
 
         videos = self.svc.videos
         self.analyzing = {"nombre": rec["nombre"], "paso": "preparando"}
@@ -294,16 +309,26 @@ class GameRecorder:
             def progress(label: str, frac: float | None = None) -> None:
                 self.analyzing = {"nombre": rec["nombre"], "paso": label, "progreso": frac}
 
+            checked = [0.0, None]  # se pregunta al cliente como mucho cada BUSY_CHECK_S (se consulta en cada muestra)
+
             def should_stop() -> bool:
                 if self.stop_event.is_set():
                     return True
-                phase = lcu.gameflow_phase() if lcu.available() else None
-                return phase in IN_GAME  # vuelves a jugar: se deja para después (y se graba la nueva)
+                now = time.monotonic()
+                if now >= checked[0]:
+                    checked[0], checked[1] = now + BUSY_CHECK_S, lcu.gameflow_phase() if lcu.available() else None
+                # Vuelves a elegir campeón o a jugar: se para (lo hecho queda en el punto de control) y se graba la nueva.
+                return checked[1] in lcu.BUSY_PHASES
 
+            champ = int(rec.get("campeon") or 0)
+            key = self.svc.dd.key(champ) if champ else None
+            work = self.root / f"{rec['nombre']}.trabajo"
             out = analyze_file(self.root / rec["fichero"], float(rec["duracion"]), tools, "grabación", should_stop,
-                               progress, videos._champ_name, step=STEP_S)
+                               progress, videos._champ_name, ckpt=Checkpoint(work, rec["nombre"]), step=STEP_S,
+                               champion=key or None)
             if out is None:
                 return
+            shutil.rmtree(work, ignore_errors=True)
             from app.videos.hud import habits
 
             rec.update(frames=out, vistazos=glances(out), habitos=habits(out.get("hud_datos")),
@@ -358,6 +383,7 @@ class GameRecorder:
 
     def _drop_video(self, rec: dict) -> None:
         """Fuera el vídeo: ya se sacó lo que sirve (o no se puede sacar)."""
+        shutil.rmtree(self.root / f"{rec['nombre']}.trabajo", ignore_errors=True)
         path = self.root / rec["fichero"]
         try:
             path.unlink(missing_ok=True)
