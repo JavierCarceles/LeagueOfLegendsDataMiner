@@ -477,8 +477,13 @@ class VideoCollector:
 
     # ------------------------------------------------------------------ herramientas de imagen
     def frame_tools(self):
-        """Minimapa, reloj y habilidades para leer frames (también las grabaciones de tus partidas)."""
-        return self._tools()
+        """Minimapa, reloj, habilidades y HUD para leer frames de otro hilo (las grabaciones de tus partidas): una copia
+        con su propia calibración (escala del reloj, casillas, HUD), que se cambia en cada vídeo; lo pesado se comparte."""
+        import copy
+        import dataclasses
+
+        base = self._tools()
+        return dataclasses.replace(base, clock=copy.copy(base.clock), clock_reader=None, ability_slots=None, hud_layout=None)
 
     def _tools(self):
         if self.tools is not None:
@@ -496,7 +501,23 @@ class VideoCollector:
             raise OSError("map11.png dañado")
         spells = self._spell_icons(img_dir, str(dd.version))
         self.tools = vf.Tools(vf.MapMatcher(map_bgr), vf.Clock(vf.load_digits()), vf.Abilities(spells) if spells else None)
+        self.tools.hud = self._hud(spells, img_dir, str(dd.version))
         return self.tools
+
+    def _hud(self, spells: dict, img_dir: Path, version: str):
+        """El lector del HUD (vida, recurso, habilidades, invocadores y oro) con los iconos de Data Dragon."""
+        from app.videos import frames as vf
+        from app.videos import hud
+
+        icons = {}
+        for name in hud.SUMMONERS:
+            try:
+                image = vf.read_image(self._cached(img_dir / "spell" / f"{name}.png", f"{CDN}/{version}/img/spell/{name}.png"))
+            except (OSError, requests.RequestException):
+                image = None
+            if image is not None:
+                icons[name] = image
+        return hud.Hud(spells, icons)
 
     def _spell_icons(self, img_dir: Path, version: str) -> dict:
         """Los iconos de las 4 habilidades de cada campeón (Data Dragon, una vez por parche): ~700 ficheros pequeños."""
@@ -678,7 +699,7 @@ def _clean_temp(older_than_s: float = 600) -> None:
 
 
 def analyze_file(path: Path, duration: float, tools, method: str, should_stop, progress, champ_name,
-                 ckpt: Checkpoint | None = None, on_threads=None) -> dict | None:
+                 ckpt: Checkpoint | None = None, on_threads=None, step: float | None = None) -> dict | None:
     """Minimapa, reloj, cámara, campeón e iconos de un vídeo de partida ya en disco (de YouTube o grabado aquí).
 
     ``should_stop()`` se consulta durante la pasada (``True`` = parar); ``progress(texto, fracción)`` informa del avance
@@ -695,6 +716,12 @@ def analyze_file(path: Path, duration: float, tools, method: str, should_stop, p
     # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
     player = [f for f in probe_frames if tools.clock.read(f) is not None]
     tools.ability_slots, probe_keys = tools.abilities.calibrate(player, workers) if tools.abilities and player else (None, [])
+    step = step or vf.STEP_S
+    guess = vf.vote_champion(probe_keys)
+    hud = getattr(tools, "hud", None)
+    # Las barras y los invocadores, con todos los frames de la sonda (con minimapa): con más frames, más claros.
+    tools.hud_layout = hud.calibrate(probe_frames, tools.ability_slots, guess["clave"] if guess else None) if hud else None
+    tools.text_every = max(1, round(10 / step))  # el texto del HUD (OCR) cada ~10 s
     cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
     label = f"frames ({workers} hilos)"
     progress(label, 0.0)
@@ -706,7 +733,7 @@ def analyze_file(path: Path, duration: float, tools, method: str, should_stop, p
         return stopped[0]
 
     collected = vf.sample_pass(str(path), box, cam, tools, duration, stop, lambda p: progress(label, p), workers,
-                               gpu=hardware.gpu() is not None, done=done, on_done=on_done)
+                               gpu=hardware.gpu() is not None, done=done, on_done=on_done, step=step)
     if stopped[0]:
         return None
     reader = tools.clock_reader
@@ -715,7 +742,11 @@ def analyze_file(path: Path, duration: float, tools, method: str, should_stop, p
     for item in ([champion] if champion else []) + champions:
         item["nombre"] = champ_name(item["clave"])
     out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None,
-                       champions)
+                       champions, step)
+    if hud is not None:
+        from app.videos.hud import summarize as hud_summary
+
+        out["hud_datos"] = hud_summary(collected.hud, collected.hud_text, tools.hud_layout)
     out["habilidades"] = tools.ability_slots.public() if tools.ability_slots else None
     out["hud_lecturas"] = dict(reader.modes) if reader else {}
     out["hilos"] = workers
