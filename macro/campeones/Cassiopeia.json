@@ -1,0 +1,476 @@
+{
+ "clave": "Cassiopeia",
+ "nombre": "Cassiopeia",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.66,
+   "principal": true
+  }
+ ],
+ "arquetipo": "maga de daño sostenido a corta distancia (700 de E) que gana tradeos largos con el veneno, muy fuerte a nivel 2-3, que se apoya en Lágrima/Vara de las edades para el maná y escala a la tardía con Abrazo del serafín",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 3,
+  "tardia": 5,
+  "nota": "A nivel 2 (Q + E cada 0,75 s) gana casi todos los tradeos largos contra melés y magos que se acercan. Entre el minuto 5 y el 12 depende del maná (Lágrima, Vara de las edades o Bastón del arcángel) y no tiene huida, así que sufre ganks y asesinos. Con 3 objetos (~25 min, nivel 15) y Abrazo del serafín hace daño continuo comparable al de un tirador, frena a los que se lanzan con la W (los deja sin desplazamientos ni Destello) y aturde 2 s a varios con la R."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:30)",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Q (envenena 3 s) + E (0,75 s de enfriamiento, daño extra y curación contra envenenados) cuatro o cinco veces seguidas: el all-in de nivel 2 de Cassiopeia es de los más fuertes de mid contra rivales que se quedan a 700 de ella."
+  },
+  {
+   "cuando": "Nivel 6 (~5:20)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R aturde 2 s a quien la mira (cono de 850, 120 s de enfriamiento): Q → W detrás del rival → R → E sin parar mata a la mayoría de mids sin Destello y castiga a cualquier melé que entre de frente."
+  },
+  {
+   "cuando": "Primer objeto: Vara de las edades o Bastón del arcángel (~11:20-11:40, nivel ~9)",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Vara de las edades",
+   "por_que": "Se acaban los problemas de maná: puede lanzar E sin parar en peleas largas y en el farmeo. Vara de las edades (36-67 % según la muestra) da vida para aguantar asesinos; Bastón del arcángel (26-50 %) escala más."
+  },
+  {
+   "cuando": "Abrazo del serafín (~15-18 min, nivel ~11-12)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Abrazo del serafín",
+   "por_que": "El Bastón del arcángel se transforma tras acumular maná: más poder de habilidad según su maná y un escudo de supervivencia. Con el segundo objeto (Cetro de cristal de Rylai o Tormento de Liandry) ya es una amenaza seria en las peleas de dragón."
+  },
+  {
+   "cuando": "Tres objetos (~25 min, nivel ~15) con Cetro de cristal de Rylai y Tormento de Liandry o Reloj de arena de Zhonya",
+   "nivel": 15,
+   "objetos": 3,
+   "objeto": "Cetro de cristal de Rylai",
+   "por_que": "Ralentiza con cada E y quema a los tanques: kitea indefinidamente con la velocidad de la Q (amplificada por la pasiva) y gana las peleas largas. Rabadon y Bastón del Vacío en la tardía."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Serpentine Grace: todas sus bonificaciones de velocidad de movimiento son un 5-36 % (según nivel) más efectivas (desde el 26.18; en el 26.01 se quitó la velocidad plana y la prohibición de comprar botas). Así, la velocidad de la Q, las Botas de rapidez, Fantasmal o Celeridad le rinden más que a otros.",
+  "Q": "Noxious Blast: tras 0,4 s explota un área de 200 de radio a 850 de alcance que envenena 3 s y hace 65-205 (+75 % AP) de daño mágico. Si golpea a un campeón gana un 30-50 % de velocidad de movimiento que decae en 3 s. Enfriamiento 3,5 s, 50-70 de maná. Es lo que activa el daño extra de la E y su herramienta para kitear y perseguir: hay que adelantarla al movimiento del rival.",
+  "W": "Miasma: escupe 7 nubes en una línea (700 de alcance) que duran 5 s; quien está dentro queda envenenado, ralentizado un 40-80 % (decreciente), recibe daño y queda 'enraizado en el suelo' (grounded): no puede usar desplazamientos ni Destello. Enfriamiento 24/22/20/18/16 s, 70-90 de maná. Detrás del rival corta su huida; delante, frena a quien se lanza (Yasuo, Irelia, Zed, asesinos).",
+  "E": "Twin Fang: proyectil dirigido a 700 de alcance con 0,75 s de enfriamiento y 45 de maná (se devuelve si mata). Hace 50-120 (+20 % AP); contra envenenados añade 20-120 (+45 % AP) y la cura un 10-16 % de su AP (75 % menos contra súbditos y monstruos pequeños). Es su daño principal y su forma de rematar súbditos (recupera maná). Si el objetivo se vuelve intocable o sale de visión durante el lanzamiento, se cancela sin coste.",
+  "R": "Petrifying Gaze: cono de 80° y 850 de alcance tras 0,5 s de lanzamiento; 125/225/325 (+75 % AP). Aturde 2 s a quien la mira y solo ralentiza un 40 % a quien le da la espalda. Enfriamiento 120/100/80 s, 100 de maná. Es su defensa contra quien se lanza encima y su iniciación en pasillos de jungla; los que huyen apenas la sufren."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E > Q > W en el 97-99 % de las partidas. Nivel 1: E para rematar súbditos (recupera maná) o Q si quiere tradear ya a nivel 1 (Q-E-E 23 %). Nivel 3: W (E-Q-W, 29-48 %) para ganks y contra quien tiene desplazamientos, o segunda E (E-Q-E/Q-E-E, 28-40 %) para más daño en línea. La W se queda a rango 1 hasta el nivel 14-15. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno. Solo velocidad: la Q da 30-50 % al golpear a un campeón (decae en 3 s) y la pasiva amplifica un 5-36 % cualquier bonificación de velocidad (botas, Fantasmal, Celeridad, Cintomisil hextech si lo compra).",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Daño de veneno: la E es un 'ataque' de 0,75 s de enfriamiento que casi duplica su daño y la cura si el objetivo está envenenado (Q o W); sin veneno previo la E hace poco.",
+  "La W deja al rival 'grounded': durante 5 s, dentro de las nubes, no puede usar desplazamientos ni Destello; es su respuesta a asesinos y luchadores que saltan.",
+  "La R aturde solo a quien la está mirando (2 s) y ralentiza al que le da la espalda: es fortísima contra quien entra hacia ella y débil para perseguir.",
+  "Pasiva amplificadora de velocidad (5-36 %) y, desde el 26.01, puede comprar botas (antes no podía): suele llevar Botas de rapidez y kitea muy bien con la Q.",
+  "Rematar súbditos con la E le devuelve los 45 de maná: farmea muy bien y llega a 76-79 de CS al minuto 10 en las muestras de partidas."
+ ],
+ "combos": [
+  "Tradeo básico: Q adelantada al rival → E-E-E mientras dure el veneno (3 s) → retirarse con la velocidad de la Q.",
+  "All-in de nivel 2-3: Q → E → W detrás del rival para cortar la huida (no puede usar Destello en las nubes) → E sin parar; Prender si lo lleva.",
+  "Combo de nivel 6: Q → W detrás → R cuando el rival se gire hacia ella (aturdimiento 2 s) → E cada 0,75 s → Q de nuevo a los 3,5 s.",
+  "Contra un lanzamiento (asesino o luchador que entra): W bajo sus pies → R cuando venga de frente → E sin parar.",
+  "Pelea en pasillo de jungla: W en el pasillo para frenar, R al grupo que avanza hacia ella y E al más cercano envenenado; Zhonya si la alcanzan."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Lágrima de la diosa",
+   "Vara de las edades",
+   "Bastón del arcángel",
+   "Abrazo del serafín",
+   "Cetro de cristal de Rylai",
+   "Tormento de Liandry",
+   "Reloj de arena de Zhonya",
+   "Sombrero mortal de Rabadon",
+   "Bastón del Vacío",
+   "Botas de rapidez"
+  ],
+  "runas": "Toque de muerte ígnea con Banda de maná, Trascendencia o Celeridad y Piroláser, secundaria Precisión (Claridad mental, Leyenda: Presteza, Golpe de gracia o Derribado): 69 % en OP.GG 16.23 (76 % en partidas recientes de la muestra). Alternativa: Conquistador con secundaria Brujería (13 % en 16.23; era la habitual en parches anteriores y la de muchos OTPs) o secundaria Valor (Revestimiento de huesos) contra asesinos.",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Fantasmal"
+  ],
+  "nota": "Destello + Teleportar 58-65 %, Destello + Fantasmal 20 % (la pasiva amplifica Fantasmal); Barrera, Prender o Agotamiento según el rival. Inicio Anillo de Doran + 2 Pociones (88 %) o Lágrima de la diosa (11 %). Primera vuelta con Lágrima de la diosa, Cristal de zafiro, Tomo amplificador o botas. Primer objeto Vara de las edades o Bastón del arcángel (los dos acaban en la build más común: Lágrima → Vara de las edades → Abrazo del serafín → Cetro de cristal de Rylai, 27 % y 55 % de victorias en OP.GG). Tormento de Liandry contra tanques; Reloj de arena de Zhonya contra asesinos y AD; Maldición sanguinolenta o Bastón del Vacío contra resistencia mágica. Botas de rapidez (57 %), de mercurio contra controles o de hechicero."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Sale con Anillo de Doran y E (remata súbditos y recupera maná) o Q si quiere tradear a nivel 1. Llega a nivel 2 hacia el 1:30 y a nivel 3 hacia el 2:00: a nivel 2 con Q + E espera a que el rival se acerque a menos de 700 para un tradeo largo de 3-4 E. Contra melés, el nivel 2-3 es su ventana para matar o forzar el Destello.",
+    "tradeos": "Tradeo largo: Q (hay que adelantarla 0,4 s) y E mientras dure el veneno; se gana porque la E vuelve cada 0,75 s y la cura. Si la Q falla, no entra (la E sin veneno hace la mitad). Contra magos de rango largo espera a que gasten su habilidad principal para acercarse; contra melés usa la W para que no puedan saltar encima.",
+    "oleadas": "Remata con E (devuelve maná) y empuja con Q a la oleada para cargar la Lágrima. Puede empujar rápido con Q + W y E a los súbditos envenenados. Sin huida, si el jungla rival no está a la vista empuja solo hasta la mitad de la línea; con la oleada empujada puede bajar al río. Media de 76-79 de CS al minuto 10.",
+    "all_in": "Nivel 2-3: Q → E → W detrás → E sin parar (+ Prender). Nivel 6+: Q → W detrás para que no use Destello ni desplazamientos → R cuando se gire hacia ella → E hasta que muera. Contra melés que entran, R + W bajo sus pies los frena en seco. Mata con facilidad a rivales que tienen que acercarse para farmear.",
+    "jugar_seguro": "Contra magos de mucho alcance o explosivos (Anivia, Vel'Koz, Veigar, Ziggs, Xerath, Zoe, Syndra) farmea con E al límite de su alcance, empuja con Q y no se queda en la línea de sus habilidades. Contra asesinos (Zed, Talon, Naafiri, Akshan) guarda la W y la R para cuando salten, compra Reloj de arena de Zhonya pronto y pide visión en el río."
+   },
+   "roameos": "Roamea poco a pie (no tiene desplazamientos), pero en el 77-80 % de las partidas tiene algún takedown fuera de mid antes del minuto 14, el primero hacia el 7:00-7:45, sobre todo en el río (38-41 %) y en bot (21-23 %): peleas de escuttle, dragón y ganks a bot con el jungla. Con Teleportar (58-65 %) se une a peleas de top o bot.",
+   "fase_media": "Agruparse con el jungla para el dragón y el Heraldo: es fuerte en peleas largas en pasillos y en el foso (W en la entrada, R al que entre). Puede llevar una lateral con visión (de mediana pasa el 13-14 % del tiempo tardío sola en una lateral), pero su plan es pelear en grupo detrás de su frontal desde los 2-3 objetos.",
+   "matchups_dificiles": [
+    "Anivia",
+    "Vel'Koz",
+    "Veigar",
+    "Malzahar",
+    "Ziggs",
+    "Zoe",
+    "Galio",
+    "Akshan",
+    "Syndra",
+    "Naafiri"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Ryze",
+    "Mel",
+    "Irelia",
+    "Lissandra",
+    "Sylas",
+    "Yasuo",
+    "Riven",
+    "Azir"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Maga de daño sostenido y control de zona: frena a los que se lanzan con W y R y hace daño continuo con E a quien tenga cerca.",
+  "como_entrar": "No entra: espera detrás de su frontal a que el rival avance, Q al grupo, W en el pasillo o bajo el que se lanza, R a los que vienen de frente (cuantos más mejor) y E sin parar al más cercano envenenado; se reposiciona con la velocidad de la Q.",
+  "objetivo": "El enemigo envenenado más cercano y seguro (aunque sea un frontal); a los carries cuando se acercan a 700. La R, a los que entran hacia ella (luchadores y asesinos).",
+  "posicion": "Segunda línea, a 700-850 de los enemigos, cerca de su frontal; mejor en pasillos y entradas de foso que en campo abierto. Sin desplazamientos: si la flanquean necesita Reloj de arena de Zhonya o Destello."
+ },
+ "macro": {
+  "split_push": "Poco: pasa de mediana el 13-14 % del tiempo tardío sola en una lateral; empuja oleadas con Q/W cuando no hay objetivos, pero su sitio es el grupo.",
+  "objetivos": "Hace dragón y Heraldo con el jungla (la E contra monstruos envenenados hace mucho daño), pero no solos antes de 2 objetos. Placas: 7 de mediana por partida en OTPs. En peleas de Barón y dragón tardías, W en la entrada del foso y R al que entre.",
+  "plan_de_partida": "0-6 min: ganar la línea con el nivel 2-3 y farmear con E. 6-14 min: Lágrima → Vara de las edades o Bastón del arcángel (~11:30), jugar el río y el dragón con el jungla, Teleportar a peleas. 14-25 min: Abrazo del serafín (~15-18 min) y Cetro de Rylai, peleas en pasillos alrededor de objetivos. 25+ min: daño de tirador en peleas largas detrás del frontal; Zhonya contra asesinos."
+ },
+ "debilidades": [
+  "Alcance corto para una maga (E a 700): los magos de artillería (Anivia, Vel'Koz, Ziggs, Xerath) la desgastan sin que pueda responder.",
+  "Sin desplazamientos: vulnerable a ganks, dives y asesinos si no tiene la W o la R; depende del Destello y del Zhonya.",
+  "Problemas de maná antes de la Lágrima o la Vara de las edades: si falla Q o hace W de más, se queda seca.",
+  "La R solo aturde a quien la mira: contra equipos que huyen o la flanquean por detrás apenas sirve, y tiene 120 s de enfriamiento a rango 1.",
+  "Necesita que la Q acierte (retardo de 0,4 s) para hacer daño con la E."
+ ],
+ "contrarrestado_por": [
+  "Anivia",
+  "Vel'Koz",
+  "Veigar",
+  "Malzahar",
+  "Ziggs",
+  "Zoe",
+  "Galio",
+  "Akshan"
+ ],
+ "bueno_contra": [
+  "Ezreal",
+  "Ryze",
+  "Mel",
+  "Irelia",
+  "Lissandra",
+  "Sylas",
+  "Yasuo",
+  "Riven"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Sejuani",
+  "Amumu",
+  "Maokai",
+  "Leona",
+  "Nautilus"
+ ],
+ "errores_comunes": [
+  "Lanzar la E sin haber envenenado antes (Q o W): hace la mitad del daño y no la cura.",
+  "Lanzar la Q justo donde está el rival en lugar de adelantarla: el retardo de 0,4 s hace que falle y el tradeo se pierde.",
+  "Usar la R contra rivales que huyen de espaldas (solo los ralentiza) o guardarla demasiado cuando un asesino ya está encima.",
+  "Gastar la W como daño en lugar de guardarla para cortar la huida o para frenar al que salta.",
+  "Avanzar sin visión ni Destello: sin desplazamientos, un gank la mata.",
+  "Retrasar la Lágrima y quedarse sin maná a mitad de la fase de líneas."
+ ],
+ "senales_reconstructor": [
+  "Farmeo muy alto para una maga: 76-79 de CS al minuto 10 y 114-120 al 15 en las muestras (OTPs y partidas generales) porque remata con la E; CS bajo con ella en línea suele ser señal de mala línea, no de estilo.",
+  "Ritmo: nivel 2 al 1:30, nivel 3 al 2:00, nivel 6 al 5:20, nivel 11 hacia el 14:55. Primera vuelta hacia el 3:12-3:24 con 700-800 de oro (Lágrima de la diosa en el 41-44 %, Cristal de zafiro, Tomo amplificador o botas).",
+  "Primer objeto hacia el 11:20-11:40 (p25 10:00, p75 13:40): Vara de las edades o Bastón del arcángel; segundo hacia el 18:40-19:25; tercero hacia el 25:00-25:25.",
+  "El Bastón del arcángel se transforma en Abrazo del serafín sin pasar por la tienda (mediana 14:55 en OTPs, 18:00 en partidas generales): en el timeline sale un ITEM_DESTROYED del Bastón del arcángel sin compra, esté donde esté. No es una vuelta a base.",
+  "Desde el 26.01 compra botas (antes de 2026 no podía): Botas de rapidez en el 46-57 %, hacia el 12:10-12:40. Una Cassiopeia de partidas anteriores sin botas no es un error.",
+  "Sin desplazamientos: cualquier tramo muy rápido es velocidad de la Q (30-50 % que decae en 3 s, amplificada hasta un 36 % por la pasiva), Botas de rapidez o Fantasmal (Destello + Fantasmal en el 20 %). Con Teleportar (58-65 %) son normales las apariciones bruscas desde la base o desde mid en peleas de top o bot.",
+  "Roameo moderado: 73-75 % de sus posiciones de los minutos 3-13 en mid; en el 77-80 % de las partidas tiene takedowns fuera de mid antes del 14 (primero hacia el 7:00-7:45), casi todos en el río y bot alrededor del dragón.",
+  "Primeros takedowns: mediana 4:25-5:40 y first blood solo en el 13-17 %; sus kills de línea llegan a nivel 2-3 o 6 y suelen ser en mid cerca de la mitad de la línea o bajo su torre.",
+  "Las muertes de rivales dentro de su W no implican que no tuvieran Destello: dentro de las nubes no pueden usarlo (grounded). Tras una R los aturdidos quedan quietos 2 s, por eso varias kills en el mismo punto en pocos segundos son normales.",
+  "Tardía: de mediana pasa el 13-14 % del tiempo sola en una lateral y el 27 % agrupada; su sitio es el grupo en mid o en los objetivos."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/cassiopeia/build/",
+  "https://lolalytics.com/lol/cassiopeia/counters/",
+  "https://www.op.gg/lol/champions/cassiopeia/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Cassiopeia",
+  "https://metabot.gg/en/league/guides/Cassiopeia",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Cassiopeia mid (data/otps/Cassiopeia/MID, 213 partidas, 16.6-16.23) y partidas generales (data/partidas_campeon/Cassiopeia/MID, 100 partidas)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 27,
+    "victorias": 0.296,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.6,
+     "mediana": 3.5,
+     "p75": 5.2
+    },
+    "primer_objeto_min": {
+     "p25": 11.3,
+     "mediana": 12.4,
+     "p75": 14.1
+    },
+    "segundo_objeto_min": {
+     "p25": 14.6,
+     "mediana": 16.7,
+     "p75": 17.9
+    },
+    "primer_objeto": [
+     [
+      "Cetro de cristal de Rylai",
+      0.81
+     ],
+     [
+      "Vara de las edades",
+      0.11
+     ],
+     [
+      "Bastón del arcángel",
+      0.07
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWEEREQE",
+      0.89
+     ],
+     [
+      "QEEWEREQE",
+      0.11
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 26.1,
+     "mediana": 41.0,
+     "p75": 54.8
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.4,
+     "mediana": 21.6,
+     "p75": 25.6
+    },
+    "vision_por_min": {
+     "p25": 0.49,
+     "mediana": 0.58,
+     "p75": 0.72
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.5
+    },
+    "solo_kills_media": 2.81,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 21.0,
+     "mediana": 34.1,
+     "p75": 48.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 13.2,
+     "mediana": 24.3,
+     "p75": 31.8
+    },
+    "cs_10": {
+     "p25": 69.5,
+     "mediana": 76.0,
+     "p75": 82.0
+    },
+    "dif_cs_10": {
+     "p25": -6.0,
+     "mediana": 11.0,
+     "p75": 21.0
+    },
+    "dif_oro_10": {
+     "p25": -526.0,
+     "mediana": 321.0,
+     "p75": 892.0
+    },
+    "placas": {
+     "p25": 3.5,
+     "mediana": 5.0,
+     "p75": 9.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 0.0
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.7,
+     "mediana": 4.8,
+     "p75": 8.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.3-16.8"
+   },
+   "MID": {
+    "partidas": 70,
+    "victorias": 0.571,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.1,
+     "p75": 4.5
+    },
+    "primer_objeto_min": {
+     "p25": 10.3,
+     "mediana": 11.3,
+     "p75": 12.4
+    },
+    "segundo_objeto_min": {
+     "p25": 16.9,
+     "mediana": 18.6,
+     "p75": 19.7
+    },
+    "primer_objeto": [
+     [
+      "Vara de las edades",
+      0.75
+     ],
+     [
+      "Cetro de cristal de Rylai",
+      0.17
+     ],
+     [
+      "Bastón del arcángel",
+      0.04
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQEWEREQE",
+      0.51
+     ],
+     [
+      "QEEWEREQE",
+      0.41
+     ],
+     [
+      "EQWEEREQE",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.99
+     ],
+     [
+      "EWQ",
+      0.01
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.5,
+     "mediana": 45.6,
+     "p75": 52.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 18.4,
+     "mediana": 22.3,
+     "p75": 25.7
+    },
+    "vision_por_min": {
+     "p25": 0.65,
+     "mediana": 0.78,
+     "p75": 1.02
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.46,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 12.8,
+     "mediana": 21.8,
+     "p75": 29.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 16.8,
+     "mediana": 26.8,
+     "p75": 35.9
+    },
+    "cs_10": {
+     "p25": 74.2,
+     "mediana": 81.0,
+     "p75": 89.0
+    },
+    "dif_cs_10": {
+     "p25": -6.0,
+     "mediana": 4.0,
+     "p75": 15.0
+    },
+    "dif_oro_10": {
+     "p25": -300.0,
+     "mediana": 102.0,
+     "p75": 532.0
+    },
+    "placas": {
+     "p25": 3.0,
+     "mediana": 5.5,
+     "p75": 12.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 4.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.8,
+     "mediana": 6.8,
+     "p75": 12.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.3-16.23"
+   }
+  }
+ }
+}

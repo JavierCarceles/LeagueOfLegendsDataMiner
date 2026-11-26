@@ -1,0 +1,384 @@
+{
+ "clave": "Lissandra",
+ "nombre": "Lissandra",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.876,
+   "principal": true
+  }
+ ],
+ "arquetipo": "maga de control de mid y de corto alcance: engancha con la E (teletransporte que cruza muros) y la R (aturdimiento de 1,5 s) y anula a asesinos y buceadores con la W y la R sobre sí misma; pico en nivel 6 y entre el primer y el segundo objeto",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Entre los niveles 1 y 5 depende de la Q y de una W de radio muy corto: castiga a los cuerpo a cuerpo que se acercan, pero los magos de largo alcance la superan. Desde el nivel 6 (~5:10) encadena unos 3 s de control (W 1,25 s + R 1,5 s) y roamea con la E; su mejor ventana va del minuto 6 al 25. En las partidas de sus OTP (Diamante-Gran Maestro) gana el 68-69 % de las que acaban antes del 20 o entre el 25 y el 30, pero solo el 42-47 % de las que pasan de 30: en la tardía sigue siendo útil como iniciadora y anti-buceo, aunque su daño escala menos que el de otros magos de control."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:30 y ~2:02)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La W (raíz de 1,25 s instantánea a su alrededor) llega a nivel 2: un cuerpo a cuerpo que entra a por ella queda enraizado y recibe Q + ataque con Electrocutar. A nivel 3 tiene la E: puede enganchar con E y reactivación + W + Q si el rival no tiene Destello."
+  },
+  {
+   "cuando": "Nivel 6 (~5:10)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R aturde 1,5 s y deja un campo que ralentiza un 45 %; con E, reactivación, W, R, Q y Prender mata a un mid con media vida. La R sobre sí misma (2,5 s de estasis con curación) le hace sobrevivir a dives. Empieza su fase de roameos: sus kills y asistencias por minuto pasan de 0,25 en el minuto 5 a 0,42 en el 6."
+  },
+  {
+   "cuando": "Primer objeto (~11:05): Antorcha de fuego negro, Eco de Luden o Malignidad",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Antorcha de fuego negro",
+   "por_que": "Coincide con la Q al máximo (nivel 9, ~10:10, Q de 3 s de enfriamiento): limpia la oleada con Q + W y sale a roamear. Malignidad le da 20 de velocidad de habilidad definitiva y quema el suelo con la R; Eco de Luden, más ráfaga para picks."
+  },
+  {
+   "cuando": "Segundo objeto (~18:55): Llamasombría o Cintomisil hextech",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Cintomisil hextech",
+   "por_que": "Con la R de nivel 2 (nivel 11, ~14:30) y dos objetos su combo deja a cero a un tirador o mago. Cintomisil hextech (35 % de los OTP) le da un segundo enganche además de la E; Llamasombría (42 %), más daño. Es la fase de picks en la niebla y peleas por dragón y Barón."
+  },
+  {
+   "cuando": "Tercer objeto (~25 min): Reloj de arena de Zhonya o Sombrero mortal de Rabadon",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Reloj de arena de Zhonya",
+   "por_que": "Con Zhonya puede entrar la primera en medio del equipo rival (E, Destello, W, R y luego Zhonya: 2,5 s de estasis de la R propia más 2,5 s de Zhonya). A partir de aquí escala menos que sus rivales: es iniciadora y protectora más que la que más daño hace."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Iceborn Subjugation: cuando un campeón enemigo muere cerca de ella, su cadáver se convierte en un siervo helado que persigue 4 s a enemigos visibles (prefiere campeones; arranca lento y acelera hasta 325 de velocidad), los ralentiza un 25 % y luego estalla por 120-520 (+50 % AP) de daño mágico. En peleas sirve para rematar al que huye con poca vida tras la primera muerte.",
+  "Q": "Ice Shard: lanza de hielo (enfriamiento 7/6/5/4/3 s, 55-75 de maná; 725 u según Data Dragon, la wiki da 825) que hace 80/115/150/185/220 (+75 % AP) y ralentiza un 20-36 % 1,5 s al primer enemigo. Al romperse en él (vale un súbdito) sigue en línea hasta ~950 u y golpea y ralentiza a todo lo de detrás: así pega a campeones escondidos tras su oleada. Al máximo (nivel 9) tiene 3 s de enfriamiento: es su poke y su despeje principal.",
+  "W": "Ring of Frost: anillo instantáneo alrededor de ella (radio ~275 u según la wiki; Data Dragon da 450 de alcance) que enraíza 1,25/1,35/1,45/1,55/1,65 s y hace 70-210 (+70 % AP). Enfriamiento 10/9,5/9/8,5/8 s, 40 de maná. No tiene tiempo de lanzamiento ni la frena: castiga a cuerpo a cuerpo que entran, se lanza justo después de la reactivación de la E o del Destello y es su primera respuesta a buceadores.",
+  "E": "Glacial Path: garra de hielo de 1050 u (la wiki da 1025) que avanza frenándose (de 1200 a 640 u/s en 1,25 s) y hace 70-210 (+60 % AP); al reactivarla (desde 0,5 s) Lissandra se teletransporta a donde esté la garra. Cruza muros si la garra ha pasado al menos la mitad del muro. Enfriamiento largo, 24/21/18/15/12 s, y se sube la última (rango 2 a nivel 14): casi toda la partida está en 24-21 s menos la velocidad de habilidad. No se puede reactivar enraizada ni con anclaje; los enemigos a 600 u ven el punto final.",
+  "R": "Frozen Tomb (120/100/80 s, 550 u, 100 de maná): sobre un enemigo, lo aturde 1,5 s (0,375 s de lanzamiento); sobre sí misma, estasis de 2,5 s (invulnerable, sin poder actuar) curándose 100-200/150-300/200-400 (+55-110 % AP) según la vida perdida. En los dos casos deja un campo de hielo de 550 u durante 3 s que hace 150/250/350 (+75 % AP) y ralentiza un 45/60/75 %. Si el objetivo se vuelve intocable, muere o se aleja durante el lanzamiento, se cancela sin gastar el enfriamiento."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E en el 82 % de los OTP y Q>W>E como máximo (OP.GG 16.23: 77 % de las partidas; Lolalytics igual). Q>E>W (29 % de los OTP) si quiere más E para roamear y enganchar; Q-W-Q (5 %) en líneas de poke. Contra asesinos que van a por ella a nivel 2, la W a nivel 2 es obligatoria. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: teletransporte a la garra, hasta 1050 u, que cruza muros. Con Destello (400 u) y, si la compra, Cintomisil hextech (impulso corto) engancha desde ~1700 u. No tiene más saltos; su R propia es estasis, no movimiento.",
+  "salta_muros": "si",
+  "como_salta_muros": "Lanza la E contra el muro y la reactiva cuando la garra ha pasado al menos la mitad: aparece al otro lado. La usa para roamear por la jungla, para entrar desde la niebla por encima de un muro y para escapar de ganks.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La Q se rompe en el primer enemigo y continúa hasta ~950 u: golpea a campeones que se esconden detrás de sus súbditos.",
+  "R de doble uso: aturdir a un enemigo 1,5 s o meterse ella en estasis 2,5 s curándose; las dos dejan un campo de 550 u que ralentiza hasta un 75 % durante 3 s.",
+  "E en dos tiempos: la garra viaja y ella decide si se teletransporta; puede lanzarla, caminar hacia el otro lado y no reactivarla para engañar. Cruza muros a partir de la mitad.",
+  "Siervos helados de la pasiva: cada campeón que muere cerca de ella se convierte en un siervo que persigue, ralentiza y explota, así que una muerte suele traer otra.",
+  "W instantánea y en área a su alrededor, sin tiempo de lanzamiento: es una de las mejores respuestas a buceadores y asesinos cuerpo a cuerpo."
+ ],
+ "combos": [
+  "Enganche estándar (desde nivel 6): E → reactivar E → W → R al objetivo → Q → ataque (Electrocutar) y Prender.",
+  "Enganche múltiple: E por encima de un muro o desde la niebla → reactivar → Destello encima de 2-3 enemigos → W instantánea → R al carry o a sí misma en medio del grupo.",
+  "Anti-buceo: cuando el asesino o el jungla salta sobre ella, W → R sobre él (o R sobre sí misma si ya está baja de vida) → Q al que intente huir.",
+  "Comercio en línea: Q a través de un súbdito (se rompe y alcanza al campeón de detrás) → ataque; si el rival responde cuerpo a cuerpo, W y otra Q.",
+  "Huida: E hacia un muro y reactivar cuando la garra lo cruce; o E en una dirección y caminar en la otra; si la atrapan, R sobre sí misma y esperar a la torre o a su jungla.",
+  "Con Cintomisil hextech: Cintomisil → W → R → Q sin gastar la E, que se guarda para salir."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Malignidad",
+   "Antorcha de fuego negro",
+   "Eco de Luden",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Sombrero mortal de Rabadon",
+   "Cintomisil hextech",
+   "Bastón del Vacío",
+   "Botas de hechicero",
+   "Sello oscuro"
+  ],
+  "runas": "Electrocutar (45 % en OP.GG Esmeralda+ 16.23; 54 % de los OTP) con Golpe bajo, Recuerdo macabro y Cazador definitivo; secundaria Brujería con Banda de maná y Trascendencia. Segunda opción: Cometa arcano con Dominación secundaria (34 %; 26 % de los OTP) para un estilo de poke. Invocar a Aery en el 19 % de los OTP. Fragmentos: fuerza adaptable x2 y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Destello + Teleportar es lo más jugado en Esmeralda+ (70 %, OP.GG) y Destello + Prender el 28 % (61 % en los OTP Diamante-Gran Maestro): Prender contra mids que puede matar a nivel 6, Teleportar para jugar con el mapa. Empieza Anillo de Doran + poción (98 %). Primer objeto: Malignidad (el núcleo más jugado en OP.GG: Malignidad, Llamasombría y Zhonya), Antorcha de fuego negro (núcleo de Lolalytics; 48 % de los OTP) o Eco de Luden (27 % de los OTP). Después Llamasombría o Cintomisil hextech, y Reloj de arena de Zhonya o Sombrero mortal de Rabadon. Bastón del Vacío contra resistencia mágica, Velo del hada de la muerte contra un control que la caza y Mandato imperial (9-15 % de los OTP) en versión de utilidad. Botas de hechicero (66 %) o Botas jonias de la lucidez (19 %); en los objetos finales de los OTP aparecen como Botas del lanzahechizos."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 Q: pega la Q a través de los súbditos (se rompe en el primero y alcanza al campeón) y ayuda a empujar. Nivel 2 (~1:30) W: si un cuerpo a cuerpo entra, queda enraizado 1,25 s. Nivel 3 (~2:02) E: ya puede E, reactivar, W y Q si el rival no tiene Destello. Ojo al maná: la Q cuesta 55-75 y no puede lanzarla sin parar.",
+    "tradeos": "Q a través de la oleada + ataque cuando el rival va a por un súbdito; contra cuerpo a cuerpo, deja que entre y responde con W + Q + ataque (Electrocutar). No use la E para comerciar: con 24 s de enfriamiento es su escape. Contra magos de más alcance (Veigar, Hwei, Anivia, Ziggs) no compite: limpia y espera al 6.",
+    "oleadas": "Despeja bien: la Q atraviesa la oleada y la W remata a los cuerpo a cuerpo; con el primer objeto limpia en 2-3 habilidades. Empuja para tener prioridad y roamear o para cubrir a su jungla; contra rivales que la superan en alcance deja la oleada cerca de su torre y que el rival entre en la zona de la W.",
+    "all_in": "Desde nivel 6: E → reactivar → W → R → Q → ataque, con Electrocutar y Prender; mejor cuando el rival ha gastado el Destello o su escape. Contra rivales que se vuelven intocables o escapan (Fizz, Kassadin, Ekko), guarda la R para después de su escape.",
+    "jugar_seguro": "Frágil y de corto alcance: si no ve al jungla rival, se queda detrás de la oleada y guarda la E para escapar. Si la bucean bajo torre, W al buceador y R sobre él o sobre sí misma (2,5 s de estasis) para que llegue la torre o su jungla. No se adelanta con la E en enfriamiento."
+   },
+   "roameos": "A partir del nivel 6 empuja y va al río o a bot (sobre todo) con la E por encima de los muros de la jungla: R al tirador o al support rival y W. En los OTP la mitad de las partidas tienen una visita a otra línea antes del 14 (mediana minuto 12) y el 59 % de sus kills y asistencias antes del 14 son fuera de mid (río 23 %, bot 12 %, jungla rival 11 %, jungla propia 9 %, top 5 %). Con Teleportar (70 % en Esmeralda+) entra además en peleas de bot o top desde un guardián o un súbdito.",
+   "fase_media": "Tras la fase de líneas se agrupa en mid o en el lado del objetivo (dragón, Heraldo, Barón): busca picks en la niebla con E, reactivación, W y R a un carry, y protege a su tirador de los asesinos con W y R. No hace split push (en los OTP, 18 % del tiempo tardío sola en una lateral y 27 % agrupada). Con Zhonya y Cintomisil hextech es quien entra primero en las peleas de 5 contra 5.",
+   "matchups_dificiles": [
+    "Veigar",
+    "Hwei",
+    "Anivia",
+    "Ziggs",
+    "Kog'Maw",
+    "Brand",
+    "Annie",
+    "Swain",
+    "Gragas",
+    "Kayle"
+   ],
+   "matchups_faciles": [
+    "Akali",
+    "Yasuo",
+    "Naafiri",
+    "Tristana",
+    "Jayce",
+    "Malphite",
+    "Kennen",
+    "Riven",
+    "Sion",
+    "Corki"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciadora y anti-buceo: engancha a uno o varios con E, Destello y W y aturde al carry con la R, o protege a su tirador pegando W y R al que entra.",
+  "como_entrar": "Desde un flanco o la niebla: E por encima de un muro, reactivación, Destello si hace falta y W sobre 2-3 enemigos; R al carry o a sí misma en medio del grupo (estasis y campo que ralentiza un 75 %) para que entre su equipo. Con Zhonya encadena R propia y Zhonya. Si la E falla o está en enfriamiento, no inicia: espera a que el rival entre en su W.",
+  "objetivo": "El tirador o el mago principal cuando inicia; el asesino o el buceador (Zed, Kha'Zix, Vi, Jarvan IV) cuando protege.",
+  "posicion": "Detrás de su primera línea, a 550-1000 u del enemigo (alcance de la R y de la E) y con la E disponible; si va a iniciar, desde un lado y con visión del flanco."
+ },
+ "macro": {
+  "split_push": "No. Juega agrupada; como mucho limpia una oleada lateral cuando no hay objetivo y vuelve, a menudo con Teleportar.",
+  "objetivos": "No hace objetivos sola. Empuja mid para que su jungla vaya al dragón (5:00) o a las larvas (8:00) con prioridad, y en dragón y Barón cierra la entrada del foso con W y R. Daño a torres moderado (mediana ~6100 por partida en los OTP).",
+  "plan_de_partida": "Fase 1 (0-6): farmear, aguantar contra magos de alcance y castigar a los cuerpo a cuerpo con la W. Fase 2 (6-15): prioridad de oleada y roameos con E y R a bot y al río, kills con su jungla. Fase 3 (15-25): picks y peleas en objetivos con 2 objetos y Zhonya. Fase 4 (25+): iniciadora o protectora del carry; nunca sola en las laterales."
+ },
+ "debilidades": [
+  "Corto alcance (Q 725-825, W ~275, R 550): los magos de largo alcance (Xerath, Ziggs, Hwei, Veigar, Anivia) la castigan en línea y en asedios.",
+  "La E tiene 24-21 s de enfriamiento durante casi toda la partida: sin ella no tiene enganche ni escape y es fácil de ganquear.",
+  "Problemas de maná en los primeros niveles si abusa de la Q.",
+  "Su daño escala peor que el de los magos de hipercarry: pasado el minuto 30 su impacto baja.",
+  "La garra de la E se ve y su destino también: un control durante el vuelo (antes de reactivar) la deja sin salida."
+ ],
+ "contrarrestado_por": [
+  "Veigar",
+  "Hwei",
+  "Anivia",
+  "Ziggs",
+  "Kog'Maw",
+  "Brand",
+  "Annie",
+  "Gragas"
+ ],
+ "bueno_contra": [
+  "Akali",
+  "Yasuo",
+  "Naafiri",
+  "Tristana",
+  "Jayce",
+  "Malphite",
+  "Kennen",
+  "Riven"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Vi",
+  "Nocturne",
+  "Lee Sin",
+  "Wukong",
+  "Leona",
+  "Rell"
+ ],
+ "errores_comunes": [
+  "Usar la E para comerciar o para farmear y quedarse sin escape cuando llega el gank.",
+  "Equivocarse con la R: meterse en estasis por pánico cuando podía aturdir al que la perseguía, o aturdir y morir sin haberla usado sobre sí misma.",
+  "Reactivar la E en mitad del equipo rival sin Destello ni aliados cerca para seguir.",
+  "Pelear contra magos de largo alcance en los niveles 1-5 en vez de farmear y esperar al 6.",
+  "Quedarse en mid empujando sin roamear después del nivel 6, cuando su kit es de picks.",
+  "Ir sola a una lateral en la tardía: sin E ni R disponibles muere fácilmente."
+ ],
+ "senales_reconstructor": [
+  "Movilidad: la E la teletransporta hasta 1050 u y cruza muros; entre dos fotogramas puede aparecer al otro lado de un muro o ~1000 u más lejos de lo que se camina. No es un error de posición.",
+  "Teleportar en el 70 % de las partidas en Esmeralda+ (38 % de los OTP; mediana de 4 usos por partida con él): verla en bot o top segundos después de estar en mid es normal, y las kills tras Teleportar suelen aparecer desde el minuto 6-8.",
+  "Ritmo de niveles en mid (OTP Diamante-Gran Maestro, 146 partidas): nivel 2 ~1:30, nivel 3 ~2:02, nivel 6 ~5:09 (p25 5:00, p75 5:29), nivel 9 ~10:10 y nivel 11 ~14:30.",
+  "Primera vuelta a base hacia el 3:55 (p25 3:12, p75 4:54) con ~800 de oro: Tomo amplificador (53 %), Sello oscuro (45 %) o Botas (33 %). Primer objeto hacia el 11:05 (Antorcha de fuego negro 48 %, Eco de Luden 27 %, Malignidad 23 %); segundo hacia el 18:55; botas completas hacia el 12.",
+  "Roameos: la mitad de las partidas tienen una visita a otra línea antes del 14 (mediana minuto 12) y el 59 % de sus kills y asistencias antes del 14 son fuera de mid (río 23 %, bot 12 %, jungla rival 11 %). Kills en bot o en el río con su última posición en mid son normales a partir del 6.",
+  "Su participación en kills sube con el nivel 6: de 0,25 kills y asistencias por partida en el minuto 5 a 0,42 en el 6 y 0,5-0,67 por minuto entre el 8 y el 15.",
+  "Control: mediana de 48 s de control a campeones por partida, ~29 inmovilizaciones y ~13 R (una cada 2 min). En las kills en las que participa suele ser la que inmoviliza, no la que remata (6 kills y 8 asistencias de mediana).",
+  "CS de referencia: 20 a los 3:00, 38 a los 5:00, 83 a los 10:00 y 116 a los 14:00.",
+  "Supervivencia: la R sobre sí misma (2,5 s de estasis) y la W le hacen sobrevivir a dives que parecían letales; un dive enemigo bajo su torre que termina sin su muerte, o con muertes de los buceadores, es habitual.",
+  "Siervos de la pasiva: una segunda muerte enemiga cerca de la primera pocos segundos después puede ser daño del siervo helado, sin que Lissandra esté encima.",
+  "Fuerza por duración: en los OTP gana el 68-69 % de las partidas de menos de 20 min y de 25-30 min, y el 42-47 % de las de más de 30.",
+  "Rara vez fuera de mid (top 8,5 %, support 3,2 % en Lolalytics); en support el ritmo es de support (nivel 6 hacia el 8-9 y Atlas mundial)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/lissandra/build/",
+  "https://lolalytics.com/lol/lissandra/counters/",
+  "https://www.op.gg/lol/champions/lissandra/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Lissandra",
+  "https://metabot.gg/en/league/champion/Lissandra/guide",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs Diamante-Gran Maestro de Lissandra mid, parches 16.18-16.23 (data/otps/Lissandra/MID, 146 partidas)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "MID": {
+    "partidas": 143,
+    "victorias": 0.566,
+    "victorias_por_duracion": [
+     {
+      "minutos": "20-25",
+      "partidas": 39,
+      "victorias": 0.513
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 40,
+      "victorias": 0.675
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 31,
+      "victorias": 0.484
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 3.9,
+     "p75": 4.9
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 11.1,
+     "p75": 12.4
+    },
+    "segundo_objeto_min": {
+     "p25": 17.2,
+     "mediana": 18.9,
+     "p75": 20.5
+    },
+    "primer_objeto": [
+     [
+      "Antorcha de fuego negro",
+      0.49
+     ],
+     [
+      "Eco de Luden",
+      0.27
+     ],
+     [
+      "Malignidad",
+      0.23
+     ],
+     [
+      "Cintomisil hextech",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.63
+     ],
+     [
+      "QWEQQRQEQ",
+      0.17
+     ],
+     [
+      "QEWQQRQEQ",
+      0.07
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.71
+     ],
+     [
+      "QEW",
+      0.29
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 39.3,
+     "mediana": 47.1,
+     "p75": 57.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 20.0,
+     "mediana": 23.6,
+     "p75": 27.5
+    },
+    "vision_por_min": {
+     "p25": 0.53,
+     "mediana": 0.73,
+     "p75": 0.92
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.85,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 10.4,
+     "mediana": 18.4,
+     "p75": 27.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 18.0,
+     "mediana": 27.1,
+     "p75": 35.7
+    },
+    "cs_10": {
+     "p25": 76.5,
+     "mediana": 83.0,
+     "p75": 91.0
+    },
+    "dif_cs_10": {
+     "p25": -2.5,
+     "mediana": 8.0,
+     "p75": 19.0
+    },
+    "dif_oro_10": {
+     "p25": -284.0,
+     "mediana": 198.0,
+     "p75": 834.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 8.0,
+     "p75": 11.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 5.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.2,
+     "mediana": 7.7,
+     "p75": 10.7
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.4-16.23"
+   }
+  }
+ }
+}

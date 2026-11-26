@@ -1,0 +1,431 @@
+{
+ "clave": "Evelynn",
+ "nombre": "Evelynn",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.968,
+   "principal": true
+  }
+ ],
+ "arquetipo": "asesina AP de jungla que farmea hasta el nivel 6, gankea desde el camuflaje a partir de ahí y despega con Perdición del liche (~12:00); muy débil en duelos antes del 6",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 1,
+  "media": 4,
+  "tardia": 4,
+  "nota": "Antes del 6 no tiene camuflaje ni E potenciada y pierde casi cualquier duelo o invasión: su plan es despejar sin morir (en el 34 % de las partidas de OTP no participa en ninguna kill antes del 6). Del 6 (~6:50) al 12 gana presión con ganks invisibles y, con Perdición del liche y luego Rabadon, mata a un tirador o mago desde vida casi llena con W-E-Q-R. En la tardía sigue siendo letal contra carries aislados, pero los guardianes de control, la Lente del oráculo y los equipos agrupados con mucho control le quitan valor; si llega por detrás, solo aporta picks."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 6 (~6:50 de mediana en OTP)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Desbloquea el camuflaje de la pasiva, la E potenciada (dash al salir del camuflaje) y la R (ejecución bajo el 30 % y retroceso intocable). Es cuando empieza a gankear: W desde fuera de la detección, encanto y combo completo."
+  },
+  {
+   "cuando": "Primer objeto: Perdición del liche (mediana ~12:00-12:20; p25 11:00, p75 13:30)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Perdición del liche",
+   "por_que": "Con Electrocutar, el golpe potenciado de Perdición del liche y la reducción de RM de la W, un combo W-E-Q-AA-R deja a tiradores y magos al borde de la muerte; desde aquí sus ganks valen más que despejar campamentos."
+  },
+  {
+   "cuando": "Segundo objeto (~19:50): Sombrero mortal de Rabadon (o Llamasombría)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "Con unos 200-250 de AP la R (300/600/900 +180 % AP bajo el 30 % de vida) y la Q con sus tres recastes matan a objetivos frágiles en un solo encanto; puede cazar al carry en peleas de objetivo sin quedarse dentro."
+  },
+  {
+   "cuando": "Robaalmas de Mejai cargado (2.º objeto en el 16-21 % de las partidas, tras el Sello oscuro de la primera vuelta)",
+   "nivel": null,
+   "objetos": null,
+   "objeto": "Robaalmas de Mejai",
+   "por_que": "Si va por delante, el Sello oscuro se convierte en Mejai y gana hasta 25 cargas de AP (y velocidad con 10): su ventana de bola de nieve; si muere, pierde cargas."
+  },
+  {
+   "cuando": "Tercer objeto (~25:40, Bastón del Vacío) y nivel 11 (R a 100 s)",
+   "nivel": 11,
+   "objetos": 3,
+   "objeto": "Bastón del Vacío",
+   "por_que": "La penetración mágica mantiene el one-shot contra objetivos que compran RM y la R baja a 100 s (80 s en 16), así que repite asesinatos en cada pelea de Barón o dragón."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Sombra demoníaca: tras unos 4 s sin atacar ni lanzar habilidades (1,25 s después de usar la R; 1,5 s después de recibir daño de un campeón o torre) entra en Sombra demoníaca. Si está por debajo de 250-590 (+250 % AP) de vida se cura 15-150 por segundo, así que vuelve a despejar o a pelear sin ir a base. Desde nivel 6 la Sombra demoníaca la camufla: invisible para el rival salvo que un campeón enemigo esté a menos de 700 u con línea de visión, o la vean un guardián de control (900 u), la Lente del oráculo o una torre.",
+  "Q": "Hate Spike: dardo de 800 u que golpea al primer enemigo (súbditos incluidos) con 25-45 (+25 % AP) y lo marca: sus 3 siguientes ataques o habilidades contra él hacen 15-55 (+25 % AP) extra. Se puede relanzar 3 veces sin coste (púas en línea que atraviesan hacia el enemigo cercano). Enfriamiento de 4 s y 40-60 de maná: es su daño continuo y su despeje (lánzala antes de cargar la W en los campamentos).",
+  "W": "Allure: marca a un campeón o monstruo durante 5 s desde 1200/1300/1400/1500/1600 u (enfriamiento 15/14/13/12/11 s). Al consumir la marca con un ataque o habilidad devuelve el maná y ralentiza un 45 %; si la marca lleva al menos 2,5 s, además encanta 1,25-2,25 s y quita un 35-45 % de RM durante 4 s (en monstruos: encanto de 3,5-4,5 s y 250-450 (+60 % AP) de daño). Su alcance supera los 700 u de detección del camuflaje: la lanza sin ser vista, pero el objetivo ve la marca y tiene 2,5 s para huir.",
+  "E": "Whiplash: latigazo a 210 u con 60-180 (+3 % de la vida máxima del objetivo, +1,5 % cada 100 AP) y +30-50 % de velocidad 2 s (enfriamiento 8 s). Al entrar en Sombra demoníaca se reinicia y se potencia: dash hasta el objetivo que daña a todos los que atraviesa con 80-240 (+4 % de vida máxima, +2,5 % cada 100 AP). Es la forma de consumir la W desde el camuflaje.",
+  "R": "Last Caress: tras 0,35 s, en los que es intocable, golpea un cono de 180° y 500 u de radio con 125/250/375 (+75 % AP), que sube a 300/600/900 (+180 % AP) contra enemigos por debajo del 30 % de vida, y la teletransporta 700 u hacia atrás. Deja la Sombra demoníaca a 1,25 s, así que vuelve al camuflaje casi enseguida. Enfriamiento 120/100/80 s. Sirve para rematar, esquivar una habilidad (es intocable) y escapar, y con Castigo para asegurar o robar dragón y Barón."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W en los tres primeros niveles en el 62 % de las partidas de OTP y Q-E-Q en el 36 % (despeje más rápido, W a nivel 4). Maximiza Q y luego E (70-74 %); maximizar W segunda (13-18 %) da más alcance y encanto más largo, y W primero (11 %) es una variante de ganks. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E potenciada: dash corto hasta el objetivo al salir del camuflaje, dañando a todo lo que atraviesa. R: tras 0,35-0,5 s intocable, se teletransporta 700 u hacia atrás. E normal: +30-50 % de velocidad durante 2 s. No tiene más saltos: su movilidad real es la invisibilidad.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el retroceso de 700 u es un teletransporte y puede dejarla al otro lado de un muro si apunta el cono hacia fuera de él (también lo usa para escapar de la jungla rival). La E potenciada es un dash hacia el objetivo y no sirve para cruzar muros a voluntad.",
+  "invisibilidad": "Camuflaje de la pasiva desde nivel 6: se activa tras ~4 s sin atacar ni lanzar habilidades (1,25 s tras la R, 1,5 s tras recibir daño de campeón o torre) y dura todo el tiempo que siga fuera de combate. Se ve si un campeón enemigo está a menos de 700 u con línea de visión (los que se acercan ven un aviso sobre su cabeza), con guardianes de control (900 u), la Lente del oráculo, torres y revelados como la Q/E de Lee Sin o la R de Rengar. Antes del 6 no es invisible.",
+  "global": []
+ },
+ "unico": [
+  "Camuflaje permanente fuera de combate desde nivel 6: puede pasar minutos dentro de la jungla rival o en un arbusto de línea sin ser vista; la contrarrestan los guardianes de control, la Lente del oráculo y los campeones que se acercan a menos de 700 u.",
+  "La W tiene dos tiempos: marca durante 5 s y solo encanta (1,25-2,25 s) y quita un 35-45 % de RM si la consume pasados 2,5 s. Consumirla antes solo ralentiza; la marca es visible, así que el rival tiene esos 2,5 s para reaccionar.",
+  "Entrar en Sombra demoníaca reinicia y potencia la E (dash con más daño): el patrón es salir del camuflaje con la E potenciada, nunca andando.",
+  "La R la hace intocable durante el lanzamiento, duplica con creces su daño contra objetivos por debajo del 30 % y la aleja 700 u; además deja la pasiva a 1,25 s para volver al camuflaje.",
+  "Curación de la pasiva fuera de combate cuando está por debajo de 250-590 (+250 % AP) de vida: tras un gank fallido se recupera en la jungla sin volver a base (Concentración absoluta y la pasiva se complementan).",
+  "La W contra monstruos los encanta 3,5-4,5 s y les hace 250-450 (+60 % AP) de daño: su despeje se basa en Q con recastes + W cargada."
+ ],
+ "combos": [
+  "Gank estándar desde nivel 6: acercarse camuflada por la espalda de la línea → W desde 1200-1600 u (fuera de los 700 de detección) → esperar 2,5 s → E potenciada (dash) para consumir la marca y encantar → Q + 3 recastes → AA (Perdición del liche) → R cuando el objetivo baje del 30 %, retrocediendo 700 u.",
+  "Asesinato en pelea: esperar a que el frontal rival gaste su control → W al carry desde la niebla → 2,5 s → E potenciada → Q-AA-Q → R para rematar y salir; en 1,5-2 s ha terminado.",
+  "Despeje de campamento: Q al monstruo grande + recastes → W sobre él → AA mientras se arma → consumir con Q o E pasados 2,5 s (encanto largo y 250-450 de daño extra) → E.",
+  "Huida: R hacia el enemigo (es intocable) para retroceder 700 u, y 1,25 s después vuelve al camuflaje; en la jungla, rompe línea de visión para que no la detecten.",
+  "Objetivo: con el dragón o el Barón por debajo del 30 %, R (daño aumentado) + Castigo (600/1000/1400 según la mejora de la mascota) desde el camuflaje."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Perdición del liche",
+   "Botas de hechicero",
+   "Sombrero mortal de Rabadon",
+   "Llamasombría",
+   "Bastón del Vacío",
+   "Robaalmas de Mejai",
+   "Sello oscuro",
+   "Velo del hada de la muerte",
+   "Reloj de arena de Zhonya",
+   "Sobrecarga tormentosa"
+  ],
+  "runas": "Electrocutar (84 % en OP.GG Esmeralda+ 16.23; 86 % en OTP de los últimos parches) con Impacto repentino, Recuerdo macabro (o Sexto sentido) y Cazador incesante (79 %) o Cazador definitivo (más R); secundaria Brujería con Concentración absoluta + Se avecina tormenta (65 % de las páginas) o Precisión con Triunfo + Golpe de gracia. Alternativa: Cosecha oscura (~9 %).",
+  "hechizos": [
+   "Castigo",
+   "Destello"
+  ],
+  "nota": "Mascota inicial Cría de Caminabrisas (73 % en OP.GG, 60-75 % en OTP), con poción o guardián; Brote de Brincamontes si teme invasiones. Primera vuelta (~3:50) a por Sello oscuro (63 %), Vara explosiva o Botas. Perdición del liche primero en el 91-98 % (Sobrecarga tormentosa o Cintomisil hextech son variantes raras). Segundo Rabadon (42-53 %), Llamasombría (16-34 %) o Mejai si va por delante; Bastón del Vacío como tercero contra RM; Velo del hada de la muerte o Zhonya contra mucho control o daño de ráfaga. Botas de hechicero (96 %)."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Rapaces (33-37 % en OTP), azul (30-31 %) o roja (24-28 %); en Esmeralda+ el inicio más popular es la azul (37 %) y el de mejor resultado rapaces (Jungler.gg). Q a nivel 1. Los campamentos aparecen a las 0:55 (azul, roja, rapaces, lobos) y a la 1:07 (krugs, gromp), la escuttle a las 2:55. Busca el despeje completo sin pelear: nivel 2 a la 1:16, nivel 3 a la 1:59 y nivel 4 a las 3:05 de mediana.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde roja",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Escuttle del lado con prioridad (ya ha salido a las 2:55) o vuelta a base hacia las 3:30-3:50 para comprar Sello oscuro y botas; después segundo despeje hasta el 6.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "La ruta de referencia (Jungler.gg): roja con Q, krugs desbloqueando E, rapaces a nivel 3, W antes de lobos. Úsala cuando quiere acabar el despeje en el lado de la azul (lado del Barón en lado azul) o jugar por el dragón después."
+    },
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Escuttle del lado de la roja o vuelta a base (~3:45); si bot tiene prioridad, se queda cerca del dragón para el 5:00 con nivel 4-5.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "El inicio más jugado en Esmeralda+ y el más común en OTP junto con rapaces (azul-lobos en el 31 % de las partidas): acaba en el lado de la roja, pensado para disputar la primera escuttle o el dragón."
+    },
+    {
+     "nombre": "Rapaces primero",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Escuttle del lado de la azul o vuelta a base; desde aquí repite campamentos pequeños (reaparecen 2:15 después de matarlos) y bufos (5 min) hasta el 6.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "La de mejor winrate de primer campamento (Jungler.gg) y la más usada por OTP (33-37 %): más segura contra un jungla rival que invada el bufo."
+    },
+    {
+     "nombre": "Segundo despeje hasta nivel 6",
+     "orden": [
+      "wolves",
+      "raptors",
+      "krugs",
+      "gromp",
+      "scuttle_top",
+      "blue"
+     ],
+     "despues": "Nivel 6 hacia el 6:50 y primer gank invisible a la línea con más control o al lado del siguiente dragón; si no hay gank claro, sigue con la roja y busca al jungla rival.",
+     "nivel": 6,
+     "minuto": "6:50",
+     "cuando": "Tras la primera vuelta (~3:50): repite los campamentos pequeños, la escuttle disponible y los bufos según reaparecen; es su ruta normal hasta el 6 (CS de jungla ~40 a los 6:00)."
+    }
+   ],
+   "ganks": "Antes del 6 casi no gankea: solo a rivales muy adelantados y sin Destello, con un aliado con control (la W tarda 2,5 s y sin camuflaje la ven llegar). Su primera participación en una kill llega de mediana hacia el 4:30-5:30 (p25 3:20) y en el 34 % de las partidas no hay ninguna antes del 6. Desde el 6 (~6:50) entra camuflada por detrás de la línea o desde la jungla rival, lanza la W desde fuera de la detección y espera el encanto. Reparto de sus participaciones antes del 14: bot 28-31 %, río 20-24 %, mid 17-18 %, top 14-15 %, jungla 16 %. Prioriza líneas con control (Leona, Nautilus, Rell) y objetivos sin Destello.",
+   "objetivos": "Dragón (5:00) y Larvas del Vacío (8:00) con prioridad de sus líneas y normalmente después del 6; sola los hace despacio (daño de ráfaga, sin vampirismo), aunque la W cargada encanta al monstruo 3,5-4,5 s y añade 250-450 de daño. Heraldo (15:00) y Barón (20:00) siempre en grupo, y los monstruos épicos son un 15 % más duros desde 2026. Su papel es vigilar desde el camuflaje a quien viene a disputar y asegurar o robar con R (daño aumentado bajo el 30 %) + Castigo.",
+   "invasion": "No invade antes del 6: pierde los duelos tempranos. Desde el 6, y sobre todo con Perdición del liche, entra camuflada a la jungla rival para cazar al jungla en su campamento o a quien coloca guardianes (mediana de 9-12 monstruos rivales por partida en OTP).",
+   "contra_jungla": "Es objetivo de invasión de Lee Sin, Elise, Rek'Sai, Kindred o Xin Zhao: si ve al rival entrar (guardián en la entrada del primer bufo), cede ese campamento y despeja el lado contrario, sin pelear. Morir antes del 6 es lo peor que le puede pasar.",
+   "plan": "1) Despeje completo (~3:20) y vuelta con Sello oscuro (~3:50) sin pelear; 2) nivel 6 hacia el 6:50 y ganks invisibles a la línea con más control o con el rival sin Destello; 3) Perdición del liche (~12:00): picks en el río y la jungla a carries que van solos y presión en dragones y Heraldo; 4) desde el 20, flanquear desde el camuflaje en las peleas de Barón y dragón, entrando cuando su frontal ya ha iniciado, y eliminar al tirador o al mago."
+  }
+ },
+ "peleas": {
+  "papel": "Asesina flanqueadora: picks antes de la pelea y limpieza de la retaguardia una vez su frontal ha iniciado.",
+  "como_entrar": "Camuflada por un flanco o desde la niebla, nunca la primera: espera a que el rival gaste su control en su frontal, lanza la W al carry desde 1200-1600 u, deja pasar los 2,5 s y consume con la E potenciada; después Q, AA y R para rematar y salir 700 u hacia atrás. Si hay guardián de control o Lente cerca, espera o rodea.",
+  "objetivo": "Tirador, mago o support frágil que se quede aislado o en el borde de la pelea; la W en un tanque solo para retenerlo si no puede llegar a la retaguardia.",
+  "posicion": "Fuera de la visión rival, en la jungla lateral o detrás de su línea, a más de 700 u de cualquier campeón enemigo hasta que entra; tras el combo, se retira con la R y vuelve al camuflaje para repetir."
+ },
+ "macro": {
+  "split_push": "No: en OTP pasa menos del 3 % del tiempo tardío sola en una lateral y cerca del 30 % agrupada. Puede empujar una lateral un momento camuflada, pero su sitio es la jungla rival y los flancos de los objetivos.",
+  "objetivos": "Dragón y larvas con prioridad de sus líneas (mediana de 2 dragones por partida); Heraldo y Barón en grupo, con ella asegurando con R + Castigo o cazando a quien llega; casi no derriba torres (mediana de 0 torres y ~500 de daño a estructuras).",
+  "plan_de_partida": "Fase 1 (0-6): despejar sin pelear, primera escuttle (1 en el 62 % de las partidas) y llegar al 6 sin morir. Fase 2 (6-20): ganks invisibles, Perdición del liche (~12:00), picks en el río y la jungla rival, y presión de dragones; Rabadon o Mejai hacia el 20. Fase 3 (20+): peleas de Barón y dragón entrando por el flanco tras el inicio de su equipo; si va por detrás, se limita a cazar a quien se aísla poniendo guardianes."
+ },
+ "debilidades": [
+  "Muy débil antes del 6: pierde los duelos contra casi todos los junglas y una invasión o una muerte temprana la retrasa todo el juego.",
+  "Los guardianes de control, la Lente del oráculo, las torres y los revelados (Rek'Sai con sentido sísmico, E de Lee Sin, R de Rengar) le quitan su ventaja.",
+  "La W tarda 2,5 s en armarse y la marca se ve: un rival atento huye, usa Destello o pide ayuda antes del encanto.",
+  "Muy frágil: el control duro (Rammus, Leona, Vi, Volibear) la mata antes de terminar el combo; contra equipos agrupados y con mucho control, su R no basta para salir.",
+  "Aporta poco a las torres y como frontal: si no consigue picks, su equipo juega 4 contra 5 en asedios."
+ ],
+ "contrarrestado_por": [
+  "Rek'Sai",
+  "Ivern",
+  "Volibear",
+  "Rammus",
+  "Sion",
+  "Lee Sin",
+  "Elise",
+  "Rengar"
+ ],
+ "bueno_contra": [
+  "Jayce",
+  "Ambessa",
+  "Locke",
+  "Pantheon",
+  "Skarner",
+  "Qiyana",
+  "Karthus",
+  "Vi"
+ ],
+ "sinergias": [
+  "Leona",
+  "Nautilus",
+  "Rell",
+  "Ahri",
+  "Twisted Fate",
+  "Galio"
+ ],
+ "errores_comunes": [
+  "Gankear antes del 6 a líneas sin control ni ventaja: pierde tiempo de despeje y suele morir o regalar la escuttle.",
+  "Consumir la W antes de los 2,5 s (solo ralentiza, no encanta ni quita RM).",
+  "Salir del camuflaje andando o con un ataque en lugar de con la E potenciada, perdiendo el dash y el daño extra.",
+  "Usar la R para entrar o al principio del combo, en vez de para rematar bajo el 30 % y escapar.",
+  "Pasear por el río y la jungla rival sin respetar los guardianes de control ni la Lente del oráculo rival: la revelan y la cazan.",
+  "Tirarse la primera a la pelea, delante de su frontal, cuando el control rival aún no se ha gastado.",
+  "Comprar Mejai y morir buscando cargas sin una ventaja clara."
+ ],
+ "senales_reconstructor": [
+  "Despeje de referencia en OTP: nivel 2 a la 1:16, nivel 3 a la 1:59, nivel 4 a las 3:05 y nivel 6 a las 6:50; CS de jungla 12 a los 2:00, 20 a los 3:00, ~24 a los 3:30, 28 a los 4:00, 40 a los 6:00, 52 a los 8:00 y 64-68 a los 10:00 (jungleCsBefore10Minutes ~64). Menos de 55 al 10 sin ganks es un despeje lento para ella.",
+  "Primera vuelta a base hacia el 3:50 (p25 3:30, p75 4:50; solo un 7-8 % antes del 3:00) con ~1050-1100 de oro: Sello oscuro (63 %), Vara explosiva o Botas, a veces Guardián de control. Verla en su fuente a los 4 min tras el despeje completo es normal.",
+  "Farmea hasta el 6: de media solo 1,1 participaciones antes de nivel 6 y en el 34 % de las partidas ninguna; la primera llega de mediana hacia el 4:30-5:30. Las participaciones se disparan desde el minuto 6-7. Que no gankee antes del 6 no es pasividad.",
+  "Desde nivel 6 es invisible fuera de combate: sus posiciones por minuto pueden estar dentro de la jungla rival o en arbustos de línea sin que el rival la viera, y sus kills aparecen sin aviso en líneas (bot 28-31 %, río 20-24 %, mid 17-18 %, top 14-15 % antes del 14). Una kill de Evelynn sin guardianes rivales cerca es lo esperado, no un fallo de visión del rival por fuerza.",
+  "La R la teletransporta 700 u hacia atrás e intocable: tras una kill o una huida, su siguiente posición puede estar al otro lado de un muro. No tiene nada global.",
+  "Objetos: Perdición del liche primero en el 91-98 % (mediana 12:00-12:20; p25 11:00, p75 13:30); segundo hacia el 19:50 (Rabadon 42-53 %, Llamasombría 16-34 %, Mejai 16-21 %); tercero hacia el 25:40 (Bastón del Vacío 30-44 %). Botas de hechicero hacia el 12:20-13:40, después del primer objeto.",
+  "Sello oscuro en la primera vuelta y Robaalmas de Mejai como segundo objeto indican que va por delante y juega a acumular cargas; perderlas (muertes) baja mucho su daño.",
+  "Guardianes: ~6,6 amarillos, ~1,3 de visión lejana (cambia la baratija a la azul más tarde) y ~1 de control por partida. Castigo + Destello en el 100 % y mascota Cría de Caminabrisas en la mayoría.",
+  "No hace split push (menos del 3 % del tiempo tardío sola en una lateral) ni derriba torres (~500 de daño a estructuras); participación en kills ~49-53 % y en objetivos casi siempre presente (mediana de 2 dragones). Una Evelynn sola en una lateral en la tardía está fuera de su plan.",
+  "Kills con R en dragón o Barón: robar o asegurar con R + Castigo desde el camuflaje es plausible aunque su equipo no tuviera visión del foso."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/evelynn/build/",
+  "https://www.op.gg/lol/champions/evelynn/build",
+  "https://jungler.gg/champions/evelynn/",
+  "https://wiki.leagueoflegends.com/en-us/Evelynn",
+  "https://wiki.leagueoflegends.com/en-us/Camouflage",
+  "https://wiki.leagueoflegends.com/en-us/Evelynn/Strategy",
+  "https://www.dodge.gg/lol/news/evelynn-build-2026",
+  "https://www.leagueoflegends.com/en-us/news/game-updates/patch-26-1-notes/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Evelynn jungla, parches 16.1-16.23 (data/otps/Evelynn/JUNGLE, 216 partidas; 87 de los parches 16.19-16.23)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 47,
+    "victorias": 0.723,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 3.7,
+     "p75": 5.7
+    },
+    "primer_objeto_min": {
+     "p25": 9.1,
+     "mediana": 10.4,
+     "p75": 11.5
+    },
+    "segundo_objeto_min": {
+     "p25": 12.5,
+     "mediana": 17.0,
+     "p75": 19.3
+    },
+    "primer_objeto": [
+     [
+      "Perdición del liche",
+      1.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.51
+     ],
+     [
+      "QEQWQRQEQ",
+      0.3
+     ],
+     [
+      "QEQWQRQWQ",
+      0.15
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.85
+     ],
+     [
+      "QWE",
+      0.15
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 44.0,
+     "mediana": 50.0,
+     "p75": 56.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.8,
+     "mediana": 19.6,
+     "p75": 24.0
+    },
+    "vision_por_min": {
+     "p25": 0.73,
+     "mediana": 0.83,
+     "p75": 0.95
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 1.94,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.4,
+     "mediana": 2.3,
+     "p75": 5.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 22.1,
+     "mediana": 30.7,
+     "p75": 37.2
+    },
+    "campamento_inicial": [
+     [
+      "red",
+      0.34
+     ],
+     [
+      "raptors",
+      0.3
+     ],
+     [
+      "blue",
+      0.23
+     ],
+     [
+      "wolves",
+      0.06
+     ],
+     [
+      "gromp",
+      0.04
+     ],
+     [
+      "krugs",
+      0.02
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 21.0,
+     "mediana": 24.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 60.0,
+     "mediana": 68.0,
+     "p75": 72.0
+    },
+    "primer_gank_min": {
+     "p25": 3.4,
+     "mediana": 4.6,
+     "p75": 7.2
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.43
+     ],
+     [
+      "top",
+      0.3
+     ],
+     [
+      "mid",
+      0.27
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 13.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.15-16.23"
+   }
+  }
+ }
+}

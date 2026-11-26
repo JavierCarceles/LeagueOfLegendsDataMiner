@@ -1,0 +1,457 @@
+{
+ "clave": "Rammus",
+ "nombre": "Rammus",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.917,
+   "principal": true
+  }
+ ],
+ "arquetipo": "jungla tanque de enganche y anti-AD: rueda con Powerball para ganquear desde lejos, provoca con E y devuelve daño con W y Malla de espinas; picos en nivel 3, nivel 6 (R en bola) y Malla de espinas",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 4,
+  "nota": "Despeja lento (3:18 de media según Skill-Capped) pero sus ganks de nivel 3 con Q-E-W son muy fiables; el nivel 6 (~7:00) añade la R en bola para enganchar desde 1000 u o más. Con Malla de espinas (~11:30) y Botas blindadas anula a los equipos de daño físico. En la tardía sigue siendo iniciador y un muro contra AD, pero contra daño mágico, daño verdadero o por % de vida pierde mucho valor. En los OTPs su winrate sube en partidas largas (71 % en 35+ min, 41 % en menos de 20)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~1:58)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Powerball desde la niebla: el choque empuja, aturde 0,4 s y ralentiza un 40 %; después E (provocación de 1,2 s) y W: más de 2,5 s de control para que su laner mate. Con W gana además los duelos contra junglas de daño físico."
+  },
+  {
+   "cuando": "Nivel 6 (~6:57)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Soaring Slam: salto a 800 u o más (el alcance es el 150 % de su velocidad de movimiento) con 150-350 de daño y ralentización del 30-50 %; lanzada durante la Powerball derriba 0,75 s en el centro. Engancha desde fuera de visión y llega antes a las peleas del río."
+  },
+  {
+   "cuando": "Primer objeto: Malla de espinas (~11:30, p25 9:50) o Égida de fuego solar (~10:20)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Malla de espinas",
+   "por_que": "Armadura y Heridas graves: con W activa (armadura extra del 30-50 % de la suya) devuelve daño a cada ataque; los tiradores y luchadores AD se hacen daño al pegarle. Su pasiva convierte el 15 % de su armadura y RM en AD."
+  },
+  {
+   "cuando": "Tres objetos de tanque (Fulgor vano o Coraza del muerto hacia el 19:00, Jak'Sho como tercero hacia el 25:00)",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Jak'Sho el Proteico",
+   "por_que": "Con Jak'Sho y W supera de sobra los 300 de armadura frente a AD: entra el primero, aguanta la pelea entera y vuelve a entrar con el siguiente W (7 s de enfriamiento)."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Spiked Shell: gana AD adicional igual al 15 % de su armadura total más el 15 % de su resistencia mágica total (cambio de 2025): cuanto más tanque, más daño.",
+  "Q": "Powerball: se hace bola hasta 6 s (12-6 s de enfriamiento, 60 de maná) y acelera cada segundo hasta más que duplicar su velocidad; ignora la colisión con unidades y las raíces no la paran. Al chocar con un enemigo termina: 80-240 (+100 % AP) en área, empuja 125 u, aturde 0,4 s y ralentiza un 40-80 % durante 1 s. Se puede cancelar a partir de 1 s; aturdimientos, derribos y otros controles fuertes la cortan, y lanzar W también la termina.",
+  "W": "Defensive Ball Curl: 7 s (7 s de enfriamiento, 40 de maná) con +25-45 de armadura y +20-40 de RM más el 30-50 % de las suyas totales; quien le ataque o le aplique efectos al golpe recibe 15 (+10 % de armadura, +10 % de RM) de daño mágico. No se combina con Powerball (una termina la otra). Es su despeje (los monstruos se dañan al pegarle) y su arma contra AD.",
+  "E": "Frenzying Taunt: provoca 1,2-2 s a un campeón o monstruo a 325 u (Data Dragon; 12 s, 50 de maná); a los monstruos les hace además 80-160 (+70 % AP). Provocar a un rival bajo su propia torre hace que la torre le dispare. Desde el 25.12 ya no da velocidad de ataque.",
+  "R": "Soaring Slam: salta a una zona a 800 u, alcance que crece con su velocidad (150 % de su velocidad media del último segundo; Data Dragon pone 25000 porque es variable), inmune a controles en el aire (120/105/90 s, 100 de maná): 150-350 (+60 % AP) y ralentización del 30-50 % 1,5 s, más tres réplicas que la renuevan. Lanzada en Powerball derriba 0,75 s en el centro y suma el daño de la Q. Hace el doble de daño a torres."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "nota": "W a nivel 1 para despejar (85 % W-Q-E en los OTP; Lolalytics y OP.GG igual; 15 % W-E-Q). Maximiza Q (56 % de los OTP; Skill-Capped y dodge.gg) y después E; un 22 % sube W en segundo lugar contra mucho daño físico. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: rodar hasta 6 s acelerando hasta 2-3 veces su velocidad: recorre ~3500-4500 u en una Powerball completa. R: salto de 800 u, más si va rápido (en bola o con Fantasmal ~1000-1400 u). Sin saltos instantáneos ni nada global.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el salto de Soaring Slam (800 u o más) cruza muros de la jungla y del río. La Powerball no atraviesa muros.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Powerball: acelera durante 6 s e ignora súbditos y monstruos: gankea desde muy lejos y cambia de lado del mapa más rápido que casi cualquier jungla.",
+  "Alcance de la R variable: el 150 % de su velocidad de movimiento (mínimo 800 u); con Powerball o Fantasmal la R llega mucho más lejos y, en bola, derriba.",
+  "Daño desde la tanqueza: la pasiva le da el 15 % de armadura y RM como AD y la W devuelve daño a cada ataque, en sinergia con Malla de espinas.",
+  "La provocación (E) bajo su torre hace que la torre ataque al rival: castiga dives y defiende torres.",
+  "Q y W se excluyen: lanzar W termina la Powerball, así que su orden es Q (choque) → E → W.",
+  "Muy fuerte contra daño físico y muy débil contra daño mágico: su valor depende de la composición rival."
+ ],
+ "combos": [
+  "Gank básico: Powerball desde la niebla → choque (aturdimiento 0,4 s + ralentización) → E (provocación) → W para devolver los ataques.",
+  "Enganche de nivel 6: Powerball para coger velocidad → R desde lejos (derribo en el centro) → E al objetivo → W.",
+  "Destello-E: provocar al tirador o al mago que se cree a salvo.",
+  "Bajo su torre: E al rival que se lanza: la torre le dispara mientras le golpea.",
+  "Persecución o huida: Powerball (los controles fuertes la cortan) o R para saltar un muro.",
+  "Contra AD: E y luego W (con Reverberación, provocar antes de la W da más resistencias): el provocado se hace daño con la W y la Malla de espinas."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Malla de espinas",
+   "Égida de fuego solar",
+   "Fulgor vano",
+   "Jak'Sho el Proteico",
+   "Coraza del muerto",
+   "Arnés de protoplasma",
+   "Rookern kaénico",
+   "Presagio de Randuin",
+   "Fuerza de la naturaleza",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Reverberación (99 % en OP.GG; 77 % en los OTP) con Fuente de vida, Condicionamiento e Inquebrantable o Sobrecrecimiento; secundaria Precisión con Triunfo y Leyenda: Presteza, o Brujería con Celeridad y Caminar sobre agua o Capa del nimbo (33 %). Alternativa: Electrocutar con Golpe bajo y Cazador incesante (22 % de los OTP) para ganks más letales.",
+  "hechizos": [
+   "Castigo",
+   "Destello",
+   "Fantasmal"
+  ],
+  "nota": "Destello + Castigo (75 % OP.GG); Fantasmal + Castigo (24 %; 72 % de los OTP) para rodar más rápido y lanzar la R desde más lejos. Mascota: Cría de Caminabrisas (36 %) o Brote de Brincamontes (24 %). Primera vuelta con guardián de control, botas y Rescoldo de Bami o Chaleco de zarzas. Malla de espinas primero (76 % de los OTP) contra AD y curación; Égida de fuego solar o Fulgor vano contra equipos mágicos o con poco AD. Después Fulgor vano o Coraza del muerto, Jak'Sho, y Arnés de protoplasma, Rookern kaénico (contra ráfaga mágica), Presagio de Randuin o Fuerza de la naturaleza. Botas blindadas (57 %) o Botas de mercurio (33 %)."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Rapaces (56-70 % según el lado en OP.GG; 49 % en los OTP), azul (19-33 %) o roja (10-30 %). W a nivel 1: los monstruos se hacen daño al pegarle. Colocando bien la Q golpea a todos los monstruos de un campamento a la vez; mejor guardar la Q para ir al siguiente campamento que para rematar.",
+   "rutas": [
+    {
+     "nombre": "Rapaces-roja-krugs-escuttle y medio despeje",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs",
+      "scuttle_bot",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Gank a la línea del lado de la azul o vuelta a base hacia el 4:00 con ~1000 de oro (guardián de control, botas y Rescoldo de Bami o Chaleco de zarzas).",
+     "nivel": 4,
+     "minuto": "4:15",
+     "cuando": "La ruta más jugada en OP.GG (rapaces→roja→escuttle→lobos→azul→gromp; OP.GG no cuenta los krugs). La escuttle es la del lado de la roja (scuttle_bot en lado azul, scuttle_top en lado rojo)."
+    },
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Escuttle (2:55) o gank a la línea del lado de la roja a nivel 4 hacia las 3:20-3:40; vuelta a base hacia el 3:50.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "La segunda más jugada y la primera en lado rojo (OP.GG). Skill-Capped mide 3:18 de media y 2:51 en la ruta más rápida."
+    },
+    {
+     "nombre": "Tres campamentos y gank de nivel 3",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Gank a nivel 3 hacia las 2:20-2:50 a la línea del lado de la roja o a mid, rodando desde la jungla; luego escuttle o el otro lado.",
+     "nivel": 3,
+     "minuto": "2:20",
+     "cuando": "Dodge.gg aconseja despejar poco y gankear pronto porque su despeje es lento: úsala si la línea cercana está adelantada o sin Destello. En los OTP el 25 % de los primeros ganks llega antes de las 2:55."
+    }
+   ],
+   "ganks": "Primer gank (OTP): mediana 3:52 (p25 2:55, p75 5:57), bot 37 %, top 34 %, mid 29 %; primera kill o asistencia hacia el 3:37 y mediana de 2 ganks antes del 10. Niveles fuertes: 3 (Q-E-W) y 6 (R en bola). Entra rodando desde la niebla del río o de la jungla; el choque aturde y ralentiza y la provocación remata; si el rival tiene Destello, guarda la E para después del Destello. En dives provoca al rival y aguanta la torre con W. Desde el 6 lanza la R desde fuera de visión.",
+   "objetivos": "Poco daño para objetivos: dragones y larvas con su equipo y la prioridad de sus líneas (mediana de 1 dragón rematado por él por partida y 2 larvas). Su papel en el foso es aguantar y provocar a quien entre a disputar; Heraldo y Barón en grupo.",
+   "invasion": "Poca: mediana de 0 CS rivales antes del 10 (p75 12) y 12 en la partida. Responde a invasiones gracias a la velocidad de la Powerball y contra junglas AD (Kha'Zix, Rengar, Kayn, Lee Sin) gana el duelo con W.",
+   "contra_jungla": "Contra junglas que le ganan el duelo o le kitean (Lillia, Hecarim, Shyvana, Zac, Maokai) no pelea los campamentos: despeja en el lado opuesto, deja un guardián de control en la entrada y responde con un gank rodando.",
+   "plan": "Gankear mucho entre el minuto 2 y el 10 con la Powerball y crear prioridad para dragones; con Malla de espinas (~11:30) buscar peleas contra los AD rivales y picks en el río. En la tardía entra el primero con Powerball-R o Destello-E sobre el tirador, aguanta con W y Jak'Sho y vuelve a entrar en cuanto la W está lista; contra equipos mágicos se centra en pelar y compra resistencia mágica.",
+   "matchups_dificiles": [
+    "Maokai",
+    "Lillia",
+    "Hecarim",
+    "Zaahen",
+    "Shyvana",
+    "Zac",
+    "Fiddlesticks",
+    "Cho'Gath"
+   ],
+   "matchups_faciles": [
+    "Rengar",
+    "Kayn",
+    "Nocturne",
+    "Viego",
+    "Kha'Zix",
+    "Nidalee",
+    "Lee Sin",
+    "Locke"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y tanque anti-AD: aguanta y castiga a quien le pega.",
+  "como_entrar": "Powerball para coger velocidad y R desde lejos (derribo en el centro del grupo), luego E al carry de daño físico o al luchador y W; o Destello-E sobre el tirador. Si baja al 40 % de vida con la W en enfriamiento, sale rodando y vuelve con la siguiente W.",
+  "objetivo": "El tirador o el luchador AD que más daño hace; en defensa, el asesino o el luchador que se lanza a su carry (provocación).",
+  "posicion": "Frontal, el primero en entrar; en los objetivos, dentro del foso aguantando."
+ },
+ "macro": {
+  "split_push": "No (mediana del 1,7 % del tiempo tardío solo en una lateral). Su R hace el doble a torres y ayuda a derribarlas en grupo.",
+  "objetivos": "Dragones y larvas con su equipo tras ganks que dan prioridad; no los hace rápido solo. Heraldo y Barón en grupo, con él aguantando en el foso.",
+  "plan_de_partida": "Fase 1 (0-10 min): ganks constantes con Powerball, escuttles (3 por partida) y primeros dragones. Fase 2 (10-20 min): Malla de espinas y segundo objeto de tanque, picks y peleas en el río contra los AD rivales. Fase 3 (20+): inicia las peleas de objetivo y protege a su retaguardia de luchadores; contra daño mágico, pelar y absorber."
+ },
+ "debilidades": [
+  "Despeje lento (3:18 de media): si no gankea, pierde la carrera de oro y experiencia.",
+  "Débil contra daño mágico, daño verdadero y daño por % de vida: la W y la Malla de espinas valen menos.",
+  "Los controles fuertes (aturdimientos, derribos) cortan la Powerball: Morgana, Lux, Thresh o Maokai lo paran en seco.",
+  "Le cuesta alcanzar a tiradores con movilidad (Ezreal, Vayne, Kalista): gastadas Q y E no tiene más enganche.",
+  "Poco daño propio para asegurar objetivos y rematar."
+ ],
+ "contrarrestado_por": [
+  "Maokai",
+  "Lillia",
+  "Hecarim",
+  "Zaahen",
+  "Shyvana",
+  "Zac",
+  "Fiddlesticks"
+ ],
+ "bueno_contra": [
+  "Rengar",
+  "Kayn",
+  "Nocturne",
+  "Viego",
+  "Kha'Zix",
+  "Nidalee",
+  "Lee Sin"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Yone",
+  "Orianna",
+  "Miss Fortune",
+  "Galio",
+  "Taric"
+ ],
+ "errores_comunes": [
+  "Rodar hacia un rival con un control fuerte disponible: la Powerball se corta y queda expuesto.",
+  "Despejar todo el mapa en lugar de gankear: con su despeje lento se queda atrás.",
+  "Seguir en la pelea cuando la W y la Reverberación se acaban: sin ellas es un tanque normal; mejor salir y volver con la siguiente W.",
+  "Usar la Q para rematar campamentos en vez de para llegar al siguiente.",
+  "Lanzar la W en mitad de la Powerball sin querer (la termina) o provocar sin haber ralentizado antes con el choque.",
+  "Entrar contra equipos de daño mágico esperando que la W le salve.",
+  "Perseguir a tiradores con movilidad después de gastar Q y E."
+ ],
+ "senales_reconstructor": [
+  "Velocidad de la Powerball: en 6 s recorre ~3500-4500 u (más con Fantasmal): aparecer en una línea a ~4000 u de su última posición poco después de un minuto es normal, no un teletransporte. Sin movilidad global.",
+  "Alcance de la R variable: en bola o con Fantasmal salta 1000-1400 u y cruza muros; kills justo al otro lado de un muro o a más de 1000 u de su posición previa son posibles.",
+  "Despeje de referencia (OTP): nivel 2 a la 1:14, 3 a la 1:58, 4 a las 3:17 y 6 a las 6:57; CS de jungla 12 a los 2:00, 20 a los 3:00, ~23 a los 3:30, 26 a los 4:00, 40 a los 6:00, 52 a los 8:00 y 66 a los 10:00.",
+  "Primera vuelta hacia el 3:52 (p25 3:28) con ~1000 de oro: guardián de control (47 %), botas (42 %), Rescoldo de Bami (41 %) o Chaleco de zarzas (27 %); solo el 11 % vuelve antes del 2:50.",
+  "Primer gank: mediana 3:52 (p25 2:55), bot 37 %, top 34 %, mid 29 %; mediana de 2 ganks antes del 10 y primera kill o asistencia hacia el 3:37.",
+  "Ritmo de objetos: Malla de espinas (76 % de los primeros objetos) hacia el 11:30 (p25 9:50) o Égida de fuego solar ~10:20; segundo objeto ~19:00 y Jak'Sho como tercero (54 %).",
+  "Poco daño propio: mediana del 12 % del daño de su equipo y ~0 kills en solitario; su participación (50 %) es casi toda asistencias. Mucho control (mediana de 38 s por partida).",
+  "Fantasmal en lugar de Destello es habitual (24 % en OP.GG, 72 % en los OTP): no indica error.",
+  "No hace split push (1,7 % del tiempo tardío solo en una lateral) ni objetivos rápidos en solitario: un Rammus solo en una lateral en la tardía está fuera de su plan."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/rammus/build/",
+  "https://www.op.gg/lol/champions/rammus/build/jungle",
+  "https://www.op.gg/lol/champions/rammus/jungle-paths",
+  "https://wiki.leagueoflegends.com/en-us/Rammus",
+  "https://www.skill-capped.com/lol/guides/builds/rammus/jungle",
+  "https://www.dodge.gg/en-US/lol/news/rammus-build-2026",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Rammus jungla: 172 partidas de 5 jugadores Esmeralda-Challenger (16.19-16.23), en data/otps/Rammus/JUNGLE"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 171,
+    "victorias": 0.52,
+    "victorias_por_duracion": [
+     {
+      "minutos": "20-25",
+      "partidas": 36,
+      "victorias": 0.611
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 46,
+      "victorias": 0.413
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 34,
+      "victorias": 0.529
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.9,
+     "mediana": 5.0,
+     "p75": 6.4
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 11.6,
+     "p75": 13.0
+    },
+    "segundo_objeto_min": {
+     "p25": 17.2,
+     "mediana": 18.9,
+     "p75": 20.4
+    },
+    "primer_objeto": [
+     [
+      "Malla de espinas",
+      0.91
+     ],
+     [
+      "Fulgor vano",
+      0.05
+     ],
+     [
+      "Rookern kaénico",
+      0.01
+     ],
+     [
+      "Convergencia de Zeke",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WQEQQRQEQ",
+      0.31
+     ],
+     [
+      "WQEQQRWWE",
+      0.22
+     ],
+     [
+      "WQEQQRQWQ",
+      0.18
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.46
+     ],
+     [
+      "QEW",
+      0.32
+     ],
+     [
+      "WQE",
+      0.22
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 42.7,
+     "mediana": 52.2,
+     "p75": 63.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 9.7,
+     "mediana": 12.2,
+     "p75": 15.1
+    },
+    "vision_por_min": {
+     "p25": 0.71,
+     "mediana": 0.89,
+     "p75": 1.06
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.64,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 2.1,
+     "p75": 5.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 22.2,
+     "mediana": 33.3,
+     "p75": 41.9
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.59
+     ],
+     [
+      "red",
+      0.22
+     ],
+     [
+      "blue",
+      0.12
+     ],
+     [
+      "wolves",
+      0.05
+     ],
+     [
+      "krugs",
+      0.02
+     ],
+     [
+      "gromp",
+      0.01
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 18.0,
+     "mediana": 22.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 56.0,
+     "mediana": 63.0,
+     "p75": 70.5
+    },
+    "primer_gank_min": {
+     "p25": 3.1,
+     "mediana": 4.3,
+     "p75": 6.5
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.39
+     ],
+     [
+      "top",
+      0.31
+     ],
+     [
+      "mid",
+      0.3
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 12.0,
+     "p75": 19.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.13-16.23"
+   }
+  }
+ }
+}

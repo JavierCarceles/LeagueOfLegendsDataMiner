@@ -1,0 +1,444 @@
+{
+ "clave": "Udyr",
+ "nombre": "Udyr",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.772,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador de jungla de cuatro posturas sin definitiva, con uno de los despejes más rápidos (full clear hacia las 3:00), ganks desde el nivel 4 con la E (velocidad y aturdimiento) y dos builds: AD de Q (Lanza de Shojin) o AP/tanque de R (Tormento de Liandry)",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Gana casi todos los duelos de nivel 3-6 contra junglas de despeje y luchadores lentos, despeja la jungla entera antes de las 3:00 y llega primero a la escuttle y al dragón. En la fase media su velocidad con la E y el aturdimiento a varios objetivos le dan picks y peleas por objetivos. En la tardía no tiene alcance ni escapes: los equipos con mucho control o kiteo le frenan, aunque la versión tanque sigue siendo un buen frontal."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~1:52) con Q-R-W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con tres posturas y el Despertar ya puede invadir o pelear la escuttle: Q da hasta 44 % de velocidad de ataque y daño por vida máxima, W escudo y robo de vida, R daño en área. Gana el 1v1 a Karthus, Jayce, Gwen o Jax."
+  },
+  {
+   "cuando": "Nivel 4 (~2:55) con la E, al acabar el full clear",
+   "nivel": 4,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Blazing Stampede le da fantasmal, +25 % de velocidad (+30 % más despertada) y un ataque que salta y aturde 0,75 s a cada objetivo: es su ventana de gank (primer gank de mediana a las 4:24-5:36 en OTP)."
+  },
+  {
+   "cuando": "Primer objeto (~11:00): Lanza de Shojin (AD) o Tormento de Liandry (AP/tanque)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Lanza de Shojin",
+   "por_que": "Lanza de Shojin (núcleo más jugado en OP.GG 16.23) da AD, vida y velocidad de habilidad: la Q hace daño por vida máxima y el Despertar vuelve antes. La versión AP con Tormento de Liandry quema con la tormenta de la R. Con el primer objeto hace dragones y Heraldo muy rápido."
+  },
+  {
+   "cuando": "Nivel 9-11 con la habilidad principal casi al máximo",
+   "nivel": 11,
+   "objetos": 1,
+   "objeto": null,
+   "por_que": "Q (o R en AP) llega a rango 5-6 y el enfriamiento del Despertar baja (50/40/30/20 s según el nivel): despierta casi en cada pelea y aguanta los duelos largos."
+  },
+  {
+   "cuando": "Dos objetos (~17:30-19:00): Experimento de hexarmadura o Baile de la muerte (AD); Coraza del muerto o Rostro espiritual (tanque)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Experimento de hexarmadura",
+   "por_que": "Con Lanza de Shojin + Experimento de hexarmadura (+ Baile de la muerte) tiene velocidad de habilidad, aguante y daño para entrar a la retaguardia con la E despertada; la versión tanque ya es un frontal difícil de matar."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Bridge Between: no tiene definitiva; sus cuatro habilidades (Q, W, E, R) son posturas básicas que suben hasta rango 6 y cuestan 20-40 de maná con 6 s de enfriamiento y 1,5 s de enfriamiento global entre lanzamientos. Volver a lanzar la postura entre 0,25 y 5 s después la 'despierta' (versión mucho más fuerte); el Despertar comparte un enfriamiento de 50/40/30/20 s según el nivel, que se reduce con velocidad de habilidad y un 5 % cada vez que Monk Training se activa. Monk Training: tras cada habilidad, sus dos siguientes ataques en 4 s ganan 30 % de velocidad de ataque.",
+  "Q": "Wilding Claw: 4 s de 20-80 % de velocidad de ataque y daño al impactar (6-36 +20 % AD adicional +1-2 % de vida adicional); los dos siguientes ataques tienen +50 de alcance y hacen un 3-8 % de la vida máxima del objetivo extra. Despertada: más velocidad de ataque (hasta +76 %) y sus dos siguientes ataques llaman 6 rayos en 1 s (1,5-3,2 % de vida máxima mágico cada uno, 9-19 % en total) que rebotan a hasta 3 enemigos. Es su daño a un objetivo y a torres en la build AD (enfriamiento 6 s).",
+  "W": "Iron Mantle: escudo de 45-145 (+50 % AD adicional, +40 % AP, +2-3,5 % de vida máxima) durante 4 s y sus dos siguientes ataques roban un 15-20 % de vida y curan un 1,2 % de su vida máxima. Despertada: escudo extra (+8 % de vida máxima), curación de ~4 % de vida máxima más base durante 4 s y el robo de vida de los dos ataques se duplica. Es lo que le deja despejar sin leash y ganar duelos largos.",
+  "E": "Blazing Stampede: fantasmal y 25-55 % de velocidad (+5 % por cada 100 AD adicional) que decae en 4 s; su primer ataque a cada objetivo salta hasta él (unas 600 u) y lo aturde 0,75 s, con 6-4 s de inmunidad por objetivo, así que puede aturdir a varios seguidos. Despertada: +30-41 % de velocidad extra, +75 de alcance de ataque y 1,5 s de inmunidad al control. Enfriamiento 6 s. Es su herramienta de gank, de enganche y de huida.",
+  "R": "Wingborne Storm: tormenta de 370 de radio a su alrededor durante 4 s que hace 10-50 (+17,5 % AP) de daño mágico cada 0,5 s (80-400 +140 % AP en total) y ralentiza un 15-30 %; sus dos siguientes ataques hacen daño extra a los enemigos dentro. Despertada: la tormenta se suelta y persigue al último enemigo atacado 4 s, con un 8-15 % de la vida máxima extra y más ralentización. No es una definitiva: se sube desde el nivel 1-2 y es la base de la build AP/tanque y del despeje en área (enfriamiento 6 s)."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W",
+   "R"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "R",
+   "W"
+  ],
+  "nota": "Q-R-W en los niveles 1-3 y E a nivel 4 (OP.GG 16.23: Q, R, W, E y luego Q al máximo con E segunda; 64-83 % en los OTP). Si empieza en rapaces, R a nivel 1 (R-Q-W o R-Q-E). La build AP/tanque (Tormento de Liandry) maximiza R primero y luego E y W (R > E > W > Q). Udyr no tiene definitiva: la R se sube como una básica y no sigue el ritmo de 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "No tiene dashes libres: la E le da fantasmal y 25-55 % de velocidad (más 30-41 % al despertarla) cada 6 s, y su ataque potenciado salta unas 600 u hasta cada objetivo para aturdirlo. Q da +50 de alcance a dos ataques y la E despertada +75. Con la E es de los junglas que más rápido cruzan el mapa.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "No tiene definitiva: cuatro habilidades básicas de rango 6 con 6 s de enfriamiento que va rotando; la R se sube desde el nivel 1-2 y no hay pico especial a nivel 6.",
+  "Despertar: volver a lanzar una postura en 0,25-5 s la convierte en su versión fuerte, con un único enfriamiento compartido (50 s al principio, 20 s en niveles altos) que se reduce atacando tras cada habilidad.",
+  "La E aturde a cada objetivo distinto con 6-4 s de inmunidad por objetivo: en una pelea puede encadenar aturdimientos a varios enemigos, y despertada le hace inmune al control 1,5 s.",
+  "Dos campeones en uno según la build: AD de Q (daño por vida máxima, rayos que rebotan, derriba torres) o AP/tanque de R (tormenta que persigue al objetivo y quema con Tormento de Liandry).",
+  "Despeje de los más rápidos del juego: full clear de seis campamentos hacia las 2:55-3:00 sin necesitar leash."
+ ],
+ "combos": [
+  "Gank: E desde la niebla (fantasmal y velocidad) → el ataque salta y aturde → Q (o R en AP) → ataques → W si le devuelven daño; E despertada si el rival tiene control o dashes para cruzar inmune.",
+  "Duelo AD: Q → 2 ataques → W → 2 ataques → Q despertada (rayos) → E solo si el rival intenta huir.",
+  "Duelo AP/tanque: R → ataques → R despertada (la tormenta le persigue) → E para aturdir → W.",
+  "Enganche en peleas: E despertada (inmune al control 1,5 s y +75 de alcance) hacia la retaguardia → aturde a uno → cambia de objetivo para aturdir a otro → W despertada al recibir el foco.",
+  "Despeje: R o Q en los campamentos con varios monstruos, W entre campamentos para curarse; despertar en el monstruo grande y atacar entre habilidades para recargar el Despertar."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Lanza de Shojin",
+   "Experimento de hexarmadura",
+   "Baile de la muerte",
+   "Calibrador de Sterak",
+   "Fuerza de trinidad",
+   "Coraza del muerto",
+   "Rostro espiritual",
+   "Tormento de Liandry",
+   "Botas de rapidez",
+   "Botas de mercurio"
+  ],
+  "runas": "Ataque intensificado (42 % en OP.GG 16.23) o Conquistador (38 %), con Triunfo + Leyenda: Velocidad (71 %) + Último esfuerzo o Golpe de gracia; secundaria Inspiración con Calzado mágico + Velocidad de acercamiento. Fragmentos: fuerza adaptable ×2 y vida. La versión AP/tanque usa Conquistador o Tensión del saqueador de tormentas (Brujería).",
+  "hechizos": [
+   "Castigo",
+   "Destello"
+  ],
+  "nota": "Castigo + Destello en el 91 %; Castigo + Fantasmal (9 %) para correr aún más. Mascota: Cría de Caminabrisas (42 %, velocidad para ganks e invasiones) o Brote de Brincamontes contra junglas que le ganan el duelo. Primera vuelta con Espada larga o Pico (AD) o Cenizas predestinadas / Sello oscuro (AP). AD: Lanza de Shojin → Experimento de hexarmadura → Baile de la muerte (núcleo más jugado, 13 %), o Fuerza de trinidad primero; Calibrador de Sterak contra ráfaga. AP/tanque: Tormento de Liandry → Coraza del muerto → Rostro espiritual, o Corazón de acero; algunos OTP de R al máximo empiezan con Cortasendas (AD, daño en área y ralentización). Contra mucho AP, Rostro espiritual o Fuerza de la naturaleza; contra AD, Presagio de Randuin. Botas de rapidez (42 %) o Botas de mercurio (28 %) contra control."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Azul en el 64 % de las partidas del lado azul y el 33 % del rojo; roja en el 20-41 % y rapaces en el 14-25 % (OP.GG 16.23). Q a nivel 1 y R a nivel 2 (con R a nivel 1 si empieza en rapaces); W a nivel 3 y E a nivel 4 al acabar el despeje. No necesita leash: W le cura y escuda entre campamentos. Algunos OTP hacen rapaces-roja, vuelven a la 1:55 a comprar Espada larga y aun así acaban el resto del despeje hacia las 3:00.",
+   "rutas": [
+    {
+     "nombre": "Full clear desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Nivel 4 con la E hacia las 2:55-3:05: gank a la línea del lado de la roja (bot en lado azul, top en lado rojo) o escuttle de ese lado; si no hay gank, invade la jungla rival.",
+     "nivel": 4,
+     "minuto": "3:00",
+     "cuando": "Ruta estándar (la de más victorias en Jungler.gg: 56 % terminando en gank a bot). CS de jungla 24 a los 3:00 en OTP Diamante+."
+    },
+    {
+     "nombre": "Cinco campamentos y escuttle",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "scuttle_bot"
+     ],
+     "despues": "Escuttle de las 2:55 del lado de la roja (scuttle_top si juega en el lado rojo) y gank a esa lateral o a mid con la E; deja los krugs para la siguiente vuelta.",
+     "nivel": 4,
+     "minuto": "3:05",
+     "cuando": "La secuencia más registrada en OP.GG en ambos lados: para ganar la escuttle al jungla rival y gankear antes."
+    },
+    {
+     "nombre": "Full clear desde roja",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Nivel 4 hacia las 3:00 en el lado de la azul: gank a la línea de ese lado (top en lado azul, bot en lado rojo) o escuttle de ese río.",
+     "nivel": 4,
+     "minuto": "3:00",
+     "cuando": "Cuando quiere acabar cerca de la otra lateral o la línea del lado de la azul es la que se puede ganquear; ruta segura según Jungler.gg."
+    },
+    {
+     "nombre": "Inicio en rapaces y despeje cruzado",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs",
+      "blue",
+      "gromp",
+      "wolves"
+     ],
+     "despues": "Acaba hacia las 3:05-3:15 en el cuadrante de la azul a nivel 4: gank a la línea de ese lado o a mid, o escuttle de ese río.",
+     "nivel": 4,
+     "minuto": "3:10",
+     "cuando": "Inicio en rapaces (14-25 % en OP.GG) con R a nivel 1 para el área; también es la base de la variante con vuelta a la 1:55 tras rapaces-roja que usan algunos OTP."
+    }
+   ],
+   "ganks": "Desde nivel 4 (E): entra con fantasmal y velocidad desde la niebla, el ataque salta y aturde 0,75 s, y remata con Q (o R) y W. Sin la E no tiene control: los ganks antes de las 2:55 casi no existen. Primer gank de mediana a las 4:24-5:36 tras el full clear (OTP), a bot en el 42-50 %, mid ~30 % y top ~21-26 %. Contra rivales con escapes guarda la E despertada (inmunidad al control) para el momento en que usen el Destello; desde nivel 6-7 hace dives con W despertada aguantando la torre.",
+   "objetivos": "Dragón muy pronto: en OTP Diamante+ su primer dragón cae de mediana entre las 7:20 y las 8:35 (p25 6:16); lo hace solo desde nivel 5-6 con Q despertada (AD) o la tormenta (AP) si el bot tiene prioridad. Larvas del Vacío (8:00): las limpia rápido con R. Heraldo (15:00): solo en la build AD si nadie lo disputa. Barón (20:00) en grupo; sin mucho daño de ejecución, se asegura con Castigo.",
+   "invasion": "Sí: tras el full clear llega antes que nadie a la escuttle con la E y gana los duelos de nivel 3-6 a junglas de despeje (Karthus, Lillia) y a luchadores lentos (Jayce, Gwen, Jax, Trundle). OTP: mediana de 8 CS de jungla rival antes del 10 (p75 16-19) y 1-2 mejoras robadas por partida. Evita invadir a Elise, Nidalee, Bel'Veth o Wukong sin ventaja.",
+   "contra_jungla": "Contra junglas que le kitean o le ganan el inicio (Elise, Nidalee, Zyra, Bel'Veth) no pelea antes del 4: full clear, guardián en la entrada de su segundo buff y respuesta con E al primer gank rival.",
+   "plan": "Full clear hacia las 3:00, escuttle y gank o invasión con la E a nivel 4; dragón temprano con prioridad de bot y ventaja de CS (72-78 de jungla al 10 en OTP Diamante+). A medio juego busca picks en el río con la E, rota rápido entre objetivos y, en AD, derriba torres con la Q. En la tardía es frontal (tanque) o el que entra a la retaguardia aturdiendo a varios (AD); en AD puede presionar una lateral si Barón no está."
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y luchador de primera línea: en AD entra a la retaguardia aturdiendo; en AP/tanque es el frontal con la tormenta.",
+  "como_entrar": "E despertada (1,5 s inmune al control, +75 de alcance y mucha velocidad) desde la niebla o un flanco directo al carry; el ataque salta y aturde; cambia de objetivo para aturdir a otro (inmunidad de 6-4 s por objetivo); W despertada al recibir el foco y Q o R para el daño. No debe entrar sin la E: sin ella le kitean.",
+  "objetivo": "Tiradores y magos sin escapes; en AP/tanque, el primero que tenga en rango para dejarle la tormenta encima y aturdir a quien entre a sus carries.",
+  "posicion": "Primera línea o flanco cercano; su alcance es cuerpo a cuerpo y su valor está en llegar el primero con la E, así que no espera detrás."
+ },
+ "macro": {
+  "split_push": "Moderado en la build AD: la Q hace daño por vida máxima a torres y despeja oleadas, pero en la tardía pasa una mediana del 3-5 % del tiempo solo en una lateral y ~30 % agrupado (OTP Diamante+). La versión AP/tanque casi no hace split.",
+  "objetivos": "Dragón solo desde nivel 5-6 (primer dragón de mediana a las 7:20-8:35); larvas rápido con R; Heraldo solo en AD sin disputa; Barón en grupo. Torres: placas y torres con la Q despertada en la build AD.",
+  "plan_de_partida": "Fase 1 (0-8 min): full clear rápido, escuttle, gank con E a nivel 4 e invasiones. Fase 2 (8-20 min): primer objeto hacia el 11, dragones y larvas, picks en el río y presión de torres. Fase 3 (20+): frontal o iniciador con la E despertada; Barón y Anciano con visión, nunca solo en la niebla."
+ },
+ "debilidades": [
+  "Sin alcance ni dashes de verdad: los campeones que le kitean o le ralentizan (Nidalee, Quinn, Zyra, Elise) le anulan, y contra mucho control a distancia muere antes de llegar.",
+  "Gankea mal antes del nivel 4 (sin la E) y no tiene un pico a nivel 6: si el rival junta presión en 2:00-3:00, Udyr no puede responder.",
+  "Previsible: si el rival guarda el Destello o los escudos para después del aturdimiento de la E, el enganche falla y se queda en medio.",
+  "Depende del Despertar (50-20 s): pelear justo después de usarlo en un campamento le hace perder el duelo.",
+  "En la tardía, sin ventaja, rinde menos que los luchadores que escalan y que los tanques de enganche a distancia."
+ ],
+ "contrarrestado_por": [
+  "Elise",
+  "Zyra",
+  "Nidalee",
+  "Wukong",
+  "Bel'Veth",
+  "Sion",
+  "Quinn",
+  "Fizz"
+ ],
+ "bueno_contra": [
+  "Jayce",
+  "Karthus",
+  "Trundle",
+  "Ambessa",
+  "Gwen",
+  "Jax",
+  "Volibear",
+  "Xin Zhao",
+  "Skarner"
+ ],
+ "sinergias": [
+  "Orianna",
+  "Galio",
+  "Leona",
+  "Nautilus",
+  "Rell",
+  "Taliyah"
+ ],
+ "errores_comunes": [
+  "Gankear antes de tener la E (nivel 4): sin aturdimiento ni velocidad el gank no funciona.",
+  "Gastar el Despertar en un campamento justo antes de un gank o una pelea y quedarse 20-50 s sin él.",
+  "Usar la E en un tanque o en un súbdito y dejar libre al carry; la inmunidad por objetivo dura 6-4 s, así que hay que elegir bien a quién aturdir.",
+  "Perseguir a campeones con muchos dashes sin la E despertada: le kitean hasta matarle.",
+  "Tratar la R como una definitiva y subirla en 6, 11 y 16 en vez de seguir el orden de su build (Q o R al máximo).",
+  "Hacer split push sin visión: sin escapes, una emboscada es una muerte.",
+  "Ir AD cuando su equipo necesita un frontal (o tanque cuando no hay daño en su equipo)."
+ ],
+ "senales_reconstructor": [
+  "Su R (Wingborne Storm) es una habilidad básica: sube R a nivel 1-2 (Q-R-W en el 64-83 % de los OTP) y puede llevarla a rango 6; subidas de R en los niveles 1-5 o fuera de 6/11/16 son normales, y no tiene un pico especial a nivel 6.",
+  "Despeje de referencia (OTP Diamante+): CS de jungla 12 a los 2:00, 24 a los 3:00 (full clear de seis campamentos hacia las 2:55-3:00), 28 a los 4:00 y 72-78 al 10. Nivel 2 a la 1:15, nivel 3 a la 1:52, nivel 4 a las 2:55 y nivel 6 entre las 6:20 y las 7:00.",
+  "Primer gank tras el full clear: mediana 4:24-5:36 (p25 3:30), a bot en el 42-50 %, mid ~30 % y top ~21-26 %. Un gank antes de las 2:55 (sin la E) es raro.",
+  "Movilidad: la E le da fantasmal y 25-55 % de velocidad (+30-41 % despertada) cada 6 s, así que cruza el mapa más rápido que otros junglas; posiciones por minuto muy separadas no son un teletransporte. No tiene nada global ni saltos de muro.",
+  "Invasiones: mediana de 12-16 CS de jungla rival por partida, 8 antes del 10 (p75 16-19) y 1-2 mejoras robadas: estar en la jungla rival a nivel 4-6 es su plan, no un error.",
+  "Dragones tempranos: el primer dragón en el que participa cae de mediana entre las 7:20 y las 8:35 (p25 6:16); lo hace solo a nivel 5-6.",
+  "Dos builds que cambian su tipo de daño: AD (Lanza de Shojin o Fuerza de trinidad primero, Q al máximo, daño físico más rayos mágicos) y AP/tanque (Tormento de Liandry o Corazón de acero; R al máximo; daño mágico; a veces Cortasendas como híbrido). Primer objeto hacia el 10:54-11:36, segundo hacia el 17:20-19:12; botas (rapidez o mercurio) hacia el 12-14.",
+  "Primera vuelta de mediana entre las 3:51 y las 4:48 con Espada larga o Pico (AD) o Cenizas predestinadas / Sello oscuro (AP); algunos OTP vuelven a la 1:55 tras rapaces-roja con Espada larga y aun así llegan a 24 CS de jungla a los 3:00.",
+  "Mucho control: mediana de 16 inmovilizaciones por partida (aturdimientos de la E encadenados a varios objetivos) y 7 kills con un aliado tras inmovilizar.",
+  "Poca visión: 4-5 guardianes antes del 14 y 0-1 de control por partida.",
+  "Poco split push: mediana del 3-5 % del tiempo tardío solo en una lateral y ~30 % agrupado; un Udyr AD presionando una lateral con Barón vivo puede ser plan, uno tanque solo en una lateral, no."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/udyr/build/",
+  "https://lolalytics.com/lol/udyr/counters/",
+  "https://www.op.gg/lol/champions/udyr/build/jungle",
+  "https://www.op.gg/lol/champions/udyr/jungle-paths",
+  "https://jungler.gg/champions/udyr/",
+  "https://wiki.leagueoflegends.com/en-us/Udyr",
+  "https://www.leagueoflegends.com/en-us/news/dev/dev-2026-season-one-gameplay-preview/",
+  "https://metabot.gg/en/league/guides/Udyr",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Udyr jungla (data/otps/Udyr/JUNGLE: 181 partidas, 84 de Diamante+; parches 16.3-16.23)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 84,
+    "victorias": 0.536,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 1.9,
+     "mediana": 3.8,
+     "p75": 5.3
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 10.9,
+     "p75": 11.8
+    },
+    "segundo_objeto_min": {
+     "p25": 17.0,
+     "mediana": 18.0,
+     "p75": 19.9
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.49
+     ],
+     [
+      "Tormento de Liandry",
+      0.26
+     ],
+     [
+      "Cortasendas",
+      0.1
+     ],
+     [
+      "Lanza de Shojin",
+      0.1
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "RQEWQQQEQ",
+      0.29
+     ],
+     [
+      "QRWERRRER",
+      0.21
+     ],
+     [
+      "QRWEQQQEQ",
+      0.21
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.69
+     ],
+     [
+      "WEQ",
+      0.21
+     ],
+     [
+      "EWQ",
+      0.04
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 39.9,
+     "mediana": 49.1,
+     "p75": 56.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.1,
+     "mediana": 18.3,
+     "p75": 21.9
+    },
+    "vision_por_min": {
+     "p25": 0.79,
+     "mediana": 0.94,
+     "p75": 1.09
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.5,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.44,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.1,
+     "mediana": 5.2,
+     "p75": 9.6
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 16.5,
+     "mediana": 29.4,
+     "p75": 36.0
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.49
+     ],
+     [
+      "blue",
+      0.35
+     ],
+     [
+      "red",
+      0.13
+     ],
+     [
+      "wolves",
+      0.02
+     ],
+     [
+      "gromp",
+      0.01
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 25.0,
+     "mediana": 26.0,
+     "p75": 28.0
+    },
+    "cs_jungla_10": {
+     "p25": 70.0,
+     "mediana": 77.0,
+     "p75": 82.0
+    },
+    "primer_gank_min": {
+     "p25": 3.5,
+     "mediana": 4.7,
+     "p75": 8.0
+    },
+    "ganks_antes_10": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.39
+     ],
+     [
+      "top",
+      0.31
+     ],
+     [
+      "mid",
+      0.3
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 16.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.2-16.23"
+   }
+  }
+ }
+}

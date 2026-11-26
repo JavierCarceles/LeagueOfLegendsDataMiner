@@ -1,0 +1,565 @@
+{
+ "clave": "Volibear",
+ "nombre": "Volibear",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.77,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador-tanque de top de pegada temprana (all-in a nivel 2-3) y dives con la R, que desactiva las torres; hace bola de nieve y split push hasta el minuto 25 y después se queda en frontal que salta a la retaguardia",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 2,
+  "nota": "Su nivel 1 es flojo, pero a nivel 2-3 con Q-W y la pasiva cargada gana el all-in a casi todos los cuerpo a cuerpo y a nivel 6 bucea bajo torre con la R; llega de media 177 de oro por delante a los 15 (metabot 26.23) y los OTPs Maestro+ +740. Su mejor duración es ~25 min (55 %) y gana 3,5 puntos más en partidas cortas: a partir del 28-30 los carries con penetración y kiteo le superan."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:40) con E y Q",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Q (aturde 1 s con velocidad hacia el campeón) más la pasiva a 5 cargas (rayo en cadena) ganada pegando a súbditos: si llega antes al nivel 2, entra y gana el primer tradeo."
+  },
+  {
+   "cuando": "Nivel 3 (~2:07) con E-Q-W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "W-W: la segunda W sobre el marcado hace un 50 % más y le cura 20-80 + 8-20 % de la vida perdida; E-Q-W-W con Prender gana el all-in a la mayoría de cuerpo a cuerpo (Jax es la excepción)."
+  },
+  {
+   "cuando": "Nivel 6 (~5:20)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Stormbringer: salto de 700 u, 175 de vida extra y desactiva las torres cercanas 2 s (3 y 4 s en rangos 2 y 3): dives a nivel 6 con o sin su jungla."
+  },
+  {
+   "cuando": "Primer objeto (~11-12 min): Puñal de Statikk, Amanecer y anochecer, Cuchilla negra o Desesperanza eterna",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Puñal de Statikk",
+   "por_que": "El Puñal y Amanecer y anochecer potencian su pasiva (rayos que rebotan y aplican efectos al impactar) y el escudo de E: limpia oleadas de golpe y gana duelos; la versión tanque (Cuchilla negra, Desesperanza eterna) aguanta dives y peleas largas."
+  },
+  {
+   "cuando": "2-3 objetos (~18-23 min)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Filofugaz de Navori",
+   "por_que": "Navori, Convergencia de Zeke o Baile de la muerte tras el primer objeto y la R a rango 2 (135 s, 3 s de torre desactivada): su ventana más fuerte de duelos, split push y entradas en grupo, hasta el ~25."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "The Relentless Storm: cada ataque o habilidad que daña le da una carga (6 s, máx. 5) con un 5 % de velocidad de ataque (+4 % por 100 AP), hasta 25 % (+20 % por 100 AP). Con 5 cargas sus ataques lanzan un rayo de 11-68 (+20 % AD adicional, +45 % AP) que rebota a 4 enemigos más en 450 u: despeja oleadas y explica las builds híbridas (Puñal de Statikk, Amanecer y anochecer). Cargarla pegando a súbditos antes de entrar es clave.",
+  "Q": "Thundering Smash (12/11,5/11/10,5/10 s, 50 de maná): 4 s de velocidad (12-26 %, el doble yendo hacia un campeón cercano); su siguiente ataque salta al objetivo, hace 10-50 (+160 % AD adicional) más y aturde 1 s con un lanzamiento que no se puede cancelar. Si le inmovilizan antes de aturdir, la habilidad termina y se le reinicia el enfriamiento. Es su enganche.",
+  "W": "Frenzied Maul (5 s, 20-40 de maná, 325-350 u): zarpazo que aplica efectos al impactar y marca 8 s; la segunda W sobre un marcado hace un 50 % más (+25 % por 100 AD adicional) y le cura 20-80 (+8-20 % de la vida que le falta; la mitad contra súbditos). Daño y sustento cada 5 s: se maximiza primero.",
+  "E": "Sky Splitter (16 s, 50 de maná, 1200 u): nube que suelta un rayo a los 2 s en ~325 u de radio: 80-200 (+70 % AP) + 11-15 % de la vida máxima del objetivo (con tope de 150-610 contra súbditos y monstruos) y ralentiza un 40 % 2 s. Si Volibear está dentro, gana un escudo del 14 % de su vida máxima (+75 % AP) durante 3 s. Poke y amenaza en línea (el rival tiene que salir de la zona) y escudo del all-in lanzándola sobre sí mismo.",
+  "R": "Stormbringer (160/135/110 s, 100 de maná, 700 u): salto de 1 s (imparable en el aire) a una zona; durante 12 s gana 175/350/525 de vida, 50 de alcance y tamaño. Al aterrizar hace 300/500/700 (+250 % AD adicional, +125 % AP) a los que están debajo, ralentiza un 50 % y desactiva las torres cercanas 2/3/4 s haciéndoles daño. Es su herramienta de dive, de entrada en grupo y de escape por encima de muros."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E a nivel 1 para farmear, amenazar desde 1200 u y empezar a cargar la pasiva (OP.GG E-Q-W 48 %; 61 % de los OTPs Maestro+; Skill Capped) o Q a nivel 1 (Lolalytics, 18 % de los OTPs) si quiere pelear el nivel 1. Maximiza W (81 % de los OTPs), luego Q; E se completa al final (14-18). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "R: salto de hasta 700 u (1 s, imparable en el aire), cada 160/135/110 s. Q: 4 s de velocidad (12-26 %, el doble hacia campeones) y un pequeño salto al objetivo al golpear. No tiene blinks.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R (700 u): cruza los muros finos de la jungla y del río para entrar en un dive o escapar; con la R en enfriamiento no puede.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La R desactiva las torres cercanas 2/3/4 s (y les hace daño) al aterrizar: dives a nivel 6 sin recibir disparos y torres que caen muy rápido.",
+  "Pasiva con rayo en cadena a 5 cargas que escala con AP y AD adicional: sus builds van de híbridas (Puñal de Statikk, Amanecer y anochecer, Sable-pistola hextech) a tanque (Desesperanza eterna, Rostro espiritual).",
+  "W en dos tiempos: solo la segunda W sobre el marcado cura, y cura más cuanta menos vida le queda.",
+  "Si le aturden o inmovilizan durante la Q antes de golpear, recupera el enfriamiento de la Q.",
+  "El escudo de E solo sale si él está dentro del rayo: E lanzada bajo sí mismo antes de entrar.",
+  "Gana más en partidas cortas: su ventana es hasta el 25-28."
+ ],
+ "combos": [
+  "All-in de nivel 3: E sobre el rival (o sobre sí mismo al entrar) → Q (velocidad y aturdimiento) → W → ataques → W de nuevo (cura) mientras cae el E.",
+  "Dive de nivel 6: R sobre la torre (desactivada 2 s) → Q aturdimiento → W → W → salir o rematar antes de que la torre vuelva a disparar; con su jungla, el jungla recibe los disparos después.",
+  "Persecución: Q (velocidad doble hacia el campeón) + Fantasmal o Destello → aturdimiento → E delante de su huida.",
+  "Tradeo corto: cargar la pasiva en súbditos → Q → W → retirarse; o E a distancia y entrar solo si el rival se queda dentro.",
+  "Pelea de grupo: R sobre los carries (imparable en el salto) → Q al carry → W-W → E sobre sí mismo para el escudo."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Anillo de Doran",
+   "Espada de Doran",
+   "Puñal de Statikk",
+   "Amanecer y anochecer",
+   "Filofugaz de Navori",
+   "Cuchilla negra",
+   "Desesperanza eterna",
+   "Rostro espiritual",
+   "Baile de la muerte",
+   "Convergencia de Zeke",
+   "Sable-pistola hextech",
+   "Malla de espinas",
+   "Presagio de Randuin",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Precisión con Compás letal (59 % en OP.GG Esmeralda+, página con Valor de secundaria) o Ataque intensificado (15 %; Skill Capped lo prefiere con Amanecer y anochecer), con Triunfo o Claridad mental, Leyenda: Velocidad o Presteza y Último esfuerzo o Derribado; secundaria Valor o Inspiración (Tónico triple, Perspicacia cósmica). Alternativa: Garras del inmortal con Precisión (12 % en OP.GG; 36 % en OTPs Maestro+) para el Volibear tanque.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender (69 %) o Destello + Agotamiento (15 %; Skill Capped lo recomienda contra duelistas: Fiora, Jax, Camille); Fantasmal para perseguir a rivales a distancia. Empieza Anillo de Doran + poción (62 %, para las builds híbridas) o Espada de Doran (22 %). Rutas: Puñal de Statikk primero (~11:55 de mediana) y luego Amanecer y anochecer o Convergencia de Zeke y Baile de la muerte; o Amanecer y anochecer → Filofugaz de Navori → Rostro espiritual (la ruta más jugada, 9 %); o tanque con Cuchilla negra o Desesperanza eterna; AP con Puñal de Statikk → Sable-pistola hextech → Llamasombría. Cuarto objeto defensivo según el rival (Rostro espiritual, Malla de espinas, Presagio de Randuin, Zhonya). Botas blindadas (46 %) o de mercurio (26 %)."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con E: farmea, amenaza desde 1200 u y carga la pasiva pegando a súbditos para llegar con 5 cargas al primer tradeo; su nivel 1 sin cargas es flojo. Nivel 2 con Q (~1:40): si el rival no tiene Destello o está a media vida, entra con Q. Nivel 3 con W (~2:07): ventana de all-in E-Q-W-W con Prender; gana a casi todos los cuerpo a cuerpo que no le puedan alejar (Jax, con Contraataque, sí puede).",
+    "tradeos": "Q-W y retirarse cuando el rival no puede responder (sin escape o con su habilidad clave gastada); E al rival que va a rematar súbditos (si se queda dentro 2 s pierde un 11-15 % de su vida máxima). Contra campeones a distancia (Kennen, Teemo, Vayne, Quinn, Jayce) no puede tradear: farmea con E y espera al gank o al 6.",
+    "oleadas": "La pasiva a 5 cargas y la E limpian la oleada rápido: empuja para tener prioridad, bucear y hacer placas (mediana de 10-11 placas por partida en OTPs Maestro+). Si va por detrás, congela cerca de su torre porque su enganche es corto. Vuelve a base pronto (mediana 3:08 en OTPs Maestro+) para comprar componentes y volver a pelear el nivel 4-6.",
+    "all_in": "Nivel 3 con E-Q-W-W y nivel 6 con R: salta sobre la torre (2 s desactivada en rango 1), aturde con Q, W-W y sale o remata antes de que vuelva a disparar. Un tercio de sus kills/asistencias antes del 14 son bajo la torre exterior rival (OTPs Maestro+).",
+    "jugar_seguro": "Contra rivales que le alejan o kitean, juega detrás de la oleada pokeando con E y guarda la Q para el primero que entre en un gank (aturde y escapa) y la R para saltar un muro y huir. Sin la R no debe pasar de la mitad del carril contra un jungla con control."
+   },
+   "roameos": "Pocos antes del 14: el 79 % de sus minutos están en top y solo el 4 % de sus kills/asistencias son en mid o bot (OTPs Maestro+). Se mueve al río por la escuttle y las larvas o para bucear con su jungla; casi nunca lleva Teleportar (3 %), así que no baja a bot por teletransporte.",
+   "fase_media": "Con 1-2 objetos hace split push en la lateral y tira torres con la R (percentil 91 de daño a estructuras), obligando a dos rivales a responderle; en las peleas de objetivo entra por delante de sus carries y salta con R a la retaguardia. Debe cerrar la partida antes del 25-28: después pierde valor frente a tiradores y magos con penetración.",
+   "matchups_dificiles": [
+    "Swain",
+    "Kennen",
+    "Heimerdinger",
+    "Anivia",
+    "Ryze",
+    "Lissandra",
+    "Aurora",
+    "Urgot",
+    "Jax",
+    "Singed",
+    "Kled",
+    "Teemo",
+    "Gnar",
+    "Illaoi",
+    "Kayle",
+    "Vayne"
+   ],
+   "matchups_faciles": [
+    "Sylas",
+    "Yorick",
+    "Yasuo",
+    "Malzahar",
+    "Yone",
+    "Akali",
+    "Rumble",
+    "Tahm Kench",
+    "Ambessa",
+    "Nasus",
+    "Irelia"
+   ],
+   "otros_roles": "Jungla en el 20 % de sus partidas en Esmeralda+ (25 % en todas las ligas; por debajo del umbral): Castigo + Destello (98 %), Compás letal, Cría de Caminabrisas (47 %), E-W-Q a niveles 1-3 y Q al máximo primero; empieza en azul (64 % en lado azul, 51 % en rojo) con el despeje azul → gromp → lobos → rapaces → roja → escuttle; build Amanecer y anochecer → Filofugaz de Navori → Rostro espiritual. Gankea a nivel 3 con Q y bucea a nivel 6 con R."
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador de zambullida y frontal: salta a la retaguardia con R y aturde con Q.",
+  "como_entrar": "R sobre los carries o el grupo (imparable en el salto, ralentiza un 50 % al caer), Q al carry, W-W y E sobre sí mismo para el escudo. Contra mucho control y protección, entra después de que el rival gaste su primera ronda de controles.",
+  "objetivo": "El tirador o mago más cercano a su salto; en asedios, la torre (la R la desactiva y la daña) o el que defienda bajo ella.",
+  "posicion": "Delante de sus carries hasta la iniciación; en asedios, cerca de la torre rival para el salto; si hace split push, llega por el flanco a las peleas."
+ },
+ "macro": {
+  "split_push": "Sí: es su plan principal tras el primer objeto. OTPs Maestro+ pasan el 35 % del tiempo tardío solos en una lateral (mediana; p75 50 %) y solo el 17 % agrupados; con la R y la pasiva tira torres rápido y gana duelos hasta el 25.",
+  "objetivos": "Ayuda en las larvas (8:00) y el Heraldo con prioridad de top; tira placas (mediana de 10-11 por partida) y torres con la R. No hace dragón ni Barón solo; en esas peleas, salta con R al grupo rival.",
+  "plan_de_partida": "Fase 1 (0-10): ganar la línea a nivel 2-3, volver pronto y bucear a nivel 6 con su jungla; placas. Fase 2 (10-22): primer objeto (~11-12), split push y rotaciones a objetivos con prioridad, R para tirar torres y empezar peleas. Fase 3 (25+): cerrar la partida; si se alarga, frontal con objetos defensivos que entra con R en las peleas de Barón y dragón."
+ },
+ "debilidades": [
+  "Kiteo y rango: campeones a distancia o que le alejan (Kennen, Teemo, Vayne, Quinn, Heimerdinger, Anivia) le ganan la línea.",
+  "Escala mal: pasado el 25-28 la penetración y el kiteo rival le superan; gana más en partidas cortas.",
+  "Enganche corto: Q es cuerpo a cuerpo y la R (700 u) tiene 110-160 s de enfriamiento; sin R no llega a carries protegidos.",
+  "Pierde el all-in contra mucho control o reducciones de velocidad; Jax (Contraataque esquiva sus ataques y le aturde) le gana.",
+  "Si le congelan la oleada lejos de su torre se expone a ganks: su única huida es la R."
+ ],
+ "contrarrestado_por": [
+  "Swain",
+  "Kennen",
+  "Jax",
+  "Heimerdinger",
+  "Anivia",
+  "Urgot",
+  "Gnar",
+  "Teemo",
+  "Singed",
+  "Illaoi"
+ ],
+ "bueno_contra": [
+  "Sylas",
+  "Yorick",
+  "Yasuo",
+  "Yone",
+  "Malzahar",
+  "Akali",
+  "Irelia",
+  "Nasus"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Elise",
+  "Lee Sin",
+  "Xin Zhao",
+  "Nidalee",
+  "Sejuani"
+ ],
+ "errores_comunes": [
+  "Saltar con la R sin la Q lista o sin saber dónde está el jungla rival: salta, no aturde y muere bajo la torre cuando acaban los 2 s.",
+  "Entrar a nivel 1 sin cargas de pasiva ni E: su nivel 1 es débil.",
+  "Perseguir con Q a rivales a distancia en vez de esperar a que gasten sus escapes.",
+  "Pegar solo una W: la segunda W sobre el marcado es la que cura.",
+  "Alargar la partida farmeando: su ventana es hasta el 25 y debe forzar torres y objetivos con la R.",
+  "No lanzar el E sobre sí mismo al entrar (pierde el escudo del 14 % de su vida).",
+  "Hacer split push sin visión ni forma de volver mientras su equipo pelea 4 contra 5 los objetivos."
+ ],
+ "senales_reconstructor": [
+  "Top en el 77-80 % de sus partidas (Esmeralda+); jungla en el 20 % (25 % en todas las ligas). Si va de jungla: Castigo, despeje completo desde azul con escuttle (azul → gromp → lobos → rapaces → roja → escuttle) y ganks desde nivel 3.",
+  "Hechizos Destello + Prender (69 %) o Agotamiento (15 %); casi nunca Teleportar (3 % en OTPs Maestro+): no habrá teletransportes a otras líneas, sus llegadas a bot o mid son andando.",
+  "All-in muy temprano (OTPs Maestro+, 134 partidas): nivel 2 a la 1:40, nivel 3 a las 2:07; primer takedown con mediana 4:07 (p25 2:32) y 0,42 takedowns por partida antes del 3:30. Kills en top a nivel 2-3 son su plan, no una casualidad.",
+  "Dives: el 34 % de sus kills/asistencias antes del 14 ocurren a menos de 900 u de una torre exterior rival en pie y el 69 % de sus partidas tienen al menos una; la R desactiva la torre 2-4 s, así que no es un error de posicionamiento.",
+  "Nivel 6 a las 5:18 de mediana: los dives empiezan ahí. Primera vuelta muy temprana: mediana 3:08 (p25 2:38; el 31 % tras morir) con ~800 de oro (botas, Cristal de rubí, Tomo amplificador, Gema avivadora o Daga).",
+  "Primer objeto hacia el 11:15 (p25 9:45, p75 13:35): Puñal de Statikk (35 %), Cuchilla negra (24 %), Desesperanza eterna (13 %), Amanecer y anochecer (9 %) o Sable-pistola hextech (7 %); segundo hacia el 17:55. Builds muy variadas (AP, híbridas y tanque): no deducir el plan solo por el primer objeto.",
+  "Orden E-Q-W (61 %) o Q-E-W y W al máximo (81 %): E a nivel 1 es lo normal.",
+  "Split push: 35 % del tiempo tardío solo en una lateral (mediana; p75 50 %) y solo 17 % agrupado; verle en una lateral mientras su equipo hace Barón o dragón es su plan. Mediana de 10 placas por partida.",
+  "Peso en la partida: kills en solitario frecuentes (mediana 2), +370 de oro a los 10 y +740 a los 15 frente a su rival (medianas en OTPs Maestro+) y partidas cortas (mediana 24 min); si llega igualado o por detrás al 25, su impacto cae."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/volibear/build/",
+  "https://lolalytics.com/lol/volibear/build/?tier=all",
+  "https://www.op.gg/lol/champions/volibear/build/top",
+  "https://www.op.gg/lol/champions/volibear/counters/top",
+  "https://www.op.gg/lol/champions/volibear/build/jungle",
+  "https://www.op.gg/lol/champions/volibear/jungle-paths",
+  "https://wiki.leagueoflegends.com/en-us/Volibear",
+  "https://www.skill-capped.com/lol/guides/builds/volibear/top",
+  "https://metabot.gg/en/league/champion/Volibear/tips",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs Maestro-Gran Maestro de Volibear top, parches 16.22-16.23 (data/otps/Volibear/TOP, 134 partidas)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 134,
+    "victorias": 0.545,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 32,
+      "victorias": 0.688
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 44,
+      "victorias": 0.545
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 33,
+      "victorias": 0.303
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 4.3,
+     "p75": 6.2
+    },
+    "primer_objeto_min": {
+     "p25": 9.8,
+     "mediana": 11.2,
+     "p75": 13.6
+    },
+    "segundo_objeto_min": {
+     "p25": 15.9,
+     "mediana": 17.9,
+     "p75": 19.6
+    },
+    "primer_objeto": [
+     [
+      "Puñal de Statikk",
+      0.36
+     ],
+     [
+      "Cuchilla negra",
+      0.24
+     ],
+     [
+      "Desesperanza eterna",
+      0.13
+     ],
+     [
+      "Amanecer y anochecer",
+      0.09
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWWWRWQW",
+      0.34
+     ],
+     [
+      "WQEWWRWQW",
+      0.11
+     ],
+     [
+      "EQWQQRQWQ",
+      0.08
+     ]
+    ],
+    "maximiza": [
+     [
+      "WQE",
+      0.81
+     ],
+     [
+      "QWE",
+      0.19
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 27.1,
+     "mediana": 36.3,
+     "p75": 45.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.9,
+     "mediana": 22.2,
+     "p75": 27.1
+    },
+    "vision_por_min": {
+     "p25": 0.68,
+     "mediana": 0.82,
+     "p75": 0.97
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.83,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 23.0,
+     "mediana": 35.4,
+     "p75": 50.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 8.8,
+     "mediana": 17.2,
+     "p75": 25.0
+    },
+    "cs_10": {
+     "p25": 62.0,
+     "mediana": 72.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -9.0,
+     "mediana": 5.0,
+     "p75": 18.0
+    },
+    "dif_oro_10": {
+     "p25": -345.0,
+     "mediana": 373.0,
+     "p75": 948.0
+    },
+    "placas": {
+     "p25": 6.0,
+     "mediana": 10.0,
+     "p75": 16.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 6.8,
+     "p75": 10.7
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.22-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 54,
+    "victorias": 0.444,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.3,
+     "mediana": 5.0,
+     "p75": 7.9
+    },
+    "primer_objeto_min": {
+     "p25": 10.5,
+     "mediana": 11.4,
+     "p75": 12.7
+    },
+    "segundo_objeto_min": {
+     "p25": 18.3,
+     "mediana": 19.5,
+     "p75": 21.3
+    },
+    "primer_objeto": [
+     [
+      "Amanecer y anochecer",
+      0.69
+     ],
+     [
+      "Puñal de Statikk",
+      0.2
+     ],
+     [
+      "Fuerza de trinidad",
+      0.06
+     ],
+     [
+      "Impulso cósmico",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EWQQQRQWQ",
+      0.32
+     ],
+     [
+      "EWQWWRWQW",
+      0.15
+     ],
+     [
+      "WEQQQRQWQ",
+      0.06
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.56
+     ],
+     [
+      "WQE",
+      0.22
+     ],
+     [
+      "EQW",
+      0.11
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.6,
+     "mediana": 47.1,
+     "p75": 53.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 13.2,
+     "mediana": 16.9,
+     "p75": 21.1
+    },
+    "vision_por_min": {
+     "p25": 0.64,
+     "mediana": 0.91,
+     "p75": 1.07
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.0,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 2.2,
+     "mediana": 5.2,
+     "p75": 9.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 16.8,
+     "mediana": 25.3,
+     "p75": 31.0
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.65
+     ],
+     [
+      "red",
+      0.22
+     ],
+     [
+      "raptors",
+      0.07
+     ],
+     [
+      "krugs",
+      0.04
+     ],
+     [
+      "gromp",
+      0.02
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 22.0,
+     "mediana": 24.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 56.0,
+     "mediana": 64.0,
+     "p75": 71.0
+    },
+    "primer_gank_min": {
+     "p25": 3.7,
+     "mediana": 5.5,
+     "p75": 7.1
+    },
+    "ganks_antes_10": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.41
+     ],
+     [
+      "top",
+      0.33
+     ],
+     [
+      "mid",
+      0.26
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 12.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.5,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.2-16.23"
+   }
+  }
+ }
+}
