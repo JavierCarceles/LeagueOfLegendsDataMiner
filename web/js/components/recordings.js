@@ -5,11 +5,12 @@ import { collapsible, errorBox, fmt, h, icon, mount, toast } from "../ui.js";
 
 const STATE = {
   grabando: "grabando",
-  pendiente: "se analiza cuando no estés jugando",
+  pendiente: "pendiente de analizar (cuando no estés jugando)",
   analizada: "analizada",
   "sin partida": "no se vio el minimapa",
   corta: "demasiado corta",
   error: "no se pudo analizar",
+  "sin analizar": "no se llegó a analizar",
 };
 
 /** Desplegable con el interruptor y las últimas grabaciones; en el título se ve si está grabando. */
@@ -60,7 +61,7 @@ export function recordingsSection() {
         "div.col",
         { style: { gap: "10px" } },
         h("div.row-wrap", { style: { gap: "10px", alignItems: "center" } }, btn, h("span.small", statusText(data))),
-        h("div.tiny.muted", `Al empezar una partida se graba la pantalla y al acabar se mira hacia dónde mueves la cámara. Los vídeos se quedan en tu PC (los ${data.guardados} últimos); solo sube el análisis.`),
+        h("div.tiny.muted", `Al empezar una partida se graba la pantalla; al acabar se analiza sola (cámara, minimapa, reloj) y el vídeo se borra: solo quedan los datos, que se suben con los demás para revisar la partida.`),
         data.grabaciones.length ? h("div.col", { style: { gap: "6px" } }, data.grabaciones.slice(0, 12).map(row)) : null,
       ),
     );
