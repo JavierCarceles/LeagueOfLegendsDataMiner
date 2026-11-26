@@ -61,7 +61,7 @@ export function recordingsSection() {
         "div.col",
         { style: { gap: "10px" } },
         h("div.row-wrap", { style: { gap: "10px", alignItems: "center" } }, btn, h("span.small", statusText(data))),
-        h("div.tiny.muted", `Al empezar una partida se graba la pantalla; al acabar se analiza sola (cámara, minimapa, reloj) y el vídeo se borra: solo quedan los datos, que se suben con los demás para revisar la partida.`),
+        h("div.tiny.muted", `Al empezar una partida se graba la pantalla; al acabar se analiza sola (cámara, minimapa, vida, habilidades, Flash y oro) y el vídeo se borra: solo quedan los datos, que se suben con los demás para revisar la partida.`),
         data.grabaciones.length ? h("div.col", { style: { gap: "6px" } }, data.grabaciones.slice(0, 12).map(row)) : null,
       ),
     );
@@ -99,9 +99,24 @@ function glanceText(v) {
   return `Antes del 15 miras otra zona del mapa ${fmt.num(mine, 1)} veces por minuto (elo alto: ${fmt.num(ref, 1)}): ${verdict}.`;
 }
 
+function habitsText(hb) {
+  if (!hb) return null;
+  const parts = [`${hb.muertes} ${hb.muertes === 1 ? "muerte" : "muertes"}`];
+  if (hb.muertes_con_flash != null && hb.muertes) parts.push(`${hb.muertes_con_flash} con Flash disponible`);
+  if (hb.parte_poca_vida != null) parts.push(`${Math.round(hb.parte_poca_vida * 100)} % del tiempo con poca vida`);
+  if (hb.parte_oro_sin_gastar != null) parts.push(`${Math.round(hb.parte_oro_sin_gastar * 100)} % con 1.300+ de oro sin gastar`);
+  return parts.join(" · ") + ".";
+}
+
 function row(rec) {
   const parts = [h("b", when(rec)), rec.campeon ? ` · ${rec.campeon}` : "", rec.duracion ? ` · ${Math.round(rec.duracion / 60)} min` : "", ` · ${STATE[rec.estado] || rec.estado}`];
   const link = rec.hay_video ? h("a.btn.btn-sm", { href: `/api/recordings/${encodeURIComponent(rec.nombre)}/video`, target: "_blank", rel: "noopener" }, icon("play"), "Ver") : null;
   const glance = glanceText(rec.vistazos);
-  return h("div.row-wrap", { style: { gap: "8px", alignItems: "center" } }, link, h("div.small", ...parts, glance ? h("div.tiny.muted", glance) : null));
+  const habits = habitsText(rec.habitos);
+  return h(
+    "div.row-wrap",
+    { style: { gap: "8px", alignItems: "center" } },
+    link,
+    h("div.small", ...parts, glance ? h("div.tiny.muted", glance) : null, habits ? h("div.tiny.muted", habits) : null),
+  );
 }

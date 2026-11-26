@@ -683,6 +683,9 @@ class Tools:
     abilities: Abilities | None = None
     clock_reader: object | None = None  # el lector de reloj elegido para el vídeo en curso (None = plantillas)
     ability_slots: Slots | None = None  # las casillas de las habilidades en el vídeo en curso (None = sin campeón)
+    hud: object | None = None  # app.videos.hud.Hud: vida, recurso, habilidades, invocadores y oro
+    hud_layout: object | None = None  # su calibración para el vídeo en curso (None = no se lee el HUD)
+    text_every: int = CLOCK_EVERY  # cada cuántas muestras se lee el texto del HUD (OCR: oro, vida y recurso exactos)
 
 
 def probe(reader: Frames, duration: float, tools: Tools) -> tuple[Box | None, list[np.ndarray]]:
@@ -713,24 +716,29 @@ class Collected:
     clock: list[list] = field(default_factory=list)
     icons: list[list] = field(default_factory=list)
     champions: list[list] = field(default_factory=list)
+    hud: list[list] = field(default_factory=list)
+    hud_text: list[list] = field(default_factory=list)
     samples: int = 0
     complete: bool = True  # False si se paró a mitad (cierre de la app): ese trozo no se guarda como hecho
 
     def to_json(self) -> dict:
         """Lo de un trozo, para el punto de control del vídeo (``done`` de :func:`sample_pass`)."""
         return {"shape": list(self.shape), "gpu": self.gpu, "present": self.present, "camera": self.camera, "clock": self.clock,
-                "icons": self.icons, "champions": self.champions, "samples": self.samples}
+                "icons": self.icons, "champions": self.champions, "hud": self.hud, "hud_text": self.hud_text,
+                "samples": self.samples}
 
     @classmethod
     def from_json(cls, box: Box, data: dict) -> Collected:
         return cls(box, tuple(data.get("shape") or (0, 0)), bool(data.get("gpu")), [tuple(x) for x in data.get("present") or []],
                    list(data.get("camera") or []), list(data.get("clock") or []), list(data.get("icons") or []),
-                   list(data.get("champions") or []), int(data.get("samples") or 0))
+                   list(data.get("champions") or []), list(data.get("hud") or []), list(data.get("hud_text") or []),
+                   int(data.get("samples") or 0))
 
 
 def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools, duration: float,
                 should_stop: Callable[[], bool], progress: Callable[[float], None] | None = None, workers: int = 1,
-                gpu: bool = False, done: dict | None = None, on_done: Callable[[str, Collected], None] | None = None) -> Collected:
+                gpu: bool = False, done: dict | None = None, on_done: Callable[[str, Collected], None] | None = None,
+                step: float = STEP_S) -> Collected:
     """Una muestra cada ``STEP_S``: partida sí/no, cámara, reloj e iconos.
 
     Decodificar el vídeo es lo que más tarda (36 de 39 s en uno de 21 min): se parte en trozos que se leen a la vez,
@@ -741,7 +749,7 @@ def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools
     done = done or {}
     seen = [0]
     lock = threading.Lock()
-    expected = max(1.0, duration / STEP_S)
+    expected = max(1.0, duration / step)
 
     def tick(n_samples: int = 1) -> None:
         with lock:
@@ -756,7 +764,7 @@ def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools
             part = Collected.from_json(box, done[key])
             tick(part.samples)
             return part
-        part = _sample_span(source, item[1], box, cam, tools, should_stop, gpu, tick)
+        part = _sample_span(source, item[1], box, cam, tools, should_stop, gpu, tick, step)
         if part.complete and on_done is not None:
             on_done(key, part)
         return part
@@ -776,6 +784,8 @@ def sample_pass(source: str, box: Box, cam: tuple[int, int] | None, tools: Tools
         out.clock += part.clock
         out.icons += part.icons
         out.champions += part.champions
+        out.hud += part.hud
+        out.hud_text += part.hud_text
         out.gpu = out.gpu or part.gpu
         out.complete = out.complete and part.complete
     return out
@@ -792,18 +802,18 @@ def _spans(duration: float) -> list[tuple[float, float]]:
 
 
 def _sample_span(source: str, span: tuple[float, float], box: Box, cam: tuple[int, int] | None, tools: Tools,
-                 should_stop: Callable[[], bool], gpu: bool, tick: Callable[[], None]) -> Collected:
+                 should_stop: Callable[[], bool], gpu: bool, tick: Callable[[], None], step: float = STEP_S) -> Collected:
     start, end = span
     part = Collected(box, (0, 0))
     reader = Frames(source, threads=1, gpu=gpu)
     part.gpu = reader.gpu
     last = -1
     try:
-        for t, frame in reader.every(STEP_S, start):
-            # Cada frame a su hueco de 2 s, y un hueco solo una vez: con frames de tiempo irregular (vídeos con
+        for t, frame in reader.every(step, start):
+            # Cada frame a su hueco de ``step`` s, y un hueco solo una vez: con frames de tiempo irregular (vídeos con
             # fotogramas perdidos) dos lecturas seguidas caían en el mismo segundo.
-            slot = round(t / STEP_S)
-            at = round(slot * STEP_S, 1)
+            slot = round(t / step)
+            at = round(slot * step, 1)
             if at >= end:
                 break
             if part.samples % 30 == 0 and should_stop():
@@ -842,6 +852,13 @@ def _analyze(frame: np.ndarray, t: float, i: int, box: Box, cam: tuple[int, int]
         found = [[*box.to_game(u, v), team] for u, v, team in ring_icons(minimap)]
         if found:
             part["icons"] = [t, found]
+    if tools.hud is not None and tools.hud_layout is not None:  # lo que no sea HUD de jugador se aparta al resumir
+        part["hud"] = [t, *tools.hud.read(frame, tools.hud_layout)]
+        if i % tools.text_every == 0:
+            try:
+                part["hud_text"] = [t, *tools.hud.read_text(frame, tools.hud_layout, GenericClock._engine())]
+            except Exception:  # noqa: BLE001 - sin OCR, quedan las barras y los estados
+                pass
     return part
 
 
@@ -855,7 +872,8 @@ def _champion(frame: np.ndarray, t: float, tools: Tools) -> list | None:
 
 def _merge(out: Collected, part: dict) -> None:
     """Las muestras se juntan en el orden en que se leyeron (los hilos pueden acabar desordenados)."""
-    for key, target in (("camera", out.camera), ("clock", out.clock), ("icons", out.icons), ("champion", out.champions)):
+    for key, target in (("camera", out.camera), ("clock", out.clock), ("icons", out.icons), ("champion", out.champions),
+                        ("hud", out.hud), ("hud_text", out.hud_text)):
         if key in part:
             target.append(part[key])
 
@@ -935,7 +953,7 @@ def _follows(a: list, b: list) -> bool:
 
 
 def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict | None, clock_ok: bool, method: str,
-              hud: str | None = None, champions: list[dict] | None = None) -> dict:
+              hud: str | None = None, champions: list[dict] | None = None, step: float = STEP_S) -> dict:
     tramos = segments(collected.present)
     in_game = sum(b - a for a, b in tramos)
     clock, odd = clean_clock(collected.clock)
@@ -943,7 +961,7 @@ def summarize(collected: Collected, cam: tuple[int, int] | None, champion: dict 
         "partida": bool(tramos),
         "metodo": method,
         "hud": hud,  # «jugador» (su partida) o «espectador» (retransmisión o repetición); None si no se supo
-        "muestra_s": STEP_S,
+        "muestra_s": step,
         "muestras": collected.samples,
         "segundos_con_partida": round(in_game),
         "minimapa": collected.box.public(collected.shape),

@@ -40,10 +40,11 @@ STARTUP_CHECK_S = 4  # si ffmpeg muere antes, esa forma de capturar no vale en e
 STOP_WAIT_S = 15
 MAX_PENDING_VIDEOS = 20  # vídeos sin analizar como mucho (si el análisis no puede ir, no se llena el disco)
 MAX_TRIES = 3  # intentos de análisis con error antes de borrar el vídeo
+STEP_S = 1.0  # una muestra por segundo (el doble que los vídeos de YouTube: el vídeo se borra después)
 MIN_VIDEO_S = 120  # menos que esto (remake, cierre en la carga) no se analiza
 META_ENABLED = "recorder:enabled"
 META_METHOD = "recorder:method"
-VERSION = 1
+VERSION = 2  # 2: HUD (vida, recurso, habilidades, invocadores, oro) y una muestra por segundo
 
 
 def _encoders(nvidia: bool) -> list[tuple[str, list[str]]]:
@@ -300,11 +301,13 @@ class GameRecorder:
                 return phase in IN_GAME  # vuelves a jugar: se deja para después (y se graba la nueva)
 
             out = analyze_file(self.root / rec["fichero"], float(rec["duracion"]), tools, "grabación", should_stop,
-                               progress, videos._champ_name)
+                               progress, videos._champ_name, step=STEP_S)
             if out is None:
                 return
-            rec.update(frames=out, vistazos=glances(out), estado="analizada" if out.get("partida") else "sin partida",
-                       version=VERSION, analizada=time.time())
+            from app.videos.hud import habits
+
+            rec.update(frames=out, vistazos=glances(out), habitos=habits(out.get("hud_datos")),
+                       estado="analizada" if out.get("partida") else "sin partida", version=VERSION, analizada=time.time())
             self._drop_video(rec)
             self._save(rec["nombre"], rec)
             log.info("Grabación: %s analizada (%s); borrado el vídeo, quedan los datos.", rec["nombre"], rec["estado"])
