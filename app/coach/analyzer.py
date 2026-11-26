@@ -85,7 +85,9 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 # 14: posiciones reconstruidas (vuelta a base con su canalización en vez de cruzar el mapa andando, saltos imposibles
 #     andando = teletransporte, quien hizo o recibió daño en cada muerte y las kills especiales) y movimiento de los 10
 #     jugadores cada 5 s (línea, río, junglas, base; agrupado o solo en una línea lateral pasado el 14).
-ANALYSIS_VERSION = 15  # 15: reconstrucción de recorridos comprobada con tu partida grabada (26-11-2026)
+# 14 hasta la 16: la reconstrucción nueva (comprobada con tu partida grabada, 26-11-2026) entra sin re-analizar lo
+# guardado, porque esos datos se borrarán para empezar de cero con la 16 (fichas de campeón incluidas).
+ANALYSIS_VERSION = 14
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
