@@ -6,6 +6,7 @@ import { api } from "../api.js";
 import { learnBox, learnCatalog, learnForTags } from "../components/learn.js";
 import { createReplay, SEV_LABEL } from "../components/replay.js";
 import { trackPos } from "../components/minimap.js";
+import { recordingsSection } from "../components/recordings.js";
 import { localReplayIds, roflSection } from "../components/rofl.js";
 import { dd, loadJSON, ROLE_LABEL, save, TIER_LABEL } from "../state.js";
 import { champImg, champText, collapsible, debounce, empty, errorBox, fmt, h, icon, kpi, latest, loading, mount, notice, roleIcon, select, toast } from "../ui.js";
@@ -133,6 +134,7 @@ async function renderList(container) {
       h("div", h("h2", "Tus repeticiones"), h("p", "Cada partida reconstruida en 2D con el timeline de Riot y tus errores marcados en la línea de tiempo: pulsa una para verla, error a error.")),
     ),
     h("div", { style: { marginBottom: "14px" } }, roflSection()),
+    h("div", { style: { marginBottom: "14px" } }, recordingsSection()),
     body,
   );
   mount(body, loading("Cargando tus partidas…"));

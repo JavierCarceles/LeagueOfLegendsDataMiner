@@ -427,49 +427,13 @@ class VideoCollector:
         return result
 
     def _full_pass(self, path: Path, duration: float, tools, method: str, ckpt: Checkpoint | None = None) -> dict | None:
-        from app.videos import frames as vf
-
         self._step_label("frames: calibrando minimapa, reloj y cámara")
-        box, probe_frames = _probe_file(path, duration, tools)
-        if box is None:
-            return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
-        clock_ok = self._pick_clock(tools, probe_frames)
-        self.threads = workers = hardware.threads()  # el 90 % de la CPU libre ahora mismo
-        # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
-        player = [f for f in probe_frames if tools.clock.read(f) is not None]
-        tools.ability_slots, probe_keys = tools.abilities.calibrate(player, workers) if tools.abilities and player else (None, [])
-        cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
-        label = f"frames ({workers} hilos)"
-        self._step_label(label, 0.0)
-        done, on_done = ckpt.frames(f"{path.name}|{box.x},{box.y},{box.size}|{cam}") if ckpt else ({}, None)
-        collected = vf.sample_pass(str(path), box, cam, tools, duration, self._should_stop_frames,
-                                   lambda p: self._step_label(label, p), workers, gpu=hardware.gpu() is not None,
-                                   done=done, on_done=on_done)
-        if self.stop_event.is_set():
-            return None
-        reader = tools.clock_reader
-        keys = probe_keys + [c[1] for c in collected.champions]
-        champion, champions = vf.vote_champion(keys), vf.champion_counts(keys)
-        for item in ([champion] if champion else []) + champions:
-            item["nombre"] = self._champ_name(item["clave"])
-        out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None,
-                           champions)
-        out["habilidades"] = tools.ability_slots.public() if tools.ability_slots else None
-        out["hud_lecturas"] = dict(reader.modes) if reader else {}
-        out["hilos"] = workers
-        out["gpu_decodifica"] = collected.gpu
-        return out
+        out = analyze_file(path, duration, tools, method, self._should_stop_frames, self._step_label, self._champ_name, ckpt,
+                           self._set_threads)
+        return None if self.stop_event.is_set() else out
 
-    @staticmethod
-    def _pick_clock(tools, frames) -> bool:
-        """Escala del HUD para las plantillas y, de plan B, el OCR genérico; ¿se lee el reloj en algún frame?"""
-        from app.videos import frames as vf
-
-        tools.clock.calibrate(frames)
-        tools.clock_reader = vf.ClockReader(tools.clock, vf.GenericClock.create())
-        found = sum(1 for f in frames[:8] if tools.clock_reader.read(f) is not None)
-        tools.clock_reader.modes.clear()  # las de la sonda no cuentan para el HUD del vídeo
-        return found > 0
+    def _set_threads(self, workers: int) -> None:
+        self.threads = workers
 
     def _should_stop_frames(self) -> bool:
         """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar, esperar a que acabe."""
@@ -512,6 +476,10 @@ class VideoCollector:
         return hook
 
     # ------------------------------------------------------------------ herramientas de imagen
+    def frame_tools(self):
+        """Minimapa, reloj y habilidades para leer frames (también las grabaciones de tus partidas)."""
+        return self._tools()
+
     def _tools(self):
         if self.tools is not None:
             return self.tools
@@ -707,6 +675,63 @@ def _clean_temp(older_than_s: float = 600) -> None:
         with contextlib.suppress(OSError):
             if path.is_dir() and now - path.stat().st_mtime > older_than_s:
                 shutil.rmtree(path, ignore_errors=True)
+
+
+def analyze_file(path: Path, duration: float, tools, method: str, should_stop, progress, champ_name,
+                 ckpt: Checkpoint | None = None, on_threads=None) -> dict | None:
+    """Minimapa, reloj, cámara, campeón e iconos de un vídeo de partida ya en disco (de YouTube o grabado aquí).
+
+    ``should_stop()`` se consulta durante la pasada (``True`` = parar); ``progress(texto, fracción)`` informa del avance
+    y ``champ_name(clave)`` da el nombre del campeón. ``None`` si se paró a mitad."""
+    from app.videos import frames as vf
+
+    box, probe_frames = _probe_file(path, duration, tools)
+    if box is None:
+        return {"partida": False, "metodo": method, "probados": vf.PROBE_FRAMES}
+    clock_ok = _pick_clock(tools, probe_frames)
+    workers = hardware.threads()  # el 90 % de la CPU libre ahora mismo
+    if on_threads:
+        on_threads(workers)
+    # El campeón, solo con frames de HUD de jugador (donde el reloj sale con las plantillas)
+    player = [f for f in probe_frames if tools.clock.read(f) is not None]
+    tools.ability_slots, probe_keys = tools.abilities.calibrate(player, workers) if tools.abilities and player else (None, [])
+    cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
+    label = f"frames ({workers} hilos)"
+    progress(label, 0.0)
+    done, on_done = ckpt.frames(f"{path.name}|{box.x},{box.y},{box.size}|{cam}") if ckpt else ({}, None)
+    stopped = [False]
+
+    def stop() -> bool:
+        stopped[0] = stopped[0] or bool(should_stop())
+        return stopped[0]
+
+    collected = vf.sample_pass(str(path), box, cam, tools, duration, stop, lambda p: progress(label, p), workers,
+                               gpu=hardware.gpu() is not None, done=done, on_done=on_done)
+    if stopped[0]:
+        return None
+    reader = tools.clock_reader
+    keys = probe_keys + [c[1] for c in collected.champions]
+    champion, champions = vf.vote_champion(keys), vf.champion_counts(keys)
+    for item in ([champion] if champion else []) + champions:
+        item["nombre"] = champ_name(item["clave"])
+    out = vf.summarize(collected, cam, champion, clock_ok, f"{method} {collected.shape[0]}p", reader.hud if reader else None,
+                       champions)
+    out["habilidades"] = tools.ability_slots.public() if tools.ability_slots else None
+    out["hud_lecturas"] = dict(reader.modes) if reader else {}
+    out["hilos"] = workers
+    out["gpu_decodifica"] = collected.gpu
+    return out
+
+
+def _pick_clock(tools, frames) -> bool:
+    """Escala del HUD para las plantillas y, de plan B, el OCR genérico; ¿se lee el reloj en algún frame?"""
+    from app.videos import frames as vf
+
+    tools.clock.calibrate(frames)
+    tools.clock_reader = vf.ClockReader(tools.clock, vf.GenericClock.create())
+    found = sum(1 for f in frames[:8] if tools.clock_reader.read(f) is not None)
+    tools.clock_reader.modes.clear()  # las de la sonda no cuentan para el HUD del vídeo
+    return found > 0
 
 
 def _probe_file(path: Path, duration: float, tools):
