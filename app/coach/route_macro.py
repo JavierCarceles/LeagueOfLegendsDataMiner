@@ -25,6 +25,7 @@ ROAM_MIN_SAMPLES = 4  # 20 s seguidos fuera
 NEAR = 3_000  # «cerca» de una jugada
 RESPONSE_S = 15  # respuesta: kill o asistencia allí en los 15 s siguientes
 SUPPORT_FAR = 4_000
+SUPPORT_FROM_BASE_MS = 30_000  # roam «al volver de base»: estabas en base en los 30 s antes de salir de la línea
 # Visión (wards puestos: posición del que lo pone en ese momento, sale de su recorrido reconstruido).
 WARD_TYPES = ("YELLOW_TRINKET", "SIGHT_WARD", "CONTROL_WARD", "BLUE_TRINKET")
 OBJECTIVES = ("dragon", "elder", "grubs", "herald", "baron")
@@ -96,6 +97,8 @@ def features(
     out.update(_vision(pos, team, wards, objectives))
     if role == "JUNGLE" and team:
         out.update(early_route(anchors, kills, me, team))
+    if role == "SUPPORT":
+        out.update(_support_roams(pos))
     if role == "SUPPORT" and adc:
         out["rm_adc_alone_deaths"] = _adc_alone_deaths(pos, kills, adc)
     game = macro_habits.Game(
@@ -112,9 +115,9 @@ def _roams(pos, lane: str, kills: list, me: int, cs: list | None, opp_cs: list |
     episodes = _roam_episodes(_away_from_lane(pos, points))
     success, died, cost = _roam_outcomes(episodes, kills, me, cs, opp_cs)
     out: dict = {"rm_roams": len(episodes)}
-    # Adónde vas (el punto más lejos de tu línea): el support de Aspirante sale el doble que el de Platino, pero
-    # sobre todo a otras líneas (0,45 → 1,0) y al río (0,7 → 1,2); el mid de Aspirante va más a otras líneas
-    # (0,6 → 1,2) y menos al río (0,55 → 0,35).
+    # Adónde vas (el punto más lejos de tu línea). Support (25.566 partidas, 26-11-2026): de Hierro-Bronce a Aspirante
+    # sale casi el triple (1,3 → 3,8 roams), a otras líneas 0,42 → 1,72 y al río 0,71 → 1,40. El mid de Aspirante va
+    # más a otras líneas (0,6 → 1,2) y menos al río (0,55 → 0,35).
     dest = {"lane": 0, "river": 0, "own_jg": 0, "enemy_jg": 0}
     for s0, e0 in episodes:
         d = _roam_destination(pos, points, s0, e0, team)
@@ -174,11 +177,50 @@ def _roam_outcomes(episodes: list[tuple[int, int]], kills: list, me: int, cs: li
     return success, died, cost
 
 
-def _roam_destination(pos, points, start: int, end: int, team: int | None) -> str | None:
-    """Zona del punto del roam más lejos de tu línea (``None`` si no hay ninguna posición)."""
+def _far_point(pos, points, start: int, end: int):
+    """Punto del roam más lejos de tu línea (``None`` si no hay ninguna posición)."""
     positions = (p for p in map(pos, range(start, end + 1, STEP_MS)) if p is not None)
     far = max(((p, geo.dist_polyline(p, points)) for p in positions), key=lambda x: x[1], default=None)
-    return None if far is None else _place(far[0], team)
+    return None if far is None else far[0]
+
+
+def _roam_destination(pos, points, start: int, end: int, team: int | None) -> str | None:
+    """Zona del punto del roam más lejos de tu línea (``None`` si no hay ninguna posición)."""
+    far = _far_point(pos, points, start, end)
+    return None if far is None else _place(far, team)
+
+
+def _support_roams(pos) -> dict:
+    """Cómo roamea el support antes del 14 (validado el 26-11-2026 con 25.566 partidas, Hierro-Bronce → Aspirante).
+    Los roams que salen desde la línea, dejando al ADC con la oleada, apenas cambian (0,6-0,8 por partida en todos los
+    elos): lo que separa es aprovechar la vuelta desde base para pasar por mid, el río o la jungla (0,7 → 3,1), ir al
+    lado de arriba (top, el río de arriba, las larvas: 0,17 → 1,25) y salir antes (primer roam, minuto 7,9 → 5,5 de media)."""
+    points, _ = geo.LANES["bot"]
+    episodes = _roam_episodes(_away_from_lane(pos, points))
+    out: dict = {
+        "rm_sup_base_roams": sum(1 for s, _ in episodes if _came_from_base(pos, s)),
+        "rm_sup_top_side": sum(1 for s, e in episodes if _top_side(_far_point(pos, points, s, e))),
+    }
+    if episodes:
+        out["rm_sup_first_roam_min"] = round(episodes[0][0] / 60_000, 1)
+    return out
+
+
+def _came_from_base(pos, start: int) -> bool:
+    """¿Estabas en base en los ``SUPPORT_FROM_BASE_MS`` antes de salir de la línea?"""
+    for t in range(max(0, start - SUPPORT_FROM_BASE_MS), start, STEP_MS):
+        p = pos(t)
+        if p is not None and geo.zone(p).startswith("base"):
+            return True
+    return False
+
+
+def _top_side(p) -> bool:
+    """Lado de arriba del mapa (top, el río de arriba o la jungla de arriba), sin contar mid ni las bases."""
+    if p is None:
+        return False
+    z = geo.zone(p)
+    return z not in ("mid", "bot") and not z.startswith("base") and geo.half_of(p) == "top"
 
 
 def _counter_jungle(pos, kills: list, me: int, enemy_jungler: int) -> dict:
@@ -378,6 +420,7 @@ def from_dossier(d: dict) -> dict:
 KEYS = (
     "jr_full", "jr_three_gank", "jr_kill3", "jr_invade", "jr_start_small",
     "rm_roams", "rm_roam_success_pct", "rm_roam_cs_cost", "rm_counter_near_pct", "rm_counter_pct", "rm_mid_with_jg_pct",
-    "rm_adc_alone_deaths", "rm_roam_lane", "rm_roam_river", "rm_roam_own_jg", "rm_roam_enemy_jg", "rm_wards_pre14",
+    "rm_adc_alone_deaths", "rm_sup_base_roams", "rm_sup_top_side", "rm_sup_first_roam_min",
+    "rm_roam_lane", "rm_roam_river", "rm_roam_own_jg", "rm_roam_enemy_jg", "rm_wards_pre14",
     "rm_ward_lane_pct", "rm_ward_river_pct", "rm_ward_enemy_jg_pct", "rm_ward_enemy_jg10", "rm_pink_obj", "rm_obj_ward_pct",
 ) + macro_habits.KEYS

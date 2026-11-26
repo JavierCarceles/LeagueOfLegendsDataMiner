@@ -116,6 +116,30 @@ Leídas página a página salvo indicación. Mobalytics, nerfplz, Skill Capped y
 
 Cuadra con lo medido en el proyecto el 25-11-2026 con ~48.000 partidas guardadas: supports fuera de bot antes del 14, 23 % en Hierro-Bronce frente a 52 % en Aspirante (la definición es distinta: por minuto y fuera de la zona de bot); junglas con menos minutos sin CS de jungla en elo alto (16,4 % frente a 8,4 %) y más CS por minuto (5,6 frente a 7,5) **y a la vez** más participación en kills. En elo alto no se saltan más campamentos: farmean y juegan a la vez.
 
+**C1b. Roams del support por elo (medido en el proyecto el 26-11-2026; 25.566 partidas de SoloQ y Flex, Hierro-Bronce → Aspirante, roam = 20 s o más fuera de bot antes del 14):**
+
+| Medida | Hie-Bro | Pla-Oro | Plat | Esm | Diam | Maes | Asp |
+|---|---|---|---|---|---|---|---|
+| Roams por partida | 1,33 | 1,56 | 1,82 | 2,06 | 2,14 | 3,49 | 3,84 |
+| Al volver de base | 0,70 | 0,90 | 1,12 | 1,33 | 1,48 | 2,67 | 3,07 |
+| Desde la línea (dejando al ADC) | 0,63 | 0,66 | 0,70 | 0,73 | 0,66 | 0,82 | 0,76 |
+| A otra línea (mid o top) | 0,42 | 0,52 | 0,66 | 0,77 | 0,76 | 1,49 | 1,72 |
+| Al lado de arriba (top, río, larvas) | 0,17 | 0,25 | 0,37 | 0,46 | 0,59 | 1,06 | 1,25 |
+| Primer roam (minuto, media) | 7,9 | 8,0 | 7,6 | 7,4 | 7,2 | 5,8 | 5,5 |
+| Partidas sin ningún roam | 26 % | 20 % | 17 % | 15 % | 13 % | 2,5 % | 1,3 % |
+| Con kill o asistencia | 38 % | 39 % | 40 % | 41 % | 48 % | 44 % | 45 % |
+| El support rival también fuera | 25 % | 27 % | 29 % | 32 % | 41 % | 49 % | 49 % |
+
+- **Lo que separa:** no es dejar más solo al ADC, sino usar cada vuelta desde base para volver por mid, el río o la jungla. El salto grande está entre Diamante y Maestro. Sale igual en cada región (Corea: Diamante 2,1 y Maestro 3,8) y en cada campeón (Yuumi 1,2 → 1,7; Bardo 2,6 → 4,6).
+- **Igual en todos los elos (consejo, no señal de elo):**
+  - Con tu jungla en la jugada, el roam acaba en kill o asistencia el 62-70 % de las veces; sin él, el 16-21 %.
+  - Tu ADC muere en el 12-15 % de tus roams.
+  - Morir en un roam sin conseguir nada baja el winrate 12-20 puntos.
+  - Los roams a top salen mejor que los de mid (73 % frente a 42 % en Aspirante).
+- **Objetivos:** los roams cerca del dragón son ~0,5 por partida en todos los elos. A las larvas van de 0,08 a 0,47.
+- **Medidas que salen en «Mi progreso»:** `rm_sup_base_roams`, `rm_sup_top_side` y `rm_sup_first_roam_min`.
+- **No se usan** (no separan elos): roams tras una kill en bot (8-10 %) y roams con la torre de bot caída (3-5 %).
+
 **C2. Frontiers 2026 [FR]** (52.704 partidas de EUW; el resumen dice «más de 35.000»). Por equipo y minuto:
 - Los rangos altos **no** pelean más ni cogen más objetivos por minuto (η² ≤ 0,002): no usar «kills por minuto» ni «objetivos por minuto» como señal de elo.
 - Lo que más separa son los pings (η² = 0,244) y un índice de visión (η² = 0,107). Después vienen, con efecto pequeño pero constante, el movimiento total (η² = 0,021: distancia entre las posiciones de cada minuto) y las rotaciones (η² = 0,020).
