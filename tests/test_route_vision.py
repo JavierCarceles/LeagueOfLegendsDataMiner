@@ -72,3 +72,20 @@ def test_lo_que_los_mejores_hacen_mas_pesa_menos_que_lo_que_no_separa():
     assert solo["flat"] and not solo["rises"]
     iso = insights.separation(tiers, "death_isolated")
     assert not iso["flat"] and not iso["rises"]
+
+
+def test_el_support_que_roamea_al_volver_de_base_y_al_lado_de_arriba():
+    bot, base = (12500, 2500), (1000, 1000)
+    # Sale de la línea (al río de abajo), vuelve, va a base y al salir pasa por el río de arriba antes de volver a bot.
+    path = [bot] * 12 + [(9800, 4400)] * 6 + [bot] * 12 + [base] * 4 + [(5000, 9500)] * 6 + [bot] * 120
+    out = route_macro.features(_anchors(path), [], [], me=5, role="SUPPORT", team=100, wards=[], objectives=[])
+    assert out["rm_roams"] == 2
+    assert out["rm_sup_base_roams"] == 1
+    assert out["rm_sup_top_side"] == 1
+    assert out["rm_sup_first_roam_min"] == 2.5
+
+
+def test_el_support_que_no_sale_no_tiene_primer_roam():
+    out = route_macro.features(_anchors([(12500, 2500)] * 160), [], [], me=5, role="SUPPORT", team=100, wards=[], objectives=[])
+    assert out["rm_sup_base_roams"] == 0 and out["rm_sup_top_side"] == 0
+    assert "rm_sup_first_roam_min" not in out

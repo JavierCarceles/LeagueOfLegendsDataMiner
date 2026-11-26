@@ -1061,6 +1061,11 @@ ROUTE_ROWS = [
     ("rm_roam_river", "Salidas al río (visión, cangrejo, ayudar a tu jungla)", ("MID", "SUPPORT"), ""),
     ("rm_roam_own_jg", "Visitas a tu jungla (ayudar a tu jungla, wards)", ("MID", "SUPPORT"), ""),
     ("rm_roam_enemy_jg", "Entradas en la jungla rival", ("SUPPORT",), ""),
+    # Support (validado el 26-11-2026 con 25.566 partidas): los roams desde la línea no cambian con el elo (0,6-0,8);
+    # los de la vuelta desde base, el lado de arriba y salir antes, sí.
+    ("rm_sup_base_roams", "Roams al volver de base (por mid, el río o la jungla, antes del 14)", ("SUPPORT",), ""),
+    ("rm_sup_top_side", "Roams al lado de arriba (top, el río de arriba, las larvas)", ("SUPPORT",), ""),
+    ("rm_sup_first_roam_min", "Minuto de tu primer roam", ("SUPPORT",), ""),
     # Visión útil: para los objetivos y para seguir al jungla rival.
     ("rm_wards_pre14", "Wards antes del 14", ("JUNGLE", "SUPPORT"), ""),
     ("rm_obj_ward_pct", "Objetivos con un ward tuyo cerca en los 2 min previos", ("SUPPORT",), "%"),
