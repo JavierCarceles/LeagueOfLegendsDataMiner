@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import bisect
 import math
-from collections import Counter
+from collections import Counter, defaultdict
 from itertools import permutations
 
 from app.coach import clocks as clk
@@ -545,11 +545,38 @@ class _Game:
                 "victim": victim,
                 "damagers": damagers - {victim},
                 "assists": [_num(a) for a in e.get("assistingParticipantIds") or []],
+                "far": self._far_takers(e, victim),
                 "pos": _pos(e),
                 "value": max(300, min(1000, bounty)) if bounty else 300,
                 "shutdown": _num(e.get("shutdownBounty")),  # recompensa extra por la racha de la víctima
             }
         )
+
+    def _far_takers(self, e: dict, victim: int) -> set[int]:
+        """Quien participó en la kill solo con habilidades de alcance enorme (R de Jinx, Ezreal o Karthus; curación o
+        escudo global como la R de Soraka o de Shen): no estaba donde murió la víctima. Sale de las fichas de campeón
+        (``fichas.far_reach``); sin ellas, nadie."""
+        from app.coach import fichas
+
+        reach = fichas.far_reach()
+        if not reach:
+            return set()
+        slots: dict[int, set[int]] = defaultdict(set)
+        for d in e.get("victimDamageReceived") or []:
+            if (d.get("type") or "OTHER") == "OTHER":
+                slots[_num(d.get("participantId"))].add(_num(d.get("spellSlot"), -1))
+        takers = {_num(e.get("killerId")), *(_num(a) for a in e.get("assistingParticipantIds") or [])}
+        out = set()
+        for pid in (takers | set(slots)) - {victim}:
+            far = reach.get(self.players[pid]["champ"]) if pid in self.players else None
+            if not far:
+                continue
+            used = slots.get(pid)
+            if used and used <= set(far):  # todo su daño, con esas habilidades
+                out.add(pid)
+            elif not used and pid in takers and any(kind in ("curacion", "escudo") for kind in far.values()):
+                out.add(pid)  # asistencia sin daño de quien cura o protege desde lejos
+        return out
 
     def _on_special_kill(self, e: dict, t: int) -> None:
         """CHAMPION_SPECIAL_KILL: otra posición exacta de quien mató."""
@@ -786,11 +813,13 @@ class _Game:
                 _add_anchor(anchors, pid, end, fountain, 2)
 
     def _kill_anchors(self, anchors: dict[int, list]) -> None:
-        """Puntos de paso de las kills: quien mató o asistió y quien hizo o recibió daño (a distancia de combate)."""
+        """Puntos de paso de las kills: quien mató o asistió y quien hizo o recibió daño (a distancia de combate). Quien
+        solo participó desde lejos (``far``: la R de Jinx desde su base) no se coloca donde murió la víctima."""
         for k in self.kills:
-            self._taker_anchors(anchors, k["t"], (k["killer"], *k["assists"]), k["pos"])
+            far = k.get("far") or set()
+            self._taker_anchors(anchors, k["t"], [p for p in (k["killer"], *k["assists"]) if p not in far], k["pos"])
             for pid in k.get("damagers") or ():
-                if pid not in (k["killer"], *k["assists"]) and not self.is_dead(pid, k["t"]):
+                if pid not in (k["killer"], *k["assists"]) and pid not in far and not self.is_dead(pid, k["t"]):
                     _add_anchor(anchors, pid, k["t"], k["pos"], 5)
 
     def _event_anchors(self, anchors: dict[int, list]) -> None:

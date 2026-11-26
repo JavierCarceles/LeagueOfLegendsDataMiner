@@ -1,0 +1,422 @@
+{
+ "clave": "Taric",
+ "nombre": "Taric",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.961,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support tanque cuerpo a cuerpo de ciclo habilidad-ataque-ataque (pasiva Bravado) que aturde desde sí mismo y desde el aliado enlazado, cura en área y hace invulnerable a su equipo con la R; picos en nivel 2 (doble E), 6 y Medallón de los Solari de Hierro",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Muy fuerte en el 2v2 cuerpo a cuerpo con un tirador agresivo: a nivel 2 con la W enlazada su E sale doble y a nivel 6 la invulnerabilidad permite dives bajo torre. En la fase media (Medallón, Promesa de caballero) decide peleas de objetivo con la R. En la tardía sigue siendo valioso, pero su R se ve venir (2,5 s) y los equipos de poke o de mucho alcance lo esquivan; en los OTPs del programa gana el 61 % de las partidas de menos de 20 min y el 42 % de las de más de 35."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (mediana 1:47 en OTPs, p25-p75 1:41-1:56)",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "E a nivel 1 y W o Q a nivel 2. Con la W enlazada al tirador, la E (aturdimiento 1,5 s tras 1 s de carga) sale desde los dos: dos rayos son difíciles de esquivar en una línea estrecha. Cada habilidad le da 2 ataques rápidos con daño mágico extra y reducción de enfriamientos."
+  },
+  {
+   "cuando": "Nivel 3 (~2:47) con Q-W-E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Bucle completo: habilidad → 2 ataques potenciados (cada uno baja 1-2 s los enfriamientos de Q/W/E y da una carga de Q) → otra habilidad. En intercambios largos aturde, cura y escuda más que casi cualquier support."
+  },
+  {
+   "cuando": "Nivel 6 (mediana 8:37 en OTPs)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Cosmic Radiance (R, 180 s): 2,5 s después de lanzarla, él y los aliados cercanos (a él o al enlazado) son invulnerables 2,5 s. Permite dives bajo torre y all-ins 2v2 en los que el rival no puede matar a nadie."
+  },
+  {
+   "cuando": "Medallón de los Solari de Hierro (mediana 13:24 en OTPs; primer objeto del 56 %)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Medallón de los Solari de Hierro",
+   "por_que": "Escudo en área que se suma a su R, su W y su Q: en las peleas de dragón y larvas su equipo aguanta el primer combo rival. Alternativas como primer objeto: Guantelete de hielo (16 %) para más ataques potenciados y ralentización, o Convergencia de Zeke (8 %)."
+  },
+  {
+   "cuando": "Segundo objeto (~21:50): Promesa de caballero o Llegada del invierno (El gran invierno), R a rango 2 en el 11",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Promesa de caballero",
+   "por_que": "Con armadura adicional su E (+50 % de armadura adicional) y su pasiva (+15 %) pegan más, y la R baja a 150 s. Promesa de caballero protege al carry; El gran invierno le da escudos al aturdir."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Bravado: cada vez que lanza una habilidad, sus 2 siguientes ataques en 5 s ganan un 100 % de velocidad de ataque, hacen 25-101 (según nivel) +15 % de armadura adicional de daño mágico y cada uno reduce 1-2 s el enfriamiento de Q, W y E. Cada ataque potenciado da además una carga de Q. Su juego es habilidad-ataque-ataque, una y otra vez.",
+  "Q": "Starlight's Touch: consume todas sus cargas para curar a él y a los aliados en 325 u (también alrededor del aliado enlazado) 25 (+15 % AP) (+1 % de su vida máxima) por carga. Cargas máximas = rango de la Q (1 a 5); gana 1 cada 15 s y 1 por ataque potenciado. A 5 cargas cura 125 (+75 % AP) (+5 % de vida máxima). Enfriamiento 3 s, 60 de maná: usarla con pocas cargas sirve sobre todo para activar la pasiva.",
+  "W": "Bastion: pasiva, él y el aliado enlazado ganan un 6-10 % de la armadura de Taric. Activa (800 u, enfriamiento 15 s, 60 de maná): escudo del 7-11 % de la vida máxima del aliado durante 2,5 s y lo enlaza mientras estén a menos de 1300 u. Mientras dure el enlace, todas sus habilidades (Q, E y R) salen también desde el aliado. Puede lanzarla sobre sí mismo.",
+  "E": "Dazzle: rayo de 575-610 u (ancho 140) que estalla tras 1 s: 90-250 (+50 % AP) (+50 % de armadura adicional) de daño mágico y aturde 1,5 s. Sale a la vez desde Taric y desde el aliado enlazado, así que el rival tiene que esquivar dos rayos. Enfriamiento 16/15/14/13/12 s (menos con la pasiva), 40 de maná.",
+  "R": "Cosmic Radiance: tras 2,5 s, Taric y los campeones aliados en 400 u de él (y del aliado enlazado) son invulnerables 2,5 s. Se ve venir: el rival puede esperar o separarse. Desde el 26.21 la Q, la E y la R funcionan también si el aliado es intocable. Enfriamiento 180/150/120 s, 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E siempre a nivel 1. En los OTPs del programa: E-Q-W 52 %, E-W-Q 25 % (W a nivel 2 para la doble E con el tirador en un all-in) y E-Q-Q 23 %; maximiza E > Q > W en el 73 % (Lolalytics y OP.GG 16.23 igual) y Q > E > W en el 11 % (más curación). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno: no tiene saltos ni dashes; solo Destello y la velocidad de las botas u objetos. El enlace de la W (hasta 1300 u) hace que sus habilidades salgan desde otro sitio, pero él no se mueve.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Bravado: cada habilidad le da 2 ataques rápidos que reducen 1-2 s los enfriamientos y dan cargas de Q; con velocidad de habilidades encadena aturdimientos y curas mucho más rápido que lo que dicen sus enfriamientos.",
+  "Enlace de la W: mientras el aliado está a menos de 1300 u, la Q, la E y la R salen también desde ese aliado. Con un jungla o un asesino enlazado, el aturdimiento sale desde donde está el aliado, no desde Taric.",
+  "R de invulnerabilidad en área con 2,5 s de retardo y 2,5 s de duración: anula el burst de una pelea si se lanza antes de que llegue el daño; si se lanza tarde, no salva a nadie.",
+  "Escala con armadura: la E hace +50 % de su armadura adicional y la pasiva +15 %; compra tanques con armadura y velocidad de habilidades.",
+  "Cura en área por cargas (hasta 5): la Q con 5 cargas cura 125 + 5 % de su vida máxima a todos los cercanos; con pocas cargas se usa solo para activar la pasiva."
+ ],
+ "combos": [
+  "Nivel 2 con el tirador: W al tirador → E (sale de los dos) → AA → AA (pasiva) → Q o W → AA → AA; la E vuelve casi enseguida gracias a la pasiva.",
+  "Bucle de intercambio: cualquier habilidad → 2 ataques potenciados → siguiente habilidad; nunca encadenar habilidades sin atacar entre medias.",
+  "Dive de nivel 6: entrar con el tirador bajo torre → R nada más entrar (2,5 s de carga) → E y ataques → la invulnerabilidad cubre la salida.",
+  "Gank con el jungla: W al jungla → el jungla entra → E desde los dos lados → Q para curar a ambos.",
+  "Pelea de equipo: W al iniciador o al carry más amenazado → R en cuanto la pelea es segura (no esperar a que caiga el daño) → E desde los dos → ataques potenciados → Q.",
+  "Sorpresa: Destello + E para aturdir a un rival que se cree fuera de alcance."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Trineo del solsticio",
+   "Detracción celestial",
+   "Tejesueños",
+   "Medallón de los Solari de Hierro",
+   "Lágrima de la diosa",
+   "Llegada del invierno",
+   "El gran invierno",
+   "Promesa de caballero",
+   "Guantelete de hielo",
+   "Convergencia de Zeke",
+   "Bandlemusa",
+   "Corazón de hielo",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Mejora glacial (65-67 %) + Calzado mágico + Entrega de galletas + Perspicacia cósmica; secundaria Valor con Condicionamiento y Revitalizar (o Fuente de vida / Revestimiento de huesos); fragmentos velocidad de ataque y vida ×2 (OP.GG 16.23). Alternativas: Protector (22 % en los OTPs) con Valor primario, o Garras del inmortal con Precisión.",
+  "hechizos": [
+   "Destello",
+   "Curar",
+   "Prender",
+   "Agotamiento"
+  ],
+  "nota": "Atlas mundial + 2 pociones; el objeto de support se mejora solo (400 de oro → Brújula rúnica, 800 → Botín universal) y elige Trineo del solsticio (35 %), Detracción celestial (27 %) o Tejesueños. En la primera vuelta muchos compran Lágrima de la diosa (62 % de los OTPs) para Llegada del invierno, que se transforma sola en El gran invierno. Primer objeto: Medallón de los Solari de Hierro (56 %), Guantelete de hielo o Convergencia de Zeke; luego Promesa de caballero, Llegada del invierno, Bandlemusa o Corazón de hielo (Redención o Bendición de Mikael según el rival). Botas: blindadas (46 % en OP.GG) contra AD, de mercurio contra AP y control, jonias para más velocidad de habilidades. Hechizos: Destello + Curar (51 % en OTPs), + Prender (32 %) o + Agotamiento (16-37 %) contra asesinos."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "E a nivel 1 (amenaza de aturdimiento) y nivel 2 hacia la 1:47. Si sube W a nivel 2 (25 % de los OTPs) enlaza al tirador y busca el all-in con doble E en cuanto el rival entra a rematar; con Q a nivel 2 (52 %) juega intercambios cortos y aguanta mejor el poke. Contra supports que se alejan (Senna, Soraka, Nami) no fuerza el nivel 2.",
+    "tradeos": "Cuerpo a cuerpo con el bucle de la pasiva: E (o Q) → 2 ataques → otra habilidad. Entra cuando el tirador rival va a rematar o cuando el support rival gasta su control; escuda al tirador con la W en cuanto lo atacan. La Q a nivel bajo solo tiene 1-2 cargas: mejor usarla como activador de la pasiva que como curación.",
+    "oleadas": "No limpia la oleada: deja que su tirador empuje para el nivel 2 y para pelear con ventaja de súbditos. Pega a los súbditos con los ataques potenciados cuando no hay intercambio para acumular cargas de Q. A nivel 6 prefiere oleadas grandes junto a la torre rival para el dive con R.",
+    "con_que_adcs": [
+     "Draven",
+     "Lucian",
+     "Kog'Maw",
+     "Jinx",
+     "Samira",
+     "Kalista",
+     "Vayne"
+    ],
+    "sufre_contra": [
+     "Senna",
+     "Soraka",
+     "Nami",
+     "Sona",
+     "Vel'Koz",
+     "Elise",
+     "Shaco",
+     "Sylas"
+    ]
+   },
+   "roameos": "Roamea poco en línea pero sí con el jungla: en los OTPs, el 47 % de las partidas tiene una kill o asistencia en otra línea antes del 14 (la primera hacia el 8:55) y el 13 % de sus participaciones antes del 14 son en mid. Lo típico es acompañar al jungla a mid o a la escuttle tras una vuelta (6-10 min), enlazarlo con la W y aturdir desde los dos.",
+   "vision": "Mucha: en los OTPs pone una mediana de 9 guardianes y 4 de control antes del 14 (2,5 de visión por minuto). Usa las cargas del objeto de support en el río y el arbusto tribu, guardián de control en el arbusto del río y Lente del oráculo tras completar el objeto de support para limpiar la entrada de dragón.",
+   "fase_media": "Se pega al carry o al iniciador principal (enlace W), prepara los dragones con visión y usa la R al empezar la pelea. Con el jungla o un asesino enlazado busca picks en la niebla: el aturdimiento sale desde el aliado.",
+   "matchups_dificiles": [
+    "Senna",
+    "Soraka",
+    "Nami",
+    "Sona",
+    "Vel'Koz",
+    "Elise",
+    "Shaco",
+    "Sylas",
+    "Shen"
+   ],
+   "matchups_faciles": [
+    "Xerath",
+    "Neeko",
+    "Karma",
+    "Ashe",
+    "Swain",
+    "Nautilus",
+    "Blitzcrank",
+    "Tahm Kench",
+    "Pantheon"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Peeler y potenciador de iniciaciones: doble aturdimiento, curación en área y la R de invulnerabilidad que anula el combo rival.",
+  "como_entrar": "Enlaza (W) al iniciador o al asesino aliado y entra detrás de él; R en cuanto la pelea es segura (2,5 s antes del daño fuerte), E desde los dos puntos y ataques potenciados para recargar. Contra un dive rival se queda junto a su carry y responde con E y R.",
+  "objetivo": "El rival que se lanza sobre su carry (aturdirlo) o el carry rival al que llega el aliado enlazado.",
+  "posicion": "Entre su primera línea y su carry, a menos de 400 u del mayor número de aliados para que la R cubra a todos; nunca solo en primera línea sin la R."
+ },
+ "macro": {
+  "split_push": "No: pasa casi todo el final de partida con el grupo (mediana 0 % solo en una lateral en OTPs).",
+  "objetivos": "No los hace solo. En dragón, larvas y Barón aporta visión previa y la R para ganar la pelea del objetivo; con prioridad en bot empuja al dragón con su tirador desde las 5:00.",
+  "plan_de_partida": "Línea: ganar el 2v2 con la doble E y la pasiva; a nivel 6 dives con R. Fase media: Medallón, visión en el río y R en las peleas de dragón y larvas; enlazar al jungla para picks. Tardía: proteger al carry, guardar la R para la pelea decisiva y no entrar sin ella."
+ },
+ "debilidades": [
+  "Sin desplazamientos: los supports y tiradores de rango largo (Senna, Soraka, Nami, Sona, Vel'Koz) le pegan sin que pueda llegar.",
+  "La E tarda 1 s en estallar y se esquiva fácilmente si no sale también desde el aliado enlazado.",
+  "La R tarda 2,5 s: el rival puede esperar fuera y volver a entrar cuando acaba; mal sincronizada no salva a nadie.",
+  "Poco daño propio: depende de que su tirador o su jungla aprovechen el aturdimiento.",
+  "Gasta mucho maná al principio (Q y W cuestan 60): sin Lágrima o Entrega de galletas se queda seco en líneas de poke."
+ ],
+ "contrarrestado_por": [
+  "Senna",
+  "Soraka",
+  "Nami",
+  "Sona",
+  "Vel'Koz",
+  "Elise",
+  "Shaco",
+  "Sylas",
+  "Shen"
+ ],
+ "bueno_contra": [
+  "Xerath",
+  "Neeko",
+  "Karma",
+  "Ashe",
+  "Swain",
+  "Nautilus",
+  "Blitzcrank",
+  "Tahm Kench",
+  "Pantheon"
+ ],
+ "sinergias": [
+  "Draven",
+  "Kog'Maw",
+  "Jinx",
+  "Lucian",
+  "Samira",
+  "Master Yi",
+  "Jax"
+ ],
+ "errores_comunes": [
+  "Encadenar habilidades sin los 2 ataques de la pasiva: pierde la reducción de enfriamientos y las cargas de Q.",
+  "Lanzar la R tarde, cuando el burst ya ha caído (necesita 2,5 s de antelación).",
+  "Tirar la E solo, a media distancia y sin enlace: se esquiva con un paso lateral.",
+  "Dejar el enlace en el tirador cuando quien entra es el jungla o el luchador (o al revés), o no volver a enlazar tras romperse.",
+  "Gastar la Q con 1 carga para curar poco cuando faltaba maná para la E.",
+  "Forzar intercambios contra supports de poke de rango largo en vez de esperar al jungla.",
+  "Ir al río sin visión ni Destello: sin desplazamientos, una emboscada le mata."
+ ],
+ "senales_reconstructor": [
+  "Rol: support en el 96 % de las partidas (jungla 2 %, top 1 %).",
+  "Orden: E a nivel 1 en el 100 % de los OTPs; W a nivel 2 en el 25 % (all-in de doble E) y Q en el 52 %; maximiza E > Q > W. Kills o Destellos en bot hacia la 1:45-2:15 con Taric presente son el all-in de nivel 2.",
+  "Invulnerabilidad (R): aliados con muy poca vida que sobreviven 2,5 s bajo torre o en una pelea, y daño rival que no mata a nadie; dives bajo torre con Taric desde el nivel 6 (mediana 8:37) son su plan, no un error.",
+  "El aturdimiento sale también desde el aliado enlazado (hasta 1300 u de Taric): un rival aturdido lejos de Taric, junto al jungla o el tirador aliado, es normal.",
+  "Sin movilidad: no salta muros ni tiene dashes; solo Destello. Sus posiciones deben ser continuas; un salto grande solo puede ser Destello o muerte.",
+  "Objetos (OTPs del programa, 279 partidas sobre todo Maestro-Gran Maestro): primera vuelta mediana 4:06 (p25 3:12, p75 5:36) con Lágrima de la diosa (62 %) y guardián de control (43 %); el objeto de support se mejora solo (Brújula rúnica a los 400 de oro, Botín universal a los 800) y luego aparece Trineo del solsticio, Detracción celestial o Tejesueños; primer objeto hacia el 13:24 (Medallón 56 %, Guantelete de hielo 16 %, Convergencia de Zeke 8 %) y segundo hacia el 21:50 (Promesa de caballero o Llegada del invierno, que se transforma sola en El gran invierno).",
+  "Visión alta: mediana de 9 guardianes y 4 de control antes del 14 y 2,5 de visión por minuto; menos de 5 guardianes antes del 14 es poco para él.",
+  "Roameo moderado con el jungla: el 47 % de las partidas tiene una kill o asistencia en otra línea antes del 14 (primera hacia el 8:55); el 66 % de sus participaciones tempranas son en bot.",
+  "Participación en kills muy alta (mediana 60 %) con muy poco daño propio (~7 % del equipo) y casi ninguna kill en solitario: las kills de su equipo cerca de Taric suelen llevar su aturdimiento.",
+  "Nivel 9 hacia el 16:30 y R a rango 2 (nivel 11) hacia el 21:45: antes de eso su R tarda 180 s en volver; peleas de objetivo justo después de usarla suelen salir mal para su equipo."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/taric/build/",
+  "https://www.op.gg/lol/champions/taric/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Taric",
+  "https://www.dodge.gg/en-US/lol/news/taric-build-2026",
+  "https://turbosmurfs.gg/?p=9103",
+  "https://wiki.leagueoflegends.com/en-us/Runic_Compass",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json y item.json)",
+  "Partidas de OTPs de Taric del programa (data/otps/Taric: 279 de support, sobre todo Maestro-Gran Maestro, parches 16.10-16.23)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "SUPPORT": {
+    "partidas": 206,
+    "victorias": 0.568,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 45,
+      "victorias": 0.667
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 59,
+      "victorias": 0.525
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 68,
+      "victorias": 0.515
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 4.0,
+     "p75": 5.7
+    },
+    "primer_objeto_min": {
+     "p25": 11.5,
+     "mediana": 12.9,
+     "p75": 14.3
+    },
+    "segundo_objeto_min": {
+     "p25": 19.5,
+     "mediana": 21.2,
+     "p75": 23.1
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.7
+     ],
+     [
+      "Convergencia de Zeke",
+      0.12
+     ],
+     [
+      "Promesa de caballero",
+      0.07
+     ],
+     [
+      "Bandlemusa",
+      0.06
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWQEREEE",
+      0.41
+     ],
+     [
+      "EQQWEREEE",
+      0.2
+     ],
+     [
+      "EQWQQRQEE",
+      0.16
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.69
+     ],
+     [
+      "EWQ",
+      0.15
+     ],
+     [
+      "QEW",
+      0.13
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 51.6,
+     "mediana": 61.5,
+     "p75": 70.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 4.8,
+     "mediana": 6.3,
+     "p75": 8.1
+    },
+    "vision_por_min": {
+     "p25": 2.3,
+     "mediana": 2.82,
+     "p75": 3.25
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.13,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.8
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 32.2,
+     "mediana": 42.5,
+     "p75": 53.7
+    },
+    "cs_10": {
+     "p25": 14.0,
+     "mediana": 17.0,
+     "p75": 20.0
+    },
+    "dif_cs_10": {
+     "p25": 0.0,
+     "mediana": 4.0,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -255.0,
+     "mediana": 69.0,
+     "p75": 392.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 6.0,
+     "p75": 11.8
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 6.5,
+     "p75": 12.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 13.7,
+     "p75": 19.0
+    },
+    "wards_antes_14": {
+     "p25": 8.0,
+     "mediana": 9.0,
+     "p75": 11.0
+    },
+    "pinks": {
+     "p25": 6.0,
+     "mediana": 9.0,
+     "p75": 13.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.12-16.23"
+   }
+  }
+ }
+}

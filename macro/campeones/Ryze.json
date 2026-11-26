@@ -1,0 +1,478 @@
+{
+ "clave": "Ryze",
+ "nombre": "Ryze",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.76,
+   "principal": true
+  }
+ ],
+ "arquetipo": "mago de batalla de daño sostenido y rango medio (615-1000 u) que escala con maná (Lágrima → Vara de las edades → Arcángel/Serafín → Actualizador): flojo antes de 2 objetos, fuerte en la fase media-tardía, con split push y teletransporte de equipo con la R (3000 u)",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 4,
+  "tardia": 4,
+  "nota": "Antes de la Vara de las edades (~10 min) tiene poco daño, mucho gasto de maná y alcance corto para un mago (W y E a 615 u): sufre contra asesinos y magos de ráfaga. Desde nivel 6 (la R sube el daño de la Q contra marcados de +10 % a +40 %) y sobre todo con Vara + Arcángel (~17 min) gana tradeos largos, limpia oleadas en segundos y domina las laterales. En la tardía es de los magos de DPS sostenido más fuertes en peleas largas, aunque su alcance corto le obliga a acercarse. En Esmeralda+ del 16.23 tiene 47-48 % de victorias; 76 % de sus partidas son en mid y 22.5 % en top (por debajo del 25 %, no entra como segundo rol)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 6 (~5:10): Realm Warp",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R sube pasivamente el daño extra de la Q contra objetivos con Flujo de +10 % a +40 % (70 % a nivel 11 y 100 % a nivel 16), así que su tradeo E-Q-W-Q pega mucho más; además le da el portal de 3000 u para roamear a una línea lateral, volver de la base o escapar."
+  },
+  {
+   "cuando": "Primer objeto: Vara de las edades (~10:00; p25 9:00, p75 11:20 en OTP Diamante+)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Vara de las edades",
+   "por_que": "350 de vida y 500 de maná, crece cada minuto durante 10 min (vida, maná y AP) y le cura parte del maná gastado: ya puede tradear largo y empujar con E-E-Q sin quedarse sin maná. Es el primer objeto del 93 % de los OTP Diamante+ (Bastón del arcángel el resto)."
+  },
+  {
+   "cuando": "Nivel 9 (Q al máximo) + Bastón del arcángel (~17:20; p25 16:05, p75 18:30)",
+   "nivel": 9,
+   "objetos": 2,
+   "objeto": "Bastón del arcángel",
+   "por_que": "Q a nivel 5 y mucho maná (que su pasiva convierte en daño); el Arcángel crece con cada habilidad que acierta y al sumar 360 de maná máximo se convierte en Abrazo del serafín (escudo de maná). Es el pico de mitad de partida: empieza a ganar las laterales y las peleas largas."
+  },
+  {
+   "cuando": "Tercer objeto: Actualizador (~22 min; p25 20:25, p75 23:35) con R de nivel 2",
+   "nivel": 11,
+   "objetos": 3,
+   "objeto": "Actualizador",
+   "por_que": "Su efecto potencia el maná 8 s: sus habilidades cuestan el doble pero hacen más daño y sus básicas se enfrían un 30 % más rápido, justo lo que pide un campeón que encadena Q cada vez que lanza W o E. Con la R a nivel 2 (+70 % contra marcados) es su gran pico de peleas (Lágrima-Vara-Serafín-Actualizador es el núcleo del 70 % de las partidas en Esmeralda+)."
+  },
+  {
+   "cuando": "Nivel 16 y 4-5 objetos (~30 min): Rabadon, Zhonya, Bastón del Vacío",
+   "nivel": 16,
+   "objetos": 4,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "R a nivel 3 (+100 % de daño de la Q contra marcados, 140 s de enfriamiento): sus rebotes de Q en área derriten grupos en peleas largas; Zhonya o Velo del hada de la muerte le dejan quedarse dentro."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Arcane Mastery: sus habilidades suman un % de su maná adicional al daño (Q 2 %, W 3 %, E 2 % del maná adicional) y su maná máximo crece un 10 % por cada 100 de AP. Por eso compra maná (Lágrima, Vara de las edades, Arcángel → Serafín, Actualizador) y su daño escala tanto con objetos.",
+  "Q": "Overload: proyectil en línea de 1000 u que golpea al primer enemigo (los súbditos sin Flujo lo bloquean); 75-155 (+55 % AP) (+2 % del maná adicional). Enfriamiento 5 s, coste 40-32 de maná, pero W y E lo reinician al instante y le dan una runa cada una (máx. 2, 4 s): con 2 runas, la Q le da 30-50 % de velocidad 2 s. Contra un objetivo con Flujo hace +10 % de daño (+40/70/100 % con la R a nivel 1/2/3) y rebota a todos los enemigos cercanos con Flujo: es su daño principal y su limpieza de oleadas.",
+  "W": "Rune Prison: a un objetivo a 615 u (Data Dragon; 550 según la wiki): 60-180 (+70 % AP) (+3 % del maná adicional) y ralentización del 50 % durante 1.5 s; si el objetivo tiene Flujo, consume la marca y lo enraíza en lugar de ralentizarlo. Enfriamiento 11/10.5/10/9.5/9 s, 50-90 de maná. Es su único control: lanzarla siempre después de la E.",
+  "E": "Spell Flux: orbe a un objetivo a 615 u: 60-180 (+50 % AP) (+2 % del maná adicional) y aplica Flujo 4 s al objetivo y a los enemigos de alrededor (350 u); si el objetivo ya tenía Flujo, se propaga más lejos. Enfriamiento 3.5-2.5 s, 40-80 de maná. Prepara el rebote y el daño extra de la Q y la raíz de la W; dos E seguidas sobre el súbdito central marcan toda la oleada.",
+  "R": "Realm Warp: abre un portal a 1000-3000 u (si se apunta más lejos, se lanza a 3000). Tras 2 s de canalización, él y todos los aliados dentro del círculo (465 de radio) aparecen en el destino y quedan 0.75 s enraizados, desarmados, silenciados e intocables. Puede moverse y lanzar habilidades durante la canalización, pero un control sobre Ryze (o su propio Zhonya) la cancela. Enfriamiento 180/160/140 s, 100 de maná. Pasiva: aumenta el daño extra de la Q contra objetivos con Flujo (40/70/100 %)."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "Q al máximo y E después en todos los casos (100 % de los OTP); W con un solo punto hasta el 14. Nivel 1: E (92 % de los OTP Diamante+; 60 % en OP.GG) para pokear y empezar a cargar la Lágrima; W a nivel 1 (≈5 % de los OTP) solo si espera invasión o pelea de nivel 1. R en 6, 11 y 16: cada punto en la R sube también el daño de la Q contra marcados."
+ },
+ "movilidad": {
+  "desplazamientos": "No tiene dash ni blink propios. Movilidad: velocidad de la Q con 2 runas (30-50 % durante 2 s, repetible cada vez que W o E reinician la Q) y la R: portal a 1000-3000 u tras 2 s de canalización, que también lleva a los aliados de dentro. Casi siempre lleva Destello + Teleportar (53-72 %) o Destello + Fantasmal (20-42 %).",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el portal (1000-3000 u) lo deja al otro lado de cualquier muro tras 2 s de canalización (para escapar de la jungla rival, entrar al foso del Barón o volver a una lateral). Sin la R no cruza muros.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "teletransporte",
+    "desde_nivel": 6,
+    "alcance": "3000 unidades",
+    "nota": "Realm Warp: tras 2 s de canalización, Ryze y todos los aliados en el portal (465 de radio) aparecen hasta 3000 u más allá y quedan 0.75 s sin poder actuar. Enfriamiento 180/160/140 s. Se usa para roamear de mid a una lateral, flanquear en peleas y volver de una lateral a un objetivo."
+   }
+  ]
+ },
+ "unico": [
+  "Reinicio de la Q: cada W o E reinicia el enfriamiento de la Q (5 s) y le da una runa (máx. 2, 4 s); con 2 runas la Q da 30-50 % de velocidad. Su ritmo de combate es Q entre cada W y cada E.",
+  "Flujo (E): marca 4 s al objetivo y a los de alrededor (350 u); la Q contra marcados hace más daño (+10 % sin R, +40/70/100 % con R) y rebota a todos los marcados, y la W contra un marcado enraíza en vez de ralentizar.",
+  "Escala con maná: su pasiva convierte el maná adicional en daño y el AP en más maná; por eso empieza (o compra pronto) la Lágrima de la diosa y va a Vara de las edades → Arcángel/Serafín → Actualizador.",
+  "La R es un teletransporte de equipo de 3000 u: canaliza 2 s (puede moverse y lanzar mientras tanto) y lleva a todos los aliados que estén dentro; un control sobre Ryze la cancela.",
+  "La R mejora pasivamente la Q contra marcados: a nivel 6 su daño de tradeo sube de golpe (+10 % → +40 %).",
+  "La Q es un proyectil que bloquean los súbditos, pero si el súbdito tiene Flujo la Q rebota al campeón marcado que esté al lado: puede pegar «a través» de la oleada."
+ ],
+ "combos": [
+  "Tradeo básico: E al rival (o a un súbdito pegado a él) → Q (rebota y hace daño extra) → W (enraíza porque tiene Flujo) → Q (reiniciada) → E → Q.",
+  "Limpiar oleada: E al súbdito central → E otra vez para propagar el Flujo → Q (rebota a todos los marcados) → ataques; bajo torre, E al primer súbdito a distancia golpeado por la torre para que el resto quede marcado.",
+  "Poke por encima de súbditos: E a un súbdito que esté a menos de 350 u del rival (el Flujo salta al rival) → Q al súbdito: rebota al campeón.",
+  "Huida o persecución con runas: W o E → la otra → Q con 2 runas = 30-50 % de velocidad 2 s; repetir cada vez que la Q se reinicia. La W de raíz sobre el perseguidor marcado.",
+  "Peleas en grupo: Q → E → E → Q para marcar y golpear a varios a la vez; contra un solo objetivo inmovilizado, Q-E-Q-W-Q-E-Q para el máximo daño (sin runas ni escudo).",
+  "R de flanqueo o roameo: con la oleada empujada, R hacia el arbusto del río de una línea lateral o detrás del equipo rival con 2-3 aliados en el portal (2 s), y al llegar E-Q-W-Q al más cercano."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Lágrima de la diosa",
+   "Vara de las edades",
+   "Bastón del arcángel",
+   "Abrazo del serafín",
+   "Actualizador",
+   "Sombrero mortal de Rabadon",
+   "Reloj de arena de Zhonya",
+   "Bastón del Vacío",
+   "Velo del hada de la muerte",
+   "Corazón de hielo",
+   "Botas de hechicero",
+   "Botas de mercurio"
+  ],
+  "runas": "Brujería: Tensión del saqueador de tormentas (48 % en Esmeralda+ según OP.GG 16.23; 75 % de los OTP Diamante+: velocidad para kitear y huir) o Toque de muerte ígnea (46 %; 18 % de los OTP) + Banda de maná (94-100 %) + Trascendencia o Celeridad + Se avecina tormenta o Piroláser. Secundaria: Valor (Revestimiento de huesos + Sobrecrecimiento) en Esmeralda+, o Dominación (Sabor a sangre + Cazador de tesoros, 72 % de los OTP Diamante+). Fragmentos: velocidad de ataque (89 %), fuerza adaptable y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Fantasmal"
+  ],
+  "nota": "Hechizos: Destello + Teleportar (53 % en Esmeralda+; 72 % de los OTP Diamante+) o Destello + Fantasmal (42 % / 23 %); Agotamiento contra asesinos. Inicio: Anillo de Doran + 2 pociones (81 % en Esmeralda+) o Lágrima de la diosa + 2 pociones (15 %; el 78 % de los OTP Diamante+ empiezan con la Lágrima). Primera vuelta muy pronto (mediana 3:30) con ~675 de oro: Cristal de zafiro, Botas, guardián de control y Poción reutilizable. Vara de las edades primero (93 % de los OTP), Bastón del arcángel segundo (89 %) y Actualizador tercero (75 %); después Sombrero mortal de Rabadon, Reloj de arena de Zhonya (contra AD/asesinos), Bastón del Vacío (contra RM), Velo del hada de la muerte (contra controles mágicos) o Corazón de hielo (contra AD con velocidad de ataque). Botas: de hechicero (74 % de los OTP), de mercurio contra mucho control (37 % en Esmeralda+) o de rapidez."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 E: remata con Q a 1000 u y pokea con E→Q cuando el rival se pega a un súbdito marcado. Nivel 2 hacia la 1:30 y nivel 3 hacia las 2:03 (OTP Diamante+): con E-Q-W ya tiene la raíz, pero el maná no da para mucho antes de la Lágrima cargada y de Banda de maná; contra asesinos o melees de all-in (Irelia, Diana, Yasuo, Naafiri) solo remata con Q y deja la oleada cerca de su torre.",
+    "tradeos": "Tradeos cortos con E→Q (y W→Q si el rival se queda a 615 u) cuando el rival va a por un súbdito; la Q con 2 runas le da la velocidad para salir. Su daño está en repetir habilidades durante 4-6 s, no en un burst: no entra al rango de all-in de un mago de ráfaga (Annie, Veigar, Vel'Koz, Syndra) sin tener la W para la raíz.",
+    "oleadas": "Limpia rápido con E-E-Q en cuanto tiene 2-3 puntos en Q/E y maná; empuja para roamear, para usar Teleportar o para volver a base sin perder oleada (mediana de 90 CS al 10 y 11 placas por partida en los OTP Diamante+). Antes de la Lágrima cargada no gasta todo el maná pokeando; en matchups malos, deja que la oleada le llegue y remata con Q.",
+    "all_in": "No es de all-in temprano. Desde nivel 6 (Q +40 % contra marcados) y con Vara de las edades (~10 min) gana peleas largas contra magos y tiradores si acierta E-Q-W: la raíz de 1.5 s le da 2-3 Q más. Contra asesinos espera a tener 2 objetos y Zhonya o Tensión del saqueador para salir.",
+    "jugar_seguro": "Hasta Vara + Arcángel (~17 min) juega para no morir: guardar la W para enraizar al asesino que entra, farmear con Q a 1000 u, guardián de control en el río (compra 3-4 por partida). No gasta la R para pelear si no sabe dónde está el jungla rival: sin ella no tiene escape."
+   },
+   "roameos": "Antes del 6, tras empujar con E-E-Q, baja a bot por detrás del foso del dragón (consejo de las guías de elo alto). Desde el 6 usa la R (3000 u) desde mid al arbusto del río de bot o top para ganks con su jungla, o Teleportar (lo llevan el 53-72 %). En los OTP Diamante+ pasa una mediana del 1.8 % del tiempo antes del 14 en otra línea (p75 4.2 %); de sus participaciones en kills antes del 14, el 38 % son en mid, el 43 % en río y jungla, el 15 % en bot y el 4 % en top.",
+   "fase_media": "Con Vara + Arcángel (~17 min) lleva una lateral (mediana 27 % del tiempo tardío solo en una lateral y solo 19 % agrupado en los OTP Diamante+): limpia oleadas en segundos y presiona torres. Cuando hay objetivo o pelea, vuelve con la R o la usa para meter a su equipo por un flanco (detrás del foso o de la retaguardia rival). Es de los mejores campeones para combinar split push y reagrupación.",
+   "matchups_dificiles": [
+    "Vel'Koz",
+    "Annie",
+    "Anivia",
+    "Diana",
+    "Taliyah",
+    "Irelia",
+    "Galio",
+    "Naafiri",
+    "Veigar",
+    "Hwei",
+    "Tristana"
+   ],
+   "matchups_faciles": [
+    "Swain",
+    "Ezreal",
+    "Sylas",
+    "Lux",
+    "Talon",
+    "LeBlanc",
+    "Locke",
+    "Vex",
+    "Akali"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Mago de daño sostenido en área (rebotes de Q) y control de un objetivo (raíz de la W); con la R, iniciador por flanco que mete a su equipo detrás de los rivales.",
+  "como_entrar": "Detrás de su frontal una vez que el rival gasta controles, o con la R desde un flanco con 2-3 aliados dentro del portal; dentro de la pelea, E al grupo para propagar el Flujo y Q en bucle (reiniciada con cada W o E). Zhonya o Velo del hada de la muerte cuando le centran.",
+  "objetivo": "Lo que tenga a 615 u: su Q rebota a todos los marcados, así que marcar a un grupo junto vale más que perseguir al carry. La W (raíz) para el asesino que entra a por él o para el carry que se acerca demasiado.",
+  "posicion": "Segunda línea a 600-700 u del frontal rival, más adelantado que un mago de artillería porque W y E tienen 615 u. En partidas largas suele empezar la pelea en una lateral y entrar con la R por el flanco."
+ },
+ "macro": {
+  "split_push": "Sí, desde Vara + Arcángel (~17 min): limpia oleadas en segundos con E-E-Q y presiona torres; la R le deja volver a una pelea o meter a su equipo por detrás. OTP Diamante+: mediana 27 % del tiempo tardío solo en una lateral (p75 35 %).",
+  "objetivos": "No hace dragones ni Barón solo hasta muy tarde, pero su DPS en área acelera mucho los épicos en grupo. Con la R lleva al equipo al foso del Barón o del dragón desde otra parte del mapa (3000 u) o lo saca de él. Torres: mucha presión con oleadas grandes (mediana 11 placas por partida).",
+  "plan_de_partida": "0-10 min: farmear, cargar la Lágrima y no morir; primera vuelta muy temprana a por maná y botas. 10-17: Vara de las edades y Arcángel; roameos con la R a partir del 6. 17-25: Serafín y Actualizador, lateral + R o Teleportar para cada objetivo. 25+: Rabadon, Zhonya o Bastón del Vacío; gana las peleas largas con DPS en área y decide con la R por dónde entra su equipo."
+ },
+ "debilidades": [
+  "Muy débil antes de 2 objetos: poco daño, mucho gasto de maná y matchups malos contra asesinos y magos de ráfaga.",
+  "Alcance corto para un mago (W y E a 615 u): tiene que acercarse para hacer su combo y le castigan desde fuera de ese rango.",
+  "No tiene escape propio sin la R (180 s a nivel 6) y la R canaliza 2 s: un control la cancela.",
+  "Su daño depende de marcar antes con la E: una Q sin Flujo choca con el primer súbdito y hace poco.",
+  "Si la partida se decide antes del minuto 20, apenas aporta: necesita tiempo y oro."
+ ],
+ "contrarrestado_por": [
+  "Vel'Koz",
+  "Annie",
+  "Anivia",
+  "Diana",
+  "Taliyah",
+  "Irelia",
+  "Galio",
+  "Veigar",
+  "Hwei",
+  "Tristana",
+  "Naafiri"
+ ],
+ "bueno_contra": [
+  "Swain",
+  "Ezreal",
+  "Sylas",
+  "Lux",
+  "Talon",
+  "LeBlanc",
+  "Locke",
+  "Vex",
+  "Akali"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Malphite",
+  "Wukong",
+  "Vi",
+  "Rell",
+  "Leona",
+  "Nautilus",
+  "Amumu"
+ ],
+ "errores_comunes": [
+  "Gastar todo el maná pokeando antes de la Lágrima o la Vara y quedarse sin poder limpiar la oleada.",
+  "Lanzar la W antes que la E: ralentiza en vez de enraizar.",
+  "Lanzar la Q sin marcar antes con la E (pierde el rebote y el daño extra) o no meter una Q entre cada W y E (pierde el reinicio y casi la mitad del DPS).",
+  "Usar la R para roamear a una línea que no está preparada o sin visión: llega tarde o le interrumpen durante los 2 s.",
+  "Pelear 1v1 contra asesinos o tiradores antes de sus 2 objetos como si ya escalara.",
+  "Quedarse en la lateral cuando el equipo pelea un objetivo sin tener la R ni Teleportar para llegar."
+ ],
+ "senales_reconstructor": [
+  "Teletransporte con la R: tras 2 s de canalización, Ryze y los aliados que estén en el portal (465 de radio) aparecen a 1000-3000 u, cruzando muros. Varios aliados que cambian de zona a la vez unos 3000 u en 2-3 s (kills, wards o compras en puntos imposibles a pie) son normales a partir del nivel 6; con frames de minuto en minuto el salto en sí casi nunca se ve.",
+  "Teleportar: lo lleva el 53 % en Esmeralda+ y el 72 % de los OTP Diamante+ (mediana 4 usos por partida); entre la R y Teleportar, aparecer en bot o top desde mid, o en un objetivo desde una lateral, es su patrón.",
+  "Primera vuelta muy temprana: mediana a los 3.5 min (p25 3.0, p75 4.0) en los OTP Diamante+, con ~675 de oro (Cristal de zafiro, Botas, guardián de control). Verle en base a los 3-4 min con poco oro no es un error.",
+  "Objetos: Vara de las edades primero a los 10:00 (p25 9:00, p75 11:20), Bastón del arcángel ~17:20 (p25 16:05, p75 18:30) y Actualizador ~22:10 (p25 20:25, p75 23:35); botas completas hacia el 11:40.",
+  "Niveles (OTP Diamante+): nivel 2 a la 1:30, nivel 3 a las 2:03, nivel 6 a las 5:10 y nivel 11 a las 14:09.",
+  "Poca presión temprana: solo participa en una kill antes del 4:00 en el 28 % de las partidas (primera participación mediana a los 5.8 min) y muere poco antes del 14 (mediana 1). Un Ryze con 0/0 a los 10 min y CS alto es lo normal.",
+  "Farmea mucho: 90 CS al 10 (p25 82, p75 98) y 142 al 15 en los OTP Diamante+; 11 placas por partida de mediana.",
+  "Fase tardía de split push: mediana 27 % del tiempo tardío solo en una lateral y 19 % agrupado. Verle en una lateral mientras su equipo prepara un objetivo es su plan (vuelve con la R o Teleportar), no una desconexión.",
+  "Visión: unos 3 guardianes de control por partida (más que la mayoría de mids) y cambio a lente/trinket azul en la fase media (~2.6 guardianes azules).",
+  "Daño casi todo mágico y en área (mediana 28 % del daño de su equipo en los OTP Diamante+); kills en grupo con muchos asistentes alrededor de él son lo esperable por los rebotes de la Q."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/ryze/build/",
+  "https://lolalytics.com/lol/ryze/counters/",
+  "https://www.op.gg/lol/champions/ryze/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Ryze",
+  "https://www.mobafire.com/league-of-legends/build/challenger-season-16-trisend3-ryze-guide-623399",
+  "https://www.mobafire.com/league-of-legends/build/rank-1-ryze-guide-651579",
+  "https://dignitas.gg/articles/the-rune-mage-a-ryze-guide-for-league-of-legends",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json, runesReforged.json)",
+  "Partidas de OTPs de Ryze mid Diamante+, parches 16.19-16.23 (data/otps/Ryze/MID, 61 partidas de Diamante+ de 187)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 24,
+    "victorias": 0.583,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.3,
+     "mediana": 2.8,
+     "p75": 3.7
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 10.9,
+     "p75": 12.4
+    },
+    "segundo_objeto_min": {
+     "p25": 18.1,
+     "mediana": 19.3,
+     "p75": 20.1
+    },
+    "primer_objeto": [
+     [
+      "Bastón del arcángel",
+      1.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWQQRQEQ",
+      0.96
+     ],
+     [
+      "EWQQQRQEQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 26.0,
+     "mediana": 32.5,
+     "p75": 43.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 21.2,
+     "mediana": 23.6,
+     "p75": 32.4
+    },
+    "vision_por_min": {
+     "p25": 0.94,
+     "mediana": 1.12,
+     "p75": 1.44
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 2.92,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 21.3,
+     "mediana": 30.1,
+     "p75": 34.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.0,
+     "mediana": 18.6,
+     "p75": 35.9
+    },
+    "cs_10": {
+     "p25": 74.0,
+     "mediana": 77.5,
+     "p75": 81.2
+    },
+    "dif_cs_10": {
+     "p25": 1.8,
+     "mediana": 11.0,
+     "p75": 27.5
+    },
+    "dif_oro_10": {
+     "p25": -164.0,
+     "mediana": 130.0,
+     "p75": 952.0
+    },
+    "placas": {
+     "p25": 3.8,
+     "mediana": 9.0,
+     "p75": 16.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 0.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 6.5,
+     "p75": 9.5
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.18-16.23"
+   },
+   "MID": {
+    "partidas": 61,
+    "victorias": 0.492,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 3.5,
+     "p75": 4.0
+    },
+    "primer_objeto_min": {
+     "p25": 9.0,
+     "mediana": 10.0,
+     "p75": 11.3
+    },
+    "segundo_objeto_min": {
+     "p25": 16.1,
+     "mediana": 17.3,
+     "p75": 18.5
+    },
+    "primer_objeto": [
+     [
+      "Vara de las edades",
+      0.93
+     ],
+     [
+      "Bastón del arcángel",
+      0.07
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWQQRQEQ",
+      0.92
+     ],
+     [
+      "WQEQQRQEQ",
+      0.03
+     ],
+     [
+      "WEQQQRQEQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.3,
+     "mediana": 43.8,
+     "p75": 57.9
+    },
+    "parte_del_dano_pct": {
+     "p25": 24.3,
+     "mediana": 27.7,
+     "p75": 33.2
+    },
+    "vision_por_min": {
+     "p25": 0.86,
+     "mediana": 1.01,
+     "p75": 1.15
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 2.2,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 19.6,
+     "mediana": 27.1,
+     "p75": 35.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.0,
+     "mediana": 18.6,
+     "p75": 23.9
+    },
+    "cs_10": {
+     "p25": 82.0,
+     "mediana": 90.0,
+     "p75": 98.0
+    },
+    "dif_cs_10": {
+     "p25": 1.0,
+     "mediana": 8.0,
+     "p75": 14.0
+    },
+    "dif_oro_10": {
+     "p25": -350.0,
+     "mediana": 52.0,
+     "p75": 671.0
+    },
+    "placas": {
+     "p25": 8.0,
+     "mediana": 11.0,
+     "p75": 16.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 4.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.8,
+     "mediana": 8.9,
+     "p75": 11.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.19-16.23"
+   }
+  }
+ }
+}

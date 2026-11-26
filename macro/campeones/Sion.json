@@ -1,0 +1,497 @@
+{
+ "clave": "Sion",
+ "nombre": "Sion",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.662,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tanque de top que escala sin límite (cada súbdito y cada derribo le dan vida máxima con la W), inicia desde lejos con una embestida imparable de hasta 8 s (R) y sigue peleando unos segundos después de morir gracias a su pasiva",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 3,
+  "tardia": 4,
+  "nota": "En los niveles 1-5 pierde los intercambios contra luchadores agresivos (Darius, Riven, Kled, Sett, Fiora) y su objetivo es farmear para las cargas de la W y de Garras del inmortal. A nivel 6 (~5:14) la R le da iniciación y roameo; con el primer objeto (~12:19) y Desesperanza eterna (~20:10) ya es un frontal muy difícil de bajar. En la tardía, con 500-800 de vida extra solo por cargas y la R cada 60 s a nivel 16, inicia casi todas las peleas y hace split push con Teleportar."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:10) con W-Q-E (o Q-W-E)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Ya tiene el tradeo completo: E a través de un súbdito (ralentiza 40 % y quita 25 % de armadura) para preparar la Q cargada 1 s (aturdimiento de 1,25 s o más), Garras del inmortal y el escudo de la W. Con su jungla cerca es un gran nivel para asistir un gank."
+  },
+  {
+   "cuando": "Nivel 6 (~5:14)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Unstoppable Onslaught (R, 140 s): embestida imparable desde la niebla que aturde hasta 1,75 s según la distancia; le permite matar con su jungla, roamear al río o a mid y escapar de ganks."
+  },
+  {
+   "cuando": "Primer objeto hacia el 12:19: Corazón de acero (33 %), Fulgor vano (19 %), Égida de fuego solar (15 %) o Desesperanza eterna (11 %)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Corazón de acero",
+   "por_que": "Más vida y limpieza de oleadas (Fulgor vano/Égida) o crecimiento de vida a largo plazo (Corazón de acero): empieza a ganar la línea por desgaste y a empujar con Demoler."
+  },
+  {
+   "cuando": "Dos objetos hacia el 20:10 (casi siempre con Desesperanza eterna)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Desesperanza eterna",
+   "por_que": "Desesperanza eterna le cura en peleas largas según su vida adicional: tras unos 5 s de pelea puede aguantar solo la primera línea. Es su primer gran pico de peleas de equipo."
+  },
+  {
+   "cuando": "Nivel 16 (R a 60 s) y 3-4 objetos (~26:00)",
+   "nivel": 16,
+   "objetos": 3,
+   "objeto": "Jak'Sho el Proteico",
+   "por_que": "Con la R cada 60 s, 500-800 de vida extra por cargas y resistencias (Jak'Sho, Malla de espinas, Rookern kaénico) inicia casi todas las peleas y es un split pusher difícil de parar."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Glory in Death: al morir, tras 1,5 s de estasis, revive con el 100 % de su vida, que decae muy rápido (en la práctica unos 8-10 s; tope de 60 s). Como zombi ataca a 1,75 por segundo con 100 % de robo de vida y +10 % de la vida máxima del objetivo por golpe (máx. 75 a no campeones); a las estructuras solo hace el 40 % y no recibe curaciones salvo robo de vida. Sus habilidades se sustituyen por un acelerón (Death Surge, 67 % de velocidad que decae en ~2,4 s). Puede seguir consiguiendo kills y asistencias después de morir.",
+  "Q": "Decimating Smash: carga un hachazo hasta 2 s (enfriamiento 10/9/8/7/6 s, 45 de maná); el área crece de 500 a 850 de alcance. Sin cargar hace 30-90 (+40-80 % AD) y ralentiza 50 % 0,25 s; cargada al menos 1 s derriba 0,5-1 s y aturde de 1,25 a 2,25 s con hasta 90-350 (+120-240 % AD). Hace el 165 % a monstruos y el 60 % a súbditos. Si le interrumpen la carga, queda en 2 s de enfriamiento. El indicador se ve: se carga desde la niebla o sobre un rival ya ralentizado o aturdido.",
+  "W": "Soul Furnace: pasiva: +4 de vida máxima por cada súbdito, monstruo pequeño o guardián que mate y +15 por súbdito grande, monstruo grande o derribo de campeón, sin límite. Activa: escudo de 60/75/90/105/120 (+8-16 % de su vida máxima) durante 6 s; pasados 3 s puede detonarlo para hacer 40-140 (+14 % de la vida máxima del objetivo) en 525 de radio (máx. 400 a súbditos y monstruos). Enfriamiento 15-11 s, que empieza al acabar el escudo.",
+  "E": "Roar of the Slayer: proyectil de 800 de alcance (enfriamiento 12/11/10/9/8 s) que hace 65-205 (+55 % PH), ralentiza 40-60 % durante 2,5 s y quita un 25 % de armadura durante 4 s al primer enemigo. Si golpea a un súbdito o monstruo no épico, lo lanza hasta 1350 u y todo enemigo por el que pase recibe el mismo daño, ralentización y reducción de armadura: es su poke a través de la oleada y la preparación de la Q.",
+  "R": "Unstoppable Onslaught: embestida imparable de hasta 8 s en línea recta (gira poco hacia el cursor) que acelera hasta 950 de velocidad y atraviesa súbditos; se para al chocar con un campeón o un muro, o al reactivarla. Al impactar hace de 150/300/450 a 450/900/1350 (+40-120 % AD adicional) según la distancia recorrida, aturde 0,25-1,75 s a los cercanos y ralentiza 40-50 % 3 s en área; contra un muro sin enemigos se aturde él 0,5 s. Enfriamiento 140/100/60 s. En el 26.21 subió su daño máximo (de 400/800/1200) y su vida por nivel (de 87 a 95)."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "nota": "En partidas de alto elo el nivel 1 es W (51 %: W-Q-E, como recomiendan Skill Capped y Dodge.gg) o Q (35 %: Q-W-E, el orden más visto en OP.GG Esmeralda+; Lolalytics muestra Q-E-W). La W a nivel 1 sirve para disputar la oleada con escudo y explosión; la Q a nivel 1 para castigar a un rival que se acerca. Maximiza Q (90-94 %) y luego W; E en último lugar. R en 6, 11 y 16 (60 s de enfriamiento a nivel 16)."
+ },
+ "movilidad": {
+  "desplazamientos": "Sin dashes cortos. La R es una embestida imparable de hasta 8 s que llega a 950 de velocidad y recorre varios miles de unidades (7500 de alcance en Data Dragon), atravesando súbditos pero no muros. Como zombi tiene un acelerón del 67 % de velocidad. La E desplaza súbditos 1350 u, no a él.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "control",
+    "desde_nivel": 6,
+    "alcance": "~7500 unidades (hasta 8 s a 950 de velocidad)",
+    "nota": "No es un teletransporte: es una embestida visible en línea casi recta desde su posición. Le lleva de top al río, a mid o a la pelea de Heraldo en 4-6 s y aturde al llegar; se para en los muros, así que no cruza la jungla en diagonal."
+   }
+  ]
+ },
+ "unico": [
+  "Vida sin límite: la pasiva de la W le da +4 de vida máxima por súbdito o monstruo pequeño y +15 por súbdito grande, monstruo grande o derribo; junto a Garras del inmortal (vida permanente) y Corazón de acero, a los 30 minutos suele llevar 500-800 de vida extra solo por cargas. Farmear bien es su condición de victoria.",
+  "Glory in Death: al morir vuelve unos 8-10 s como zombi con toda la vida (que decae), 1,75 de velocidad de ataque, 100 % de robo de vida y 10 % de vida máxima por golpe: puede seguir matando, empujar (40 % a estructuras) o hacer de cebo después de morir.",
+  "La E a través de súbditos: si golpea a un súbdito o monstruo, lo lanza hasta 1350 u y todo lo que toque recibe daño, ralentización y -25 % de armadura; así tradea con rango y prepara la Q.",
+  "La R es una embestida imparable de hasta 8 s a 950 de velocidad: inicia desde la niebla a distancias que ningún otro tanque alcanza, y cuanto más recorre, más daño y aturdimiento (hasta 1,75 s).",
+  "La Q solo derriba y aturde (1,25-2,25 s) si la carga 1 s o más y su alcance crece hasta 850: el juego es esconder la carga en la niebla o lanzarla sobre alguien ya controlado."
+ ],
+ "combos": [
+  "Tradeo de línea: E a un súbdito para que salga despedido contra el rival (ralentización y -25 % de armadura) → Q cargada 1 s sobre él → AA con Garras del inmortal → W y detonación pasados 3 s.",
+  "Asistencia de gank: E (ralentiza 40-60 %) → Q cargada del todo mientras el jungla mantiene el control → AA → detonación de la W.",
+  "Iniciación: R desde la niebla hacia la retaguardia o el grupo → al impactar (aturde hasta 1,75 s) → Q cargada sobre los aturdidos → W y detonación → E al carry para quitarle armadura.",
+  "Destello-Q: empezar a cargar la Q y usar Destello durante la carga para recolocar el hachazo encima del objetivo.",
+  "Zombi: al morir, Death Surge hacia el carry más cercano y atacar sin parar (robo de vida 100 %), o hacia la oleada o la torre para seguir empujando.",
+  "Escape o vuelta a línea: R en línea recta por la línea o el río para huir de un gank o volver de base en pocos segundos."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Corazón de acero",
+   "Fulgor vano",
+   "Égida de fuego solar",
+   "Desesperanza eterna",
+   "Hidra titánica",
+   "Jak'Sho el Proteico",
+   "Malla de espinas",
+   "Sangría del soberano",
+   "Presagio de Randuin",
+   "Rookern kaénico",
+   "Arnés de protoplasma",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Garras del inmortal (87-89 %) con Demoler (o Golpe de escudo si no puede empujar), Condicionamiento (Fuerzas renovadas contra poke, Revestimiento de huesos contra Riven o Jax) y Sobrecrecimiento; secundaria Inspiración (Velocidad de acercamiento y Reembolso, 65 %) o Brujería. Alternativa minoritaria: Tensión del saqueador de tormentas o Lluvia de cuchillas en la variante de daño con Filo fantasmal de Youmuu (4-7 % de partidas).",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Inicio Escudo de Doran + Poción (33-60 %; contra poke) o Yelmo de Doran (25 %). Primera vuelta con Cristal de rubí, Armadura de tela, Botas o Poción reutilizable. Primer objeto: Corazón de acero (33-38 %, más vida a largo plazo), Fulgor vano contra AP (19-30 %) o Égida de fuego solar contra AD (15-22 %); después Desesperanza eterna casi siempre. Hidra titánica y Sangría del soberano si su equipo necesita daño (variante luchador); Malla de espinas contra curaciones, Jak'Sho en peleas largas, Rookern kaénico contra magos, Arnés de protoplasma tarde y solo después de Jak'Sho. Botas blindadas (54-64 %) o de mercurio (22-25 %). Destello + Teleportar en el 86-87 %; Prender (6-10 %) si busca kills en línea."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 W (o Q): disputa la primera oleada con el escudo, la explosión (mucho radio) y el primer golpe de Garras; sin matar toda la oleada con la explosión para no empujar de más. Nivel 2 (~1:43) Q y nivel 3 (~2:10) E: desde aquí su tradeo es E a través de un súbdito + Q cargada. Contra matones de nivel 1-3 (Darius, Renekton, Olaf, Kled) cede los tradeos y farmea cerca de su torre.",
+    "tradeos": "Tradeos cortos con Garras: AA al rival tras 4 s en combate (pegando a súbditos), E a través de la oleada para ralentizar y quitar armadura y Q cargada solo si el rival ya está ralentizado o no puede salir del indicador. El escudo de la W absorbe el burst; se detona cuando el rival está dentro de los 525 de radio. Nunca carga la Q delante de alguien con dashes y sin nada que lo retenga.",
+    "oleadas": "Farmear es la prioridad (cada súbdito le da vida máxima). Con la E y la explosión de la W limpia desde lejos; con Demoler y Égida o Hidra empuja y derriba placas (mediana de 8 por partida). Si va por detrás, congela cerca de su torre; igualado, empuja y usa Teleportar para unirse a las peleas de bot y del dragón.",
+    "all_in": "A nivel 6 con la R: si el rival está lejos de su torre, R desde la niebla (cuanto más recorre, más aturde, hasta 1,75 s), Q cargada mientras está aturdido, W y E. Con Prender o con el jungla mata incluso yendo por detrás. Antes del 6 el all-in solo funciona con el jungla.",
+    "jugar_seguro": "Contra luchadores que le ganan (Darius, Fiora, Gwen, Yone, Riven) farmea con la E y la W bajo torre, acepta perder algo de experiencia y espera al primer objeto; la R sirve para escapar de un gank. Morir no es un desastre (vuelve como zombi y puede llevarse a alguien), pero las muertes tempranas le cortan el escalado."
+   },
+   "roameos": "Pocos: antes del minuto 14 el 75 % de sus derribos son en top y el 15 % en el río de arriba. Sus roameos son Teleportar (86-87 % de partidas, mediana de 4 usos) a las peleas de bot o del dragón entre el 8 y el 14, y alguna R desde top hacia el río o mid para ayudar a su jungla.",
+   "fase_media": "Con 1-2 objetos y la vida acumulada empuja la lateral con Demoler, usa Teleportar para las peleas de objetivo y hace de frontal en ellas (inicia con la R o con la Q cargada en un pasillo). A partir del minuto 20 pasa mucho tiempo solo en una lateral (mediana del 34 % del tiempo tardío), obligando a mandar a alguien a pararle, y vuelve con la R o Teleportar para Barón y dragones.",
+   "matchups_dificiles": [
+    "Darius",
+    "Fiora",
+    "Gwen",
+    "Yone",
+    "Riven",
+    "Kled",
+    "Sett",
+    "Garen",
+    "Quinn"
+   ],
+   "matchups_faciles": [
+    "Akali",
+    "Teemo",
+    "Jayce",
+    "Heimerdinger",
+    "Gnar",
+    "Gangplank",
+    "Malphite"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y frontal: abre las peleas con la R o con la Q cargada en un pasillo y absorbe daño; en la tardía también es la amenaza lateral con Teleportar.",
+  "como_entrar": "Desde la niebla o un flanco con la R (cuanto más larga, más aturde) hacia la retaguardia o el grupo; al impactar, Q cargada sobre los aturdidos, W y E al carry para quitarle armadura. Sin R, Q cargada en un pasillo o detrás de un muro donde no la vean, o justo después del control de un aliado.",
+  "objetivo": "Llegar a los carries agrupados con la R; dentro de la pelea, golpear a quien tenga a mano y proteger a su tirador con la Q y la E. Como zombi, ir a por el carry más cercano o el que tenga poca vida.",
+  "posicion": "Primera línea, delante de su equipo; en la tardía a menudo en una lateral, listo para entrar con la R o con Teleportar por el flanco."
+ },
+ "macro": {
+  "split_push": "Sí, sobre todo en la fase media y tardía: con Demoler, Teleportar y la vida acumulada empuja una lateral (mediana del 34 % del tiempo tardío solo en una lateral, p75 47 %; mediana de 2 torres y 8 placas por partida) y fuerza respuestas; la R le devuelve rápido a la pelea.",
+  "objetivos": "No hace dragones ni Barón solo; los tanquea en grupo. Defendiendo, la R a través de la entrada del foso castiga a quien intenta robarlos. Teleportar al dragón o al Heraldo es su forma de llegar desde top.",
+  "plan_de_partida": "Fase 1 (0-14 min): farmear a toda costa (cargas de la W y Garras), sobrevivir a los matones, nivel 6 hacia el 5:14 y Teleportar a la primera pelea de dragón si puede. Fase 2 (14-25): primer objeto hacia el 12 y Desesperanza eterna hacia el 20; frontal e iniciador en los objetivos y split push por top entre ellos. Fase 3 (25+): con la R cada 60 s inicia todas las peleas o divide al rival desde la lateral; morir no le saca del todo de la pelea gracias a la pasiva."
+ },
+ "debilidades": [
+  "Fase de líneas floja contra matones (Darius, Riven, Kled, Sett, Fiora, Gwen): pierde los tradeos de los niveles 1-5 y necesita farmear para escalar.",
+  "Su control está muy telegrafiado: la Q se ve y los campeones con dashes (Yone, Fiora con la W, Riven) salen del indicador o la paran; la R se ve venir desde lejos y se esquiva con desplazamientos.",
+  "Le derriten el daño por % de vida y la reducción de curaciones (Fiora, Gwen, Vayne, Heridas graves contra Desesperanza eterna).",
+  "Fuera de la R no tiene forma de pegarse a objetivos móviles: un buen kite le deja sin hacer nada."
+ ],
+ "contrarrestado_por": [
+  "Darius",
+  "Fiora",
+  "Gwen",
+  "Yone",
+  "Riven",
+  "Kled",
+  "Sett",
+  "Garen"
+ ],
+ "bueno_contra": [
+  "Akali",
+  "Teemo",
+  "Jayce",
+  "Heimerdinger",
+  "Gnar",
+  "Gangplank",
+  "Malphite"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Miss Fortune",
+  "Orianna",
+  "Thresh",
+  "Jhin",
+  "Viego",
+  "Ahri"
+ ],
+ "errores_comunes": [
+  "Cargar la Q a la vista de un rival con dashes, o tan cerca que el rival le interrumpe la carga y gana el tradeo.",
+  "Tradear de igual a igual con luchadores en los niveles 1-5 en lugar de farmear para las cargas de la W y Garras.",
+  "Lanzar la R sin objetivo a través del equipo rival, o desde muy cerca (aturde poco y hace poco daño), y quedarse dentro sin control.",
+  "Desaprovechar el zombi: quedarse quieto o pegar a un tanque en vez de ir al carry, a la oleada o a la torre.",
+  "Gastar Teleportar para volver a la línea y no tenerlo para la pelea del dragón o del Barón.",
+  "Detonar el escudo de la W fuera de rango o antes de que absorba el daño."
+ ],
+ "senales_reconstructor": [
+  "Kills después de morir: en el 65 % de sus partidas de alto elo hay alguna kill o asistencia de Sion en los 10 s siguientes a su propia muerte (104 kills y 101 asistencias tras 926 muertes; 165 partidas, parches 16.17-16.23). Revive unos 8-10 s como zombi: una kill de Sion con marca de tiempo posterior a su muerte no es un error del timeline.",
+  "Escalado por cargas: la W le da vida máxima por cada súbdito (+4) y por derribo o súbdito grande (+15) sin límite, así que perder CS le cuesta más que a otros tops. Mediana de 71 CS al minuto 10 y 114 al 15 (diferencia de CS al 10 ≈ -2: no suele dominar la línea).",
+  "Teleportar en el 86-87 % de partidas (mediana de 4 usos y ~1 derribo con TP por partida): aparecer en una pelea de bot o del dragón entre el minuto 8 y 14 con su última posición en top es lo normal.",
+  "La R (desde nivel 6, ~5:14; 140/100/60 s) es una embestida de hasta 8 s a 950 de velocidad: llega a una pelea a varios miles de unidades (top → río o mid) en pocos segundos, así que una kill lejos de su última posición conocida es plausible. A nivel 16 la tiene cada 60 s.",
+  "Split push tardío: mediana del 34 % del tiempo a partir del minuto 20 solo en una lateral (p75 47 %), con mediana de 2 torres y 8 placas; verle en top o bot mientras su equipo está en otro sitio es su plan de partida.",
+  "Ritmo: nivel 2 hacia el 1:43, nivel 6 hacia el 5:14 (p25 5:05, p75 5:36); primera vuelta voluntaria hacia el 4:12 (p25 3:12, p75 5:50; Cristal de rubí, Armadura de tela, Botas o Poción reutilizable); primer objeto hacia el 12:19 (p25 10:31, p75 14:06) y segundo hacia el 20:10.",
+  "Muere en su línea: el 87 % de sus muertes antes del minuto 14 son en top; 1-2 muertes antes del 14 contra un matón (mediana 2) son habituales y no le sacan de la partida si mantiene el CS.",
+  "Encaja mucho daño (≈29 % del daño recibido por su equipo) y acumula mucho control (mediana de ~41 s de control a rivales): es el que inicia, así que muchas de sus muertes en peleas son parte del plan.",
+  "Rol secundario: también se juega en jungla (17 %) y mid (12 %); si aparece en jungla, su despeje y sus ganks son de tanque lento (no está cubierto en esta ficha)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/sion/build/",
+  "https://www.op.gg/lol/champions/sion/build/top",
+  "https://wiki.leagueoflegends.com/en-us/Sion",
+  "https://wiki.leagueoflegends.com/en-us/Sion/Patch_history",
+  "https://www.skill-capped.com/lol/guides/builds/sion/top",
+  "https://metabot.gg/en/league/champion/Sion",
+  "https://www.dodge.gg/lol/news/sion-build-2026",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs y jugadores de alto elo de Sion top, parches 16.17-16.23 (data/otps/Sion/TOP y data/partidas_campeon/Sion/TOP, 165 partidas)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 66,
+    "victorias": 0.394,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.1,
+     "mediana": 3.5,
+     "p75": 4.9
+    },
+    "primer_objeto_min": {
+     "p25": 11.0,
+     "mediana": 12.4,
+     "p75": 14.0
+    },
+    "segundo_objeto_min": {
+     "p25": 19.4,
+     "mediana": 20.6,
+     "p75": 22.2
+    },
+    "primer_objeto": [
+     [
+      "Égida de fuego solar",
+      0.29
+     ],
+     [
+      "Fulgor vano",
+      0.26
+     ],
+     [
+      "Desesperanza eterna",
+      0.12
+     ],
+     [
+      "Presagio de Randuin",
+      0.09
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WQEQQRQWQ",
+      0.62
+     ],
+     [
+      "QWEQQRQWQ",
+      0.2
+     ],
+     [
+      "QWQEQRQWQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.95
+     ],
+     [
+      "QEW",
+      0.03
+     ],
+     [
+      "EQW",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 23.2,
+     "mediana": 32.5,
+     "p75": 41.8
+    },
+    "parte_del_dano_pct": {
+     "p25": 14.6,
+     "mediana": 19.3,
+     "p75": 22.1
+    },
+    "vision_por_min": {
+     "p25": 0.59,
+     "mediana": 0.68,
+     "p75": 0.79
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.17,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 27.0,
+     "mediana": 35.5,
+     "p75": 52.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 10.2,
+     "mediana": 21.2,
+     "p75": 26.7
+    },
+    "cs_10": {
+     "p25": 59.0,
+     "mediana": 70.0,
+     "p75": 77.0
+    },
+    "dif_cs_10": {
+     "p25": -17.8,
+     "mediana": -6.5,
+     "p75": 9.5
+    },
+    "dif_oro_10": {
+     "p25": -658.0,
+     "mediana": -264.0,
+     "p75": 167.0
+    },
+    "placas": {
+     "p25": 3.0,
+     "mediana": 6.5,
+     "p75": 11.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 5.1,
+     "p75": 8.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.9-16.23"
+   },
+   "MID": {
+    "partidas": 25,
+    "victorias": 0.52,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 4.4,
+     "p75": 6.6
+    },
+    "primer_objeto_min": {
+     "p25": 11.2,
+     "mediana": 12.4,
+     "p75": 14.3
+    },
+    "segundo_objeto_min": {
+     "p25": 17.6,
+     "mediana": 19.3,
+     "p75": 21.1
+    },
+    "primer_objeto": [
+     [
+      "Fulgor vano",
+      0.54
+     ],
+     [
+      "Corazón de acero",
+      0.17
+     ],
+     [
+      "Desesperanza eterna",
+      0.12
+     ],
+     [
+      "Égida de fuego solar",
+      0.08
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WQEQQRQWQ",
+      0.8
+     ],
+     [
+      "WQEQQRQEQ",
+      0.04
+     ],
+     [
+      "WEQQQRQWQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 31.8,
+     "mediana": 39.0,
+     "p75": 55.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 14.4,
+     "mediana": 19.5,
+     "p75": 23.3
+    },
+    "vision_por_min": {
+     "p25": 0.51,
+     "mediana": 0.61,
+     "p75": 0.79
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.36,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 10.9,
+     "mediana": 20.3,
+     "p75": 30.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.7,
+     "mediana": 19.0,
+     "p75": 26.7
+    },
+    "cs_10": {
+     "p25": 60.0,
+     "mediana": 72.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -18.0,
+     "mediana": -6.0,
+     "p75": 18.0
+    },
+    "dif_oro_10": {
+     "p25": -512.0,
+     "mediana": 48.0,
+     "p75": 513.0
+    },
+    "placas": {
+     "p25": 3.0,
+     "mediana": 8.0,
+     "p75": 14.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 2.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 8.3,
+     "p75": 12.5
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.3-16.23"
+   }
+  }
+ }
+}

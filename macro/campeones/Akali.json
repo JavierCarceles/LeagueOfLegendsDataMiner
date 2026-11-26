@@ -1,0 +1,554 @@
+{
+ "clave": "Akali",
+ "nombre": "Akali",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.677,
+   "principal": true
+  },
+  {
+   "rol": "TOP",
+   "parte": 0.319,
+   "principal": false
+  }
+ ],
+ "arquetipo": "asesina de energía cuerpo a cuerpo y daño híbrido (PH y AD adicional) de mid o top, con invisibilidad en zona y cuatro saltos; picos en nivel 3, nivel 6 y Sable-pistola hextech, vive de matar frágiles, hacer dives y reiniciar la R con derribos",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Niveles 1-2 flojos contra magos de rango (solo la Q a 500 u y ataques cuerpo a cuerpo); desde el nivel 3 (~2:04 en mid) tiene all-in con la E y desde el 6 (~5:13) mata a casi cualquier frágil con R1+R2. Su mejor ventana va del nivel 6 al segundo objeto (Sable-pistola hextech ~10:50 y Llamasombría ~19): roamea, hace dives y gana duelos. En la tardía los tanques con resistencia mágica, los controles en área y la visión verdadera la frenan, aunque con Zhonya y la R sigue amenazando por el flanco. OP.GG 16.23 Emerald+: 48,8 % de victorias en mid y 49,5 % en top, con un 18-19 % de bloqueos; en OTPs Diamante+ del programa gana ~70 % de las partidas de menos de 30 min y ~50 % de las más largas (pocas partidas)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:04 en mid, ~2:08 en top)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Q-W-E, Electrocutar y Prender tiene su primer all-in (E1-E2-Q-ataque potenciado-Q). En OTPs Diamante+ de mid su primera kill llega a los 3:11 de mediana (la mitad de las veces a nivel 3-4) y hace 0,6 kills por partida antes del 3:30."
+  },
+  {
+   "cuando": "Nivel 6 (~5:13 en mid, ~5:14 en top)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "R1 (salto de 750 u por encima del rival) + R2 de ejecución (hasta el triple de daño con poca vida): con el combo completo y Prender suele matar a un frágil a media vida, y empieza a roamear (primer derribo fuera de mid a los 5,9 min de mediana)."
+  },
+  {
+   "cuando": "Primer objeto: Sable-pistola hextech (~10:50 en mid; p25 9:36, p75 12:12) y Q al máximo (nivel 9, ~10:05)",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Sable-pistola hextech",
+   "por_que": "40 de AD, 80 de PH y 10 % de omnisucción con una activa de 700 u que ralentiza un 25 % 1,5 s: aguanta en línea, encadena dives y roameos, y con la Q al máximo (145 + ratios, 70 de energía) hace su mayor pico de la mitad de la partida."
+  },
+  {
+   "cuando": "Segundo objeto: Llamasombría (~19 min) con la R a nivel 11 (~14:20)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "Penetración mágica y críticos mágicos contra objetivos por debajo del 40 %, que encajan con la ejecución de R2: borra a un tirador o mago de un combo. La R baja a 90 s (y menos con Cazador definitivo)."
+  },
+  {
+   "cuando": "Tercer objeto: Reloj de arena de Zhonya (~24 min en mid, ~25 en top)",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Reloj de arena de Zhonya",
+   "por_que": "Puede entrar con R1, aguantar con la estasis y rematar con R2: deja de morir al primer control y amenaza la retaguardia en las peleas de la tardía."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Assassin's Mark (Marca de la asesina): al dañar a un campeón con una habilidad aparece un anillo de 500 u a su alrededor durante 4 s. Al salir de él, su siguiente ataque (en 4 s) llega al doble de distancia (~250 u) y hace 35-182 según nivel (+60 % AD adicional, +55 % AP) de daño mágico; además gana un 30-60 % de velocidad de movimiento al alejarse del centro y al volver hacia el rival. Desde el 26.08 ese ataque no se puede cancelar; no devuelve energía (desde el 11.6).",
+  "Q": "Five Point Strike: abanico de kunais de ~500 u (550 en Data Dragon) con 45/70/95/120/145 (+65 % AD, +60 % AP) de daño mágico; ralentiza un 50 % 0,5 s a los de la punta. Enfriamiento 1,5 s pero cuesta 110/100/90/80/70 de energía (200 de máximo, 10 por segundo): con la energía llena solo encadena 2-3 Q. Es su farmeo y su poke.",
+  "W": "Twilight Shroud: enfriamiento 20/19/18/17/16 s y sin coste: le devuelve 100 de energía (y sube el máximo en 100 mientras dura), +30-50 % de velocidad que decae en 2 s y crea una nube de humo de 5/5,5/6/6,5/7 s. Dentro es invisible y no se la puede seleccionar, salvo mientras se desplaza; atacar o lanzar habilidades la descubre 1-0,625 s. Las torres la ven si entra en su rango de ataque (desde el 9.5) y el daño en área la delata un instante. No da invisibilidad si está volviendo a base.",
+  "E": "Shuriken Flip: salta hasta 400 u hacia atrás y lanza un shuriken de 825 u (21-105 +30 % AD +33 % AP) que marca al primer enemigo o a su nube de humo; la segunda activación (3 s) la lleva hasta lo marcado a cualquier distancia (49-245 +70 % AD +77 % AP). Puede cruzar muros si el destino está al otro lado. Enfriamiento 16/14,5/13/11,5/10 s, 30 de energía.",
+  "R": "Perfect Execution: R1 (alcance 675) salta 750 u por encima de un campeón y hace 110/220/330 (+50 % AD adicional, +30 % AP) a todos en su camino; tras 2,5 s y hasta 10 s, R2 es otro salto de 800 u que hace de 70/140/210 (+30 % AP) a 210/420/630 (+90 % AP) según la vida que le falte al objetivo (ejecución). Enfriamiento 120/90/60 s, rebajado con cada derribo por Cazador definitivo. Usar Destello durante un salto lo interrumpe."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E en el 76 % de los OTPs Diamante+ de mid (80 % en todos los elos) y en el 61 % de los de top; secuencia completa más jugada en OP.GG (75-78 %). Variantes: Q-W-Q (14 % en mid, la que propone Skill Capped para pelear la oleada) y Q-E-W (6-15 %, Lolalytics). Maximiza Q y luego E (98 %); la W se queda con un punto hasta el 14 porque un punto ya da toda la invisibilidad. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E1: salto hacia atrás de hasta 400 u al lanzar el shuriken (825 u); E2: salto hasta el enemigo o la nube marcada a cualquier distancia durante 3 s (sigue Destellos). R1: salto de 750 u por encima de un campeón (se lanza a 675); R2: salto de 800 u entre 2,5 y 10 s después. W: +30-50 % de velocidad decreciente en 2 s; pasiva: +30-60 % al salir del anillo. Con E1-E2, R1, R2 y Destello recorre unas 2000-2500 u en 3-4 s. Velocidad base alta (345).",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "E2 y los saltos de la R cruzan muros finos si el punto final queda al otro lado (E2 hasta un enemigo marcado detrás del muro; R1 por encima de un rival pegado al muro); si no hay sitio al otro lado, el salto acaba contra el muro. Además, Destello.",
+  "invisibilidad": "W (Twilight Shroud): invisible dentro del humo 5-7 s (enfriamiento 20-16 s), salvo mientras se desplaza; atacar o lanzar la descubre 1-0,625 s; la revelan las torres dentro de su rango de ataque, la visión verdadera (guardián de control, Lente del oráculo) y el daño en área. No queda ningún rastro en el timeline.",
+  "global": []
+ },
+ "unico": [
+  "Energía en vez de maná (200, +10 por segundo): la Q cuesta 110→70 y la W devuelve 100 de energía y sube el máximo en 100 mientras dura el humo. Puede quedarse mucho en línea, pero si encadena Q se queda sin energía para el all-in.",
+  "Anillo de la pasiva: tras dañar con una habilidad aparece un círculo de 500 u; al salir, el siguiente ataque llega al doble de distancia y hace daño extra, y gana velocidad. Su forma de tradear es entrar, salir del anillo y volver a pegar.",
+  "Sudario (W): 5-7 s invisible dentro del humo, no se la puede seleccionar; atacar o lanzar la descubre un instante, las torres la ven dentro de su rango de ataque y el daño en área la delata. Sirve para esquivar habilidades dirigidas, reponer energía y reiniciar la pelea.",
+  "E en dos tiempos: E1 salta hacia atrás y marca al primer enemigo o a su propia nube de humo; E2 la lleva hasta la marca a cualquier distancia durante 3 s, así que sigue un Destello o la devuelve a su humo.",
+  "R en dos tiempos: R1 pasa por encima del objetivo y R2 (de 2,5 a 10 s después) es una ejecución que triplica su daño contra objetivos con poca vida. Cazador definitivo y Recuerdo macabro le rebajan el enfriamiento con cada derribo: la usa unas 10 veces por partida (mediana de 20 lanzamientos contando los dos tiempos).",
+  "Daño híbrido: sus habilidades escalan con PH y con AD adicional; desde 2026 su primer objeto es el Sable-pistola hextech (AD + PH + omnisucción), que vuelve a la Grieta en el 26.01."
+ ],
+ "combos": [
+  "Tradeo corto (niveles 1-2): Q en la punta (ralentiza) → salir del anillo → ataque potenciado → retirarse.",
+  "Tradeo con Electrocutar: W para acercarse → Q → ataque potenciado → Q (Electrocutar e Impacto repentino) → fuera antes de la respuesta.",
+  "All-in de nivel 3: E1 → E2 → Q → ataque potenciado → Q → Prender; W si el rival se gira o para salir.",
+  "All-in de nivel 6: E1 (marca) → E2 → R1 por encima → Q → ataque → W (energía y esquivar) → Q → R2 para ejecutar; Prender.",
+  "R1 primero: R1 sobre el objetivo → E1 enseguida (cuesta esquivarla tras el salto) → E2 → Q → ataque → activa del Sable-pistola → R2.",
+  "Huida: E1 hacia atrás y E2 a un súbdito o monstruo marcado lejos del peligro; R1 por encima de un rival para cruzar y R2 hacia fuera; W para que no la seleccionen.",
+  "Pelea de equipo: esperar a que el rival gaste su control → R1 al carry desde el flanco → E1-E2 → Q-ataque → W (reponer energía y desaparecer) → Q → R2; Zhonya si la focalizan entre R1 y R2."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Sable-pistola hextech",
+   "Botas de hechicero",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Sombrero mortal de Rabadon",
+   "Bastón del Vacío",
+   "Sobrecarga tormentosa",
+   "Robaalmas de Mejai",
+   "Velo del hada de la muerte",
+   "Botas de mercurio",
+   "Tormento de Liandry",
+   "Creagrietas"
+  ],
+  "runas": "Electrocutar + Impacto repentino + Recuerdo macabro + Cazador definitivo (Electrocutar en el 90 % en mid y el 78 % en top según OP.GG; 98 % de los OTPs Diamante+ de mid); secundaria Valor con Sobrecrecimiento y Fuerzas renovadas (Revestimiento de huesos contra all-in de luchadores, Inquebrantable contra mucho control). Alternativa: secundaria Brujería (~19-21 %). Fragmentos: adaptable, adaptable y vida escalable. En top, Conquistador (con Triunfo o Leyenda) aparece en ~30 % de los OTPs como página de daño sostenido.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Inicio: Anillo de Doran (60 % en mid, 72 % en top) o Escudo de Doran contra poke de rango (37 % y 22 %). Prender en el 81-84 %; Teleportar (12-17 %) en líneas de mago que la superan (Aurora, Viktor) o en top. Primera vuelta con Tomo amplificador y poción reutilizable, Alternador hextech o Cetro vampírico; Sello oscuro temprano cuando va por delante (lleva a Robaalmas de Mejai). Sable-pistola hextech primero (98 % de OTPs Diamante+ de mid y 85 % en top; Creagrietas 12 % en top, Cintomisil hextech raro); Botas de hechicero (67-84 %) o de mercurio (16-33 %) contra controles. Segundo: Llamasombría (Sobrecarga tormentosa si hay 4+ frágiles); tercero Zhonya (o Rabadon si no la focalizan); Bastón del Vacío contra resistencia mágica, Velo del hada de la muerte contra controles dirigidos y Tormento de Liandry contra 3+ tanques."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Empieza Q (Q-W-E en el 76 % de los OTPs Diamante+): a nivel 1 farmea con Q y busca algún ataque potenciado; a nivel 2 (~1:32) la W le deja acercarse y reponer energía; a nivel 3 (~2:04), con la E, busca el all-in si el rival ya gastó Destello o está por debajo del ~70 %. Su primera kill llega a los 3:11 de mediana y hace 0,6 kills por partida antes del 3:30.",
+    "tradeos": "Q en la punta (50 % de ralentización 0,5 s) → salir del anillo → ataque potenciado → atrás. Con Electrocutar, W → Q → ataque → Q quita un buen trozo y sale antes de la respuesta. Tradea cuando el rival gasta su habilidad principal (bola de Ahri, esfera de Syndra, Q de Orianna) y nunca con menos de ~100 de energía.",
+    "oleadas": "Con el cono de la Q empuja rápido para coger placas (mediana 9,5 por partida) o para roamear; contra magos de poke deja la oleada cerca de su torre y remata con Q desde lejos. Antes de roamear empuja hasta la torre rival; si el rival la empuja a ella, remata bajo torre con Q sin entrar en su alcance.",
+    "all_in": "Desde el nivel 6 (~5:13): E1-E2 o R1 → Q → ataque → W → Q → R2 para ejecutar, con Prender. Los dives a la torre rival son normales en ella (mediana de 3 kills cerca de la torre enemiga por partida en OTPs Diamante+). Mejor cuando el rival no tiene Destello ni controles dirigidos (Lissandra, Galio, Vex, Twisted Fate, Veigar).",
+    "jugar_seguro": "Contra Vex, Veigar, Twisted Fate, Lissandra, Galio, Taliyah o Vel'Koz: Escudo de Doran y Fuerzas renovadas, farmear con Q, guardar la W para su control y esperar al nivel 6 o al jungla. No usar E2 hacia la oleada rival ni R2 bajo torre si la kill no es segura."
+   },
+   "roameos": "Desde el nivel 6 (~5:15) y sobre todo con el Sable-pistola (~10:50): empuja con Q y baja por el río a bot (lo más habitual) o sube a top, con la W para cruzar el río sin ser vista y entrando a la línea por detrás. En OTPs Diamante+ el 92 % de las partidas tiene un derribo fuera de mid antes del 14 (el primero a los 5,9 min de mediana); de esos derribos (175 en 52 partidas), 61 son en el río, 40 en la jungla del lado de bot, 37 en bot, 20 en la jungla del lado de top y 17 en top. El reto de Riot de kills tempranas en otras líneas le sale en el 48 % de las partidas.",
+   "fase_media": "Con Sable-pistola y Llamasombría busca picks en la jungla y el río, deja mid empujada y se va a una lateral (21 % del tiempo tardío sola en una lateral) para presionar y atraer a dos rivales. En dragones y Barón entra por el flanco cuando el rival ya gastó su control; con Zhonya puede entrar primero contra frágiles.",
+   "matchups_dificiles": [
+    "Vex",
+    "Veigar",
+    "Twisted Fate",
+    "Lissandra",
+    "Galio",
+    "Taliyah",
+    "Vel'Koz",
+    "Akshan",
+    "Swain",
+    "Kayle",
+    "Zoe",
+    "Annie"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Smolder",
+    "Malphite",
+    "Locke",
+    "Cassiopeia",
+    "Brand",
+    "Tristana",
+    "Viktor",
+    "Fizz",
+    "Azir",
+    "Ekko",
+    "Orianna"
+   ]
+  },
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 (Q-W-E en el 61 % de los OTPs de top, Q-E-W 15 %). Contra luchadores fuertes de nivel 1-3 (Renekton, Riven, Jax, Olaf, Darius) no busca tradeos largos: Q desde el máximo alcance y paso atrás. Nivel 2 a la 1:41 y 3 a las 2:08; con E y Prender mata si el rival se queda sin Destello o con poca vida.",
+    "tradeos": "Tradeos cortos: Q en la punta → salir del anillo → ataque potenciado → atrás. Contra campeones de rango (Teemo, Vayne, Kennen, Jayce) remata los súbditos lejanos con Q y usa los arbustos para que no la castiguen sin visión. Contra tanques no tradea: farmea y espera objetos.",
+    "oleadas": "Deja la oleada cerca de su torre contra luchadores que la superan antes del 6; con ventaja empuja con Q y coge placas (mediana 6). Casi no sale de top antes del 14 (0,6 % del tiempo en otras líneas; el 80 % de sus kills antes del 14 son en top).",
+    "all_in": "Nivel 6 (~5:14) con Prender: E1-E2 → R1 → Q → ataque → W → Q → R2. Mediana de 4 kills en solitario y de 3 kills cerca de la torre rival por partida. Contra tanques (Sion, Maokai, Cho'Gath) el all-in no mata: espera a la Llamasombría.",
+    "jugar_seguro": "Contra Sion, Illaoi, Maokai, Pantheon, Urgot, Swain, Cho'Gath o Wukong: Escudo de Doran y Fuerzas renovadas o Revestimiento de huesos, farmear con Q y no gastar la W hasta su control; Teleportar en las líneas más difíciles."
+   },
+   "roameos": "Pocos antes del 14: en el 55 % de las partidas de OTPs tiene algún derribo fuera de top antes del 14, casi siempre en el río (escaramuzas de larvas o Heraldo) hacia el minuto 8-11; bajar a mid o bot es raro. Después del 14 se queda en la lateral.",
+   "fase_media": "Split push: pasa el 31 % del tiempo tardío sola en una lateral (mediana de OTPs), gana duelos a los laterales rivales y escapa con W-E-R; vuelve por el flanco para Barón o dragón. Con Zhonya puede entrar primero contra frágiles.",
+   "matchups_dificiles": [
+    "Sion",
+    "Illaoi",
+    "Maokai",
+    "Pantheon",
+    "Urgot",
+    "Swain",
+    "Cho'Gath",
+    "Wukong",
+    "Shen",
+    "Tryndamere",
+    "Irelia",
+    "Aatrox",
+    "Renekton",
+    "Garen"
+   ],
+   "matchups_faciles": [
+    "Rumble",
+    "Aurora",
+    "Anivia",
+    "Trundle",
+    "Sylas",
+    "Gwen",
+    "Olaf",
+    "Vladimir",
+    "Jax",
+    "Yone",
+    "Vayne",
+    "Gnar"
+   ],
+   "diferencias": "En top lleva más Anillo de Doran (72 %), algo más de Conquistador (~30 % de los OTPs) y Creagrietas (12 %), las botas más tarde (~15 min) y llega antes a los niveles altos porque no comparte experiencia (11 a las ~12:50, 16 a las ~22:50)."
+  }
+ },
+ "peleas": {
+  "papel": "Asesina flanqueadora y limpiadora de frágiles; en la tardía, amenaza que obliga al rival a proteger a su carry.",
+  "como_entrar": "Espera a que el rival gaste sus controles (Galio, Lissandra, Vex, Malzahar...), entra por el flanco con R1 o E al carry que esté a tiro, usa la W tras el primer combo para reponer energía y desaparecer, y remata con R2 o la usa para salir. Zhonya si la focalizan entre R1 y R2.",
+  "objetivo": "Tiradores y magos frágiles, o el que se separa del grupo; nunca el tanque.",
+  "posicion": "En el flanco, en la niebla o en un arbusto lateral, fuera de la vista hasta que empieza la pelea; con la W y la E listas para salir."
+ },
+ "macro": {
+  "split_push": "Sí en la fase media y tardía: en mid pasa un 21 % del tiempo tardío sola en una lateral y en top un 31 % (medianas de OTPs), siempre con visión y con W-E-R para escapar.",
+  "objetivos": "No hace objetivos sola: roamea para dragón y larvas con prioridad de mid y participa en dives; coge muchas placas (mediana 9,5 en mid, 6 en top). Heraldo y Barón con el equipo, protegiendo el foso desde el flanco y cazando al que llega tarde.",
+  "plan_de_partida": "Fase 1 (0-6 min): farmear con Q, all-in a nivel 3 si el rival se descuida y kill casi asegurada a nivel 6 (~5:13). Fase 2 (6-20 min): Sable-pistola (~10:50), empujar y roamear a bot y al río, dives y picks; segundo objeto (Llamasombría) ~19. Fase 3 (20+): split push en una lateral y flanco en las peleas de objetivo; con Zhonya y la R entra a por el carry cuando el rival ya gastó sus controles."
+ },
+ "debilidades": [
+  "Controles dirigidos y en área (Vex, Galio, Lissandra, Twisted Fate, Veigar, Malzahar) la paran en mitad de los saltos: contra ellos pierde casi todos los duelos (42-45 % de victorias).",
+  "Energía limitada: la Q cuesta 110-70 y sin la W no tiene recarga rápida; si abusa de la Q en línea llega sin energía al all-in.",
+  "Niveles 1-2 flojos contra magos de rango y luchadores de nivel 1 fuertes; antes del 6 vive de no perder la oleada.",
+  "La visión verdadera (torres, guardianes de control, Lente del oráculo) y el daño en área quitan valor al sudario.",
+  "Contra tanques y resistencia mágica (Sion, Maokai, Cho'Gath, Galio) su daño se queda corto en la tardía.",
+  "Es de todo o nada: si falla la E o R2 se queda en medio del equipo rival sin salida."
+ ],
+ "contrarrestado_por": [
+  "Vex",
+  "Veigar",
+  "Twisted Fate",
+  "Lissandra",
+  "Galio",
+  "Taliyah",
+  "Malzahar",
+  "Sion",
+  "Pantheon",
+  "Illaoi",
+  "Maokai"
+ ],
+ "bueno_contra": [
+  "Ezreal",
+  "Smolder",
+  "Locke",
+  "Cassiopeia",
+  "Viktor",
+  "Ekko",
+  "Rumble",
+  "Aurora",
+  "Jax",
+  "Yone",
+  "Olaf",
+  "Sylas"
+ ],
+ "sinergias": [
+  "Wukong",
+  "Malphite",
+  "Graves",
+  "Sett",
+  "Nami",
+  "Seraphine",
+  "Miss Fortune",
+  "Xayah"
+ ],
+ "errores_comunes": [
+  "Entrar sin la R o sin energía, o gastar la E antes de que el rival use su control.",
+  "Usar la W al principio de la pelea en vez de tras el primer combo o para esquivar el control clave.",
+  "Seguir con E2 o R2 al objetivo hasta debajo de su torre o al centro del equipo rival y morir sin rematar.",
+  "Gastar la Q en cada súbdito y quedarse sin energía para tradear o defenderse de un gank.",
+  "Pelear contra el tanque en lugar de buscar al tirador o al mago.",
+  "Roamear sin empujar antes la oleada y perder placas y CS en mid.",
+  "Hacer split push sin visión en la tardía y morir aislada.",
+  "Quedarse en el humo cuando el rival tiene guardián de control, Lente o daño en área."
+ ],
+ "senales_reconstructor": [
+  "Kills muy tempranas en su línea: niveles 2, 3 y 6 a la 1:32, 2:04 y 5:13 en mid (1:41, 2:08 y 5:14 en top); su primera kill llega a los 3:11 de mediana (OTPs Diamante+ de mid), la mitad de las veces a nivel 3-4, con 0,6 kills por partida antes del 3:30. Una primera sangre de Akali a los 2:30-4:00 es su plan, no suerte.",
+  "Roameos de mid: en el 92 % de las partidas de OTPs Diamante+ tiene un derribo fuera de mid antes del 14 (primero a los 5,9 min de mediana); solo la mitad de sus kills antes del 14 son en mid (río 18 %, bot 14 %, junglas 13 %, top 7 %). Una kill en bot o en el río con su frame anterior en mid es un roameo normal.",
+  "Movilidad entre frames: E1 (400 u hacia atrás) + E2 (hasta la marca a cualquier distancia), R1 (750 u) + R2 (800 u) y Destello le permiten recorrer 2000-2500 u en 3-4 s y cruzar muros finos; una kill a ~2000 u de su última posición conocida unos segundos antes no es un teletransporte. Sin TP no tiene nada global.",
+  "Invisibilidad: el sudario (W, 5-7 s, enfriamiento 20-16 s) no deja rastro en el timeline; puede cruzar el río o entrar a una línea sin que ningún guardián lo registre. Que el rival de mid compre guardianes de control o Lente es la respuesta esperada contra ella.",
+  "Dives y peleas en inferioridad: mediana de 3 kills cerca de la torre rival por partida (92 % de las partidas con al menos una) y de 2 kills en inferioridad numérica. Una kill de Akali bajo la torre enemiga o en un 1 contra 2 no es un error suyo.",
+  "Muere bastante por su estilo: mediana de 3 muertes antes del 14 en OTPs Diamante+ de mid (63 % en mid y 17 % en el río); kill y muerte en el mismo intercambio es normal en ella.",
+  "Compras: primera vuelta a base a las 4:42 de mediana en mid (p25 3:20, p75 6:48; 4:54 en top) con ~850 de oro (1100 en top): Tomo amplificador y poción reutilizable, Alternador hextech o Cetro vampírico. Sable-pistola hextech a las 10:50 en mid (p25 9:36, p75 12:12; 11:25 en top), botas hacia el 12 (15 en top), Llamasombría hacia el 19 y Zhonya tercero hacia el 24.",
+  "Orden de habilidades: Q-W-E (W a nivel 2 es lo normal), Q al máximo y E segunda (98 %); la W se queda con un punto hasta el nivel 14.",
+  "Hechizos Destello y Prender (90 %); Teleportar solo en el 10-17 % de las partidas: un salto rápido de top a bot sin TP en el resumen de hechizos no cuadra con ella.",
+  "Split push tardío: sola en una lateral el 21 % del tiempo tardío en mid y el 31 % en top (medianas). Verla sola en una lateral pasado el 20 es parte de su plan; el error es hacerlo sin visión.",
+  "Akali de top casi no sale de su línea antes del 14 (0,6 % del tiempo en otras líneas, el 80 % de sus kills antes del 14 en top): un roameo temprano de una Akali de top es raro, al contrario que en mid.",
+  "Kills en solitario: mediana de 4 por partida en mid y en top, con participación en kills más baja que otros mids (43 % en mid, 38 % en top): gana kills por su cuenta.",
+  "Visión: unos 8 guardianes por partida y casi ningún guardián de control (mediana 0)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/akali/build/",
+  "https://www.op.gg/lol/champions/akali/build/mid",
+  "https://www.op.gg/lol/champions/akali/build/top",
+  "https://www.op.gg/lol/champions/akali/counters/mid",
+  "https://www.op.gg/lol/champions/akali/counters/top",
+  "https://www.op.gg/lol/champions/akali/synergies",
+  "https://www.skill-capped.com/lol/guides/builds/akali/mid/build-1",
+  "https://www.skill-capped.com/lol/guides/builds/akali/top",
+  "https://wiki.leagueoflegends.com/en-us/Akali",
+  "https://wiki.leagueoflegends.com/en-us/Akali/Patch_history",
+  "https://wiki.leagueoflegends.com/en-us/Hextech_Gunblade",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)",
+  "Partidas de OTPs de Akali (data/otps/Akali): 52 de Diamante+ en mid (parches 16.21-16.23), 187 de mid y 33 de top de todos los elos"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 33,
+    "victorias": 0.455,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.9,
+     "mediana": 4.9,
+     "p75": 7.3
+    },
+    "primer_objeto_min": {
+     "p25": 10.0,
+     "mediana": 11.4,
+     "p75": 12.9
+    },
+    "segundo_objeto_min": {
+     "p25": 16.9,
+     "mediana": 18.6,
+     "p75": 22.3
+    },
+    "primer_objeto": [
+     [
+      "Sable-pistola hextech",
+      0.85
+     ],
+     [
+      "Creagrietas",
+      0.12
+     ],
+     [
+      "Cintomisil hextech",
+      0.03
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.61
+     ],
+     [
+      "QEWQQRQEQ",
+      0.15
+     ],
+     [
+      "QWQEQRQEQ",
+      0.09
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.97
+     ],
+     [
+      "QWE",
+      0.03
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 31.6,
+     "mediana": 38.5,
+     "p75": 50.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 20.4,
+     "mediana": 24.9,
+     "p75": 28.7
+    },
+    "vision_por_min": {
+     "p25": 0.68,
+     "mediana": 0.81,
+     "p75": 1.03
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 4.45,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 25.8,
+     "mediana": 31.5,
+     "p75": 38.7
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 13.7,
+     "mediana": 18.2,
+     "p75": 21.4
+    },
+    "cs_10": {
+     "p25": 63.0,
+     "mediana": 74.0,
+     "p75": 81.0
+    },
+    "dif_cs_10": {
+     "p25": 2.0,
+     "mediana": 11.0,
+     "p75": 22.0
+    },
+    "dif_oro_10": {
+     "p25": -199.0,
+     "mediana": 357.0,
+     "p75": 961.0
+    },
+    "placas": {
+     "p25": 4.0,
+     "mediana": 6.0,
+     "p75": 10.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 1.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 5.4,
+     "p75": 8.9
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   },
+   "MID": {
+    "partidas": 52,
+    "victorias": 0.654,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.7,
+     "p75": 6.8
+    },
+    "primer_objeto_min": {
+     "p25": 9.6,
+     "mediana": 10.8,
+     "p75": 12.2
+    },
+    "segundo_objeto_min": {
+     "p25": 17.3,
+     "mediana": 19.1,
+     "p75": 20.9
+    },
+    "primer_objeto": [
+     [
+      "Sable-pistola hextech",
+      0.98
+     ],
+     [
+      "Cintomisil hextech",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.76
+     ],
+     [
+      "QWQEQRQEQ",
+      0.14
+     ],
+     [
+      "QEWQQRQEQ",
+      0.06
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.98
+     ],
+     [
+      "QWE",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 35.1,
+     "mediana": 43.2,
+     "p75": 54.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 23.2,
+     "mediana": 26.9,
+     "p75": 30.8
+    },
+    "vision_por_min": {
+     "p25": 0.57,
+     "mediana": 0.72,
+     "p75": 0.93
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 3.0,
+     "p75": 3.2
+    },
+    "solo_kills_media": 4.63,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 15.5,
+     "mediana": 20.9,
+     "p75": 27.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 13.7,
+     "mediana": 21.2,
+     "p75": 29.6
+    },
+    "cs_10": {
+     "p25": 60.5,
+     "mediana": 67.0,
+     "p75": 76.0
+    },
+    "dif_cs_10": {
+     "p25": -15.5,
+     "mediana": -1.0,
+     "p75": 10.5
+    },
+    "dif_oro_10": {
+     "p25": -244.0,
+     "mediana": 319.0,
+     "p75": 938.0
+    },
+    "placas": {
+     "p25": 5.8,
+     "mediana": 9.5,
+     "p75": 13.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 6.0
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.5,
+     "mediana": 7.4,
+     "p75": 11.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.21-16.23"
+   }
+  }
+ }
+}

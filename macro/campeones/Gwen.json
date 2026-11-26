@@ -1,0 +1,579 @@
+{
+ "clave": "Gwen",
+ "nombre": "Gwen",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.74,
+   "principal": true
+  },
+  {
+   "rol": "JUNGLE",
+   "parte": 0.26,
+   "principal": false
+  }
+ ],
+ "arquetipo": "luchadora de AP cuerpo a cuerpo con daño por % de vida máxima y verdadero que escala (picos en nivel 6, Amanecer y anochecer ~11-12 min y 3 objetos ~26 min), destroza tanques y hace split push en top; también jungla de farmeo (~1 de cada 4 partidas)",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 4,
+  "tardia": 5,
+  "nota": "Antes del 6 y sin 4 cargas de Q hace poco daño: metabot la da 120 de oro por detrás a los 15 de media y por delante solo en el 48 % de las partidas. El nivel 6 (~5:20 en top) y Amanecer y anochecer (~11-12 min) la igualan; con Llamasombría (~21 min) y Sombrero mortal de Rabadon (~26 min) gana casi cualquier pelea larga contra tanques y luchadores. Gana más cuanto más dura la partida (su mejor ventana, hacia el minuto 40, con el 54,5 % de victorias según metabot)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:08 en top) con Q-E-W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con las tres básicas y 4 cargas de Q ya hace el tradeo completo (E-AA-Q-AA) y puede anular la respuesta del rival con la W; antes de esto su daño es bajo."
+  },
+  {
+   "cuando": "Nivel 6 (mediana 5:18 en top; ~6:30 en la jungla)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Costura (R): tres lanzamientos (1, 3 y 5 agujas) a 1350 u que ralentizan un 40 % y aplican la pasiva en cada aguja; es su mayor salto temprano: all-in en línea con Prender o un gank/roam con la ralentización."
+  },
+  {
+   "cuando": "Primer objeto (~11-12 min)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Amanecer y anochecer",
+   "por_que": "Amanecer y anochecer (54 % de los OTP, ~11:10; primer objeto en casi todas las builds de OP.GG): 60 de AP, 300 de vida, 20 % de velocidad de ataque y Hoja encantada (el ataque tras una habilidad hace daño extra y cura). Alternativa Creagrietas (46 %, ~13:05) en la versión de primera línea. Desde aquí gana el 1v1 lateral a casi todos los tanques."
+  },
+  {
+   "cuando": "Nivel 11 (~13:15)",
+   "nivel": 11,
+   "objetos": 1,
+   "objeto": null,
+   "por_que": "R a rango 2 (enfriamiento 100 s en lugar de 120) y Q al máximo desde el nivel 9 (~10:25): más peleas con la R disponible y tijeretazos de 26 (+5 % AP)."
+  },
+  {
+   "cuando": "Segundo objeto (~20-21 min)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "Llamasombría (47 % de los segundos objetos): 110 de AP y 15 de penetración mágica; su daño mágico y verdadero hace críticos a los enemigos por debajo del 40 %. Ventana para agruparse en objetivos."
+  },
+  {
+   "cuando": "Tercer objeto (~26 min)",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "Rabadon (65 % de los terceros objetos) completa el núcleo más jugado (Amanecer y anochecer + Llamasombría + Rabadon, 27 % de las partidas y 57,8 % de victorias en OP.GG): sus % de vida y su curación escalan con el AP."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Mil cortes: sus ataques, efectos al impactar y el centro de cada tijeretazo de Q y cada aguja de R hacen un 1 % (+0,6 % por cada 100 AP) de la vida máxima del objetivo como daño mágico adicional. Contra campeones se cura el 67 % de ese daño (máximo 12-40 según nivel +7 % AP por golpe; subió del 50 % en el 26.16). Contra súbditos por debajo del 40 % de vida hace 8-30 extra; contra monstruos como mucho 3 (+5 % AP) por golpe (bajó en el 26.02), por eso despeja la jungla peor que otros.",
+  "Q": "¡Chas, chas!: cada ataque que impacta le da una carga (máx. 4, 6 s). Al lanzarla (cono de ~450 u, 0,5 s) da 2 tijeretazos más 1 por carga (hasta 6): 10-26 (+5 % AP) cada uno y el último 60-160 (+35 % AP), más la pasiva en el centro. El centro del cono convierte la mitad del daño en verdadero. Enfriamiento 6,5/5,75/5/4,25/3,5 s, 40 de maná. Hace el 80 % a súbditos y ejecuta a los que están por debajo del 20 %.",
+  "W": "Niebla sagrada: 4 s de niebla (radio 480) en la que es intocable para los enemigos que están fuera (salvo las torres; los monstruos pueden atacarla, pero desde fuera no la dañan) y gana +22-30 (+7 % AP) de armadura y RM. Destruye los proyectiles de campeones lanzados desde fuera, R globales incluidas. Si sale andando o con la E, la niebla la sigue una vez. Enfriamiento 22/21/20/19/18 s.",
+  "E": "Salto y tajo: carrerilla de 350-450 u que reinicia el ataque; durante 4 s sus ataques ganan +75 de alcance, +30-80 % de velocidad de ataque y 15 (+20 % AP) de daño mágico al impactar, y el primero que golpea devuelve el 25-65 % del enfriamiento (13/12,5/12/11,5/11 s). Es su enganche, su forma de esquivar y su reinicio de ataque.",
+  "R": "Costura: hasta tres lanzamientos en 6 s (Data Dragon; 1 s entre ellos) de 1, 3 y 5 agujas a 1200-1350 u. Cada aguja hace 30/50/70 (+10 % AP) más la pasiva; la primera que golpea ralentiza un 40/50/60 % durante 1,5 s y las siguientes un 15-25 %. Con las 9 agujas: hasta 270/450/630 (+90 % AP) + 9 % de la vida máxima. Enfriamiento 120/100/80 s."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W en el 65 % de los OTP de top y en OP.GG (61 %); E primero contra rangos (E-Q-W, 16 %, como aconseja skill-capped); Q-E-Q (14 %) en línea fácil y casi siempre en la jungla (94 % de los OTP de jungla). Q al máximo (nivel 9 hacia el 10:25), luego E y W al final (solo da resistencias). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: carrerilla de 350-450 u (vuelve antes si golpea: reembolso de hasta el 65 %). W: la niebla la sigue una vez si sale de ella. Ningún salto largo ni efecto global; en la jungla compensa con Fantasmal.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo algunos muros finos de la jungla y del río con la E (350-450 u); jungler.gg avisa de que el salto es corto.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Cargas de Q con los ataques (máx. 4): la Q pasa de 2 a 6 tijeretazos; en línea su daño depende de llegar al tradeo con las 4 cargas (por eso ataca súbditos antes de entrar).",
+  "Niebla sagrada (W): 4 s intocable para los enemigos de fuera (no para las torres) y destruye sus proyectiles, incluidas las R de largo alcance; quien quiera pegarle tiene que entrar en la niebla.",
+  "Daño por % de vida máxima en ataques, Q y R con curación del 67 % contra campeones: destroza tanques y gana los duelos largos.",
+  "La mitad del daño del centro de la Q es verdadero: apuntar el centro del cono al objetivo principal es lo que separa un buen tradeo de uno malo.",
+  "R de tres lanzamientos (1-3-5 agujas) a 1350 u: daño y ralentización a distancia para una campeona cuerpo a cuerpo.",
+  "Contra monstruos su pasiva está limitada a 3 (+5 % AP) por golpe: su despeje de jungla es lento hasta que tiene AP."
+ ],
+ "combos": [
+  "Tradeo estándar: 3-4 ataques (a súbditos o al rival) para tener 4 cargas → E hacia el rival → AA → Q con el rival en el centro → AA (reembolsa la E); W en cuanto el rival responda.",
+  "All-in de nivel 6: R1 desde lejos (ralentiza) → E → AA → Q de 4 cargas → R2 → AA → W al recibir la ráfaga o el control → R3 para rematar; Prender si va a huir.",
+  "Persecución: R1-R2 a distancia para ralentizar → E para pegarse → AA-Q.",
+  "Anular el inicio rival: W justo cuando el rival lanza su habilidad o su R desde fuera de la niebla; luego E + AA + Q dentro de la niebla.",
+  "Pelea en grupo: esperar al control inicial, W para que la retaguardia no pueda apuntarle, E + AA + Q al frontal más cercano para cargar Conquistador, R a varios."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Anillo de Doran",
+   "Amanecer y anochecer",
+   "Creagrietas",
+   "Llamasombría",
+   "Sombrero mortal de Rabadon",
+   "Diente de Nashor",
+   "Reloj de arena de Zhonya",
+   "Bastón del Vacío",
+   "Velo del hada de la muerte",
+   "Botas blindadas",
+   "Botas de hechicero",
+   "Botas de mercurio"
+  ],
+  "runas": "Conquistador (80-82 %) + Claridad mental + Leyenda: Presteza + Último esfuerzo (o Derribado contra equipos de frontales); secundaria Valor (Revestimiento de huesos o Fuerzas renovadas con Sobrecrecimiento o Inquebrantable) o Inspiración (Reembolso + Tónico triple en línea libre contra tanques, según skill-capped). Alternativa: Tensión del saqueador de tormentas (Brujería, 12-20 %) contra rangos que la kitean. En la jungla: Conquistador + Triunfo + Leyenda: Presteza + Último esfuerzo con Inspiración (Perspicacia cósmica + Velocidad de aproximación).",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Teleportar",
+   "Fantasmal",
+   "Castigo"
+  ],
+  "nota": "Top: Destello + Prender (54 % en OP.GG) o Destello + Teleportar (21 %; 43 % en los OTP); Fantasmal sustituye a veces al Destello. Inicio Anillo de Doran + 2 pociones (83 %) o Escudo de Doran contra rangos (9 %). Botas blindadas contra AD (62 % en OTP), Botas de hechicero (35 % en OP.GG) o de mercurio. Amanecer y anochecer primero, luego Llamasombría y Rabadon; Creagrietas + Diente de Nashor si va de primera línea; Zhonya contra asesinos y ráfaga, Bastón del Vacío contra RM, Velo del hada solo contra un AP muy adelantado, Robaalmas de Mejai solo yendo muy por delante. Jungla: Fantasmal + Castigo (85 %), Cachorro de Garra ígnea, Vara explosiva en la primera vuelta y Amanecer y anochecer hacia las 10:50."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 contra cuerpo a cuerpo y E contra rangos. Nivel 1: ataca súbditos para tener 4 cargas y lanza la Q solo si va a acertar el centro (sin cargas son 2 tijeretazos y recargarlas lleva varios ataques). Nivel 2 (E, ~1:43): tradeos AA-E-AA con +75 de alcance. Nivel 3 (W, ~2:08): ya puede anular la respuesta del rival.",
+    "tradeos": "Llega al tradeo con 4 cargas → E (reinicio, +velocidad de ataque y +75 de alcance) → AA → Q con el rival en el centro (mitad de daño verdadero) → AA para recuperar hasta el 65 % de la E. W cuando el rival responda con su ráfaga o su control y retirarse cuando la niebla se acaba (4 s). Contra tanques y luchadores de mucha vida los tradeos largos le favorecen por el % de vida y la curación del 67 %; contra rangos y ráfaga, tradeos cortos.",
+    "oleadas": "Despeja con Q (ejecuta súbditos por debajo del 20 %, la pasiva remata a los de menos del 40 %). Primera vuelta temprana (mediana 3:20 con ~775 de oro: Poción reutilizable, Vara explosiva, Botas o Tomo amplificador). Contra matchups malos deja llegar la oleada a su torre y farmea con Q; contra tanques empuja y toma placas (9 por partida de mediana en los OTP).",
+    "all_in": "A nivel 6 (mediana 5:18) con R: R1 desde lejos → E → AA → Q de 4 cargas → R2 → W al recibir la ráfaga → R3; con Prender gana casi todos los all-in contra tanques y luchadores sin mucha ráfaga. Antes del 6 solo entra con 4 cargas, la E disponible y el rival por debajo de la mitad.",
+    "jugar_seguro": "Contra Heimerdinger, Lissandra, Warwick, Tryndamere, Riven, Akali, Fiora, Yasuo, Kennen o rangos de poke: Escudo de Doran + Revitalizar o Fuerzas renovadas, farmear con Q bajo su torre, guardar la W para el all-in rival y esperar a Amanecer y anochecer (~11-12 min). Si va 1000 de oro por detrás a los 15 gana solo el 31,8 % (metabot), así que no regala la línea."
+   },
+   "roameos": "Pocos: en solo 4 de 49 partidas de los OTP participó en una kill en otra línea antes del 14 (la primera hacia el 11:45). Usa Teleportar para bajar a peleas de dragón o de bot a partir del nivel 6 o del primer objeto; desde el río ayuda con la R a 1350 u.",
+   "fase_media": "Split push en una lateral (mediana del 36 % del tiempo tardío sola en una lateral, p75 52 %; 9 placas y ~9.200 de daño a torres por partida) y Teleportar a las peleas de Barón o dragón. Con Amanecer y anochecer + Llamasombría (~21 min) y Rabadon (~26 min) gana casi cualquier 1v1 lateral contra tanques; en peleas entra tarde y por el flanco. Le conviene alargar la partida.",
+   "matchups_dificiles": [
+    "Heimerdinger",
+    "Lissandra",
+    "Warwick",
+    "Tryndamere",
+    "Riven",
+    "Akali",
+    "Fiora",
+    "Yasuo",
+    "Kennen",
+    "Singed"
+   ],
+   "matchups_faciles": [
+    "Dr. Mundo",
+    "Swain",
+    "Sylas",
+    "Maokai",
+    "Yorick",
+    "Illaoi",
+    "Gangplank",
+    "Sion",
+    "Cho'Gath",
+    "Malphite"
+   ]
+  },
+  "JUNGLE": {
+   "inicio": "Azul en el 47-52 % (jungler.gg; OP.GG en lado azul); en lado rojo empieza rapaces (45 %) o roja (36 %). Q a nivel 1 y E a nivel 2, Fantasmal + Castigo (85 %) y Cachorro de Garra ígnea con poción. Como la pasiva apenas daña a monstruos, despeja con la Q de 4 cargas y la mascota; dentro de la W los monstruos que la atacan desde fuera no le hacen daño. La escuttle sale a las 2:55.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs",
+      "scuttle_bot"
+     ],
+     "despues": "Escuttle del lado de la roja (scuttle_bot en lado azul, scuttle_top en lado rojo) y vuelta a base hacia las 3:35 (mediana de los OTP) con ~850 de oro a por Vara explosiva (76 %).",
+     "nivel": 4,
+     "minuto": "3:05",
+     "cuando": "La más jugada y ganadora en jungler.gg (18,5 % de las partidas, 56,2 % de victorias; la variante krugs-roja da 59 % con 3 %). Q a nivel 3 para acelerar el despeje y W a nivel 4 para disputar la escuttle."
+    },
+    {
+     "nombre": "Despeje completo desde rapaces",
+     "orden": [
+      "raptors",
+      "krugs",
+      "red",
+      "wolves",
+      "gromp",
+      "blue",
+      "scuttle_top"
+     ],
+     "despues": "Escuttle del lado de la azul (scuttle_top en lado azul) o gank a la línea de ese lado si está muy adelantada; después vuelta a base.",
+     "nivel": 4,
+     "minuto": "3:05",
+     "cuando": "Segunda más jugada en jungler.gg (9,9 %, 53,5 % de victorias) y habitual en lado rojo, donde casi la mitad empieza en rapaces."
+    }
+   ],
+   "ganks": "Pocos y tardíos: 1 gank antes del 10 de mediana y el primero hacia el 7:00 en los OTP (muestra pequeña, 17 partidas). Antes del 6 no tiene control (solo la E para pegarse), así que solo gankea a rivales muy adelantados; desde el 6 entra con Fantasmal + E y la ralentización de la R (40 %). Reparto en los OTP: 45 % top, 36 % bot, 18 % mid.",
+   "objetivos": "Dragón y Larvas a partir de Amanecer y anochecer (~10:50) o con prioridad de bot/mid; con la W en el foso nadie puede pegarle desde fuera de la niebla mientras golpea al monstruo. Heraldo y Barón en grupo.",
+   "invasion": "Rara: 0 de CS de jungla rival antes del 10 de mediana (p75 9). No gana duelos tempranos contra junglas de duelo hasta su primer objeto; con 2 objetos invade y gana casi cualquier 1v1.",
+   "contra_jungla": "Contra invasores tempranos (Bel'Veth, Kindred, Gragas, Rammus, sus peores rivales en OP.GG) cede el campamento y farmea el otro lado; la W la salva de los que no entran en la niebla.",
+   "plan": "Farmear y escalar: despeje completo, Vara explosiva en la primera vuelta, Amanecer y anochecer hacia las 10:50, ganks oportunistas con la R desde el 6 (~6:30) y peleas de objetivo desde el segundo objeto. Con 3 objetos es de las junglas que mejor pelean en partidas largas; juega más agrupada que en top (10 % del tiempo tardío sola en una lateral)."
+  }
+ },
+ "peleas": {
+  "papel": "Luchadora de AP que destroza la primera línea (o asesina de flanco con la build Amanecer y anochecer + Llamasombría + Rabadon).",
+  "como_entrar": "Llega tarde a propósito: deja que el rival gaste su control inicial, entra con E por el flanco, W para que la retaguardia no pueda apuntarle desde fuera y R a distancia para ralentizar a varios; Zhonya o Velo del hada con la W la hacen muy difícil de enfocar.",
+  "objetivo": "El frontal más cercano para cargar Conquistador (sus % de vida lo derriten) y, en cuanto la niebla la protege, el carry; con la build asesina va directa a tiradores y magos.",
+  "posicion": "Flanco o en medio de la pelea (versión luchadora), nunca la primera en entrar ni sola delante de su equipo."
+ },
+ "macro": {
+  "split_push": "Sí, es su plan principal en top: 36 % de mediana del tiempo tardío sola en una lateral (p75 52 %), 9 placas y ~9.200 de daño a torres por partida (OTP Master/Diamante); con Teleportar vuelve a las peleas.",
+  "objetivos": "En top no hace objetivos (0 dragones de mediana): presiona la lateral contraria al objetivo y baja con TP. En la jungla, dragón y larvas desde Amanecer y anochecer; Barón siempre en grupo.",
+  "plan_de_partida": "Sobrevivir la línea hasta el 6 y Amanecer y anochecer (~11 min); después split push con presión de placas y torres y Teleportar a peleas; desde 3 objetos (~26 min) es de las mejores en peleas largas, así que conviene alargar la partida y no forzar peleas igualadas antes."
+ },
+ "debilidades": [
+  "Antes del 6 y sin 4 cargas de Q hace poco daño: los rangos y los campeones de mucho daño temprano la castigan (Heimerdinger, Kennen, Jayce, Gnar).",
+  "La W no sirve si el rival entra en la niebla o la controla dentro (Lissandra, Warwick, Singed, Tryndamere): los que pelean cuerpo a cuerpo dentro de la niebla la anulan.",
+  "Las torres sí la atacan dentro de la niebla: no puede usar la W para hacer dives seguros bajo torre.",
+  "Necesita varios ataques para hacer daño: si la atacan primero con ráfaga y control, muere sin aportar.",
+  "Poco alcance (150) y un solo salto corto: el kiting y los rangos la hacen sufrir en línea."
+ ],
+ "contrarrestado_por": [
+  "Heimerdinger",
+  "Lissandra",
+  "Warwick",
+  "Tryndamere",
+  "Riven",
+  "Akali",
+  "Fiora",
+  "Yasuo"
+ ],
+ "bueno_contra": [
+  "Dr. Mundo",
+  "Swain",
+  "Sylas",
+  "Maokai",
+  "Yorick",
+  "Illaoi",
+  "Gangplank",
+  "Sion",
+  "Cho'Gath"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Amumu",
+  "Sejuani",
+  "Lulu",
+  "Orianna"
+ ],
+ "errores_comunes": [
+  "Lanzar la Q sin cargas (2 tijeretazos) o sin el rival en el centro del cono.",
+  "Usar la W para entrar en lugar de para anular la ráfaga o el control rival.",
+  "Forzar all-in antes del 6 contra rangos o campeones de ráfaga.",
+  "Quedarse en la niebla bajo una torre rival pensando que es intocable (las torres sí le pegan).",
+  "Gastar los tres lanzamientos de la R sin apuntar en lugar de espaciarlos para rematar.",
+  "Agruparse en mid sin presión lateral: su valor está en el split push y en el TP.",
+  "Comprar Robaalmas de Mejai o Velo del hada sin ir por delante o sin un AP rival adelantado."
+ ],
+ "senales_reconstructor": [
+  "Línea de referencia en top (OTP Master/Diamante, 49 partidas): nivel 2 a la 1:43, nivel 3 a las 2:08, nivel 6 a las 5:18, nivel 9 a las 10:25 y nivel 11 a las 13:15; CS 17 a los 3:00, 33 a los 5:00 y 74 a los 10:00 (p25 65, p75 79).",
+  "Primera vuelta temprana: mediana 3:20 (p25 2:40, p75 3:58) con ~775 de oro (Poción reutilizable, Vara explosiva, Botas o Tomo amplificador); un 22 % de esas vueltas son tras morir.",
+  "Ritmo de objetos: primer objeto hacia el 12:25 (Amanecer y anochecer ~11:10 o Creagrietas ~13:05), segundo hacia el 21:10 (Llamasombría) y tercero Sombrero mortal de Rabadon (65 %). Las botas completas llegan hacia el 16:35 de mediana.",
+  "Split push: 36 % del tiempo tardío sola en una lateral de mediana (p75 52 %), 9 placas y ~9.200 de daño a torres por partida; verla lejos del grupo en una lateral a partir del 20 es su plan, no un error.",
+  "Teleportar en el 43 % de los OTP (21 % en OP.GG): kills en bot o en el dragón con su última posición en top se explican por el TP (1 participación con TP por partida de mediana cuando lo lleva).",
+  "Participación en kills baja (33 % de mediana) con 1 kill en solitario (p75 4): vive en la lateral y pelea sola.",
+  "Niebla sagrada (W): 4 s intocable para los enemigos de fuera; muertes que no se producen pese a mucho daño rival y R globales (Jinx, Ezreal, Ashe) que no la alcanzan son normales. Las torres sí le pegan dentro.",
+  "La R alcanza 1350 u: puede participar en kills sin estar pegada a la víctima.",
+  "Jungla (OP.GG 26 %, Lolalytics 22,9 %): Fantasmal + Castigo, Cachorro de Garra ígnea, CS de jungla 12 a los 2:00, 24 a los 3:00, 36 a los 5:00 y 72 a los 10:00; vuelta hacia las 3:35 con Vara explosiva, nivel 6 hacia las 6:30, primer gank tardío (~7:00) y Amanecer y anochecer hacia las 10:50 (OTP, 17 partidas: valores orientativos).",
+  "Reparto de roles: Lolalytics 16.23 Esmeralda+ da 67,2 % top, 22,9 % jungla y 9,3 % mid; una Gwen mid es rara pero existe y juega como en top (Anillo de Doran, Amanecer y anochecer, split push)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/gwen/build/",
+  "https://lolalytics.com/lol/gwen/build/?tier=all",
+  "https://lolalytics.com/lol/gwen/counters/",
+  "https://www.op.gg/lol/champions/gwen/build/top",
+  "https://www.op.gg/lol/champions/gwen/build/jungle",
+  "https://www.op.gg/lol/champions/gwen/jungle-paths",
+  "https://jungler.gg/champions/gwen/",
+  "https://wiki.leagueoflegends.com/en-us/Gwen",
+  "https://www.skill-capped.com/lol/guides/m/builds/gwen/top",
+  "https://metabot.gg/en/league/champion/Gwen/tips?build=5",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Gwen (data/otps/Gwen: TOP 49 partidas de 4 OTPs Oro-GM, sobre todo Master/Diamante; JUNGLE 17 partidas de 2 OTPs Challenger/GM)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 58,
+    "victorias": 0.552,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 4.0,
+     "p75": 4.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.9,
+     "mediana": 12.4,
+     "p75": 13.6
+    },
+    "segundo_objeto_min": {
+     "p25": 18.3,
+     "mediana": 20.8,
+     "p75": 22.7
+    },
+    "primer_objeto": [
+     [
+      "Creagrietas",
+      0.54
+     ],
+     [
+      "Amanecer y anochecer",
+      0.46
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.6
+     ],
+     [
+      "EQWQQRQEQ",
+      0.19
+     ],
+     [
+      "QEQWQRQEQ",
+      0.16
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 26.2,
+     "mediana": 33.0,
+     "p75": 42.9
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.7,
+     "mediana": 24.1,
+     "p75": 28.5
+    },
+    "vision_por_min": {
+     "p25": 0.73,
+     "mediana": 0.91,
+     "p75": 1.09
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.1,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 26.0,
+     "mediana": 35.6,
+     "p75": 52.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 13.6,
+     "mediana": 19.4,
+     "p75": 26.1
+    },
+    "cs_10": {
+     "p25": 65.0,
+     "mediana": 75.0,
+     "p75": 79.8
+    },
+    "dif_cs_10": {
+     "p25": -12.0,
+     "mediana": -0.5,
+     "p75": 14.5
+    },
+    "dif_oro_10": {
+     "p25": -669.0,
+     "mediana": 29.0,
+     "p75": 567.0
+    },
+    "placas": {
+     "p25": 4.2,
+     "mediana": 8.0,
+     "p75": 17.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 5.7,
+     "p75": 8.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.16-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 24,
+    "victorias": 0.333,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.6,
+     "mediana": 4.3,
+     "p75": 7.1
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 10.9,
+     "p75": 11.9
+    },
+    "segundo_objeto_min": {
+     "p25": 16.5,
+     "mediana": 18.7,
+     "p75": 19.2
+    },
+    "primer_objeto": [
+     [
+      "Amanecer y anochecer",
+      0.88
+     ],
+     [
+      "Perdición del liche",
+      0.04
+     ],
+     [
+      "Sombrero mortal de Rabadon",
+      0.04
+     ],
+     [
+      "Diente de Nashor",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEQWQRQEQ",
+      0.83
+     ],
+     [
+      "EQQWQRQEQ",
+      0.12
+     ],
+     [
+      "EQWQQRQEQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.0,
+     "mediana": 44.6,
+     "p75": 52.9
+    },
+    "parte_del_dano_pct": {
+     "p25": 18.5,
+     "mediana": 22.0,
+     "p75": 27.0
+    },
+    "vision_por_min": {
+     "p25": 0.92,
+     "mediana": 1.12,
+     "p75": 1.27
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.2
+    },
+    "solo_kills_media": 1.04,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 3.8,
+     "mediana": 7.9,
+     "p75": 14.6
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 14.8,
+     "mediana": 25.9,
+     "p75": 35.4
+    },
+    "campamento_inicial": [
+     [
+      "red",
+      0.46
+     ],
+     [
+      "blue",
+      0.25
+     ],
+     [
+      "raptors",
+      0.08
+     ],
+     [
+      "krugs",
+      0.08
+     ],
+     [
+      "wolves",
+      0.08
+     ],
+     [
+      "gromp",
+      0.04
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 19.9,
+     "mediana": 24.5,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 67.5,
+     "mediana": 72.0,
+     "p75": 78.5
+    },
+    "primer_gank_min": {
+     "p25": 3.9,
+     "mediana": 7.0,
+     "p75": 8.2
+    },
+    "ganks_antes_10": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 1.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.42
+     ],
+     [
+      "top",
+      0.42
+     ],
+     [
+      "mid",
+      0.16
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 9.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.22-16.23"
+   }
+  }
+ }
+}

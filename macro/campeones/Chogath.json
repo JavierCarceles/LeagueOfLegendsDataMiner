@@ -1,0 +1,581 @@
+{
+ "clave": "Chogath",
+ "nombre": "Cho'Gath",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.588,
+   "principal": true
+  },
+  {
+   "rol": "TOP",
+   "parte": 0.335,
+   "principal": false
+  }
+ ],
+ "arquetipo": "tanque-mago de control (Q de levantamiento y W de silencio) que crece sin límite con las cargas de la R, una ejecución de daño verdadero que también asegura dragones y Barones junto con Castigo",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 4,
+  "nota": "En la jungla despeja rápido con la E (espinas en área) y la Q, y gankea desde nivel 3-4 con Q (levantamiento 1 s) + W (silencio 1,6-2 s) + Lluvia de cuchillas; en top tiene buen poke y aguante con la pasiva. Con R (nivel 6) y Corazón de acero (~10:50) pasa a ser un frontal que ejecuta con daño verdadero y asegura objetivos (R + Castigo). Escala con las cargas de la R (vida, tamaño y alcance ilimitados con campeones y monstruos épicos), pero no tiene movilidad y le pueden kitear."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3-4 tras el primer despeje (jungla, ~2:00-3:10) o nivel 2-3 en top",
+   "nivel": 4,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Q (levantamiento 1 s + 60 % de ralentización 1,5 s) → W (silencio 1,6 s) → E con Lluvia de cuchillas: un gank o tradeo que el rival no puede responder con habilidades. En top, Q + E le dan poke a 650-950 y la pasiva lo cura al matar súbditos."
+  },
+  {
+   "cuando": "Nivel 6 (jungla ~7:00, top ~5:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R (175 de alcance, 80 s de enfriamiento) hace 300 de daño verdadero (+50 % AP, +10 % de su vida adicional) a campeones y 1200 a monstruos: ejecuta en ganks y, con Castigo, asegura el dragón o la escuttle. Cada kill con la R le da una carga (+80 de vida a rango 1)."
+  },
+  {
+   "cuando": "Primer objeto: Corazón de acero o Cintomisil hextech (~10:50-11:40, nivel 8-9)",
+   "nivel": 8,
+   "objetos": 1,
+   "objeto": "Corazón de acero",
+   "por_que": "Corazón de acero (74 % en jungla, 23-37 % en top) acumula vida igual que la R y potencia el +10 % de vida adicional de su R y la E por vida máxima. Cintomisil hextech (18 % en jungla, 36-54 % en top) le da un salto corto y daño para enganchar con Lluvia de cuchillas."
+  },
+  {
+   "cuando": "Dos objetos (~19-20 min, nivel 12-14): Coraza del muerto, Creagrietas o Fulgor vano",
+   "nivel": 12,
+   "objetos": 2,
+   "objeto": "Coraza del muerto",
+   "por_que": "Coraza del muerto le da la velocidad que le falta para llegar a los carries; con R a rango 2 (70 s) y 6+ cargas ya es un frontal difícil de matar que entra con Q-W."
+  },
+  {
+   "cuando": "Tres objetos y muchas cargas (~25 min, nivel 13-16)",
+   "nivel": 14,
+   "objetos": 3,
+   "objeto": "Desesperanza eterna",
+   "por_que": "Con 10-20 cargas tiene miles de vida extra, la E hace +0,5 % de vida máxima por carga y la R (60 s a rango 3) se come a cualquier carry por debajo de ~1000 de vida. Barón y dragón del alma se aseguran con R + Castigo."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Carnivore: al matar cualquier unidad (súbdito, monstruo, campeón; también torres) se cura 18-52 de vida y recupera 4,7-9,5 de maná según el nivel. Es su aguante en línea y en la jungla: Q y E a la oleada o al campamento lo curan.",
+  "Q": "Rupture: tras 0,5 s de lanzamiento y 0,63 s de retardo (~1,1 s en total) revienta un área de 250 de radio a 950 de alcance: 80-300 (+100 % AP) de daño mágico, levanta 1 s y ralentiza un 60 % 1,5 s. Enfriamiento 6 s, 50 de maná. Lenta de acertar sola: se combina con controles, en pasillos o cuando el rival va a por un súbdito.",
+  "W": "Feral Scream: cono de 60° y 650 de alcance (0,5 s de lanzamiento): 80-280 (+70 % AP) y silencio 1,6-2 s (también a la escuttle). Enfriamiento 11-9 s, 70-90 de maná. Corta huidas con habilidades y canalizaciones; tras la Q, el rival levantado no puede responder.",
+  "E": "Vorpal Spikes: sus 3 siguientes ataques en 6 s ganan +50 de alcance y lanzan espinas en línea de 650 que atraviesan unidades: 30-110 (+30 % AP) + 2,5-3,9 % de la vida máxima del objetivo (+0,5 % por carga de la R) cada una, y ralentizan un 30-50 % decreciente en 1,5 s. Contra monstruos hace unos 100-310 (+30 % AP) por espina (el daño por vida máxima se limita a 200). Reinicia el ataque. Enfriamiento 8/7/6/5/4 s, 30 de maná. Es su despeje y su poke a distancia.",
+  "R": "Feast: devora a una unidad a 175 de alcance (+2,5 por carga, hasta +25): 300/475/650 (+50 % AP, +10 % de su vida adicional) de daño verdadero a campeones o 1200 (+50 % AP, +10 % de vida adicional) a súbditos y monstruos. Si mata, gana una carga: +80/120/160 de vida máxima, más tamaño y alcance de ataque. Las cargas de campeones y monstruos épicos no tienen límite; de súbditos y monstruos normales solo 6. Enfriamiento 80/70/60 s, 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E primero casi siempre (despeje y poke). E > Q > W es lo más común (OP.GG 16.23: 56-60 %; partidas generales 47-59 %); E > W > Q (31-39 %, 75 % de sus OTPs de top) para tener el silencio más largo y menos enfriamiento en la W. Nivel 3: W (E-Q-W, 54-55 %) o segunda E (E-Q-E, 35 % en jungla) para despejar más rápido. En top algunos empiezan Q para pinchar (Q-E-W 26-32 %). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno propio. Solo Destello y, si compra Cintomisil hextech (18 % en jungla, 36-54 % en top), su activa: un salto corto de ~275 unidades. La Coraza del muerto y las Botas de rapidez le dan velocidad para llegar.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Crecimiento ilimitado: cada kill con la R le da +80/120/160 de vida, tamaño y alcance; de campeones y monstruos épicos (dragones, Heraldo, Barón) las cargas no tienen tope, de súbditos y monstruos normales solo 6.",
+  "La R es una ejecución de daño verdadero (300-650 + 10 % de su vida adicional a campeones) y un supercastigo de 1200 + 10 % de vida adicional a monstruos: R + Castigo asegura o roba dragones y Barones.",
+  "Combo de control encadenado sin habilidades de movimiento: Q (levantamiento 1 s) + W (silencio 1,6-2 s) dejan al rival casi 3 s sin poder usar habilidades.",
+  "La E escala con la vida máxima del objetivo y con sus cargas (+0,5 % por carga) y lanza espinas que atraviesan súbditos a 650: un tanque que pincha desde lejos.",
+  "Pasiva de curación y maná por cada unidad que mata: en la jungla y en la oleada se sostiene sin volver a base."
+ ],
+ "combos": [
+  "Gank o all-in: Q adelantada (≈1,1 s de retardo) → W mientras está en el aire (silencio) → AA con E (3 espinas, Lluvia de cuchillas) → R cuando su vida esté por debajo del daño de la R.",
+  "Con el control de un aliado: esperar a que el rival quede aturdido o enraizado para que la Q no falle, luego W y E.",
+  "Ejecución: Destello → R a un carry con poca vida (la R solo tiene 175 de alcance).",
+  "Objetivo: R al dragón o Barón cuando le quede ~1200 + daño de Castigo, y Castigo justo después (la R no se bloquea).",
+  "Poke en top: E (las espinas llegan a 650 y atraviesan súbditos) y Q a la oleada cuando el rival va a rematar; la pasiva le cura con cada súbdito que muere."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Corazón de acero",
+   "Coraza del muerto",
+   "Fuerza de la naturaleza",
+   "Desesperanza eterna",
+   "Malla de espinas",
+   "Jak'Sho el Proteico",
+   "Cintomisil hextech",
+   "Creagrietas",
+   "Fulgor vano",
+   "Botas de rapidez",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Jungla: Lluvia de cuchillas con Golpe bajo, Recuerdo macabro y Cazador definitivo (97 % en OP.GG 16.23), secundaria Brujería con Arcanólogo axiomático y Celeridad (64 %) o Inspiración con Calzado mágico y Velocidad de acercamiento (31 %). Top: Lluvia de cuchillas con la misma página (45 %) o Garras del inmortal con Demoler, Condicionamiento y Sobrecrecimiento y secundaria Inspiración (25 %; la favorita de sus OTPs de top, 62 %).",
+  "hechizos": [
+   "Destello",
+   "Castigo",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Jungla: Destello + Castigo (99 %); mascota Cría de Caminabrisas (60 %) o Cachorro de Garra ígnea. Top: Destello + Teleportar (68 %) o Destello + Prender (26 %); inicio Anillo de Doran (69 %) o Escudo de Doran (19 %). Jungla: Corazón de acero → Coraza del muerto → Fuerza de la naturaleza, Malla de espinas o Desesperanza eterna; Botas de rapidez (60 %). Top: o tanque (Corazón de acero → Fulgor vano → Desesperanza eterna) o AP de daño (Cintomisil hextech → Creagrietas → Coraza del muerto); Botas blindadas (46 %) contra AD o de mercurio (29 %) contra AP/controles. Jak'Sho el Proteico, Presagio de Randuin y Rookern kaénico como 4.º-5.º objeto según el daño rival."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Azul en el 44-62 % de las partidas (OP.GG: 62 % en lado azul, 47 % en lado rojo), rapaces en el 25-35 % y roja en el 11-24 %. Con la E (espinas en área) y la Q despeja bien solo; la pasiva le cura en cada monstruo. Los campamentos salen a las 0:55 (azul, roja, rapaces, lobos) y a la 1:07 (gromp, krugs); la escuttle a las 2:55.",
+   "rutas": [
+    {
+     "nombre": "Despeje de 5 campamentos desde azul y escuttle",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "scuttle_bot"
+     ],
+     "despues": "Tras la escuttle del lado de la roja (~3:20-3:30, nivel 4) gankea bot o mid con Q-W, o vuelve a base hacia el 3:50-4:00 con ~975 de oro (Cinturón de gigante o Cristal de rubí) y hace krugs al volver.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "La ruta más jugada con diferencia en OP.GG (ambos lados). En lado azul la roja y su escuttle están del lado de bot (scuttle_bot); en lado rojo están del lado de top (scuttle_top) y el gank va a top o mid. Salta los krugs para llegar antes a la escuttle."
+    },
+    {
+     "nombre": "Rapaces-roja-escuttle y medio despeje",
+     "orden": [
+      "raptors",
+      "red",
+      "scuttle_bot",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Nivel 3 tras la roja (~2:00) y escuttle al aparecer (2:55); luego lobos-azul-gromp hacia el 4:15 y gank a la línea del lado de la azul o vuelta a base.",
+     "nivel": 4,
+     "minuto": "4:15",
+     "cuando": "Segunda ruta más común: para disputar la primera escuttle con prioridad de la línea cercana o ganquear a nivel 3 si la línea del lado de la roja tiene un rival sin Destello."
+    },
+    {
+     "nombre": "Roja-escuttle-rapaces",
+     "orden": [
+      "red",
+      "scuttle_bot",
+      "raptors",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Igual que la anterior pero con la escuttle antes que las rapaces; acaba hacia el 4:15-4:30 en el lado de la azul con gank a esa línea o vuelta a base.",
+     "nivel": 4,
+     "minuto": "4:20",
+     "cuando": "Tercera ruta en OP.GG: cuando quiere la escuttle cuanto antes (contra junglas que la disputan) y su bot o top cercano tiene prioridad."
+    }
+   ],
+   "ganks": "Primer gank de mediana a las 4:18 (p25 3:18, p75 6:12) en partidas generales: bot 53 %, top 28 %, mid 19 %. Entra por detrás o por el río y lanza la Q adelantada donde va a estar el rival (o tras el control del laner), W para silenciar y E con Lluvia de cuchillas; a nivel 6 remata con la R (300 de daño verdadero). Contra rivales con mucho desplazamiento, la W primero corta la huida con habilidades (no el Destello).",
+   "objetivos": "Asegura dragones y Barones como pocos: R (1200 + 50 % AP + 10 % de vida adicional de daño verdadero a monstruos) + Castigo. Hace el primer dragón (5:00) con prioridad de bot a partir de nivel 6 (~7:00); de mediana mata 2 dragones por partida y su primer dragón cae hacia el 9:45. Larvas del Vacío (8:00) y Heraldo (15:00) con su top/mid. Usa la R en monstruos épicos para sumar cargas ilimitadas y en campamentos normales solo hasta 6.",
+   "invasion": "Poco: de mediana mata 7-10 monstruos rivales por partida y roba ~1 mejora. Disputa la escuttle (3 por partida) y castiga invasiones con Q-W; no busca 1v1 tempranos contra Lillia, Gwen, Dr. Mundo, Zaahen o Aatrox.",
+   "contra_jungla": "Contra invasiones de nivel 1-3 se defiende bien con Q (levantamiento) + W (silencio) si tiene a su laner cerca; contra junglas de duelo fuerte cede el campamento y lo recupera después.",
+   "plan": "Despejar rápido (5 campamentos + escuttle hacia el 3:25), gankear a nivel 4 con Q-W y asegurar el primer dragón con R + Castigo desde nivel 6. Corazón de acero hacia el 10:50 y Coraza del muerto hacia el 19:40 para ser el frontal que entra con Q-W y ejecuta con la R. En la tardía se queda con el grupo, guarda la R para el Barón/dragón del alma o para ejecutar al carry y protege a su retaguardia con el silencio."
+  },
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Sale con Anillo de Doran (69 %) o Escudo de Doran y E para farmear y pinchar con las espinas a 650 (atraviesan súbditos). Nivel 2 hacia el 1:42 y nivel 3 hacia el 2:10. Con Q (950) castiga al rival cuando va a rematar un súbdito y la pasiva le cura al matar súbditos; a nivel 3 Q → W → E gana tradeos cortos a casi cualquier melé si la Q acierta.",
+    "tradeos": "Poke con E y Q a la oleada cuando el rival se acerca; tradeo fuerte solo con la Q acertada (levantamiento + W de silencio). Contra rangos o luchadores con mucho sostén (Mordekaiser, Illaoi, Urgot) tradea corto y vive de la pasiva.",
+    "oleadas": "Empuja fácil con Q + E (espinas en línea) y se cura con la pasiva; puede congelar cerca de su torre contra rivales que ganan el 1v1. Usa la R en súbditos de asedio para sus primeras cargas (máximo 6 de súbditos) solo si no hay amenaza de kill. Media de 67-77 de CS al minuto 10 y 8-11 placas por partida.",
+    "all_in": "Nivel 6 (~5:10-5:25): Q → W → E (Lluvia de cuchillas) → R cuando la vida del rival esté por debajo de 300 + 10 % de su vida adicional (daño verdadero). Si el rival tiene Destello y está lejos, Destello → R para la ejecución.",
+    "jugar_seguro": "Contra Ornn, Galio, Mordekaiser, Tahm Kench, Dr. Mundo o Urgot farmea con la E, no gastes la Q sin control previo y espera ganks. Teleportar (68 %) le permite volver a la línea sin perder oleadas."
+   },
+   "roameos": "Roamea poco: 79-81 % de sus posiciones entre los minutos 3 y 13 en top; en la mitad de las partidas tiene algún takedown fuera de top antes del 14, casi siempre en el río o la jungla del lado de top hacia el 8:25 (larvas, escuttle, ayudar al jungla). Con Teleportar baja a peleas de dragón o de bot.",
+   "fase_media": "Lleva la lateral (pasa de mediana el 30-36 % del tiempo tardío solo en una lateral) y se une a peleas con Teleportar; en peleas de objetivos entra con Q-W y guarda la R para ejecutar o para el Barón.",
+   "matchups_dificiles": [
+    "Ornn",
+    "Galio",
+    "Mordekaiser",
+    "Tahm Kench",
+    "Dr. Mundo",
+    "Urgot",
+    "Zed",
+    "Anivia",
+    "Illaoi"
+   ],
+   "matchups_faciles": [
+    "Vladimir",
+    "Jax",
+    "Jayce",
+    "Malphite",
+    "Yasuo",
+    "Akali",
+    "Teemo",
+    "Rumble",
+    "Trundle"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Frontal de control y ejecutor: inicia con Q-W, absorbe daño con su vida y ejecuta con la R; también 'peeler' con el silencio.",
+  "como_entrar": "Avanza delante de su equipo (con Coraza del muerto o Botas de rapidez), lanza la Q sobre el grupo o sobre el objetivo inmovilizado por un aliado, W para silenciar a los que tienen habilidades clave y E con sus espinas; R al carry que quede a 175-200 con poca vida o al tanque si así gana una carga en una pelea larga.",
+  "objetivo": "Lo que tenga cerca en primera línea, sin perder la R: la guarda para ejecutar al carry o para el objetivo (dragón, Barón). El silencio, a asesinos o magos que vayan a por su retaguardia.",
+  "posicion": "Primera línea; en objetivos, al lado del foso para tener la R a 175 del monstruo en el momento del Castigo."
+ },
+ "macro": {
+  "split_push": "Jungla: no (pasa menos del 2 % del tiempo tardío solo en una lateral). Top: sí, lleva la lateral en la tardía (30-36 % del tiempo solo en una lateral) y vuelve con Teleportar.",
+  "objetivos": "Su punto fuerte: R + Castigo para dragones, Heraldo y Barón (la R a monstruos hace 1200 + 10 % de vida adicional de daño verdadero). El jungla hace el primer dragón desde nivel 6; el de top ayuda en larvas y Heraldo. Cada monstruo épico devorado es una carga más.",
+  "plan_de_partida": "Jungla: 0-7 min despeje de 5 campamentos + escuttle, gank a nivel 4 y dragón a nivel 6. 7-20 min: Corazón de acero (~10:50), controlar dragones y larvas con R + Castigo y gankear con Q-W. 20+ min: frontal del equipo, R para ejecutar o asegurar el Barón y el dragón del alma. Top: fase de líneas de poke y aguante, Teleportar a peleas de bot, y luego lateral o frontal según la partida."
+ },
+ "debilidades": [
+  "Sin movilidad: lo kitean tiradores y magos de mucho alcance, y si lo separan de su equipo no puede volver.",
+  "La Q tarda ~1,1 s en explotar: sin control previo, los rivales atentos la esquivan y se queda sin enganche 6 s.",
+  "La R tiene 175 de alcance: necesita estar encima del objetivo (o Destello) para ejecutar o asegurar un objetivo.",
+  "Le cuestan los rivales de mucho sostén o con resistencia mágica y vida (Ornn, Mordekaiser, Dr. Mundo, Galio) y los junglas de duelo temprano (Lillia, Gwen, Zaahen).",
+  "Si gasta la R en súbditos o campamentos, la pierde 60-80 s para ejecutar o para el dragón."
+ ],
+ "contrarrestado_por": [
+  "Lillia",
+  "Gwen",
+  "Dr. Mundo",
+  "Ornn",
+  "Mordekaiser",
+  "Galio",
+  "Tahm Kench",
+  "Zaahen"
+ ],
+ "bueno_contra": [
+  "Qiyana",
+  "Malphite",
+  "Fizz",
+  "Locke",
+  "Ambessa",
+  "Vladimir",
+  "Jax",
+  "Jayce"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Orianna",
+  "Miss Fortune",
+  "Seraphine",
+  "Lulu"
+ ],
+ "errores_comunes": [
+  "Gastar la R en un campamento o en un súbdito de asedio justo antes del dragón o de un gank: la tiene en enfriamiento 80 s.",
+  "Lanzar la Q a donde está el rival en vez de adelantarla (≈1,1 s de retardo) o sin control previo.",
+  "No coordinar R + Castigo: castigar primero y quedarse sin el daño de la R, o lanzarla fuera de alcance (175).",
+  "Ir de frente contra equipos de kiteo sin Coraza del muerto ni Botas de rapidez.",
+  "Pelear 1v1 temprano en la jungla contra Lillia, Gwen o Zaahen.",
+  "Usar la W para hacer daño en lugar de guardarla para silenciar al asesino o al iniciador rival."
+ ],
+ "senales_reconstructor": [
+  "Despeje de jungla de referencia (partidas generales, 199 partidas): nivel 2 al 1:18, nivel 3 al 2:00, nivel 4 al 3:06 y nivel 6 al 7:00; CS de jungla 12 a los 2:00, 20 a los 3:00, ~24 a los 3:30, 28 a los 4:00, 40 a los 6:00, 52 a los 8:00 y 66 a los 10:00 (sus OTPs, más ganqueadores: 56 a los 10).",
+  "Primer campamento azul en el 44 % de las partidas, rapaces 25 % y roja 24 %; la ruta típica (azul-gromp-lobos-rapaces-roja-escuttle) salta los krugs, así que no verle en krugs antes del 4:00 es lo normal.",
+  "Primer gank de mediana a las 4:18 (p25 3:18, p75 6:12), bot 53 %, top 28 %, mid 19 %; first blood solo en el 11-12 % de las partidas (es un jungla de despeje, no de gank de nivel 2).",
+  "Primera vuelta a base hacia el 3:55-4:10 (~975-1050 de oro: Cinturón de gigante, Cristal de rubí, guardián de control y Lente del oráculo). Primer objeto Corazón de acero (74 %) hacia el 10:50 (p25 10:05, p75 12:00) o Cintomisil hextech (18 %); segundo hacia el 19:40 (Coraza del muerto 47 %); Botas de rapidez hacia el 13:35.",
+  "Objetivos: R + Castigo hace 1200 + Castigo de daño verdadero, por eso un dragón o Barón asegurado (o robado) por Cho'Gath con el jungla rival al lado es plausible. Mata de mediana 2 dragones por partida y su primer dragón cae hacia el 9:45.",
+  "Ejecuciones: la R hace daño verdadero a 175-200 unidades; kills en las que Cho'Gath remata a un rival que acababa de recibir daño de otro aliado son lo esperable (la R no se puede reducir con resistencias).",
+  "Cargas invisibles: el timeline no muestra las cargas de la R, pero cada kill de campeón o monstruo épico con la R suma vida (+80/120/160); un Cho'Gath con muchas kills y objetivos aguanta mucho más de lo que dicen sus objetos.",
+  "Sin desplazamientos: no salta muros ni tiene nada global; el único salto posible es la activa de Cintomisil hextech (~275 unidades). Velocidades altas sólo por Coraza del muerto, Botas de rapidez o Teleportar.",
+  "Top: Destello + Teleportar (68 %), primer objeto hacia el 10:55-11:40 (Cintomisil hextech, Corazón de acero o Égida de fuego solar), nivel 6 hacia el 5:10-5:25 y 8-11 placas por partida; en la tardía pasa el 30-36 % del tiempo solo en una lateral, así que verlo en top/bot lejos de su equipo es normal en ese rol."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/chogath/build/",
+  "https://lolalytics.com/lol/chogath/counters/?lane=top",
+  "https://www.op.gg/lol/champions/chogath/build/jungle",
+  "https://www.op.gg/lol/champions/chogath/build/top",
+  "https://www.op.gg/lol/champions/chogath/jungle-paths",
+  "https://wiki.leagueoflegends.com/en-us/Cho%27Gath",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de Cho'Gath jungla (data/otps/Cho_Gath/JUNGLE, 41 partidas de OTPs; data/partidas_campeon/Cho_Gath/JUNGLE, 199 partidas) y top (data/otps/Cho_Gath/TOP, 56; data/partidas_campeon/Cho_Gath/TOP, 131), parches 16.17-16.23"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 40,
+    "victorias": 0.625,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.3,
+     "p75": 6.0
+    },
+    "primer_objeto_min": {
+     "p25": 10.1,
+     "mediana": 10.9,
+     "p75": 12.5
+    },
+    "segundo_objeto_min": {
+     "p25": 17.2,
+     "mediana": 18.8,
+     "p75": 20.9
+    },
+    "primer_objeto": [
+     [
+      "Égida de fuego solar",
+      0.42
+     ],
+     [
+      "Cintomisil hextech",
+      0.25
+     ],
+     [
+      "Corazón de acero",
+      0.17
+     ],
+     [
+      "Fulgor vano",
+      0.12
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWEEREWE",
+      0.42
+     ],
+     [
+      "EQWEEREWE",
+      0.17
+     ],
+     [
+      "QWEEEREWE",
+      0.17
+     ]
+    ],
+    "maximiza": [
+     [
+      "EWQ",
+      0.97
+     ],
+     [
+      "EQW",
+      0.03
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 30.4,
+     "mediana": 40.4,
+     "p75": 50.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.8,
+     "mediana": 22.0,
+     "p75": 26.9
+    },
+    "vision_por_min": {
+     "p25": 0.78,
+     "mediana": 0.88,
+     "p75": 1.02
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.73,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 19.8,
+     "mediana": 29.9,
+     "p75": 39.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 21.1,
+     "mediana": 26.4,
+     "p75": 31.8
+    },
+    "cs_10": {
+     "p25": 68.5,
+     "mediana": 76.5,
+     "p75": 83.2
+    },
+    "dif_cs_10": {
+     "p25": -14.5,
+     "mediana": 1.0,
+     "p75": 11.8
+    },
+    "dif_oro_10": {
+     "p25": -798.0,
+     "mediana": 44.0,
+     "p75": 638.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 11.0,
+     "p75": 17.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.3,
+     "p75": 2.0
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.9,
+     "mediana": 6.2,
+     "p75": 8.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.19-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 41,
+    "victorias": 0.561,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.8,
+     "mediana": 4.8,
+     "p75": 5.9
+    },
+    "primer_objeto_min": {
+     "p25": 10.2,
+     "mediana": 12.6,
+     "p75": 14.3
+    },
+    "segundo_objeto_min": {
+     "p25": 17.8,
+     "mediana": 21.7,
+     "p75": 23.5
+    },
+    "primer_objeto": [
+     [
+      "Corazón de acero",
+      0.66
+     ],
+     [
+      "Cintomisil hextech",
+      0.34
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWEEREQE",
+      0.62
+     ],
+     [
+      "EQEWEREWE",
+      0.31
+     ],
+     [
+      "QEEWEREWE",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.63
+     ],
+     [
+      "EWQ",
+      0.37
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 40.0,
+     "mediana": 45.5,
+     "p75": 54.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 14.2,
+     "mediana": 16.6,
+     "p75": 21.2
+    },
+    "vision_por_min": {
+     "p25": 1.1,
+     "mediana": 1.28,
+     "p75": 1.42
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.1,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.6,
+     "p75": 5.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 27.1,
+     "mediana": 34.9,
+     "p75": 42.5
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.44
+     ],
+     [
+      "red",
+      0.22
+     ],
+     [
+      "raptors",
+      0.17
+     ],
+     [
+      "wolves",
+      0.07
+     ],
+     [
+      "gromp",
+      0.07
+     ],
+     [
+      "krugs",
+      0.02
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 20.0,
+     "mediana": 23.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 48.0,
+     "mediana": 55.0,
+     "p75": 72.0
+    },
+    "primer_gank_min": {
+     "p25": 3.8,
+     "mediana": 6.2,
+     "p75": 9.0
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.49
+     ],
+     [
+      "top",
+      0.29
+     ],
+     [
+      "mid",
+      0.22
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 4.0,
+     "p75": 12.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

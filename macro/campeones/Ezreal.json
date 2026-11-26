@@ -1,0 +1,418 @@
+{
+ "clave": "Ezreal",
+ "nombre": "Ezreal",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "ADC",
+   "parte": 0.897,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tirador de habilidades (poke con la Q) que escala con Lágrima, Fuerza de trinidad (~12:00) y Muramana (~17:00); seguro gracias al blink de la E y con una R global",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 4,
+  "tardia": 3,
+  "nota": "En línea tiene poco daño de all-in: gana con poke de Q y farmeo seguro, pero pierde los 2v2 de nivel 2-3 contra tiradores de pelea (Draven, Kalista, Lucian, Samira, Nilah) con supports de enganche. Con Fuerza de trinidad (~12:00) y Muramana (~17:00) llega su mejor momento: Q cada ~2-3 s que aplica el Brillo, pasiva a 5 cargas (+50 % de velocidad de ataque) y daño a distancia segura. En la tardía sigue siendo útil por la Q a 1150 u y la E, pero hace menos daño sostenido que los hipercarrys. En 16.23 su winrate en Esmeralda+ es bajo (47-48 %) aunque es de los más elegidos (19,5 %); los OTP de Maestro+ ganan bastante más."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Primera vuelta con Lágrima de la diosa (~3:15, p25 2:30)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": "Lágrima de la diosa",
+   "por_que": "Empieza a cargar la Lágrima con cada Q (también a súbditos) para que Manamune se convierta en Muramana pronto; con la Lágrima y una Espada larga puede pokear sin quedarse sin maná."
+  },
+  {
+   "cuando": "Nivel 6 (~7:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R global (350/600/850 en 16.23) remata a rivales tocados por el poke en su línea o en otra, y limpia oleadas a distancia; en 2v2 cambia el cálculo de cualquier intercambio a media vida."
+  },
+  {
+   "cuando": "Primer objeto: Fuerza de trinidad (mediana 11:45-12:20; p25 ~10:50, p75 ~13:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Fuerza de trinidad",
+   "por_que": "La Q aplica el golpe potenciado del Brillo y la acumulación de la Fuerza de trinidad; con la velocidad extra y la reducción de enfriamientos de cada Q acertada, gana casi todos los intercambios a distancia y empuja rápido."
+  },
+  {
+   "cuando": "Misión de ADC completada (~12-13 min)",
+   "nivel": null,
+   "objetos": null,
+   "objeto": null,
+   "por_que": "+300 de oro al completarla, +2 de oro por súbdito y +50 por participación el resto de la partida; las botas pasan a la ranura de la misión y queda un séptimo hueco de objeto, así que sus objetos llegan antes."
+  },
+  {
+   "cuando": "Segundo objeto: Manamune que se convierte en Muramana (~17:00)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Muramana",
+   "por_que": "Con la Lágrima ya cargada, Manamune pasa a Muramana casi al instante: cada Q hace daño extra por maná; con Fuerza de trinidad + Muramana es cuando más daño hace respecto a la partida."
+  },
+  {
+   "cuando": "Tercer objeto (~23:00): Lanza de Shojin o Hambre insaciable",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Lanza de Shojin",
+   "por_que": "Más aceleración de habilidades y daño de habilidades (Shojin) o daño y omnivampirismo (Hambre insaciable): Q casi continua desde lejos en peleas de objetivo; Rencor de Serylda si el rival acumula armadura."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Rising Spell Force: cada habilidad que acierta da +10 % de velocidad de ataque durante 6 s, acumulable 5 veces (+50 %). Mantener las 5 cargas (con Q a súbditos si hace falta) es la base de sus intercambios; cuenta aunque la habilidad la bloquee un escudo de hechizos.",
+  "Q": "Mystic Shot: proyectil de 1150 u (Data Dragon; la wiki da 1200) que golpea al primer enemigo (los súbditos lo bloquean) con 20/45/70/95/120 (+130 % AD, +40 % AP) de daño físico y aplica efectos al golpe (Brillo, Fuerza de trinidad, Manamune). Si acierta, reduce 1,5 s el enfriamiento de todas sus habilidades (también E y R). Enfriamiento 5,5/5,25/5/4,75/4,5 s y 28-40 de maná: es su daño, su farmeo y la forma de cargar la Lágrima.",
+  "W": "Essence Flux: orbe de 1150 u (8 s de enfriamiento, 50 de maná) que atraviesa súbditos y se pega 4 s al primer campeón, estructura o monstruo épico. Al golpear la marca con un ataque o habilidad estalla con 80/135/190/245/300 (+115 % AD adicional, +100 % AP; subido en 16.23) y, si la detona una habilidad, le devuelve el maná de esa habilidad + 60. Se usa sobre torres para empujar y antes de la E para guiar su proyectil.",
+  "E": "Arcane Shift: blink de hasta 475 u y proyectil teledirigido al enemigo más cercano en 750 u (prioriza al marcado con W) con 80-280 (+60 % AD adicional, +75 % AP). Enfriamiento 26/23/20/17/14 s (menos 1,5 s por cada Q acertada). Es su escape y su forma de cruzar muros; usarla para entrar lo deja sin defensa contra enganches durante 14-26 s.",
+  "R": "Trueshot Barrage: tras 1 s de preparación dispara una onda de alcance global y 320 u de ancho que atraviesa todo: 350/600/850 (+110 % AD adicional, +120 % AP) a campeones y monstruos épicos (subido en 16.23) y 150/225/300 (+100 % AD adicional, +110 % AP) a súbditos y monstruos normales. Enfriamiento 120/105/90 s (también lo reduce la Q). Remata a distancia, golpea a todo un equipo en fila antes de una pelea, ayuda a asegurar dragón o Barón y limpia oleadas lejanas."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W en el 97 % de las partidas de OTP y en OP.GG (secuencia Q-E-W-Q-Q-R-Q-E-Q-E-R-E-E-W-W). Maximiza Q y después E (94 % en los últimos parches); maximizar W segunda (3-18 %) es una variante de más ráfaga contra rivales sin escapes. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: blink instantáneo de hasta 475 u (enfriamiento 26-14 s, que baja 1,5 s con cada Q acertada). Con Destello recorre ~875 u en un instante. No tiene más desplazamientos.",
+  "salta_muros": "si",
+  "como_salta_muros": "La E es un blink de 475 u: cruza cualquier muro de grosor menor (jungla, río, foso del dragón y del Barón) en un instante, para huir de un gank o para entrar en la jungla.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "daño",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "Onda de 1 s de preparación que cruza todo el mapa en línea recta: 350/600/850 (+110 % AD adicional, +120 % AP) a campeones y monstruos épicos. La usa sobre todo para limpiar oleadas y para rematar o asegurar objetivos lejos de su posición (mediana de 13 R por partida en OTP)."
+   }
+  ]
+ },
+ "unico": [
+  "La Q reduce 1,5 s todos sus enfriamientos al acertar, incluidos la E y la R: con aciertos seguidos, el blink y la R vuelven mucho antes de lo que marca su enfriamiento base.",
+  "Pasiva de velocidad de ataque por habilidades acertadas (+10 % por carga, máximo 5 = +50 %): el mismo bonus a nivel 1 que a nivel 18, así que mantener las cargas pesa mucho en la fase de líneas.",
+  "La Q aplica efectos al golpe: su build gira en torno al Brillo (Fuerza de trinidad), la Lágrima (Manamune → Muramana) y la aceleración (Lanza de Shojin), no al crítico.",
+  "La W atraviesa súbditos y se pega a campeones, torres y monstruos épicos; detonarla con una habilidad devuelve maná, y además guía el proyectil de la E.",
+  "R global de 1 s de preparación que golpea a todo lo que haya en la línea, con daño completo a monstruos épicos: puede asegurar o robar un dragón o un Barón desde otra parte del mapa.",
+  "No tiene control ni escudos: su defensa es la distancia (Q a 1150 u) y el blink de la E."
+ ],
+ "combos": [
+  "Poke en línea: Q al rival cuando va a por un súbdito (fuera de la línea de súbditos) → AA si está a 550 u → repetir Q cada 4,5-5,5 s (menos con los aciertos).",
+  "Ráfaga: W → Q (detona la W y devuelve maná) → AA → E hacia un lado seguro (el proyectil busca la marca de la W) → Q.",
+  "Intercambio con Compás letal: con 4-5 cargas de pasiva, AA-Q-AA-Q alternando para mantener las cargas y la velocidad; retroceder antes de que el support rival enganche.",
+  "Escape: E hacia atrás o por encima de un muro nada más ver el enganche; Barrera o Purificar si no basta.",
+  "R a distancia: con un rival bajo de vida visible en otra línea, o sobre el dragón o el Barón por debajo de ~850 de vida, R desde donde esté (1 s de preparación).",
+  "Empuje: W a la torre → AA o Q para detonarla; R para limpiar una oleada de otra línea antes de un objetivo."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Lágrima de la diosa",
+   "Fuerza de trinidad",
+   "Manamune",
+   "Muramana",
+   "Botas jonias de la lucidez",
+   "Grebas codiciosas",
+   "Lanza de Shojin",
+   "Hambre insaciable",
+   "Rencor de Serylda",
+   "Corazón de hielo",
+   "Fauces de Malmortius",
+   "Ángel de la guarda"
+  ],
+  "runas": "Compás letal (87 % en OP.GG Esmeralda+ 16.23; 83 % en OTP de los últimos parches) con Claridad mental, Leyenda: Linaje o Leyenda: Velocidad y Derribado o Golpe de gracia; secundaria Inspiración (98 %) con dos de Reembolso, Manitas, Calzado mágico y Entrega de galletas. Alternativas: Ataque intensificado (6-10 %) contra líneas frágiles de intercambios cortos y Conquistador (4-6 %).",
+  "hechizos": [
+   "Destello",
+   "Barrera"
+  ],
+  "nota": "Destello + Barrera en el 47-67 % de las partidas; Destello + Agotamiento en el 26-40 % (contra asesinos o tiradores de all-in) y Purificar (5-8 %) contra mucho control. Inicio Arco de Doran + 2 pociones (70 % en OP.GG) o Espada de Doran + poción. Primera vuelta muy pronto a por la Lágrima de la diosa (79-93 %) + Espada larga; Fuerza de trinidad primero (94-96 %), Manamune segundo (97 %). Tercero: Lanza de Shojin (33-45 %), Hambre insaciable (25-35 %) o Rencor de Serylda contra armadura; Corazón de hielo contra AD, Fauces de Malmortius contra AP y Ángel de la guarda al final. Botas jonias de la lucidez (76-84 %) o Grebas codiciosas (14-20 %, más omnivampirismo)."
+ },
+ "por_rol": {
+  "ADC": {
+   "linea_2v2": {
+    "nivel_2": "Q a nivel 1 y E a nivel 2 (97 %): su nivel 2 llega hacia la 1:42 de mediana y el 3 hacia las 2:39. Coger la E en el 2 es para tener escape, no para entrar: a nivel 2 tiene poco daño de all-in y contra tiradores de pelea con support de enganche (Leona, Nautilus, Blitzcrank) se coloca detrás de los súbditos y guarda la E. Solo busca el nivel 2 agresivo si su support tiene control y el rival ya está tocado por la Q.",
+    "tradeos": "Poke a distancia: Q de 1150 u cuando el rival se acerca a por un súbdito; cada acierto reduce 1,5 s todo y suma una carga de pasiva. Con 4-5 cargas (+40-50 % de velocidad) y Compás letal puede alargar intercambios de AA-Q contra casi todos los tiradores salvo los de mucho daño temprano (Draven). W + Q/AA para la ráfaga y devolución de maná. Evita los intercambios largos cuando el support rival tiene su enganche listo y él no tiene la E.",
+    "oleadas": "Farmea con Q (carga la Lágrima y mantiene la pasiva) y suele dejar que la oleada empuje despacio; vuelve pronto a base (mediana 3:17, el 41 % antes del 3:00) para comprar la Lágrima. Con Fuerza de trinidad limpia y empuja rápido (W a la torre para quitar placas); con la R limpia oleadas a distancia antes de ir a un dragón. Con la misión de ADC (~12-13 min) cada súbdito da 2 de oro más, así que perder oleadas le cuesta más.",
+    "con_que_supports": [
+     "Vel'Koz",
+     "Zyra",
+     "Nami",
+     "Senna",
+     "Janna",
+     "Seraphine",
+     "Sona",
+     "Zilean",
+     "Karma",
+     "Lux"
+    ],
+    "sufre_contra": [
+     "Draven",
+     "Kalista",
+     "Nilah",
+     "Samira",
+     "Lucian",
+     "Leona",
+     "Nautilus",
+     "Blitzcrank"
+    ]
+   },
+   "fase_media": "Tras caer las placas (14:00) rota a las laterales o a mid para farmear con la Q (en la tardía pasa ~35 % del tiempo en otras líneas, recogiendo oleadas) y se junta con su equipo para dragones y Heraldo, donde pokea con Q y W antes de que empiece la pelea. Con Muramana (~17:00) presiona torres y objetivos a distancia; usa la R para limpiar la oleada de una lateral antes del objetivo o para golpear al grupo rival en fila. En las peleas de Barón y dragón se queda a 1000-1150 u detrás de su frontal, guarda la E para el asesino o el enganche y remata con R.",
+   "matchups_dificiles": [
+    "Draven",
+    "Kalista",
+    "Sivir",
+    "Zeri",
+    "Smolder",
+    "Kai'Sa",
+    "Nilah",
+    "Swain"
+   ],
+   "matchups_faciles": [
+    "Caitlyn",
+    "Jinx",
+    "Ashe",
+    "Tristana",
+    "Varus",
+    "Corki",
+    "Yunara"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Poke y daño sostenido a distancia (tirador de habilidades); tirador seguro que pelea desde el borde de la pelea.",
+  "como_entrar": "No inicia: pokea con Q y W mientras los equipos se colocan, abre con la R si el rival se pone en fila y entra en el rango de AA solo con la E disponible o cuando el control rival ya se ha gastado. La E ofensiva solo para rematar a un objetivo bajo.",
+  "objetivo": "El enemigo más cercano que pueda golpear sin riesgo con la Q (la Q atraviesa la pelea hasta el primero); prioriza al que esté bajo o controlado; la R al grupo o al carry que intenta huir.",
+  "posicion": "Detrás de su frontal a 1000-1150 u (alcance de la Q), con un muro o un aliado entre él y los asesinos; en peleas de objetivo, en el lado opuesto al flanco del jungla rival."
+ },
+ "macro": {
+  "split_push": "Parcial: en la fase media recoge oleadas de las laterales con la Q (~35 % del tiempo tardío en otras líneas), pero solo pasa ~5 % del tiempo tardío solo en una lateral (p75 15 %): no es un split pusher que se quede a duelar.",
+  "objetivos": "Mucho daño a torres (mediana ~8400 por partida en OTP) gracias a la W sobre la torre y la Fuerza de trinidad; participa en dragones y Heraldo con su equipo, poca participación propia en monstruos (mediana 1 dragón entre participaciones) y la R ayuda a asegurar el último golpe de dragón o Barón.",
+  "plan_de_partida": "Fase de líneas: farmeo seguro y poke con Q, vuelta temprana a por la Lágrima (~3:15) y evitar los all-in de nivel 2-3. Fase media (12-25): Fuerza de trinidad y misión de ADC (~12-13), Muramana (~17), placas y torres de bot, rotación a mid y laterales para farmear, poke en cada objetivo. Tardía: pelear desde lejos con Q y R, guardar la E para sobrevivir y jugar alrededor del Barón con visión."
+ },
+ "debilidades": [
+  "Poco daño de all-in en la fase de líneas: pierde los 2v2 de nivel 2-3 contra tiradores de pelea (Draven, Kalista, Samira, Lucian, Nilah) con supports de enganche.",
+  "Depende de acertar la Q (los súbditos la bloquean): si falla, pierde daño, maná, la pasiva y la reducción de enfriamientos.",
+  "Sin control ni escudos: si gasta la E para entrar o la falla, los asesinos y los enganches lo matan rápido.",
+  "Daño sostenido menor que los hipercarrys en la tardía; contra frontales con mucha armadura necesita Rencor de Serylda para seguir haciendo daño.",
+  "Winrate bajo en Esmeralda+ (47-48 % en 16.23): necesita mucha práctica para rendir."
+ ],
+ "contrarrestado_por": [
+  "Draven",
+  "Kalista",
+  "Sivir",
+  "Zeri",
+  "Nilah",
+  "Samira",
+  "Swain",
+  "Karthus"
+ ],
+ "bueno_contra": [
+  "Caitlyn",
+  "Jinx",
+  "Ashe",
+  "Tristana",
+  "Varus",
+  "Twisted Fate"
+ ],
+ "sinergias": [
+  "Vel'Koz",
+  "Zyra",
+  "Nami",
+  "Senna",
+  "Janna",
+  "Seraphine",
+  "Karma",
+  "Sona"
+ ],
+ "errores_comunes": [
+  "Usar la E para entrar o para perseguir y quedarse sin escape 14-26 s justo cuando llega el enganche del support rival.",
+  "Lanzar la Q a través de los súbditos (se queda en el súbdito) en vez de buscar ángulos limpios.",
+  "Retrasar la Lágrima o no cargarla con Q a súbditos, de modo que Manamune tarda en convertirse en Muramana.",
+  "Perder las cargas de la pasiva antes de un intercambio por no usar la Q en un súbdito.",
+  "Buscar peleas largas cara a cara en la fase de líneas contra tiradores de all-in, como si tuviera daño de Draven.",
+  "Colocarse a rango de AA en el centro de la pelea en lugar de pokear desde 1000-1150 u.",
+  "Lanzar la R a ciegas a objetivos con mucha vida en vez de usarla para rematar, para un objetivo o para limpiar una oleada clave."
+ ],
+ "senales_reconstructor": [
+  "Primera vuelta muy temprana: mediana 3:17 (p25 2:31, p75 3:47; el 41 % antes del 3:00 en OTP de los últimos parches) con ~850 de oro para comprar Lágrima de la diosa (93 %) y Espada larga. Verlo en base a los 2:30-3:30 sin haber muerto es normal.",
+  "Ritmo de referencia (OTP, casi todos Maestro+): nivel 2 a la 1:42, nivel 3 a las 2:39, nivel 6 a las 7:17, nivel 11 a las 17:35; CS 10 a los 2:00, 20 a los 3:00, 45 a los 6:00, 63 a los 8:00, 77-82 a los 10:00, 110-119 a los 14:00 y 165-172 a los 20:00.",
+  "Objetos: Fuerza de trinidad primero en el 94-96 % (mediana 11:47-12:18; p25 ~10:50, p75 ~13:00-13:35); Manamune segundo en el 97 % (mediana 16:56-17:37), que pasa a Muramana; tercero hacia el 23:00 (Lanza de Shojin 33-36 %, Hambre insaciable 32-35 %, Rencor de Serylda 11-13 %). Botas jonias de la lucidez (76-84 %) hacia el 13:30.",
+  "Misión de ADC hacia el minuto 12-13: el oro por minuto salta de ~360 a ~500-600 en los minutos 12-13 y se queda en ~490 (300 de golpe, +2 por súbdito, +50 por participación); a partir de ahí puede tener 7 objetos (las botas van a la ranura de la misión).",
+  "R global: mediana de 13 R por partida (4,5 cada 10 min), sobre todo para limpiar oleadas y golpear a varios campeones; ~1,5 % de sus participaciones en kills ocurren a más de 5500 u de sus posiciones de antes y después (R a otra línea). Una kill o asistencia de Ezreal lejos de donde estaba es plausible desde el nivel 6.",
+  "La E es un blink de 475 u que cruza muros: posiciones a ambos lados de un muro en pocos segundos, o escapar de un gank a través de la pared de la jungla, son normales.",
+  "Antes del 14, el 75 % de sus participaciones son en bot; la primera fuera de bot (en el 62 % de las partidas) llega hacia el 7:57 y casi siempre en el río (56 %, dragón) o la jungla rival (26 %). Primera participación de mediana a las 3:10 (p25 2:17), en bot el 82 %.",
+  "Tardía: ~35 % del tiempo en otras líneas (recogiendo oleadas de las laterales con la Q), ~32 % agrupado y solo ~5 % solo en una lateral; mucho daño a torres (mediana ~8400).",
+  "Hechizos: Destello + Barrera (47-67 %) o Destello + Agotamiento (26-40 %); Compás letal en el 83-87 %; Q-E-W a nivel 1-3 en el 97 %.",
+  "Acierta muchas habilidades (skillshotsHit mediana ~100 por partida, ~19 en la fase temprana): es un campeón de poke, así que daño a campeones alto con pocas muertes rivales en la línea no es raro.",
+  "CS de jungla casi nulo y ~9 guardianes colocados por partida (1 de control de mediana)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/ezreal/build/",
+  "https://lolalytics.com/lol/ezreal/counters/",
+  "https://www.op.gg/lol/champions/ezreal/build",
+  "https://wiki.leagueoflegends.com/en-us/Ezreal",
+  "https://www.skill-capped.com/lol/guides/builds/ezreal/adc",
+  "https://turbosmurfs.gg/?p=8585",
+  "https://www.leagueoflegends.com/en-us/news/game-updates/patch-26-1-notes/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Ezreal ADC, parches 16.1-16.23 (data/otps/Ezreal/ADC, 355 partidas; 230 de los parches 16.20-16.23)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "ADC": {
+    "partidas": 243,
+    "victorias": 0.576,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 43,
+      "victorias": 0.535
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 53,
+      "victorias": 0.717
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 64,
+      "victorias": 0.609
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 49,
+      "victorias": 0.449
+     },
+     {
+      "minutos": "35+",
+      "partidas": 34,
+      "victorias": 0.529
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.7,
+     "p75": 5.4
+    },
+    "primer_objeto_min": {
+     "p25": 10.5,
+     "mediana": 11.6,
+     "p75": 12.8
+    },
+    "segundo_objeto_min": {
+     "p25": 15.3,
+     "mediana": 16.7,
+     "p75": 18.0
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.99
+     ],
+     [
+      "Segador de esencia",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.95
+     ],
+     [
+      "QEQWQRQEQ",
+      0.02
+     ],
+     [
+      "QWEQQRQEQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.98
+     ],
+     [
+      "QWE",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 42.8,
+     "mediana": 52.8,
+     "p75": 63.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 25.6,
+     "mediana": 29.7,
+     "p75": 34.3
+    },
+    "vision_por_min": {
+     "p25": 0.49,
+     "mediana": 0.64,
+     "p75": 0.86
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.85,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 2.8,
+     "p75": 9.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 23.5,
+     "mediana": 35.2,
+     "p75": 43.8
+    },
+    "cs_10": {
+     "p25": 76.0,
+     "mediana": 84.0,
+     "p75": 89.0
+    },
+    "dif_cs_10": {
+     "p25": -1.0,
+     "mediana": 8.0,
+     "p75": 17.0
+    },
+    "dif_oro_10": {
+     "p25": -302.0,
+     "mediana": 320.0,
+     "p75": 1005.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 11.0,
+     "p75": 16.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 3.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.5,
+     "mediana": 5.4,
+     "p75": 8.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.6-16.23"
+   }
+  }
+ }
+}

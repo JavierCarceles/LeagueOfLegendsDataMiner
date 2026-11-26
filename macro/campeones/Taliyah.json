@@ -1,0 +1,594 @@
+{
+ "clave": "Taliyah",
+ "nombre": "Taliyah",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.472,
+   "principal": true
+  },
+  {
+   "rol": "MID",
+   "parte": 0.407,
+   "principal": false
+  }
+ ],
+ "arquetipo": "maga de control de zona y roameo, de despeje muy rápido en jungla, con combo E-W de aturdimiento a nivel 3 y un muro (R) de hasta 6500 u sobre el que surfea para ganquear o cortar huidas; picos en 3, 6 y Antorcha de fuego negro",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Despeja rápido y llega a nivel 3 hacia la 1:52 en jungla, con un gank de E-W bueno contra campeones con desplazamientos, pero pierde casi todos los duelos 1v1 contra junglas de pelea (Briar, Dr. Mundo, Rammus). Su mejor fase es la media: con R (desde el 6) y Antorcha de fuego negro (~11 min en jungla) roamea y abre picks por todo el mapa, y el muro corta huidas y divide peleas. En la tardía sigue aportando zona (E en la entrada de los objetivos) y muro, pero es frágil y su daño en ráfaga queda por debajo de los magos de escalado."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 con Q-E-W (jungla ~1:52 tras 2-3 campamentos; mid ~2:08)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Combo E (piedras) + W (empuja 400 u en la dirección que elija): si el rival cruza las piedras empujado o con un dash, explotan (30-90 + 30 % AP cada una, hasta 4) y queda aturdido 0,75 s; luego Q. Es su primer gank fuerte, sobre todo contra rivales que dependen de un dash para escapar."
+  },
+  {
+   "cuando": "Nivel 6 con Weaver's Wall (jungla ~6:40; mid ~5:35)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "R: muro de 2500 u que puede surfear para llegar desde su jungla o desde mid a otra línea por un ángulo sin guardianes, o para bloquear la huida del rival hacia su torre (el muro es terreno 4 s). Multiplica sus ganks y roameos."
+  },
+  {
+   "cuando": "Antorcha de fuego negro (jungla: mediana 10:55 en OTPs, siempre primero; mid ~13:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Antorcha de fuego negro",
+   "por_que": "Quema con cada habilidad y le da un 4 % de AP por cada campeón o monstruo épico/gigante quemado: sus Q en área sobre varios objetivos (o sobre el dragón) hacen mucho más daño, y sobra maná para encadenar Q-E-W."
+  },
+  {
+   "cuando": "Q al máximo (nivel 9) y segundo objeto (jungla ~16:50: Llamasombría, Zhonya o Cintomisil; mid: Cetro de cristal de Rylai)",
+   "nivel": 9,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "La Q baja a 3 s de enfriamiento (1,5 s si la lanza sobre terreno trabajado, con la roca que ralentiza): despeja oleadas al instante y hace poke constante; con Rylai en mid cada Q ralentiza y la persecución es casi imposible para el rival."
+  },
+  {
+   "cuando": "Nivel 11 (R a rango 2, ~15 min)",
+   "nivel": 11,
+   "objetos": null,
+   "objeto": null,
+   "por_que": "El muro pasa a 4500 u (6500 en el 16) y el enfriamiento a 150 s (120 s): puede cruzar media jungla en un surf y llegar a peleas de dragón o Barón desde otra línea."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Rock Surfing: cerca de un muro o terreno (también terreno creado por jugadores) gana un 10/15/25/40 % de velocidad de movimiento según nivel; tarda 0,4 s en activarse y 1 s en llegar al máximo, y se pierde a los 3 s de alejarse. Se apaga 2 s al lanzar una habilidad o entrar en combate con campeones. Por eso despeja y roamea pegada a las paredes de la jungla y del río.",
+  "Q": "Threaded Volley: lanza 5 piedras en línea (1000 u) que explotan en el primer enemigo (radio 175): la primera hace 55-125 (+50 % AP) y las siguientes al mismo objetivo el 40 %; +20-40 por piedra contra monstruos. Puede moverse mientras lanza (no atacar hasta la tercera piedra). Al lanzarla deja terreno trabajado bajo ella (radio 400, 30 s). Si la lanza estando sobre terreno trabajado lo consume y tira una roca grande: cuesta 10 de maná, tiene la mitad de enfriamiento, hace el 180 % al primer objetivo (99-225 +90 % AP), ralentiza un 20-40 % 1,5 s y aturde 3 s a los monstruos. Enfriamiento 7/6/5/4/3 s, maná 55-75.",
+  "W": "Seismic Shove: a 900 u, la tierra estalla tras ~0,8 s (radio 225) y lanza a los enemigos 400 u en la dirección que elija (no hace daño desde 2022). Es su herramienta para meter al rival en las piedras de la E, para apartar a un asesino o para empujar al rival hacia su equipo o su torre. Enfriamiento 14/12,5/11/9,5/8 s, maná 40/30/20/10/0.",
+  "E": "Unraveled Earth: cono de ~800 u (80°) lleno de piedras: 70-250 (+70 % AP) de daño al caer (subió en el 26.21) y ralentización del 20 % mientras están (4 s). Si un enemigo cruza piedras con un desplazamiento propio o empujado (su W, un dash, Destello no), cada piedra explota (30-90 + 30 % AP, hasta 4) y queda aturdido 0,75 s (2 s los monstruos). Hace un 225 % de daño a monstruos. Enfriamiento 14 s, 90 de maná.",
+  "R": "Weaver's Wall: crea un muro de 2500/4500/6500 u que dura 4 s tras completarse; si lo reactiva enseguida, lo surfea mientras se forma (se revela) y a partir de 0,75 s puede saltar a un punto (700 u, hasta 1000 por encima de terreno). Moverse, el control o el silencio acaban el surf. No se puede lanzar si ha recibido daño de campeones o torres en los últimos 3 s. El muro es terreno para todos (también bloquea a sus aliados). Enfriamiento 180/150/120 s, 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W y Q > E > W en los dos roles (OP.GG 16.23: 62 % en jungla y 79 % en mid; OTPs del programa: 92-100 %). En mid, Lolalytics registra también Q-E-Q (W a nivel 4) para despejar la oleada y pegar más. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Sin desplazamientos básicos: solo la R (surfear el muro de 2500/4500/6500 u y saltar 700 u al final, hasta 1000 sobre terreno) y la velocidad de la pasiva (+10-40 % cerca de muros). Con Destello y la pasiva se mueve rápido por la jungla, pero en una pelea sin R es una maga inmóvil.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el muro se crea en línea recta atravesando el terreno y ella lo surfea por encima; el salto final cruza hasta 1000 u de terreno. Así cruza los muros de la jungla y del río en un gank o un roameo. No puede usarla si recibió daño de campeones o torres en los últimos 3 s.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "otro",
+    "desde_nivel": 6,
+    "alcance": "2500/4500/6500 unidades",
+    "nota": "No es global, pero es un desplazamiento enorme: surfea a lo largo de su propio muro y salta al final. A nivel 16 (6500 u) cruza casi medio mapa en pocos segundos. El muro además es terreno 4 s: corta huidas, separa equipos o tapa la entrada de un objetivo."
+   }
+  ]
+ },
+ "unico": [
+  "Terreno trabajado: cada Q deja 30 s un círculo de 400 u bajo ella; la siguiente Q desde ese círculo es una roca barata (10 de maná, mitad de enfriamiento) que ralentiza y aturde 3 s a los monstruos. Alterna andanadas de 5 piedras (despeje y poke) y rocas (ralentización) según dónde se coloque.",
+  "Combo de empuje: la W lanza 400 u en la dirección que elige y, si el rival cruza las piedras de la E al ser lanzado o con un dash, explotan y lo aturden 0,75 s. Contra campeones de dash (Lee Sin, Nidalee, Diana, Yasuo, Katarina) la E sola ya es una trampa.",
+  "La R crea terreno real durante 4 s: puede cortar el camino de huida, partir al equipo rival en dos o cerrar el foso del dragón/Barón; también bloquea a sus aliados si la pone mal.",
+  "Pasiva de velocidad junto a muros (hasta +40 %): despeja y roamea pegada a las paredes y llega antes que casi cualquier mago a otra línea incluso sin R.",
+  "Despeje de jungla muy rápido y seguro: la E hace el 225 % a monstruos, cada piedra de la Q +20-40 y la roca aturde 3 s al monstruo, así que despeja sin recibir golpes.",
+  "La R no se puede lanzar si ha recibido daño de campeones o torres en los últimos 3 s: no sirve para escapar en mitad de una pelea, hay que usarla antes."
+ ],
+ "combos": [
+  "Gank o all-in: E sobre el rival (o detrás de él) → W para lanzarlo a través de las piedras (aturdimiento 0,75 s y explosiones) → Q andanada → Q roca desde el mismo sitio para ralentizar.",
+  "Contra un dash: E delante de ella cuando el rival va a lanzarse (Lee Sin, Zed, Katarina, Yasuo); si cruza las piedras queda aturdido y la W lo devuelve a su sitio o lo aparta.",
+  "Gank desde lejos con la R: muro desde su jungla o desde mid hacia la línea, surfear, saltar detrás del rival → E + W para empujarlo hacia el aliado o la torre aliada → Q.",
+  "Cortar la huida: R por detrás del rival (sin surfear) para que no pueda volver a su torre, y E-W contra el muro.",
+  "Despeje: Q andanada al campamento → Q roca desde el terreno trabajado (aturde 3 s) → E → ataques mientras retrocede; con la pasiva rodea el campamento cerca del muro.",
+  "Pelea de equipo: R entre su primera línea y la retaguardia para aislar al carry rival → E en su camino → W para meterlo en las piedras o hacia su equipo → Q.",
+  "Defensa: W para apartar al asesino que se lanza sobre su tirador o sobre ella; Reloj de arena de Zhonya si no hay W."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Antorcha de fuego negro",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Cetro de cristal de Rylai",
+   "Tormento de Liandry",
+   "Sombrero mortal de Rabadon",
+   "Robaalmas de Mejai",
+   "Cintomisil hextech",
+   "Velo del hada de la muerte",
+   "Bastón del Vacío",
+   "Sello oscuro",
+   "Botas de hechicero",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Jungla: Cosecha oscura + Golpe bajo + Sexto sentido + Cazador de tesoros; secundaria Precisión con Leyenda: Velocidad y Golpe de gracia; fragmentos fuerza adaptable ×2 y vida (OP.GG 16.23, 53 %). Alternativa: Primer golpe (Inspiración) con Reembolso y Tónico triple (27 % en OTPs de elo alto). Mid: Tensión del saqueador de tormentas (42 %) + Banda de maná + Trascendencia + Piroláser; secundaria Precisión con Leyenda: Velocidad y Claridad mental; fragmentos velocidad de ataque, fuerza adaptable y vida. Alternativas en mid: Invocar a Aery o Electrocutar.",
+  "hechizos": [
+   "Destello",
+   "Castigo",
+   "Teleportar",
+   "Fantasmal",
+   "Prender"
+  ],
+  "nota": "Jungla: Destello + Castigo (100 %) y Cachorro de Garra ígnea (~84 %) con poción; muchos OTPs vuelven pronto a por el Sello oscuro; Antorcha de fuego negro siempre primero, Botas de hechicero (86 %), y luego Llamasombría, Reloj de arena de Zhonya o Rabadon (Robaalmas de Mejai si va por delante; Velo del hada de la muerte o Zhonya contra asesinos). Mid: Anillo de Doran + 2 pociones (97 %), Destello + Teleportar (65 %) o Destello + Fantasmal (17 %); Antorcha de fuego negro → Cetro de cristal de Rylai → Zhonya o Liandry (Llamasombría si el rival es frágil); Botas jonias de la lucidez (48 %) o de hechicero (33 %)."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "En lado azul empieza en azul el 59 % (rapaces 26 %, roja 13 %); en lado rojo, rapaces 40 %, roja 34 % y azul 26 % (OP.GG 16.23). Los OTPs de elo alto empiezan en rapaces el 62 %. Sube Q a nivel 1 (la roca aturde 3 s al monstruo), E a nivel 2 y W a nivel 3. Los campamentos salen a las 0:55 (azul, roja, rapaces, lobos) y a la 1:07 (krugs, gromp); la escuttle a las 2:55.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs",
+      "scuttle_bot"
+     ],
+     "despues": "Escuttle del lado de la roja (aparece a las 2:55) y gank a la línea de ese lado (bot en lado azul) o a mid a nivel 4; si no hay gank, vuelve a base hacia las 4:00-4:30 con ~1000 de oro.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "La ruta más registrada en lado azul (OP.GG: azul → gromp → lobos → rapaces → roja → escuttle en el 64 % de las rutas listadas, a veces dejando los krugs para después). Partidas de farmeo y escalado, o cuando las líneas del lado de azul no permiten gank temprano. En lado rojo la escuttle es scuttle_top."
+    },
+    {
+     "nombre": "Rapaces primero y despeje hacia azul",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs",
+      "wolves",
+      "blue",
+      "gromp",
+      "scuttle_top"
+     ],
+     "despues": "Escuttle del lado de azul y gank a top o mid hacia las 3:20-3:45, o invasión de la jungla rival del lado de su azul si su mid tiene prioridad.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "Inicio habitual en lado rojo (rapaces 40 %) y en los OTPs de elo alto (62 %). Termina del lado contrario a la roja, así que el gank va a la línea de ese lado (top en lado azul). En lado rojo, el orden equivalente acaba en scuttle_bot."
+    },
+    {
+     "nombre": "Rapaces-roja-krugs y gank de nivel 3",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Nivel 3 a la ~1:52 tras dos campamentos (con krugs llega a 3 hacia las 2:20-2:30) y gank a mid o a la línea del lado de la roja con E-W; después escuttle (2:55) o el resto del despeje.",
+     "nivel": 3,
+     "minuto": "2:25",
+     "cuando": "Cuando mid o la lateral cercana tiene un rival con dash, sin Destello o empujado; también para jugar la primera escuttle 2v2 con su mid."
+    },
+    {
+     "nombre": "Dos campamentos y vuelta temprana a por Sello oscuro",
+     "orden": [
+      "raptors",
+      "red"
+     ],
+     "despues": "Vuelve a base entre la 1:50 y las 2:40 a comprar Sello oscuro (o Lente del oráculo), sale a la escuttle de las 2:55 y hace el resto de campamentos del otro lado.",
+     "nivel": 3,
+     "minuto": "1:55",
+     "cuando": "Patrón de OTPs de elo alto: el 35 % de sus partidas tienen una vuelta a base viva entre la 1:30 y las 2:50. Cuando quiere jugar la primera escuttle con ventaja o escalar con Sello oscuro."
+    }
+   ],
+   "ganks": "Ventanas: nivel 3 (~2:00-3:30) con E-W y nivel 6 (~6:40) con R. En los OTPs el primer gank llega hacia las 5:10 (p25 4:15, p75 6:25), con una mediana de 1 gank antes del 10 y reparto casi igual entre top, mid y bot. Entra por la niebla pegada a los muros (pasiva), pone la E detrás del rival y lo empuja con la W hacia su laner; con R gankea desde su jungla por un ángulo sin guardianes o pone el muro detrás del rival para cortar la huida hacia su torre. Los mejores objetivos son los que dependen de un dash para escapar (la E los aturde).",
+   "objetivos": "Dragón (desde las 5:00): lo hace rápido gracias a la E (225 % a monstruos) y a las piedras de la Q, sola desde nivel ~5-6 si sabe dónde está el jungla rival; con Antorcha de fuego negro el quemado sobre el épico le da AP. Larvas del Vacío: rápidas con Q-E en área. Heraldo y Barón con el equipo; la roca no aturde a los épicos. En la disputa, la E en la entrada del foso y el muro para cerrar el paso son su mejor aporte.",
+   "invasion": "Moderada: los OTPs roban una mediana de 0 CS rival antes del 10 (p75 16) y ~16 en toda la partida. Invade cuando su mid y la lateral cercana tienen prioridad, sobre todo a junglas que dependen de un dash (la E los aturde); evita el 1v1 contra junglas de duelo (Briar, Dr. Mundo, Rammus, Nidalee, Master Yi).",
+   "contra_jungla": "Contra invasiones tempranas de duelistas cede el campamento: guardián en la entrada, E en la entrada del campamento y W para apartar al invasor mientras se retira; responde despejando el lado contrario o con un gank.",
+   "plan": "Despejar rápido, gank de nivel 3 a la línea con objetivos de dash, escuttles (mediana 4 por partida en OTPs) y dragón. A partir del 6 roamea con la R por ángulos sin guardianes y juega picks en la jungla con E-W; con Antorcha de fuego negro manda en las peleas alrededor de dragón y larvas. En la tardía se queda con el grupo, cierra la entrada de los objetivos con la E y usa el muro para separar a la retaguardia rival o cortar huidas."
+  },
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 (5 piedras a 1000 u para la oleada y poke), E a nivel 2 (~1:30) y W a nivel 3 (~2:10). A nivel 3 amenaza con E-W a cualquier rival que se acerque o use un dash; contra magos de rango largo (Vel'Koz, Xerath) juega a despejar la oleada y no a intercambiar.",
+    "tradeos": "Andanada de Q cuando el rival va a rematar un súbdito y, desde el mismo terreno trabajado, la roca (10 de maná, mitad de enfriamiento) para ralentizar. E-W cuando el rival da un paso de más o usa un dash hacia ella. No conviene lanzar la Q siempre desde el mismo sitio: consume el terreno y la andanada de 5 piedras despeja mejor.",
+    "oleadas": "Despeja muy rápido con la Q (explosiones de 175 de radio) y la E: puede empujar la oleada, roamear y volver. Antes de roamear empuja la oleada hasta la torre rival para no perder CS ni placas.",
+    "all_in": "Nivel 3 (con Prender si lo lleva) o nivel 6 con R: muro detrás del rival para cortar su huida hacia la torre → E a sus pies → W para lanzarlo a través de las piedras (aturdimiento) → Q + roca. Contra rivales sin Destello, el muro decide la kill.",
+    "jugar_seguro": "Contra asesinos de dash (Katarina, Ekko, Zed) guarda la W para apartarlos y pone la E delante cuando entran (el dash las hace explotar); farmea con la Q desde 1000 u y compra pronto el Reloj de arena de Zhonya. Sin W disponible no debe pasar de la mitad de la línea."
+   },
+   "roameos": "Es una de las mids que más roamea: tras empujar la oleada, con la pasiva pegada a los muros del río ya roamea antes del 6, y desde el 6 lanza el muro desde mid hacia el río de bot o de top y llega en segundos (2500 u; 4500 desde el 11). En los OTPs, el 73 % de sus partidas tienen una kill o asistencia en otra línea antes del minuto 14 (la primera hacia el 9:40). Con Teleportar (65 %) además llega a la lateral tras volver a base.",
+   "fase_media": "Empuja mid con la Q y rota a la lateral o al río con la R y la pasiva; juega picks en los pasillos de la jungla con E-W y prepara los dragones y larvas llegando antes. En peleas pone el muro para partir al equipo rival y castiga con E-W a quien entre con un dash.",
+   "matchups_dificiles": [
+    "Vel'Koz",
+    "Ekko",
+    "Katarina",
+    "Malphite",
+    "Sion",
+    "Xerath",
+    "Zed"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Brand",
+    "Cassiopeia",
+    "Swain",
+    "Sylas",
+    "Yasuo",
+    "Azir",
+    "Galio"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Control de zona y pick: poke con Q, trampa de piedras contra los que entran con dash, y muro para partir la pelea en dos o cortar huidas. No es iniciadora de cuerpo a cuerpo.",
+  "como_entrar": "No entra: desde la segunda línea pone la E en el camino del que se lanza y la W para meterlo en las piedras o devolverlo a su equipo. La R entra antes de la pelea (no se puede lanzar con daño reciente): muro entre la primera línea rival y su retaguardia, o detrás del carry para que no huya.",
+  "objetivo": "Los que usan desplazamientos para entrar (asesinos, luchadores con dash) y el carry que quede aislado al otro lado del muro.",
+  "posicion": "Detrás de su primera línea, cerca de un muro (velocidad de la pasiva) y con la R o el Zhonya disponibles; nunca en primera línea: no tiene escapes durante la pelea."
+ },
+ "macro": {
+  "split_push": "No en jungla (casi nunca sola en una lateral al final). En mid puede empujar una lateral con la Q y escapar con la R, pero su plan es rotar y agruparse, no el 1v1.",
+  "objetivos": "Dragón sola desde nivel 5-6 en jungla (E al 225 % y Antorcha de fuego negro); larvas rápidas; Heraldo y Barón con el equipo. En la disputa, E en la entrada del foso y muro para cerrar el paso. Torres: presión media con la Q.",
+  "plan_de_partida": "Jungla: despeje rápido, gank de nivel 3, escuttles y dragón; roameos con R desde el 6 y picks con Antorcha de fuego negro (11-20 min); en la tardía, zona con E y muro en los objetivos. Mid: ganar la oleada con la Q, roamear con la pasiva y la R desde el 6 (o con Teleportar), y llegar la primera a cada pelea de río."
+ },
+ "debilidades": [
+  "Frágil y sin escapes en la pelea: la R no se puede lanzar si ha recibido daño de campeones o torres en los últimos 3 s.",
+  "Sus controles son lentos (la W tarda ~0,8 s, la E se ve venir): los rivales atentos o con blink sin dash (Zed, Ekko) los esquivan.",
+  "Pierde los duelos de jungla contra campeones de pelea (Briar, Dr. Mundo, Rammus, Nidalee) y sufre las invasiones tempranas.",
+  "El muro mal puesto encierra o separa a su propio equipo y la deja revelada mientras surfea.",
+  "En mid sufre contra magos de rango largo (Vel'Koz, Xerath) y contra tanques/luchadores que la alcanzan (Malphite, Sion)."
+ ],
+ "contrarrestado_por": [
+  "Dr. Mundo",
+  "Rammus",
+  "Briar",
+  "Nidalee",
+  "Ekko",
+  "Katarina",
+  "Vel'Koz",
+  "Malphite",
+  "Sion",
+  "Zed"
+ ],
+ "bueno_contra": [
+  "Diana",
+  "Gragas",
+  "Wukong",
+  "Rek'Sai",
+  "Qiyana",
+  "Nocturne",
+  "Lee Sin",
+  "Ezreal",
+  "Cassiopeia",
+  "Yasuo",
+  "Sylas"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Yone",
+  "Lee Sin",
+  "Jarvan IV",
+  "Rell",
+  "Nautilus",
+  "Orianna"
+ ],
+ "errores_comunes": [
+  "Intentar escapar con la R en mitad de una pelea: si recibió daño en los últimos 3 s no sale, y surfear la revela.",
+  "Poner el muro donde corta el paso de sus propios aliados o los deja fuera del objetivo.",
+  "Lanzar la W a ciegas contra rivales con el dash disponible: lo esquivan y se quedan sin su combo durante 10-14 s.",
+  "Gastar el terreno trabajado (Q desde el mismo sitio) cuando necesitaba la andanada completa para despejar la oleada o el campamento.",
+  "En jungla, aceptar duelos 1v1 contra junglas de pelea en lugar de despejar y pedir ayuda a su mid.",
+  "Roamear desde mid sin empujar antes la oleada: pierde CS y placas.",
+  "Ir delante de su equipo sin la W ni el Zhonya contra asesinos."
+ ],
+ "senales_reconstructor": [
+  "Rol: jungla 47 % y mid 41 % (Lolalytics 16.23; también bot 8 % y support 3 %). Castigo y el Cachorro de Garra ígnea marcan la jungla; Anillo de Doran y Teleportar, el mid.",
+  "Despeje de referencia en jungla (OTPs del programa, 26 partidas sobre todo de Challenger): nivel 2 a la 1:13, nivel 3 a la 1:52, nivel 4 a las 3:06 y nivel 6 hacia el 6:40; CS de jungla 12 a los 2:00, 20 a los 3:00, ~25 a los 3:30 (p25 22, p75 28), 29 a los 4:00 y 76 a los 10:00.",
+  "Vuelta temprana normal: el 35 % de los OTPs vuelven vivos a base entre la 1:30 y las 2:50 (sobre todo a comprar Sello oscuro) y la mediana de la primera vuelta es 4:33. Verla en su fuente hacia el minuto 2 con 12 de CS de jungla no es un error.",
+  "Desde el nivel 6 surfea su muro (2500 u; 4500 desde el 11 y 6500 desde el 16) y salta 700-1000 u al final, por encima de muros: kills o posiciones lejos de su posición del minuto anterior, al otro lado de un muro o en otra línea, son normales. No tiene teletransporte global.",
+  "El muro es terreno 4 s: muertes de rivales encerrados contra él, o rivales que no llegaron a su torre o al foso, pueden deberse a la R aunque Taliyah no participe en la kill.",
+  "La R no puede lanzarse con daño reciente: si aparece lejos de golpe, llegó desde la niebla antes de la pelea, no huyendo durante ella.",
+  "Objetos: Antorcha de fuego negro primero en el 100 % de los OTPs de jungla (mediana 10:55, p25 9:55, p75 11:30) y segundo objeto hacia el 16:50 (Llamasombría, Zhonya, Cintomisil o Mejai); Botas de hechicero (81-86 %). En mid, Antorcha → Cetro de cristal de Rylai y Botas jonias o de hechicero.",
+  "Ganks de jungla: mediana de 1 gank antes del 10 y primero hacia las 5:10, repartidos casi por igual entre top, mid y bot; prefiere líneas con rivales de dash.",
+  "Mid roameadora: en los OTPs el 73 % de las partidas tiene una kill o asistencia en otra línea antes del 14 (primera hacia el 9:40); una kill en bot o top con Taliyah mid y su última posición en mid es lo esperable desde el 6 (R) o tras Teleportar.",
+  "Sin split push en jungla (prácticamente 0 % del final de partida sola en una lateral); el dragón y las larvas caen rápido con ella (E al 225 % a monstruos), y puede hacer el dragón sola desde nivel 5-6."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/taliyah/build/",
+  "https://lolalytics.com/lol/taliyah/build/?lane=middle",
+  "https://www.op.gg/lol/champions/taliyah/build/jungle",
+  "https://www.op.gg/lol/champions/taliyah/build/mid",
+  "https://www.op.gg/lol/champions/taliyah/jungle-paths",
+  "https://wiki.leagueoflegends.com/en-us/Taliyah",
+  "https://jungler.gg/champions/taliyah/",
+  "https://www.dodge.gg/en-US/lol/news/taliyah-build-2026",
+  "https://www.leagueoflegends.com/en-us/news/game-updates/patch-26-1-notes/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Taliyah del programa (data/otps/Taliyah: 26 de jungla, sobre todo Challenger, parches 16.18-16.23; 11 de mid)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 26,
+    "victorias": 0.577,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.4,
+     "mediana": 4.6,
+     "p75": 5.9
+    },
+    "primer_objeto_min": {
+     "p25": 10.0,
+     "mediana": 10.9,
+     "p75": 11.5
+    },
+    "segundo_objeto_min": {
+     "p25": 15.7,
+     "mediana": 16.8,
+     "p75": 18.2
+    },
+    "primer_objeto": [
+     [
+      "Antorcha de fuego negro",
+      1.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.85
+     ],
+     [
+      "QEQWQRQEQ",
+      0.08
+     ],
+     [
+      "QEWQQQREQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 43.8,
+     "mediana": 57.4,
+     "p75": 64.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.7,
+     "mediana": 19.6,
+     "p75": 24.9
+    },
+    "vision_por_min": {
+     "p25": 0.74,
+     "mediana": 0.98,
+     "p75": 1.28
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.69,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 2.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 14.4,
+     "mediana": 30.7,
+     "p75": 49.3
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.62
+     ],
+     [
+      "red",
+      0.19
+     ],
+     [
+      "blue",
+      0.15
+     ],
+     [
+      "wolves",
+      0.04
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 22.0,
+     "mediana": 25.5,
+     "p75": 28.0
+    },
+    "cs_jungla_10": {
+     "p25": 67.2,
+     "mediana": 76.0,
+     "p75": 78.0
+    },
+    "primer_gank_min": {
+     "p25": 4.5,
+     "mediana": 5.2,
+     "p75": 9.0
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.41
+     ],
+     [
+      "top",
+      0.33
+     ],
+     [
+      "mid",
+      0.26
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 16.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   },
+   "MID": {
+    "partidas": 46,
+    "victorias": 0.609,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.4,
+     "p75": 4.7
+    },
+    "primer_objeto_min": {
+     "p25": 9.6,
+     "mediana": 10.7,
+     "p75": 12.7
+    },
+    "segundo_objeto_min": {
+     "p25": 16.8,
+     "mediana": 18.0,
+     "p75": 19.1
+    },
+    "primer_objeto": [
+     [
+      "Antorcha de fuego negro",
+      0.83
+     ],
+     [
+      "Bastón del arcángel",
+      0.09
+     ],
+     [
+      "Eco de Luden",
+      0.07
+     ],
+     [
+      "Vara de las edades",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.64
+     ],
+     [
+      "QEQWQRQEQ",
+      0.2
+     ],
+     [
+      "QEWQQQREQ",
+      0.07
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 43.7,
+     "mediana": 54.5,
+     "p75": 63.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 20.5,
+     "mediana": 26.7,
+     "p75": 32.4
+    },
+    "vision_por_min": {
+     "p25": 0.63,
+     "mediana": 0.82,
+     "p75": 0.99
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.54,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 10.9,
+     "mediana": 18.3,
+     "p75": 30.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 15.2,
+     "mediana": 27.3,
+     "p75": 34.8
+    },
+    "cs_10": {
+     "p25": 75.0,
+     "mediana": 81.0,
+     "p75": 90.0
+    },
+    "dif_cs_10": {
+     "p25": -7.0,
+     "mediana": 5.0,
+     "p75": 16.0
+    },
+    "dif_oro_10": {
+     "p25": -463.0,
+     "mediana": 127.0,
+     "p75": 683.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 8.5,
+     "p75": 12.8
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.1,
+     "mediana": 2.4,
+     "p75": 4.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.2,
+     "mediana": 9.2,
+     "p75": 12.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.18-16.23"
+   }
+  }
+ }
+}

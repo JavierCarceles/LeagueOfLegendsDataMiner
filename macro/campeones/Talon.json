@@ -1,0 +1,605 @@
+{
+ "clave": "Talon",
+ "nombre": "Talon",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.736,
+   "principal": true
+  },
+  {
+   "rol": "MID",
+   "parte": 0.251,
+   "principal": false
+  }
+ ],
+ "arquetipo": "asesino AD de ráfaga y roameo que salta muros con la E (cruza el mapa por atajos), con ganks a nivel 3, pico en 6 (invisibilidad) y en Guja sombría, muy fuerte hasta el minuto 20-25 y débil en la tardía",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 5,
+  "tardia": 2,
+  "nota": "En jungla llega a nivel 3 hacia la 1:50 y gankea por ángulos imposibles saltando muros; con R (nivel 6, ~6:20) y Guja sombría (~9:30) mata a cualquier carry frágil en un combo y elimina guardianes. Su mejor ventana es de 8 a 22 minutos (picks, invasiones, torres con Quiebrabastiones). En la tardía los rivales tienen más vida, Zhonya y control, y él depende de flanquear sin ser visto; si no se ha adelantado antes del 25 aporta poco."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (jungla ~1:50 tras rapaces y roja; mid ~2:00)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "W (ida y vuelta con ralentización del 40 %) + Q (salto y crítico en cuerpo a cuerpo) ponen 3 heridas y el siguiente ataque activa el sangrado de la pasiva (80+ de daño en 2 s). Con la E salta un muro para entrar por donde no hay guardianes: gank de nivel 3 muy fuerte."
+  },
+  {
+   "cuando": "Nivel 6 (jungla ~6:20; mid ~5:25)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Shadow Assault (R, 100 s): invisibilidad 2,5 s con +40 % de velocidad y dos pasadas de cuchillas (90 + 100 % AD adicional cada una) que ya ponen 2 heridas. R-Q-W-ataque mata a un tirador o mago de vida media y sirve también para escapar."
+  },
+  {
+   "cuando": "Primer objeto (jungla: Guja sombría, mediana 9:27; mid: Soberbia, Hidra profana o Filo fantasmal de Youmuu, ~10:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Guja sombría",
+   "por_que": "Letalidad y daño verdadero extra en el primer golpe si no le han visto; revela y destruye guardianes cercanos, así que sus flanqueos y ganks llegan sin aviso. A partir de aquí busca picks en la jungla y el río."
+  },
+  {
+   "cuando": "Segundo objeto (~15 min en jungla): Espada ciclovoltaica o Quiebrabastiones; W al máximo a nivel 9",
+   "nivel": 9,
+   "objetos": 2,
+   "objeto": "Espada ciclovoltaica",
+   "por_que": "La W hace 270 (+130 % AD adicional) en total y baja a 7 s; con 2 objetos de letalidad mata a los carries en un combo. Quiebrabastiones añade daño verdadero y, tras una kill, un golpe potenciado contra torres y épicos: kill + torre en la misma jugada."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Blade's End: sus habilidades ponen Herida a campeones y monstruos grandes (6 s, hasta 3). Un ataque básico contra un objetivo con 3 heridas provoca un sangrado de 80-303 (según nivel) +210 % de su AD adicional en 2 s (100 % a monstruos desde el 25.22). Con W ida y vuelta + Q ya tiene las 3 heridas: el combo siempre termina con un ataque.",
+  "Q": "Noxian Diplomacy: salta a un objetivo a 575 u y le hace 65-145 (+100 % AD adicional); si está en cuerpo a cuerpo (170 u) no salta y da un crítico de 97,5-217,5 (+150 % AD adicional). Si mata al objetivo, se cura y recupera el 50 % del enfriamiento (despeje y remate de oleadas). Tras saltar, su siguiente ataque gana 75 de alcance. Enfriamiento 8/7,5/7/6,5/6 s, 40 de maná.",
+  "W": "Rake: lanza un abanico de cuchillas (~900 u según la wiki; Data Dragon da 650 de lanzamiento) que vuelven a él: 50-90 (+40 % AD adicional) a la ida y 60-180 (+90 % AD adicional) a la vuelta, que además ralentiza un 40-60 % 1 s. Es su despeje en área, su poke en línea y lo que prepara el salto de la Q. Enfriamiento 9/8,5/8/7,5/7 s, maná 50-70.",
+  "E": "Assassin's Path: salta por encima del terreno o de una estructura más cercana (lanzamiento a 725 u, hasta 800 u por encima del muro), sin coste. Tiene 2 s de enfriamiento propio, pero cada muro concreto queda bloqueado 160/135/110/85/60 s (el muro usado se marca). Encadena muros distintos para cruzar la jungla en línea recta, entrar a ganquear por detrás o escapar.",
+  "R": "Shadow Assault: lanza un anillo de cuchillas (550 u) que hace 90/135/180 (+100 % AD adicional), se vuelve invisible 2,5 s y gana un 40/55/70 % de velocidad; al acabar (o al atacar o usar la Q) las cuchillas vuelven hacia él o hacia su objetivo y hacen el mismo daño otra vez. Se puede reactivar tras 1 s. Enfriamiento 100/80/60 s, 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "niveles_1_3": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "nota": "W-Q-E y W > Q > E en los dos roles (OP.GG 16.23: 58 % en jungla, 50 % en mid; OTPs del programa: W-Q-E en el 77-87 % y W > Q > E en el 100 %). En mid algunos suben Q-W-W o W-Q-W (E a nivel 4) para intercambiar más en línea antes de roamear. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: salto por encima de cualquier muro o estructura (hasta 800 u), 2 s entre saltos pero cada muro bloqueado 160-60 s. Q: salto de 575 u al objetivo (no atraviesa muros). R: invisibilidad 2,5 s con +40/55/70 % de velocidad. Encadenando E en muros distintos recorre la jungla mucho más rápido que andando.",
+  "salta_muros": "si",
+  "como_salta_muros": "Con la E salta el muro o la estructura más cercana en la dirección del cursor (hasta 800 u de terreno): cruza los muros de la jungla, del río y de las bases de las torres. Cada muro concreto solo se puede saltar una vez cada 160/135/110/85/60 s, así que una misma ruta no se repite enseguida.",
+  "invisibilidad": "R (Shadow Assault): invisible 2,5 s con +40/55/70 % de velocidad; termina antes si ataca, usa la Q (las cuchillas vuelven a su objetivo) o la reactiva (desde 1 s). Los rivales ven el anillo de cuchillas al lanzarla, pero no a Talon salvo con visión verdadera (por ejemplo, la Q1 de Lee Sin si ya lo había marcado).",
+  "global": []
+ },
+ "unico": [
+  "Salto de muros sin coste (E): cada muro queda bloqueado 160-60 s, pero puede encadenar muros distintos cada 2 s; toma atajos por la jungla que ningún otro campeón puede tomar y aparece en líneas por ángulos sin guardianes.",
+  "Pasiva de heridas: 3 golpes de habilidad (W ida, W vuelta, Q) + un ataque = sangrado fuerte; todo su daño es físico y en ráfaga.",
+  "La Q en cuerpo a cuerpo hace crítico (150 % de la base) y si mata devuelve la mitad del enfriamiento y le cura: rematar súbditos o monstruos con la Q acelera el despeje.",
+  "R de invisibilidad y velocidad: sirve tanto para entrar a la retaguardia como para salir de una pelea; las cuchillas vuelven a donde esté él o a su objetivo y ponen 2 heridas.",
+  "Con Guja sombría revela y destruye guardianes cercanos: limpia la visión rival en el camino de sus ganks y flanqueos.",
+  "Con Quiebrabastiones, matar a un campeón le da un golpe potenciado contra torres y monstruos épicos: tras una kill suele caer una placa o una torre."
+ ],
+ "combos": [
+  "Combo básico: W (ida) → esperar la vuelta (ralentiza) → Q (salto o crítico en cuerpo a cuerpo) → ataque (3 heridas = sangrado) → E por un muro para salir.",
+  "Gank: E por encima de un muro desde la niebla → W para ralentizar a la vuelta → Q → ataque → Prender o Castigo; si el rival usa Destello, la W vuelve a estar lista en 7-9 s.",
+  "Asesinato con R: R (invisible y rápido) → colocarse detrás del objetivo → Q (las cuchillas vuelven al objetivo) → W → ataque; Destello-Q si sobrevive con poca vida.",
+  "Despeje: W a través del campamento → ataques → Q para rematar al monstruo grande (refresco del 50 % y curación) → E al siguiente campamento por el muro.",
+  "Roameo de mid: empujar la oleada con W (y Tiamat/Hidra profana) → E por los muros del río hacia la lateral → combo por la espalda → E de vuelta por otro muro.",
+  "Huida: E por el muro más cercano (si no está bloqueado) y R para perder al perseguidor; contra visión verdadera, mejor dos saltos E seguidos."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Guja sombría",
+   "Espada ciclovoltaica",
+   "Quiebrabastiones",
+   "Soberbia",
+   "Filo fantasmal de Youmuu",
+   "Hidra profana",
+   "Cuchilla negra",
+   "Filo de la noche",
+   "Colmillo de serpiente",
+   "Rencor de Serylda",
+   "Recuerdos de lord Dominik",
+   "Baile de la muerte",
+   "Ángel de la guarda",
+   "Botas de rapidez",
+   "Botas jonias de la lucidez",
+   "Botas de mercurio"
+  ],
+  "runas": "Jungla: Pies veloces + Triunfo + Leyenda: Presteza + Golpe de gracia; secundaria Inspiración con Perspicacia cósmica y Calzado mágico; fragmentos fuerza adaptable ×2 y vida (OP.GG 16.23, 52 %; OTPs del programa 74 %). Alternativas: Conquistador (15 %) o Electrocutar (8 %). Mid: Conquistador + Triunfo + Leyenda: Presteza + Último esfuerzo con Dominación (Impacto repentino y Cazador de tesoros) (OP.GG, 47 %), o Electrocutar + Impacto repentino + Recuerdo macabro + Cazador incesante con Brujería (Capa del nimbo y Concentración absoluta).",
+  "hechizos": [
+   "Destello",
+   "Castigo",
+   "Prender"
+  ],
+  "nota": "Jungla: Destello + Castigo (94-96 %), Cría de Caminabrisas (~67 %, más velocidad para ganks e invasiones) o Cachorro de Garra ígnea; vuelta temprana con Espada larga; Guja sombría (63 % en OTPs) → Espada ciclovoltaica o Quiebrabastiones → Filo de la noche, Colmillo de serpiente (contra escudos) o Rencor de Serylda; Botas de rapidez (52 %) o jonias (30 %), a menudo gratis por Calzado mágico. Mid: Destello + Prender (98 %), Espada de Doran + poción (78 %); Soberbia, Filo fantasmal de Youmuu, Eclipse o Hidra profana (para empujar y roamear) → Cuchilla negra o Espada ciclovoltaica → Baile de la muerte o Filo de la noche; Botas jonias (39 %) o de mercurio (27 %) contra AP y control. Recuerdos de lord Dominik contra tanques; Ángel de la guarda o Fauces de Malmortius en la tardía."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Rapaces en el 77 % (lado azul) y el 84 % (lado rojo) de las partidas (OP.GG 16.23; OTPs 76 %), con W a nivel 1 para el área. Los campamentos salen a las 0:55 (rapaces, roja, azul, lobos) y a la 1:07 (krugs, gromp); la escuttle a las 2:55. Q a nivel 2 y E a nivel 3 para gankear o invadir saltando muros.",
+   "rutas": [
+    {
+     "nombre": "Rapaces-roja-escuttle y medio despeje",
+     "orden": [
+      "raptors",
+      "red",
+      "scuttle_bot",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Tras gromp (~4:00-4:20) gankea la línea del lado de azul (top en lado azul) o mid, o vuelve a base con ~1000 de oro para la primera Espada dentada / Espada larga.",
+     "nivel": 4,
+     "minuto": "4:10",
+     "cuando": "La ruta más registrada en los dos lados (OP.GG, ~28 000 partidas en cada lado). La escuttle es la del lado de la roja (scuttle_bot en lado azul, scuttle_top en lado rojo); a menudo entre la roja y la escuttle hace los krugs o una vuelta rápida a base."
+    },
+    {
+     "nombre": "Rapaces-roja y vuelta temprana",
+     "orden": [
+      "raptors",
+      "red"
+     ],
+     "despues": "Nivel 3 a la ~1:50 y vuelta a base entre la 1:55 y las 2:50 a comprar Espada larga; sale a la escuttle de las 2:55, a gankear a nivel 3 saltando muros o a invadir las rapaces rivales.",
+     "nivel": 3,
+     "minuto": "1:50",
+     "cuando": "En el 27-29 % de las partidas de OTPs Diamante+ vuelve vivo a base antes de las 2:50. Cuando no hay gank claro tras dos campamentos y quiere llegar con más daño a la escuttle o al primer gank."
+    },
+    {
+     "nombre": "Despeje completo desde rapaces",
+     "orden": [
+      "raptors",
+      "krugs",
+      "red",
+      "wolves",
+      "gromp",
+      "blue",
+      "scuttle_top"
+     ],
+     "despues": "Escuttle del lado de azul (scuttle_top en lado azul) y gank a top o mid a nivel 4 (~3:30), o invasión de las rapaces rivales si ya reaparecieron.",
+     "nivel": 4,
+     "minuto": "3:30",
+     "cuando": "Ruta recomendada por Jungler.gg para partidas de farmeo o cuando las líneas no dejan gankear pronto; contra junglas que invaden fuerte (Bel'Veth, Rek'Sai) le deja con más nivel para el primer choque."
+    },
+    {
+     "nombre": "Rapaces-roja-krugs y gank de nivel 3",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Gank a nivel 3 hacia las 2:20-2:40 a mid o a la línea del lado de la roja entrando por un muro con la E; si falla, escuttle y el resto del despeje del otro lado.",
+     "nivel": 3,
+     "minuto": "2:25",
+     "cuando": "Cuando mid o bot tiene un rival sin Destello o muy adelantado; más arriesgado si el jungla rival invade el lado de azul."
+    }
+   ],
+   "ganks": "Ventanas: nivel 3 (2:00-3:30), nivel 4-5 tras la escuttle y nivel 6 (~6:20) con R. En OTPs Diamante+ el primer gank llega hacia las 5:00 (p25 3:35, p75 7:50), con mediana de 1 gank antes del 10, repartidos bot 33 %, top 29 % y mid 17 %. Entra saltando un muro desde la niebla (por detrás de la torre rival o por el muro del río), W para ralentizar a la vuelta, Q y ataque; con R se acerca invisible y rápido. Mejores objetivos: carries frágiles sin escapes.",
+   "objetivos": "No es un jungla de objetivos: el dragón (5:00) lo hace solo desde nivel ~6 con la mascota y el Castigo si sabe dónde está el jungla rival, pero lo normal es hacerlo tras ganar una pelea o un gank en bot. Larvas, Heraldo y Barón con el equipo. Con Quiebrabastiones, tras una kill su siguiente golpe a un monstruo épico o una torre hace daño verdadero extra.",
+   "invasion": "Sí: es de los junglas que más invaden. Los OTPs roban una mediana de 8 CS rivales antes del 10 (p75 19) y ~21 en la partida; con la E entra y sale de la jungla rival por los muros y roba campamentos cuando el jungla rival se muestra en el otro lado. Evita el 1v1 con junglas de duelo (Bel'Veth, Rek'Sai, Warwick, Volibear, Zaahen) sin ventaja.",
+   "contra_jungla": "Contra invasiones de duelistas no pelea: salta un muro con la E y responde invadiendo el lado contrario o gankeando la línea opuesta.",
+   "plan": "Bola de nieve: gank de nivel 3 saltando muros, escuttles (mediana 4 por partida), invasiones y presión con R desde el 6. Con Guja sombría (~9:30) limpia guardianes y busca picks en el río y la jungla rival; con 2 objetos (~15 min) presiona las líneas laterales, mata a quien farmee solo y tira torres con Quiebrabastiones. En la tardía flanquea por la niebla, espera a que el rival gaste su control y entra con R al carry."
+  },
+  "MID": {
+   "linea": {
+    "niveles_1_3": "W a nivel 1 para empujar la primera oleada y pegar con la vuelta de las cuchillas; Q a nivel 2 (~1:30): W + Q + ataque (sangrado) + Prender es un all-in fuerte contra magos; E a nivel 3 (~2:00) para empezar a roamear. Algunos jugadores suben Q-W-W para intercambiar más en línea.",
+    "tradeos": "W cuando el rival va a rematar un súbdito (la vuelta ralentiza y pone 2 heridas) → Q si puede quedarse en cuerpo a cuerpo → ataque para el sangrado → retirada. Evita intercambios largos contra campeones con control de punto (Lissandra, Malzahar) o curación (Vladimir).",
+    "oleadas": "Empuja con la W (y Tiamat o Hidra profana, el primer objeto del 74 % de los OTPs de mid) para roamear con la E. No debe roamear con una oleada grande llegando a su torre: pierde CS y placas.",
+    "all_in": "Nivel 2-3 con Prender si el rival no tiene Destello, y nivel 6 con R: R → Q (crítico) → W → ataque → Prender. Contra magos sin escapes mata desde ~70 % de vida a nivel 6.",
+    "jugar_seguro": "Contra malos matchups (Pantheon, Lissandra, Vladimir, Tristana) farmea con la W desde lejos, compra Botas de mercurio o Fauces de Malmortius contra AP, y busca más los roameos que el 1v1."
+   },
+   "roameos": "Su punto fuerte: tras empujar, salta los muros del río con la E hacia bot o top (llega sin pasar por el río vigilado) y vuelve por otro muro. Ventanas: nivel 3-4 tras empujar, nivel 6 con R y tras el primer objeto. En los OTPs, el 58 % de las partidas tienen una kill o asistencia en otra línea antes del 14 (la primera hacia el 10:15; p25 6:35).",
+   "fase_media": "Empuja mid y se mueve a las laterales: mata a quien farmee solo, invade con su jungla y presiona torres. Con 2 objetos busca picks en la niebla; en peleas flanquea y entra el último.",
+   "matchups_dificiles": [
+    "Pantheon",
+    "Lissandra",
+    "Vladimir",
+    "Tristana",
+    "Vel'Koz",
+    "Ziggs",
+    "Sion",
+    "Irelia"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Xerath",
+    "Malzahar",
+    "Kayle",
+    "Brand",
+    "Azir",
+    "Lux",
+    "Ryze"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Asesino flanqueador: mata a un carry en un combo; no inicia ni aguanta.",
+  "como_entrar": "Espera a que el rival gaste su control en su primera línea, salta un muro con la E para colocarse en el flanco o detrás, y entra con la R (invisible y rápido) → Q al carry → W → ataque. Si el combo no mata, sale con la E por un muro o con el resto de la invisibilidad.",
+  "objetivo": "El tirador o mago principal y cualquier carry aislado; en objetivos, el jungla rival si está bajo de vida al castigar.",
+  "posicion": "Fuera de la visión rival, en un flanco cerca de muros que pueda saltar; nunca el primero en entrar."
+ },
+ "macro": {
+  "split_push": "Poco en jungla (OTPs: ~4 % del final de partida solo en una lateral). En mid sí presiona laterales (~13 % del final de partida solo en una lateral en OTPs) para buscar picks y torres, pero no es un duelista de split.",
+  "objetivos": "No los hace rápido solo; dragón tras ganar una pelea o un gank, larvas y Barón con el equipo. Con Quiebrabastiones convierte cada kill en una placa, una torre o daño extra al épico.",
+  "plan_de_partida": "0-8 min: ganks de nivel 3 y 6, invasiones y escuttles (jungla) o empujar y roamear (mid). 8-22 min: Guja sombría o Soberbia, picks en la niebla, control de guardianes rivales y presión de torres. 25+: flanquear en peleas de objetivo y esperar el error del rival; si va por detrás, jugar a picks en laterales y no a peleas de frente."
+ },
+ "debilidades": [
+  "El control de punto (aturdimientos, inmovilizaciones, Zhonya) le corta el combo: contra Lissandra, Malzahar, Rammus o Pantheon sufre mucho.",
+  "Cae en la tardía: con armadura (Botas blindadas, Malla de espinas) y Zhonya en los carries rivales, su ráfaga deja de matar.",
+  "Depende de adelantarse: si no consigue kills ni invasiones antes del 15, su despeje y su aporte a objetivos son flojos.",
+  "Pierde los duelos de jungla contra campeones de pelea (Bel'Veth, Rek'Sai, Warwick, Volibear, Zaahen, Trundle).",
+  "Cada muro solo se salta una vez cada 160-60 s: si gasta los muros de una zona, se queda sin escape por allí."
+ ],
+ "contrarrestado_por": [
+  "Rek'Sai",
+  "Fiddlesticks",
+  "Bel'Veth",
+  "Zaahen",
+  "Rammus",
+  "Warwick",
+  "Volibear",
+  "Trundle",
+  "Pantheon",
+  "Lissandra",
+  "Vladimir"
+ ],
+ "bueno_contra": [
+  "Jayce",
+  "Zed",
+  "Shaco",
+  "Jax",
+  "Locke",
+  "Fizz",
+  "Gragas",
+  "Skarner",
+  "Taliyah",
+  "Ezreal",
+  "Xerath",
+  "Lux",
+  "Azir"
+ ],
+ "sinergias": [
+  "Nautilus",
+  "Leona",
+  "Rell",
+  "Galio",
+  "Twisted Fate",
+  "Lissandra",
+  "Orianna"
+ ],
+ "errores_comunes": [
+  "Entrar el primero en las peleas o lanzar la R contra varios rivales con control disponible.",
+  "Usar la Q a distancia cuando podía acercarse y hacer el crítico en cuerpo a cuerpo (pierde un 50 % de daño).",
+  "No terminar el combo con un ataque: sin el ataque no hay sangrado de la pasiva.",
+  "Gastar los muros de una zona saltando sin necesidad y quedarse sin escape cuando lo gankean.",
+  "Roamear desde mid con la oleada rival llegando a su torre: pierde CS y placas.",
+  "En jungla, perseguir kills sin despejar: llega al minuto 15 con menos nivel y oro que el jungla rival.",
+  "Seguir buscando duelos de frente en la tardía en vez de flanquear o buscar picks."
+ ],
+ "senales_reconstructor": [
+  "Rol: jungla 74 % y mid 25 % (Lolalytics 16.23; OP.GG 74/26). Castigo y la mascota indican jungla; Espada de Doran y Prender, mid.",
+  "Despeje de referencia (OTPs del programa, 126 partidas Diamante+): nivel 2 a la 1:12, nivel 3 a la 1:50, nivel 4 a las 2:58 y nivel 6 hacia el 6:20; CS de jungla 12 a los 2:00, 24 a los 3:00, ~26 a los 3:30 (p25 22, p75 27,5), 28 a los 4:00 y 72 a los 10:00.",
+  "Vuelta temprana: el 27-29 % de los OTPs vuelven vivos a base antes de las 2:50 tras rapaces y roja (compran Espada larga) y la mediana de la primera vuelta es 3:27 (p25 2:48, p75 4:42). Verle en su fuente hacia el minuto 2 no es un error.",
+  "Salta muros con la E (hasta 800 u de terreno, sin coste, 2 s entre saltos, cada muro bloqueado 160-60 s): posiciones a ambos lados de un muro en pocos segundos, rutas por la jungla en línea recta y ganks por detrás de la torre son normales. No tiene nada global.",
+  "Invisibilidad (R, 2,5 s con +40-70 % de velocidad): kills en las que Talon aparece de la nada o se escapa sin ser visto; si una kill no tiene guardián ni visión previa de Talon, es su forma normal de entrar.",
+  "Primer objeto: Guja sombría en el 63 % de los OTPs de jungla (Soberbia 15 %, Espada ciclovoltaica 9 %), mediana 9:27 (p25 8:18, p75 10:12); segundo objeto hacia el 15:06 (Espada ciclovoltaica 39 %, Quiebrabastiones 24 %). Las botas suelen llegar tarde (mediana 18 min) o gratis por Calzado mágico.",
+  "Ganks de jungla: primer gank hacia las 5:00 (p25 3:35), repartidos bot 33 %, top 29 %, mid 17 %; kills en una línea a partir del 2:20 con Talon presente son su plan.",
+  "Invasor: mediana de 8 CS rivales robados antes del 10 (p75 19) y ~21 en la partida; estar en la jungla rival a nivel 3-6 es normal. Con Guja sombría destruye guardianes (mediana 5 guardianes destruidos por partida en jungla).",
+  "Quiebrabastiones: tras una kill suele seguir daño fuerte a una torre o una placa en segundos; secuencias kill → placa/torre con Talon cerca son esperables desde el segundo objeto.",
+  "Mid roameador: en los OTPs de mid el 58 % de las partidas tienen una kill o asistencia en otra línea antes del 14 (primera hacia el 10:15); una kill en bot o top con su última posición en mid es normal (E por los muros del río). Nivel 6 en mid hacia el 5:25 y primer objeto (Hidra profana, Soberbia o Youmuu) hacia el 10:00.",
+  "Participación en kills alta en jungla (mediana 51 %) y 2 kills en solitario por partida; casi nada de split push en jungla (~4 % del final de partida solo en una lateral)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/talon/build/",
+  "https://lolalytics.com/lol/talon/build/?lane=middle",
+  "https://www.op.gg/lol/champions/talon/build/jungle",
+  "https://www.op.gg/lol/champions/talon/build/mid",
+  "https://www.op.gg/lol/champions/talon/jungle-paths",
+  "https://wiki.leagueoflegends.com/en-us/Talon",
+  "https://jungler.gg/champions/talon/",
+  "https://www.dodge.gg/en-US/lol/news/talon-build-2026",
+  "https://www.leagueoflegends.com/en-us/news/game-updates/patch-26-1-notes/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json y item.json)",
+  "Partidas de OTPs de Talon del programa (data/otps/Talon: 126 de jungla Diamante+, parches 16.6-16.23; 62 de mid, sobre todo Plata y Gran Maestro)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 123,
+    "victorias": 0.561,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 35,
+      "victorias": 0.514
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.4,
+     "p75": 4.6
+    },
+    "primer_objeto_min": {
+     "p25": 8.3,
+     "mediana": 9.4,
+     "p75": 10.1
+    },
+    "segundo_objeto_min": {
+     "p25": 13.9,
+     "mediana": 15.0,
+     "p75": 16.4
+    },
+    "primer_objeto": [
+     [
+      "Guja sombría",
+      0.64
+     ],
+     [
+      "Soberbia",
+      0.15
+     ],
+     [
+      "Espada ciclovoltaica",
+      0.09
+     ],
+     [
+      "Filo fantasmal de Youmuu",
+      0.06
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WQEWWRWQW",
+      0.86
+     ],
+     [
+      "WQWEWRWQW",
+      0.08
+     ],
+     [
+      "QWWEWRWQW",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "WQE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 44.7,
+     "mediana": 52.6,
+     "p75": 63.4
+    },
+    "parte_del_dano_pct": {
+     "p25": 18.0,
+     "mediana": 20.7,
+     "p75": 26.1
+    },
+    "vision_por_min": {
+     "p25": 0.91,
+     "mediana": 1.2,
+     "p75": 1.44
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 2.02,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.2,
+     "mediana": 3.8,
+     "p75": 8.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 19.8,
+     "mediana": 28.6,
+     "p75": 36.1
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.76
+     ],
+     [
+      "blue",
+      0.11
+     ],
+     [
+      "red",
+      0.09
+     ],
+     [
+      "wolves",
+      0.02
+     ],
+     [
+      "krugs",
+      0.01
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 22.5,
+     "mediana": 26.0,
+     "p75": 27.5
+    },
+    "cs_jungla_10": {
+     "p25": 68.0,
+     "mediana": 72.0,
+     "p75": 77.5
+    },
+    "primer_gank_min": {
+     "p25": 3.6,
+     "mediana": 5.0,
+     "p75": 7.8
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.44
+     ],
+     [
+      "top",
+      0.32
+     ],
+     [
+      "mid",
+      0.24
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 8.0,
+     "p75": 19.5
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.6-16.23"
+   },
+   "MID": {
+    "partidas": 62,
+    "victorias": 0.548,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.3,
+     "p75": 4.7
+    },
+    "primer_objeto_min": {
+     "p25": 8.9,
+     "mediana": 10.1,
+     "p75": 11.9
+    },
+    "segundo_objeto_min": {
+     "p25": 15.1,
+     "mediana": 17.1,
+     "p75": 18.9
+    },
+    "primer_objeto": [
+     [
+      "Hidra profana",
+      0.77
+     ],
+     [
+      "Filo fantasmal de Youmuu",
+      0.15
+     ],
+     [
+      "Soberbia",
+      0.05
+     ],
+     [
+      "Recordatorio letal",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WQEWWRWQW",
+      0.78
+     ],
+     [
+      "WQWEWRWQW",
+      0.18
+     ],
+     [
+      "QWWEWRWQW",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "WQE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 38.1,
+     "mediana": 43.1,
+     "p75": 51.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 21.5,
+     "mediana": 25.4,
+     "p75": 29.9
+    },
+    "vision_por_min": {
+     "p25": 0.39,
+     "mediana": 0.55,
+     "p75": 0.67
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 4.76,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 6.8,
+     "mediana": 13.5,
+     "p75": 17.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 11.6,
+     "mediana": 15.8,
+     "p75": 24.0
+    },
+    "cs_10": {
+     "p25": 63.0,
+     "mediana": 73.0,
+     "p75": 81.5
+    },
+    "dif_cs_10": {
+     "p25": -4.0,
+     "mediana": 11.0,
+     "p75": 22.0
+    },
+    "dif_oro_10": {
+     "p25": 93.0,
+     "mediana": 708.0,
+     "p75": 1005.0
+    },
+    "placas": {
+     "p25": 10.2,
+     "mediana": 15.0,
+     "p75": 21.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 3.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.2,
+     "mediana": 6.8,
+     "p75": 10.5
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.6-16.23"
+   }
+  }
+ }
+}

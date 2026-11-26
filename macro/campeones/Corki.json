@@ -1,0 +1,382 @@
+{
+ "clave": "Corki",
+ "nombre": "Corki",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "ADC",
+   "parte": 0.866,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tirador de daño mixto (mágico, físico y verdadero) de bot, con nivel 1 fuerte por la E, poke de largo alcance con los misiles de la R y pico de 2 objetos (~17:30) con Segador de esencia o Fuerza de trinidad y Recaudadora",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Nivel 1 con E es de los más fuertes de bot (reduce ~12 de armadura y hace ~115 de daño) y a nivel 3 tiene el combo completo, pero sufre de maná antes del primer objeto. Su mejor momento es entre el primer objeto (~11:00) y los 3 objetos (~23:00): poke con la R a 1300-1500 y daño en ráfaga con la Recaudadora. Pasado el minuto 30 rinde menos que los hipercarries (Kog'Maw, Zeri, Aphelios, Jinx): en la muestra de partidas su winrate cae del 52 % (20-30 min) al 33-42 % (30-40 min)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 con E",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La Gatling Gun dura 4 s, deja seguir atacando y quita armadura y resistencia mágica: tradeo de nivel 1 que gana a la mayoría de tiradores si el rival se queda a 550-690."
+  },
+  {
+   "cuando": "Nivel 3 (~2:40)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Tiene Q (825, revela), W (salto de 600 con fuego) y E: con un support de enganche (Nautilus, Leona, Rell) puede hacer all-in W-E-Q y rematar con Destello o Barrera."
+  },
+  {
+   "cuando": "Nivel 6 (~7:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Missile Barrage: 2 misiles al subirla, hasta 4 cargas (20 s cada una, menos si ataca a campeones) de 1300 de alcance; el tercero es el grande (1500 de alcance, doble daño). Poke constante y remates a distancia."
+  },
+  {
+   "cuando": "Primer objeto: Segador de esencia o Fuerza de trinidad (~10:55-11:35, nivel ~7)",
+   "nivel": 7,
+   "objetos": 1,
+   "objeto": "Segador de esencia",
+   "por_que": "Se le acaban los problemas de maná y cada habilidad potencia el siguiente ataque (hoja de hechizos, que también recibe el 20 % de daño verdadero de su pasiva). En 16.22-16.23 se reparten casi a medias: Segador de esencia para ráfaga, Fuerza de trinidad (tras Lágrima) para aguante y velocidad."
+  },
+  {
+   "cuando": "Dos objetos (~16:50-17:30, nivel ~10): Recaudadora o Manamune",
+   "nivel": 10,
+   "objetos": 2,
+   "objeto": "Recaudadora",
+   "por_que": "Con Recaudadora (ejecuta por debajo del 5 % y letalidad) los misiles y la Q rematan desde lejos; Manamune se transforma en Muramana hacia el 18-19 min. Es la ventana para agruparse y tirar torres y dragones."
+  },
+  {
+   "cuando": "Tres objetos con Filo infinito (~21:30-23:20, nivel 12-13)",
+   "nivel": 12,
+   "objetos": 3,
+   "objeto": "Filo infinito",
+   "por_que": "Los críticos amplifican también el daño verdadero de su pasiva; con R a rango 2 los misiles quitan un 10-15 % de vida a los carries cada pocos segundos."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Hextech Munitions: sus ataques básicos hacen además un 20 % de su AD como daño verdadero (se multiplica con los críticos y también se aplica a la hoja de hechizos de Fuerza de trinidad o Segador de esencia). La 'Package'/Entrega especial ya no existe (se quitó en el parche 14.10).",
+  "Q": "Phosphorus Bomb: bomba a 825 de alcance que explota en 275 de radio: 60-240 (+125 % AD adicional, +100 % AP) de daño mágico y revela la zona y a los campeones golpeados 6 s. Enfriamiento 9/8,5/8/7,5/7 s, 60-80 de maná. Poke, despeje y visión de arbustos y del foso.",
+  "W": "Valkyrie: vuela 300-600 unidades (puede cruzar muros finos) dejando un rastro de fuego que dura 2,5 s: hasta 150-450 (+200 % AD adicional, +150 % AP) de daño mágico a quien se quede en él. Enfriamiento 20/18/16/14/12 s, 80-100 de maná. Es su única huida; usarla para entrar le deja vendido. Puede lanzar la E mientras vuela.",
+  "E": "Gatling Gun: dispara 4 s en un cono de 690 de alcance (35°) mientras sigue moviéndose y atacando: 80-280 (+240 % AD adicional) de daño físico en total y reduce hasta 12-20 la armadura y la resistencia mágica (3-5 por acumulación). Enfriamiento 12 s, 50-70 de maná. Es la base de sus tradeos de línea.",
+  "R": "Missile Barrage: misil a 1300 de alcance que explota contra el primer enemigo (150 de radio): 100/190/280 (+90 % AD adicional) de daño físico; cada tercer misil es el grande (1500 de alcance, 300 de radio, 200/380/560 +180 % AD adicional). Guarda hasta 4 cargas (empieza con 2, se rellenan al reaparecer), recarga una cada 20 s y cada ataque a un campeón le quita 2-6 s a esa espera. 2 s entre misiles, 35 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "Q > E > W en el 95 % de las partidas. E a nivel 1 casi siempre (nivel 1 muy fuerte); Q a nivel 1 contra tiradores de mucho alcance con los que no puede tradear a ataques (Lolalytics muestra un orden Q-E-W). Si gana el nivel 1, W a nivel 2 (E-W-Q, 32-43 % en las muestras) para amenazar el all-in. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "W: vuelo de 300-600 unidades con rastro de fuego (enfriamiento 20-12 s). Nada más: sin la antigua 'Package' (quitada en el 14.10) no tiene vuelos largos desde la base.",
+  "salta_muros": "si",
+  "como_salta_muros": "La W cruza muros finos de la jungla y del río si el punto de destino está al otro lado a 600 o menos; es su forma de escapar de ganks por la jungla.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Daño mixto: Q y W mágicos, E y R físicos y un 20 % del AD como daño verdadero en cada ataque; la E reduce a la vez armadura y resistencia mágica, así que apilar una sola resistencia contra él sirve poco.",
+  "Munición en la R: hasta 4 misiles de 1300 de alcance que se recargan cada 20 s (2-6 s menos por ataque a campeones), y cada tercero es el grande de 1500 de alcance: poke de largo alcance que no depende del enfriamiento.",
+  "La Gatling Gun (E) dura 4 s y le deja moverse y atacar mientras dispara.",
+  "La Q da visión: revela la zona y a los golpeados 6 s (arbustos, foso de dragón y Barón).",
+  "Tirador de hoja de hechizos: Fuerza de trinidad o Segador de esencia primero, porque cada habilidad potencia el siguiente ataque y la pasiva añade daño verdadero a ese golpe."
+ ],
+ "combos": [
+  "Tradeo de nivel 1-2: E → AA mientras dura la ráfaga (4 s) → retirarse antes de que entre el support rival.",
+  "Poke de línea: Q al rival cuando va a rematar → AA potenciado (hoja de hechizos) → R (a partir de nivel 6) y atrás.",
+  "All-in: W junto al rival → E durante el vuelo → AA → Q → AA → R; Destello o Barrera si hace falta. Con soporte de enganche, tras su control.",
+  "Remate a distancia: misil grande (cada tercero, 1500 de alcance) o Q al que huye con poca vida; con Recaudadora ejecuta por debajo del 5 %.",
+  "Huida: W hacia atrás o por encima de un muro fino, Q para ver quién le persigue."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Segador de esencia",
+   "Lágrima de la diosa",
+   "Fuerza de trinidad",
+   "Manamune",
+   "Recaudadora",
+   "Filo infinito",
+   "Recuerdos de lord Dominik",
+   "Óptica hextech C44",
+   "Ángel de la guarda",
+   "Sanguinaria",
+   "Botas blindadas",
+   "Grebas codiciosas"
+  ],
+  "runas": "Conquistador con Claridad mental, Leyenda: Presteza y Derribado (Triunfo contra rivales flojos al principio), secundaria Inspiración con Reembolso y Tónico triple o Manitas: 88-90 % en OP.GG 16.23 (Conquistador 93 % en la muestra de partidas). Alternativas: Pies veloces (4 %) o Lluvia de cuchillas (24 % en sus OTPs, para ráfaga temprana).",
+  "hechizos": [
+   "Destello",
+   "Barrera",
+   "Agotamiento"
+  ],
+  "nota": "Destello + Barrera 58 % (88 % en OTPs) o Destello + Agotamiento 36 % contra asesinos y tiradores de all-in. Inicio Arco de Doran (52 %) o Espada de Doran (33 %, contra presión temprana). Dos caminos: ráfaga con Segador de esencia → Recaudadora → Filo infinito (39 % de las builds, 55 % de victorias en OP.GG) o aguante con Lágrima → Fuerza de trinidad → Manamune/Muramana → Recaudadora (12 %) cuando falta frontal o el rival es muy tanque. Después Recuerdos de lord Dominik, Ángel de la guarda y Sanguinaria (Cimitarra mercurial contra controles como Malzahar o Lissandra). Botas blindadas (43-48 %), Grebas codiciosas (39 %) o Botas de mercurio contra AP."
+ },
+ "por_rol": {
+  "ADC": {
+   "linea_2v2": {
+    "nivel_2": "Nivel 1 con E: tradea en cuanto el rival se pone a tiro de la ráfaga (690). Llega a nivel 2 hacia el 1:42 y a nivel 3 hacia el 2:40: con un support de enganche (Nautilus, Leona, Rell, Blitzcrank) busca el all-in de nivel 2-3 con E + Q y W para rematar; con Nami o Zilean, tradeos cortos de E + AA. Su primer takedown llega de mediana al 3:20-3:25 y participa en el first blood en el 21-25 % de las partidas.",
+    "tradeos": "E y ataques durante los 4 s (la ráfaga quita armadura y resistencia), Q cuando el rival va a por un súbdito y, desde el 6, misiles de la R entre ataques (atacar a campeones acelera la recarga). No gastes la W para entrar si el support rival tiene enganche: es la única huida. Antes del primer objeto vigila el maná (Claridad mental).",
+    "oleadas": "Despeja con Q y R; empuja lento con el support para placas (8-11 de mediana por partida) y vuelve hacia el 3:15 con 700-800 de oro (Lágrima, Espada larga o Poción reutilizable). Con el primer objeto (~11:00) empuja rápido y tira torres pronto (7.000-11.000 de daño a torres por partida). Media de 75-76 de CS al minuto 10.",
+    "con_que_supports": [
+     "Nami",
+     "Zilean",
+     "Rell",
+     "Nautilus",
+     "Leona",
+     "Blitzcrank",
+     "Sona"
+    ],
+    "sufre_contra": [
+     "Vel'Koz",
+     "Hwei",
+     "Xayah",
+     "Draven",
+     "Zeri",
+     "Kog'Maw"
+    ]
+   },
+   "fase_media": "Tras el primer objeto (~11:00) y la Recaudadora o el Manamune (~17:30) es su mejor momento: agruparse en mid con el equipo, asediar torres con misiles a 1300-1500 y la Q (que da visión), y jugar los dragones. Entre objetivos recoge oleadas laterales cercanas (pasa de mediana solo el 5,5-7,5 % del tiempo tardío solo en una lateral). Su visión es mala: guardianes de control y la Q antes de entrar en la niebla.",
+   "matchups_dificiles": [
+    "Xayah",
+    "Kog'Maw",
+    "Zeri",
+    "Draven",
+    "Jhin",
+    "Aphelios",
+    "Hwei",
+    "Vel'Koz",
+    "Karthus",
+    "Veigar"
+   ],
+   "matchups_faciles": [
+    "Yasuo",
+    "Samira",
+    "Vayne",
+    "Kalista",
+    "Twitch",
+    "Miss Fortune",
+    "Kai'Sa",
+    "Ezreal",
+    "Varus"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Poke y daño sostenido de media-larga distancia (tirador con daño de mago): desgasta con misiles antes de la pelea y hace daño continuo con E y ataques.",
+  "como_entrar": "No entra: antes de la pelea poke con la R (1300-1500) y la Q; en la pelea ataca a lo que tenga a 550-690 con la E activa y deja la W para rematar a un carry con poca vida o para huir del asesino que se le tire encima.",
+  "objetivo": "El enemigo más cercano que pueda golpear sin exponerse; los carries cuando se acercan. Los misiles, al que esté bajo de vida (con Recaudadora ejecuta por debajo del 5 %).",
+  "posicion": "Detrás de su frontal, al límite de su alcance de ataque (550) y con la W disponible para escapar; Ángel de la guarda o Barrera contra inmersiones."
+ },
+ "macro": {
+  "split_push": "Poco: de mediana pasa el 5,5-7,5 % del tiempo tardío solo en una lateral y el 30-32 % agrupado (el 28-32 % de sus posiciones tardías están en mid). Solo recoge oleadas laterales cuando no hay objetivo cerca.",
+  "objetivos": "Muy buen derribador de torres por el daño mixto y la reducción de armadura: 8-11 placas y 7.000-11.000 de daño a torres por partida de mediana. Dragones con su support y jungla desde el primer objeto; la Q revela el foso antes de entrar.",
+  "plan_de_partida": "0-7 min: ganar el nivel 1-3 con la E y tradeos con Q. 7-15 min: R para poke, Segador de esencia o Fuerza de trinidad (~11:00), placas y primer dragón. 15-25 min: agruparse con Recaudadora o Manamune, asediar con misiles y jugar alrededor de dragones y Heraldo. 25+ min: mantenerse vivo detrás del frontal (Ángel de la guarda), poke antes de los objetivos y no entrar primero."
+ },
+ "debilidades": [
+  "Sin controles propios (tiempo de control a rivales casi nulo): depende de su support para asegurar kills y para pelar.",
+  "La W es su única huida (20-12 s de enfriamiento): si la usa para entrar, cualquier enganche lo mata.",
+  "Mana escaso antes del primer objeto: si abusa de Q, W y E se queda seco en la línea.",
+  "Cae en la tardía frente a hipercarries de rango (Kog'Maw, Zeri, Aphelios) y sufre contra magos de bot de mucho alcance (Vel'Koz, Hwei, Karthus).",
+  "Mala visión en general: sin Q ni guardianes, entra en la niebla y lo atrapan."
+ ],
+ "contrarrestado_por": [
+  "Xayah",
+  "Kog'Maw",
+  "Zeri",
+  "Draven",
+  "Hwei",
+  "Vel'Koz",
+  "Karthus",
+  "Veigar"
+ ],
+ "bueno_contra": [
+  "Yasuo",
+  "Samira",
+  "Vayne",
+  "Kalista",
+  "Twitch",
+  "Miss Fortune",
+  "Kai'Sa"
+ ],
+ "sinergias": [
+  "Nami",
+  "Zilean",
+  "Rell",
+  "Nautilus",
+  "Leona",
+  "Blitzcrank",
+  "Sona"
+ ],
+ "errores_comunes": [
+  "Entrar con la W sin necesidad y quedarse sin escape contra un support de enganche.",
+  "Gastar los misiles en súbditos justo antes de una pelea o no atacar a campeones para recargarlos.",
+  "Lanzar Q, W y E sin control del maná antes del primer objeto.",
+  "Tradear sin la E (es casi todo su daño en línea y la que reduce armadura y resistencia).",
+  "Entrar en la niebla sin usar la Q para revelar arbustos o el foso.",
+  "Comprar Filo infinito como segundo objeto con poco crítico o seguir buscando peleas igualadas pasado el minuto 30 contra hipercarries."
+ ],
+ "senales_reconstructor": [
+  "Mata desde lejos: la distancia entre la posición de Corki (frame a 3 s o menos) y la víctima en sus kills es de mediana 650-720 unidades y p90 1150-1270 (misiles de 1300-1500 y Q de 825). No moverle al punto de la kill: estaba atrás.",
+  "Movilidad: solo la W (300-600, cruza muros finos) y Destello. Desde el 14.10 no existe la 'Package', así que no hay vuelos largos desde la base; en bot no lleva Teleportar (Destello + Barrera 58 %, Destello + Agotamiento 36 %), por lo que un salto largo es una vuelta a base o un error de datos.",
+  "Ritmo de línea (muestra de partidas, mayoría 16.21-16.23): nivel 2 al 1:42, nivel 3 al 2:40, nivel 6 hacia el 7:12-7:24; 75-76 de CS al minuto 10 y 116-117 al 15; primera vuelta hacia el 3:12-3:18 con 700-800 de oro (Lágrima de la diosa en el 39-59 %).",
+  "Objetos: primer legendario Segador de esencia o Fuerza de trinidad (casi a medias en 16.22-16.23) hacia el 10:55-11:35 (p25 10:20, p75 13:05); segundo hacia el 16:50-17:30 (Recaudadora o Manamune); tercero hacia el 21:25-23:20.",
+  "El Manamune se transforma en Muramana sin pasar por la tienda hacia el 18:00-19:00 (ITEM_DESTROYED del Manamune sin compra): no es una vuelta a base.",
+  "Línea agresiva temprana: primer takedown de mediana al 3:20-3:25, 2-3 takedowns antes del 7 y first blood en el 21-25 % de las partidas. Muchas placas (8-11 por partida) y torres tiradas pronto: cuando participa en la primera torre de la partida, cae de mediana hacia el 13:30.",
+  "Roameos de tirador: en el 60-68 % de las partidas tiene takedowns fuera de bot antes del 14 (primero hacia el 6:30-7:50), casi todos en el río y la jungla del lado de dragón: peleas de dragón, no roameos a otras líneas.",
+  "Tardía: el 28-32 % de sus posiciones a partir del minuto 25 son en mid y solo el 5-8 % del tiempo está solo en una lateral; verlo lejos de su equipo en una lateral tarde es raro.",
+  "Rol: hoy el 86,6 % de sus partidas son de bot (Lolalytics 16.23); mid 7,2 % y top 5,9 %. Guías antiguas de Corki mid con 'Package' no describen al Corki actual."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/corki/build/",
+  "https://lolalytics.com/lol/corki/counters/",
+  "https://www.op.gg/lol/champions/corki/build/adc",
+  "https://wiki.leagueoflegends.com/en-us/Corki",
+  "https://www.skill-capped.com/lol/guides/builds/corki/adc",
+  "https://metabot.gg/en/league/champion/Corki/tips?build=3",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de Corki bot (data/otps/Corki/ADC, 68 partidas de OTPs; data/partidas_campeon/Corki/ADC, 154 partidas), parches 16.14-16.23"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "ADC": {
+    "partidas": 52,
+    "victorias": 0.769,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 3.4,
+     "p75": 4.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.8,
+     "mediana": 11.6,
+     "p75": 12.7
+    },
+    "segundo_objeto_min": {
+     "p25": 15.6,
+     "mediana": 16.3,
+     "p75": 18.0
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.85
+     ],
+     [
+      "Segador de esencia",
+      0.13
+     ],
+     [
+      "Quiebrabastiones",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.31
+     ],
+     [
+      "QEWQQRQEQ",
+      0.29
+     ],
+     [
+      "EWQQQRQEQ",
+      0.25
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.98
+     ],
+     [
+      "EQW",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 43.1,
+     "mediana": 50.0,
+     "p75": 58.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 26.3,
+     "mediana": 31.2,
+     "p75": 35.3
+    },
+    "vision_por_min": {
+     "p25": 0.39,
+     "mediana": 0.55,
+     "p75": 0.74
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.5,
+     "p75": 4.0
+    },
+    "solo_kills_media": 2.12,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.8,
+     "mediana": 7.3,
+     "p75": 14.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 21.2,
+     "mediana": 30.9,
+     "p75": 40.0
+    },
+    "cs_10": {
+     "p25": 68.8,
+     "mediana": 75.0,
+     "p75": 86.2
+    },
+    "dif_cs_10": {
+     "p25": -0.2,
+     "mediana": 11.0,
+     "p75": 21.2
+    },
+    "dif_oro_10": {
+     "p25": -258.0,
+     "mediana": 534.0,
+     "p75": 1268.0
+    },
+    "placas": {
+     "p25": 8.8,
+     "mediana": 12.5,
+     "p75": 17.2
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 3.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 6.8,
+     "p75": 9.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

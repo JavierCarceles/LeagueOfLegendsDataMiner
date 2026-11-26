@@ -1,0 +1,552 @@
+{
+ "clave": "Jax",
+ "nombre": "Jax",
+ "parche": "16.23",
+ "revisado": "2026-11-26",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.87,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador-duelista de línea superior y split push que escala muy bien: E que esquiva ataques básicos y aturde, salto a cualquier unidad o guardián, pico en Fuerza de trinidad (~12:00) y sobre todo con 2-3 objetos",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 5,
+  "nota": "Antes de Brillo/Fuerza de trinidad gana trades cortos con E contra cuerpo a cuerpo (nivel 1 con E, nivel 3 con el combo entero) pero sufre contra rangos y tanques con mucha vida. Con Fuerza de trinidad (~12:00) y Firmamento desgarrado (~20:00) gana casi cualquier 1v1 en la línea lateral, y a partir de 3 objetos (~25 min, nivel 16 hacia el 24:15) es de los mejores duelistas del juego: puede pelear 1v2 en la lateral y destrozar torres."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:06) con E-Q-W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Tiene el combo completo: E (esquiva los ataques del rival), Q para pegarse, ataque + W (reinicia el ataque) y recast de E para aturdir 1 s. Contra un cuerpo a cuerpo que gastó su habilidad clave, el trade es suyo; si el rival no tiene Destello y Jax lleva Prender, ya hay kill."
+  },
+  {
+   "cuando": "Nivel 6 (~5:26) con R",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R activa da 45 de armadura y 27 de resistencia mágica (más por campeón golpeado) durante 8 s y hace que cada segundo ataque (en vez de cada tercero) haga daño mágico extra: el all-in E-Q-R-W con Prender gana a casi todos los luchadores de su nivel."
+  },
+  {
+   "cuando": "Brillo en la vuelta a base (900 de oro, minuto 5-8)",
+   "nivel": null,
+   "objetos": 0,
+   "objeto": "Brillo",
+   "por_que": "Cada habilidad potencia el siguiente ataque (Hoja encantada): Q-ataque-W-ataque pasa a ser un golpe enorme para el nivel. Es el primer componente de Fuerza de trinidad y el momento en que empieza a castigar los trades."
+  },
+  {
+   "cuando": "Fuerza de trinidad (~11:54; p25 10:36, p75 13:53 en OTPs Diamante-Master)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Fuerza de trinidad",
+   "por_que": "Velocidad de ataque, vida y la Hoja encantada mejorada; con su pasiva de velocidad de movimiento se pega a cualquiera. Desde aquí empieza a ganar duelos de verdad y a hacer split push."
+  },
+  {
+   "cuando": "Dos objetos (~19:54): Fuerza de trinidad + Firmamento desgarrado (u Hoja del rey arruinado / Cortasendas)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Firmamento desgarrado",
+   "por_que": "Es su mayor salto de poder: el primer ataque a cada campeón es crítico y cura, W al máximo (enfriamiento de 3 s) y R de nivel 2 (nivel 11 hacia el 13:15). Gana la lateral a casi todos y obliga a mandar a dos a pararlo."
+  },
+  {
+   "cuando": "Tres objetos (~25-27 min): Calibrador de Sterak, Reloj de arena de Zhonya o Baile de la muerte",
+   "nivel": 16,
+   "objetos": 3,
+   "objeto": "Calibrador de Sterak",
+   "por_que": "Con R de nivel 3 (90 s) y un objeto defensivo sobrevive a la ráfaga inicial y gana peleas largas; aquí es cuando un Jax igualado empieza a decidir partidas con split push o entrando a la retaguardia."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Relentless Assault: cada ataque básico (también a súbditos) da una carga de 5-12,5 % de velocidad de ataque según nivel, hasta 8 cargas (40-100 %). Cada carga dura 2,5 s y se renueva al atacar; al caducar se pierden de una en una cada 0,25 s. Por eso acumula cargas en los súbditos antes de pelear y gana las peleas largas.",
+  "Q": "Leap Strike: salto de 700 u a cualquier unidad, aliada o enemiga (súbditos, monstruos, campeones y guardianes); si es enemigo, le hace 65-225 (+100 % AD adicional) de daño físico. Enfriamiento 8/7,5/7/6,5/6 s, 50 de maná (bajó de 65 en 2026). Puede lanzar otras habilidades durante el salto (E antes o durante la Q es lo normal). Es su único desplazamiento: enganche, huida y salto de muros con guardianes.",
+  "W": "Empower: su siguiente ataque o Q hace 50-190 (+60 % AP) de daño mágico extra (la mitad a estructuras), reinicia el ataque básico y le da 50 de alcance. Enfriamiento 7/6/5/4/3 s y 30 de maná: es lo que se maximiza primero (a nivel 9 la tiene cada 3 s). Lanzada antes de la Q potencia el salto.",
+  "E": "Counter Strike: durante 2 s esquiva todos los ataques básicos que no sean de torres y recibe un 25 % menos de daño de habilidades de área de campeones. Se puede reactivar desde 1 s (o salta sola a los 2 s): daño mágico en área de 375 u con porcentaje de vida máxima (4-8 % desde el 26.12), +20 % por cada ataque esquivado (hasta el doble), y aturde 1 s a todos los cercanos. Enfriamiento 17/15/13/11/9 s, 50-90 de maná. Es su herramienta de trade: contra tiradores y luchadores de ataques básicos anula su daño.",
+  "R": "Grandmaster-at-Arms: pasiva, cada tercer ataque seguido (en 2,5 s) hace 75/130/185 (+60 % AP) de daño mágico extra. Activa (110/100/90 s, 100 de maná): golpe en área de 375 u de 100/175/250 (+100 % AP) y, si toca a un campeón, gana 45/60/75 de armadura (+40 % AD adicional) y 27/36/45 de resistencia mágica (+24 % AD adicional), más 20-30 de armadura y 12-18 de RM por cada campeón extra, durante 8 s; mientras dura, el golpe extra sale cada segundo ataque. Se usa al empezar el all-in, no al final."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "E",
+   "Q"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E-Q-W en el 86 % de las partidas de OTPs Diamante-Master (Lolalytics y OP.GG 16.23 igual); Q-E-W (10 %) cuando quiere el salto a nivel 1 para un nivel 1 agresivo o para ir al río. W al máximo primero (95 %), luego E y la Q la última (sube a 14-15 con el orden E,Q,W,W,W,R,W,E,W,E,R,E,E,Q,Q). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: salto de 700 u a cualquier unidad aliada o enemiga o a un guardián. Con Destello suma ~1100 u en un instante. No tiene más desplazamientos; la Fuerza de trinidad (velocidad al golpear) y la pasiva de Firmamento desgarrado le ayudan a pegarse. A menudo lleva Teleportar (27 % en OP.GG, 52 % en OTPs Diamante-Master).",
+  "salta_muros": "si",
+  "como_salta_muros": "Con la Q a un guardián propio colocado al otro lado del muro (ward jump, 700 u), o a un súbdito, monstruo o aliado que esté detrás. Así sale de ganks o entra a la jungla rival por sitios sin camino.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La E esquiva todos los ataques básicos (no los de torre) durante 2 s y su recast aturde 1 s en área con más daño por cada ataque esquivado: anula a tiradores, Tryndamere o Master Yi durante ese tiempo, pero no protege de habilidades (solo reduce un 25 % el daño en área).",
+  "La Q salta a cualquier unidad, aliada o enemiga, incluidos guardianes: es enganche, huida y salto de muros (ward jump) a la vez, con 700 u de alcance.",
+  "Pasiva acumulativa: hasta 8 cargas de velocidad de ataque que se mantienen atacando a súbditos; un Jax que llega a la pelea con cargas ya puestas pega mucho más rápido.",
+  "Escalado híbrido: W, E y R escalan con AP y su R da resistencias según el AD adicional, así que tiene build AD (Fuerza de trinidad) y build AP/híbrida (Amanecer y anochecer, Sable-pistola hextech, Creagrietas) según lo que necesite el equipo.",
+  "La R activa le da armadura y resistencia mágica que crecen por cada campeón golpeado: entrar en medio de 3 rivales le hace más duro, no más frágil."
+ ],
+ "combos": [
+  "Trade estándar (nivel 3): atacar súbditos para cargar la pasiva → E → Q al rival (la E ya está esquivando sus ataques) → ataque → W (reinicio) → ataque → recast de E en cuanto pase 1 s para el aturdimiento → salir o seguir si va ganando.",
+  "Trade corto sin E: ataque → W (reinicio) → retirarse; o W → Q (la Q sale potenciada) → ataque y volver a la línea antes de que responda.",
+  "All-in de nivel 6: E → Q → R nada más llegar (resistencias y golpe extra cada 2 ataques) → ataque-W-ataque → recast de E → Prender o Destello para rematar.",
+  "Aturdimiento sorpresa: E → Destello sobre el rival → recast de E en cuanto pasa 1 s (aturde aunque el rival intente huir).",
+  "Huida: Q a un súbdito, aliado o guardián propio detrás de un muro; E para que el tirador o el luchador que le persigue no pueda pegarle con ataques básicos.",
+  "Pelea de equipo: esperar a que el rival gaste su control → E → Q a un súbdito o aliado cerca del tirador (o directamente a él) → R al llegar para resistencias → recast de E sobre varios → mantenerse con W cada 3 s."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Fuerza de trinidad",
+   "Firmamento desgarrado",
+   "Calibrador de Sterak",
+   "Reloj de arena de Zhonya",
+   "Baile de la muerte",
+   "Hoja del rey arruinado",
+   "Amanecer y anochecer",
+   "Sable-pistola hextech",
+   "Ángel de la guarda",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Compás letal (57 % en OP.GG 16.23) + Triunfo + Leyenda: Presteza o Leyenda: Velocidad + Último esfuerzo, con secundaria Valor (Revestimiento de huesos + Inquebrantable) o Inspiración (Calzado mágico + Entrega de galletas/Perspicacia cósmica). Alternativa: Garras del inmortal (26 % global, 54 % en OTPs Diamante-Master) con Demoler, Fuerzas renovadas y Sobrecrecimiento contra rangos y tanques. Ataque intensificado para la build AP contra Quinn o Jayce, donde Compás letal no llega a cargarse. Fragmentos: velocidad de ataque, adaptativo y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Teleportar",
+   "Agotamiento"
+  ],
+  "nota": "Inicio: Espada de Doran + poción (53 %) o Escudo de Doran (30 %) contra rangos; Tónico triple en líneas fáciles. Primera vuelta con Poción reutilizable, Espada larga o Brillo. Fuerza de trinidad primero (71 % de los OTPs; 19 % Amanecer y anochecer en la build AP). Botas blindadas (56 %) contra AD y Botas de mercurio (33 %) contra control o AP; con Calzado mágico llegan solas. Segundo: Firmamento desgarrado (Hoja del rey arruinado contra tanques con mucha vida, Cortasendas si hace falta ralentizar). Tercero/cuarto: Calibrador de Sterak por defecto, Reloj de arena de Zhonya contra ráfagas (Zed, Fizz) o Baile de la muerte; luego Ángel de la guarda, Rookern kaénico o Final del ingenio contra mucho daño mágico. Prender en líneas de kill; Teleportar contra matones de rango (Teemo, Quinn, Kennen); Agotamiento contra ráfaga (Riven, Fiora)."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con E: contra cuerpo a cuerpo (Darius, Renekton, Irelia, Yone) gana el intercambio de ataques si el rival pega mientras la E está activa; contra rangos solo farmea. Nivel 2 (~1:39) añade la Q: E-Q-ataque-recast de E. Nivel 3 (~2:06) con W tiene el combo completo y es su primera ventana de kill con Prender. Antes de entrar, atacar súbditos para tener cargas de la pasiva y de la R.",
+    "tradeos": "Trades cortos alrededor de la E: entrar cuando la E está lista y el rival acaba de gastar su habilidad clave, salir cuando la E está en enfriamiento (17 s a nivel 1, 15 s en nivel 4 hasta que la sube). La E no frena habilidades, así que contra Garen, Malphite, Illaoi o Singed el trade lo pierde. W-Q y ataque-W sirven para castigar al rival que va a por un súbdito. Con Brillo (primera vuelta) cada habilidad se convierte en un ataque potenciado.",
+    "oleadas": "Despeja mal antes de Fuerza de trinidad (todo es a un objetivo). En elo alto empuja las tres primeras oleadas y hace una vuelta temprana hacia el 2:40-3:20 tras estrellar la tercera para comprar Poción reutilizable, Espada larga o Brillo, y vuelve sin perder casi oro. Contra matones de rango congela cerca de su torre y espera a Brillo/Fuerza de trinidad o al jungla. Cuando va por delante, empuja lento para hacer placas (caen a los 14:00) y forzar al rival a farmear bajo torre.",
+    "all_in": "Ventanas: nivel 3 (combo completo) y nivel 6 (R) con Prender, sobre todo si el rival gastó su habilidad de escape o Destello. Usar la R al principio del all-in para las resistencias. Con Brillo (~5-8 min) y Fuerza de trinidad (~12 min) gana casi cualquier duelo largo; los dives con el jungla a nivel 6 son buenos porque la E esquiva los ataques de los súbditos (no los de la torre).",
+    "jugar_seguro": "Con la E en enfriamiento, contra rangos (Teemo, Quinn, Kennen, Vayne) antes de Brillo, o contra tanques con mucho control y sustain (Garen, Malphite, Dr. Mundo, Singed): farmear con ataques, no saltar con la Q a súbditos lejos de la torre y esperar a la jungla o a los objetos. Guardar la Q para huir a un súbdito o guardián."
+   },
+   "roameos": "Casi no roamea andando: en OTPs Diamante-Master el 73 % de sus kills/asistencias antes del 14 son en top y solo el 13 % de las partidas tiene un takedown en otra línea antes del 14 (mediana 11:35). Su forma de ayudar al mapa es Teleportar a bot o al dragón (pelea de río o dive de bot) y empujar la oleada antes de ir al Heraldo/Larvas con su jungla.",
+   "fase_media": "Tras Fuerza de trinidad: empuja la lateral contraria al objetivo siguiente (split push) para forzar a que uno o dos rivales vengan a pararle; gana el 1v1 y a menudo el 1v2 con 2-3 objetos. Lleva Teleportar o está cerca para unirse a dragón/Barón. En 1-3-1 es el lateral fuerte. Necesita visión en la jungla rival de su lado para no morir a un collapse de 3-4.",
+   "matchups_dificiles": [
+    "Singed",
+    "Illaoi",
+    "Garen",
+    "Dr. Mundo",
+    "Malphite",
+    "Gangplank",
+    "Kennen",
+    "Fiora"
+   ],
+   "matchups_faciles": [
+    "Volibear",
+    "Irelia",
+    "Trundle",
+    "Yasuo",
+    "Yone",
+    "Renekton",
+    "Mordekaiser"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Duelista de flanco y split pusher: en la fase media entra a la retaguardia o pela al tirador; en la tardía empuja una lateral y se une a las peleas con Teleportar o por el flanco.",
+  "como_entrar": "Esperar a que gasten el control principal (Morgana Q, Leona E, Ashe R, Lissandra R). E antes de saltar → Q a un súbdito, aliado o directamente al tirador/mago → R nada más llegar (más resistencias cuantos más campeones golpee) → recast de E para aturdir a varios → mantenerse con W cada 3 s. Por el flanco o por detrás, no de frente contra la primera línea.",
+  "objetivo": "Tiradores y autoatacantes (la E anula su daño 2 s) y magos aislados; en la tardía, cualquiera al que gane en un 1v1. Si el equipo rival tiene un asesino que va a por su tirador, pelarlo con E (aturde).",
+  "posicion": "Flanco del lado de la lateral en la que hacía split push, a 700 u de algún súbdito o aliado para poder saltar con la Q; nunca el primero en entrar contra mucho control en cadena."
+ },
+ "macro": {
+  "split_push": "Sí, es su plan principal desde Fuerza de trinidad: en OTPs Diamante-Master pasa una mediana del 33 % del tiempo tardío solo en una lateral (p75 44 %, frente al 3 % de un jungla como Lee Sin) y solo el 19 % agrupado. Hace mucho daño a torres (mediana 12 200 por partida, 2 torres derribadas) gracias a la R pasiva y Fuerza de trinidad.",
+  "objetivos": "Torres: las derriba rápido solo desde Fuerza de trinidad; placas hasta el 14:00. Larvas del Vacío (8:00) y Heraldo (15:00) con su jungla cuando tiene prioridad en top. Dragón: llega con Teleportar o no llega. Barón (20:00) en grupo; con Hoja del rey arruinado o Firmamento desgarrado lo baja rápido, pero no solo hasta tener 3-4 objetos.",
+  "plan_de_partida": "Fase 1 (0-12 min): trades con E, vuelta temprana hacia el 2:40-3:20, Brillo en la primera vuelta grande y ganar presión en top; TP a bot si hay pelea. Fase 2 (12-25 min): con Fuerza de trinidad y Firmamento desgarrado, split push en la lateral contraria al objetivo y TP/flanco a dragón y Heraldo. Fase 3 (25+): 3-4 objetos, presión 1-3-1, obligar a dos rivales a pararle y unirse a peleas de Barón/Anciano por el flanco; con Ángel de la guarda puede arriesgar más."
+ },
+ "debilidades": [
+  "Sufre contra rangos en la fase de líneas (Teemo, Quinn, Kennen, Vayne): no puede pegarse sin gastar la Q y la E no frena sus habilidades.",
+  "Contra tanques con sustain o control (Garen, Malphite, Dr. Mundo, Illaoi, Singed) pierde trades largos antes de tener objetos.",
+  "Depende de la E: si el rival espera a que acabe la esquiva (2 s) o le aturde antes, pierde el trade y se queda sin defensa 9-17 s.",
+  "Necesita objetos: antes de Fuerza de trinidad su despeje y su daño son discretos, y una mala fase de líneas retrasa su pico.",
+  "Split push sin visión: muere a collapses de 3-4 rivales si no sabe dónde están, y las peleas de equipo empiezan sin él."
+ ],
+ "contrarrestado_por": [
+  "Singed",
+  "Illaoi",
+  "Garen",
+  "Dr. Mundo",
+  "Malphite",
+  "Gangplank",
+  "Kennen",
+  "Teemo"
+ ],
+ "bueno_contra": [
+  "Volibear",
+  "Irelia",
+  "Trundle",
+  "Yasuo",
+  "Yone",
+  "Renekton",
+  "Mordekaiser",
+  "Tryndamere"
+ ],
+ "sinergias": [
+  "Shen",
+  "Galio",
+  "Twisted Fate",
+  "Jarvan IV",
+  "Nocturne",
+  "Orianna"
+ ],
+ "errores_comunes": [
+  "Saltar con la Q para empezar el trade sin la E lista o sin cargas de la pasiva: el rival responde y Jax pierde el intercambio.",
+  "Reactivar la E nada más empezar (a 1 s) cuando el rival aún no ha atacado: aturde, pero sin el daño extra por ataques esquivados, y se queda sin esquiva.",
+  "Usar la R al final del all-in en vez de al principio: pierde las resistencias justo cuando el rival hace su daño.",
+  "Hacer split push sin guardianes ni saber dónde están los rivales, o seguir empujando mientras su equipo pelea un objetivo sin él.",
+  "Entrar el primero a la pelea contra mucho control y morir antes de que su equipo llegue.",
+  "Pelear contra Garen, Malphite o Illaoi con trades largos antes de tener Fuerza de trinidad.",
+  "Gastar Teleportar en volver a la línea cuando hacía falta para el dragón o una pelea de bot."
+ ],
+ "senales_reconstructor": [
+  "Vuelta temprana en top: en OTPs Diamante-Master, cuando vuelve sin morir, la primera vuelta tiene mediana 3:17 (p25 2:41, p75 3:52; un tercio antes del 2:50) con 450-900 de oro, tras estrellar la tercera oleada, y compra Poción reutilizable (52 %), Espada larga (35 %), Cristal de rubí o Brillo. En el 43 % de las partidas su primera vuelta es por una muerte (peleas de nivel 1-3). Verle en la fuente hacia el minuto 3 no es un AFK ni un error.",
+  "Ritmo de referencia (OTPs): nivel 2 a la 1:39, nivel 3 a las 2:06, nivel 6 a las 5:26, nivel 11 a las 13:15 y 16 a las 24:15; CS 71 al 10 (p25 62, p75 79) y ~7,1 por minuto. Fuerza de trinidad hacia el 11:54 (p25 10:36, p75 13:53), segundo objeto hacia el 19:54 (p75 21:54) y botas hacia el 14:00.",
+  "Teleportar: lo lleva en el 52 % de las partidas de OTPs Diamante-Master (27 % en OP.GG). El timeline no registra el TP, pero se nota en las salidas de la base: en esas partidas hay el doble de apariciones lejos de la fuente a los pocos segundos de comprar (1,4 por partida frente a 0,7 sin TP), la mitad de vuelta a top y ~15 % en bot, mid o el río (mediana minuto 11). Una posición en la línea o en una pelea de bot justo después de comprar en base es normal. Ojo: las asistencias que le llegan estando ya en la base (daño hecho antes de volver) no son TP.",
+  "Casi no roamea andando: el 73 % de sus kills/asistencias antes del minuto 14 son en top y el 12 % en el río; solo el 13 % de las partidas tiene un takedown en mid o bot antes del 14. Un Jax en mid o bot antes del 10 sin Teleportar suele ser un roameo o una persecución, no su patrón.",
+  "Split push: mediana del 33 % del tiempo tardío solo en una lateral (p75 44 %) y solo el 19 % agrupado. Verle en una lateral mientras su equipo hace Barón o dragón es su plan habitual (presión 1-3-1), no necesariamente un error; sí lo es si muere solo en la lateral sin visión con el objetivo en juego.",
+  "Daño a torres alto: mediana de 12 200 de daño a estructuras y 2 torres derribadas por partida; torres que caen en su lateral sin su equipo cerca suelen ser obra suya.",
+  "La Q salta a guardianes, súbditos, monstruos y aliados (700 u): posiciones a ambos lados de un muro en pocos segundos y guardianes colocados justo antes de una huida (ward jump) son normales; esos guardianes no son control de visión.",
+  "Orden de habilidades E-Q-W en el 86 % y W al máximo primero en el 95 %: no marcar como raro. La E a nivel 1 es para el intercambio de ataques del nivel 1.",
+  "Duelista: mediana de 2 asesinatos en solitario por partida (p75 4); muertes del rival de top en 1v1 con Jax a nivel 3, 6 o con Fuerza de trinidad son su patrón. Con Prender (46 % de los OTPs) algunas kills le cuentan estando ya muerto (~2-3 %).",
+  "Peleas: llega tarde a las primeras peleas de equipo por estar en la lateral; su participación en kills es baja para un luchador (mediana 33 %)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/jax/build/",
+  "https://www.op.gg/lol/champions/jax/build/top",
+  "https://www.skill-capped.com/lol/guides/builds/jax/top",
+  "https://wiki.leagueoflegends.com/en-us/Jax",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs Diamante-Master de Jax top, parches 16.20-16.23 (data/otps/Jax/TOP, 216 partidas de 7 OTPs)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-26",
+  "por_rol": {
+   "TOP": {
+    "partidas": 213,
+    "victorias": 0.554,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 39,
+      "victorias": 0.564
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 51,
+      "victorias": 0.51
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 74,
+      "victorias": 0.554
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 35,
+      "victorias": 0.657
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 4.0,
+     "p75": 5.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.6,
+     "mediana": 11.9,
+     "p75": 13.8
+    },
+    "segundo_objeto_min": {
+     "p25": 17.7,
+     "mediana": 19.8,
+     "p75": 21.9
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.71
+     ],
+     [
+      "Amanecer y anochecer",
+      0.19
+     ],
+     [
+      "Guantelete de hielo",
+      0.04
+     ],
+     [
+      "Hoja del rey arruinado",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWWWRWEW",
+      0.77
+     ],
+     [
+      "QEWWWRWEW",
+      0.09
+     ],
+     [
+      "EQWWWRWEE",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.96
+     ],
+     [
+      "EWQ",
+      0.04
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 23.8,
+     "mediana": 33.3,
+     "p75": 40.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.0,
+     "mediana": 21.0,
+     "p75": 25.1
+    },
+    "vision_por_min": {
+     "p25": 0.69,
+     "mediana": 0.87,
+     "p75": 1.04
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 2.67,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 21.9,
+     "mediana": 32.5,
+     "p75": 44.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 10.3,
+     "mediana": 18.7,
+     "p75": 27.8
+    },
+    "cs_10": {
+     "p25": 62.0,
+     "mediana": 71.0,
+     "p75": 79.0
+    },
+    "dif_cs_10": {
+     "p25": -12.0,
+     "mediana": 0.0,
+     "p75": 16.2
+    },
+    "dif_oro_10": {
+     "p25": -421.0,
+     "mediana": 138.0,
+     "p75": 766.0
+    },
+    "placas": {
+     "p25": 6.0,
+     "mediana": 12.0,
+     "p75": 17.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 5.7,
+     "p75": 8.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.11-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 37,
+    "victorias": 0.432,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 4.2,
+     "p75": 4.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.9,
+     "mediana": 11.4,
+     "p75": 13.3
+    },
+    "segundo_objeto_min": {
+     "p25": 17.9,
+     "mediana": 19.4,
+     "p75": 21.1
+    },
+    "primer_objeto": [
+     [
+      "Hoja del rey arruinado",
+      0.43
+     ],
+     [
+      "Fuerza de trinidad",
+      0.35
+     ],
+     [
+      "Amanecer y anochecer",
+      0.11
+     ],
+     [
+      "Cortasendas",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EWQWWRWEW",
+      0.22
+     ],
+     [
+      "EQWWWRWEW",
+      0.19
+     ],
+     [
+      "WEQWWRWEW",
+      0.11
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.59
+     ],
+     [
+      "QWE",
+      0.19
+     ],
+     [
+      "QEW",
+      0.16
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 36.4,
+     "mediana": 46.7,
+     "p75": 52.8
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.5,
+     "mediana": 18.0,
+     "p75": 21.0
+    },
+    "vision_por_min": {
+     "p25": 0.82,
+     "mediana": 0.98,
+     "p75": 1.28
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 2.08,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 2.3,
+     "mediana": 4.7,
+     "p75": 9.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 21.4,
+     "mediana": 27.4,
+     "p75": 31.3
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.38
+     ],
+     [
+      "raptors",
+      0.35
+     ],
+     [
+      "red",
+      0.16
+     ],
+     [
+      "gromp",
+      0.11
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 18.0,
+     "mediana": 22.0,
+     "p75": 24.0
+    },
+    "cs_jungla_10": {
+     "p25": 60.0,
+     "mediana": 64.0,
+     "p75": 68.0
+    },
+    "primer_gank_min": {
+     "p25": 3.0,
+     "mediana": 5.3,
+     "p75": 8.0
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.36
+     ],
+     [
+      "top",
+      0.33
+     ],
+     [
+      "mid",
+      0.31
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 12.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   }
+  }
+ }
+}
