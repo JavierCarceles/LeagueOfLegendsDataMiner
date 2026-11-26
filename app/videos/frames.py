@@ -816,7 +816,7 @@ def _sample_span(source: str, span: tuple[float, float], box: Box, cam: tuple[in
             at = round(slot * step, 1)
             if at >= end:
                 break
-            if part.samples % 30 == 0 and should_stop():
+            if should_stop():  # barato (un dato en memoria): así suelta la CPU en segundos al empezar a elegir
                 part.complete = False
                 break
             if at < start or slot <= last:

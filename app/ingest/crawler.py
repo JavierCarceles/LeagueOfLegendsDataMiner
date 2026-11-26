@@ -3409,7 +3409,7 @@ class Crawler:
     def paused_reason(self) -> str | None:
         if getattr(self.svc.settings, "pause_in_game", True):
             tracker = getattr(self.svc, "tracker", None)
-            if tracker is not None and tracker.state.get("in_game"):
+            if tracker is not None and (tracker.state.get("busy") or tracker.state.get("in_game")):
                 return "in_game"
         return None
 

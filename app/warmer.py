@@ -41,7 +41,8 @@ LANE_LABELS = {
     "demand": "Peticiones de la web",
 }
 ROLES = ("TOP", "JUNGLE", "MID", "ADC", "SUPPORT")
-REPLAN_S = 10 * 60
+REPLAN_S = 60 * 60  # revisar qué falta, una vez por hora (pedido el 26-11-2026; antes cada 10 min y se veía «Preparando datos» a menudo)
+LAST_FULL_KEY = "warmer.last_full"  # cuándo acabó la última revisión completa: al reiniciar la app no se repite antes de la hora
 SCOPES_KEY = "warmer.scopes"
 DEFAULT_SCOPE = {"tier": "emerald_plus", "platform": "all", "patch": "all"}
 MAX_SCOPES = 4
@@ -138,7 +139,7 @@ class Warmer:
         svc = self.svc
         if getattr(svc.settings, "pause_in_game", True):
             tracker = getattr(svc, "tracker", None)
-            if tracker is not None and tracker.state.get("in_game"):
+            if tracker is not None and (tracker.state.get("busy") or tracker.state.get("in_game")):
                 return "in_game"
         return None
 
@@ -224,6 +225,10 @@ class Warmer:
                 self.plan["finished_at"] = time.time()
                 self.plan["phase"] = None
                 log.info("Precarga completa: %d tareas al día.", self.plan["total"])
+                try:
+                    self.svc.db.meta_set(LAST_FULL_KEY, str(self.plan["finished_at"]))
+                except Exception:  # noqa: BLE001 - sin guardarlo, la próxima vez se revisa al arrancar (como antes)
+                    log.debug("No se pudo guardar la hora de la precarga", exc_info=True)
 
     # ---------------------------------------------------------------- ámbitos
     def _load_scopes(self) -> None:
@@ -298,6 +303,12 @@ class Warmer:
         # Espera a que Data Dragon y la importación inicial estén listos.
         self.svc.startup_done.wait(timeout=600)
         first = True
+        # Recién reiniciada (cada versión nueva): si la última revisión completa fue hace menos de una hora, lo bajado
+        # sigue en disco y se espera a que toque. Un cambio de filtros o de fuentes (``replan``) la adelanta.
+        wait = self._until_due()
+        if wait > 0 and getattr(self.svc.dd, "champions", None):
+            self.replan_event.wait(wait)
+            self.replan_event.clear()
         while not self.stop_event.is_set():
             if self.paused_reason():
                 self.stop_event.wait(5)
@@ -307,10 +318,20 @@ class Warmer:
                 first = False
             except Exception:
                 log.exception("Fallo planificando la precarga")
-            # Sin Data Dragon (primer arranque sin internet) se reintenta cada minuto; si no, cada 10.
+            # Sin Data Dragon (primer arranque sin internet) se reintenta cada minuto; si no, cada hora.
             self.replan_event.wait(REPLAN_S if getattr(self.svc.dd, "champions", None) else 60)
             self.replan_event.clear()
             self._save_scopes()
+
+    def _until_due(self) -> float:
+        """Segundos que faltan para la siguiente revisión (0 si ya toca o no se sabe cuándo fue la última)."""
+        try:
+            last = float(self.svc.db.meta_get(LAST_FULL_KEY) or 0)
+        except (TypeError, ValueError, AttributeError):
+            return 0.0
+        except Exception:  # noqa: BLE001 - base de datos ocupada o sin la tabla: se revisa ya
+            return 0.0
+        return max(0.0, min(REPLAN_S, last + REPLAN_S - time.time()))
 
     def _make_plan(self, first: bool) -> None:
         tasks: list[tuple] = []  # (carril, clave, fn, prioridad, etiqueta)

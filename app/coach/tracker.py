@@ -41,6 +41,7 @@ MAX_TIMELINE_TRIES = 6
 PEER_BATCH = 40  # partidas por pasada al analizar a los otros 9 jugadores (~5 ms por jugador)
 IN_GAME = {"InProgress", "Reconnect"}
 CLIENT_POLL_S = 20
+WATCH_S = 3  # el cliente se mira cada 3 s: al entrar en la selección de campeones lo pesado se para enseguida
 RANK_TTL_S = 3600
 ROLE_LABEL = {"TOP": "Top", "JUNGLE": "Jungla", "MID": "Mid", "ADC": "ADC", "SUPPORT": "Support"}
 
@@ -361,6 +362,7 @@ class GameTracker:
             "client": False,
             "phase": None,
             "in_game": False,
+            "busy": False,  # eligiendo campeón, cargando o jugando (lcu.BUSY_PHASES)
             "waiting_after_game": False,
         }
 
@@ -424,7 +426,7 @@ class GameTracker:
         while not self.stop_event.is_set():
             try:
                 # El cliente se vigila en su propio hilo (``_watch_loop``), haya perfil o no: el precargador, el
-                # recolector y la calibración se pausan con ``state["in_game"]``.
+                # recolector y la calibración se pausan con ``state["busy"]`` (de la selección de campeones al final).
                 profile = store.get_profile(self.svc.db)
                 if self._waiting(profile):
                     continue
@@ -491,7 +493,7 @@ class GameTracker:
     def _watch_loop(self) -> None:
         while not self.stop_event.is_set():
             self._watch_client_safe()
-            self.stop_event.wait(CLIENT_POLL_S)
+            self.stop_event.wait(WATCH_S)
 
     def _watch_client_safe(self) -> None:
         """``_watch_client`` sin excepciones: el cliente de LoL es opcional y nunca debe tumbar el bucle."""
@@ -505,10 +507,10 @@ class GameTracker:
         now = time.time()
         if now < self._next_client or not lcu.available():
             return
-        self._next_client = now + CLIENT_POLL_S
+        self._next_client = now + WATCH_S
         phase = lcu.gameflow_phase()
         previous, self._last_phase = self._last_phase, phase
-        self._set(client=phase is not None, phase=phase, in_game=phase in IN_GAME)
+        self._set(client=phase is not None, phase=phase, in_game=phase in IN_GAME, busy=phase in lcu.BUSY_PHASES)
         if previous in IN_GAME and phase not in IN_GAME:
             log.info("Partida terminada: la analizo en cuanto Riot la publique (1-3 min).")
             for delay in (75, 200, 480):

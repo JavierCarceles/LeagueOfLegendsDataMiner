@@ -198,6 +198,11 @@ def current_summoner() -> dict:
     }
 
 
+# Eligiendo campeón, cargando o jugando: lo pesado de fondo (vídeos, recolector, validaciones) espera y no se reinicia
+# la app. ``IN_GAME`` (solo la partida) sigue sirviendo para saber cuándo acaba una.
+BUSY_PHASES = frozenset({"ChampSelect", "GameStart", "InProgress", "Reconnect"})
+
+
 def gameflow_phase() -> str | None:
     """``None`` si el cliente no está abierto; si no, ``Lobby``, ``InProgress``, ``EndOfGame``…"""
     try:
