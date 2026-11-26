@@ -140,6 +140,20 @@ Cuadra con lo medido en el proyecto el 25-11-2026 con ~48.000 partidas guardadas
 - **Medidas que salen en «Mi progreso»:** `rm_sup_base_roams`, `rm_sup_top_side` y `rm_sup_first_roam_min`.
 - **No se usan** (no separan elos): roams tras una kill en bot (8-10 %) y roams con la torre de bot caída (3-5 %).
 
+**C1c. Cámara y razonamiento de junglas de elo alto en vídeo (medido en el proyecto el 26-11-2026; 223 partidas con el HUD del jugador, ~100 h, sobre todo KeshaEuw, huncho1v9, Sinerias, Karasmai y L0ganJG con Kayn, Briar, Nunu, Yi y Hecarim):**
+
+Un vistazo es la cámara saltando más de 3.000 unidades fuera de la base y volviendo al sitio en 10 s o menos (cámara leída del minimapa cada 2 s, así que los vistazos de menos de 2 s no se ven y las cifras son un mínimo). El 58 % caen a menos de 1.500 de un campeón visible, frente al 16 % de un punto al azar: son vistazos de verdad, no ruido.
+
+| Minuto | 0-5 | 5-10 | 10-15 | 15-20 | 20-25 | 25-30 | 30+ |
+|---|---|---|---|---|---|---|---|
+| Vistazos por minuto | 1,47 | 1,45 | 1,13 | 0,88 | 0,72 | 0,62 | 0,56 |
+
+- Adónde: río 18 %, mid 17 %, top 16 %, bot 16 %, la propia jungla 19 % (campamentos e invasiones) y la jungla rival 8 %. Uno de cada 4-5 va al lado del mapa contrario al que está el jugador.
+- A quién: 28 % a una zona con un enemigo visible, 30 % a aliados solos y 42 % a una zona vacía (comprobar un arbusto, un campamento o la entrada de la jungla).
+- Varía mucho por jugador: Karasmai 1,5/min y L0ganJG 1,15/min frente a ~0,6/min de KeshaEuw y huncho1v9, todos de elo alto. El hábito es mirar sobre todo antes del 15, cuando se decide el rastreo del jungla rival.
+- Lo que repiten al explicar: deducen la ruta del rival por dónde empezó, sus campamentos vivos o muertos y su CS («si yo hago su lado de abajo, él tiene que estar arriba»); invaden solo con prioridad de mid o bot; si les invaden pronto, se llevan los campamentos del lado contrario; durante una invasión se quedan en la niebla para que no puedan leer si hacen la ruta completa; un ward rival a nivel 1 se interpreta («¿por qué lo ha puesto ahí?»); y cambian el segundo cangrejo por el dragón.
+- Dato de vídeo: no hay elo bajo para comparar ni se puede medir en tus partidas (la API de Riot no da la cámara); sirve como referencia de hábito, no como métrica del coach.
+
 **C2. Frontiers 2026 [FR]** (52.704 partidas de EUW; el resumen dice «más de 35.000»). Por equipo y minuto:
 - Los rangos altos **no** pelean más ni cogen más objetivos por minuto (η² ≤ 0,002): no usar «kills por minuto» ni «objetivos por minuto» como señal de elo.
 - Lo que más separa son los pings (η² = 0,244) y un índice de visión (η² = 0,107). Después vienen, con efecto pequeño pero constante, el movimiento total (η² = 0,021: distancia entre las posiciones de cada minuto) y las rotaciones (η² = 0,020).
