@@ -1774,7 +1774,14 @@ class Files:
         }
         tmp = folder / "perfil.json.tmp"
         tmp.write_text(json.dumps(profile, ensure_ascii=False, indent=1), encoding="utf-8")
-        tmp.replace(folder / "perfil.json")
+        for attempt in range(5):  # en Windows, un lector (git, antivirus) puede tener perfil.json abierto un momento
+            try:
+                tmp.replace(folder / "perfil.json")
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.2 * (attempt + 1))
 
     # ---------------------------------------------------------- escritura de cada partida
     def append(self, dossier: dict, info: dict) -> None:
