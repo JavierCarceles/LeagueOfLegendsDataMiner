@@ -119,4 +119,5 @@ def _otp_queue_always_fresh(monkeypatch):
 
     monkeypatch.setattr(crawler, "OTP_PLAN_TTL_S", 0)
     monkeypatch.setattr(crawler, "OTP_ROWS_FRESH_S", 0)
+    monkeypatch.setattr(crawler, "OTP_FRESH_ROWS_S", 0)
     monkeypatch.setattr(crawler, "ROWS_REFRESH_IN_BACKGROUND", False)  # en los tests, la lista se rehace en el momento

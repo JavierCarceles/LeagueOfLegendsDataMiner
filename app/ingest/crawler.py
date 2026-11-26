@@ -73,6 +73,11 @@ QUEUE_GROUPS = {"solo": (QUEUE_SOLO,), "flex": (440,), "normal": (400, 430, 480,
 # Variedad antes que cantidad: de cada jugador, primero sus 20 partidas con esos campeones (el resto de su historial,
 # cuando ya no quedan jugadores por revisar) y nunca se vuelve a por sus partidas nuevas.
 VARIETY_GAMES = 20
+# OTP por maestría que apenas juega su principal: tras 20 partidas suyas revisadas, con menos de 1 de cada 5 con él no
+# compensa seguir bajándolas (cada una gasta la key) y se pasa a otro jugador. En OCE y VN salían visitas de 99
+# revisadas para 1 con su principal (26-11-2026).
+LOW_YIELD_SEEN = 20
+LOW_YIELD_SHARE = 0.2
 # Especialistas: qué parte de sus partidas tiene que ser con ese campeón. La maestría es de toda la vida de la cuenta
 # (300 K con Lee Sin y 130 K con Yuumi no hacen a nadie OTP si hoy juega diez campeones): lo que cuenta es lo que juega,
 # medido en las partidas suyas que el recolector revisa (las baja igualmente para saber con quién jugó cada una).
@@ -484,6 +489,10 @@ class CrawlerConfig:
         ellos ya no llega al 50 %: antes se bajaban las 20 igual para el mismo veredicto (de 149 descartados, 38 no
         tenían ninguna con su campeón; 25-11-2026)."""
         seen, hits = int(seen or 0), int(hits or 0)
+        if self.is_ratio_otp:
+            # Es OTP por su maestría (no se le juzga con sus partidas), pero si apenas juega su principal no compensa
+            # seguir bajándolas: ``LOW_YIELD_SHARE``.
+            return seen < LOW_YIELD_SEEN or hits >= LOW_YIELD_SHARE * seen
         if self.focus != "otp" or self.min_share <= 0:
             return True
         if seen < SHARE_MIN_SEEN:
@@ -779,36 +788,57 @@ def _unvisited_order(cfg: CrawlerConfig, now: int) -> tuple[str, tuple]:
     return order, (*cfg.targets, cfg.min_mastery, *ratio_args, cutoff, cutoff, SPECIALIST_RATIO_CAP)
 
 
-def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None) -> list:
-    """Como ``otp_rows`` pero solo lo que necesita la cola de visitas: todos los ya visitados (o de las tablas de OP.GG)
-    y, de los que nunca se han visitado, ``PLAN_UNVISITED_PER_TIER`` de cada plataforma y elo (``_unvisited_order``).
-    Con ~350.000 jugadores encontrados, ordenarlos todos costaba 15-19 s por región en Windows cada vez que se rehacía
-    la cola; al visitar unos, entran los siguientes."""
-    targets = cfg.targets
+_PLAN_COLS = (
+    "p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_name, p.tag_line, p.newest_match_at, "
+    "p.last_crawled_at, m.top, m.checked_at, o.list_key, o.anchor, o.back_offset, o.back_done_at, "
+    "o.back_done_start, o.back_done_reason, o.fwd_more, o.fwd_newest, o.low_pages, o.config_key, o.seen, o.hits, "
+    "NULL AS sourced"
+)
+
+
+def _plan_base(cfg: CrawlerConfig) -> tuple[str, tuple]:
+    """``FROM … WHERE`` de los jugadores del ranking de la búsqueda (servidores y elos) y sus parámetros."""
     platforms, tiers = list(cfg.platforms), list(cfg.tiers)
-    if not targets or not platforms or not tiers:
-        return []
-    now = now or now_s()
-    pm, tm = ",".join("?" * len(platforms)), ",".join("?" * len(tiers))
-    cols = (
-        "p.id, p.puuid, p.platform, p.tier, p.division, p.lp, p.game_name, p.tag_line, p.newest_match_at, "
-        "p.last_crawled_at, m.top, m.checked_at, o.list_key, o.anchor, o.back_offset, o.back_done_at, "
-        "o.back_done_start, o.back_done_reason, o.fwd_more, o.fwd_newest, o.low_pages, o.config_key, o.seen, o.hits, "
-        "(SELECT group_concat(s.champ) FROM otp_sources s WHERE s.puuid = p.puuid) AS sourced"
-    )
     base = (
         "FROM mastery_checks m JOIN players p ON p.puuid = m.puuid LEFT JOIN otp_progress o ON o.puuid = p.puuid "
-        f"WHERE p.is_seed = 1 AND p.platform IN ({pm}) AND p.tier IN ({tm})"
+        f"WHERE p.is_seed = 1 AND p.platform IN ({','.join('?' * len(platforms))}) AND p.tier IN ({','.join('?' * len(tiers))})"
     )
-    known = db.query(
-        f"SELECT {cols} {base} AND (o.puuid IS NOT NULL OR p.puuid IN (SELECT puuid FROM otp_sources))", (*platforms, *tiers)
-    )
-    order, order_args = _unvisited_order(cfg, now)
-    fresh = db.query(
-        f"SELECT * FROM (SELECT {cols}, ROW_NUMBER() OVER (PARTITION BY p.platform, p.tier ORDER BY {order}) AS rn "
+    return base, (*platforms, *tiers)
+
+
+def unvisited_rows(db, cfg: CrawlerConfig, now: int | None = None) -> list:
+    """Los nunca visitados que entran en la cola: ``PLAN_UNVISITED_PER_TIER`` de cada plataforma y elo
+    (``_unvisited_order``). Es la consulta cara (con 8 elos, ~260.000 jugadores: hasta 55 s en Windows): la app la
+    reutiliza ``OTP_FRESH_ROWS_S`` (``Crawler._plan_rows``)."""
+    if not cfg.targets or not cfg.platforms or not cfg.tiers:
+        return []
+    base, args = _plan_base(cfg)
+    order, order_args = _unvisited_order(cfg, now or now_s())
+    return db.query(
+        f"SELECT * FROM (SELECT {_PLAN_COLS}, ROW_NUMBER() OVER (PARTITION BY p.platform, p.tier ORDER BY {order}) AS rn "
         f"{base} AND o.puuid IS NULL AND p.puuid NOT IN (SELECT puuid FROM otp_sources)) WHERE rn <= ?",
-        (*order_args, *platforms, *tiers, PLAN_UNVISITED_PER_TIER),
+        (*order_args, *args, PLAN_UNVISITED_PER_TIER),
     )
+
+
+def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None, fresh: list | None = None) -> list:
+    """Como ``otp_rows`` pero solo lo que necesita la cola de visitas: todos los ya visitados (o de las tablas de OP.GG)
+    y, de los que nunca se han visitado, los de ``unvisited_rows`` (``fresh``: ya leídos; los que se han visitado
+    desde entonces van con los visitados). Con ~350.000 jugadores encontrados, ordenarlos todos costaba 15-19 s por
+    región en Windows cada vez que se rehacía la cola; al visitar unos, entran los siguientes."""
+    targets = cfg.targets
+    if not targets or not cfg.platforms or not cfg.tiers:
+        return []
+    now = now or now_s()
+    base, args = _plan_base(cfg)
+    # Las tablas de OP.GG, una vez (no una subconsulta por jugador).
+    boards = {r[0]: r[1] for r in db.query("SELECT puuid, group_concat(champ) FROM otp_sources GROUP BY puuid")}
+    known = [
+        {**dict(r), "sourced": boards.get(r["puuid"])}
+        for r in db.query(f"SELECT {_PLAN_COLS} {base} AND (o.puuid IS NOT NULL OR p.puuid IN (SELECT puuid FROM otp_sources))", args)
+    ]
+    visited = {r["puuid"] for r in known}
+    fresh = unvisited_rows(db, cfg, now) if fresh is None else [r for r in fresh if r["puuid"] not in visited]
     wanted = set(targets)
     out = []
     for row in [*known, *fresh]:
@@ -965,6 +995,7 @@ ROWS_REFRESH_IN_BACKGROUND = True  # la lista caducada se rehace en otro hilo y 
 OTP_PLAN_TTL_S = 60  # la cola se recalcula cada minuto (antes 5: el reparto por elo se ponía al día tarde; la lista de jugadores, OTP_ROWS_FRESH_S)
 OTP_PLAN_EMPTY_S = 15
 OTP_ROWS_FRESH_S = 120  # las regiones que recalculan su cola en esos 2 min comparten la lectura de jugadores
+OTP_FRESH_ROWS_S = 600  # los nunca visitados (la consulta cara) se releen cada 10 min; los visitados, cada OTP_ROWS_FRESH_S
 # Jugadores sin visitar de un elo (por plataforma) a partir de los que no se buscan más. Tiene que ser menor que
 # PLAN_UNVISITED_PER_TIER (la cola solo carga esos de cada elo): con 200 el contador nunca llegaba y las 15 búsquedas no
 # paraban (1.864 escrituras en 5 min acaparando la base de datos).
@@ -2320,9 +2351,13 @@ class RegionWorker(threading.Thread):
         cfg, prog = self.config, v.prog
         if not cfg.share_ok(prog["seen"], prog["hits"]):
             prog.update(done_at=now_s(), done_start=v.depth_start, reason="share", config_key=v.config_key)
+            who = v.row["game_name"] or v.puuid[:8]
+            if cfg.is_ratio_otp:
+                log.info("%s apenas juega su principal: %d de %d partidas revisadas; se pasa a otro jugador.", who, prog["hits"], prog["seen"])
+                return
             log.info(
                 "%s no es especialista: %d de %d partidas revisadas con esos campeones (pides %d %%).",
-                v.row["game_name"] or v.puuid[:8], prog["hits"], prog["seen"], round(100 * cfg.min_share),
+                who, prog["hits"], prog["seen"], round(100 * cfg.min_share),
             )
 
     def _backfill_details(self, v: _OtpVisit) -> None:
@@ -2828,6 +2863,8 @@ class Crawler:
         self._funnel_thread: threading.Thread | None = None
         self._rows_lock = threading.Lock()
         self._rows_cache: tuple | None = None  # (clave de la búsqueda, cuándo, filas de ``otp_rows``)
+        self._fresh_lock = threading.Lock()
+        self._fresh_cache: tuple | None = None  # (clave, cuándo, ``unvisited_rows``): se reutiliza ``OTP_FRESH_ROWS_S``
         self._rows_refresh: threading.Thread | None = None
         self._recent_visit_tiers: deque = deque(maxlen=RECENT_TIER_VISITS)  # elos de las últimas visitas (reparto por elo)
         self._recent_games: deque = deque(maxlen=RECENT_TIER_GAMES)  # elo de las últimas partidas analizadas
@@ -3146,14 +3183,24 @@ class Crawler:
                     self._rows_refresh.start()
                 return cached[2], cached[1]
             at = time.time()
-            rows = otp_rows_for_plan(self.svc.db, cfg, now)
+            rows = self._plan_rows(cfg, key, now)
             self._rows_cache = (key, at, rows)
             return rows, at
+
+    def _plan_rows(self, cfg: CrawlerConfig, key: tuple, now: int | None = None) -> list:
+        """``otp_rows_for_plan`` con los nunca visitados reutilizados ``OTP_FRESH_ROWS_S`` (son miles esperando: no
+        hace falta releerlos cada 2 min, y es la consulta cara)."""
+        with self._fresh_lock:
+            cached = self._fresh_cache
+            if cached is None or cached[0] != key or time.time() - cached[1] >= OTP_FRESH_ROWS_S:
+                cached = (key, time.time(), unvisited_rows(self.svc.db, cfg, now))
+                self._fresh_cache = cached
+        return otp_rows_for_plan(self.svc.db, cfg, now, fresh=cached[2])
 
     def _refresh_rows(self, cfg: CrawlerConfig, key: tuple) -> None:
         try:
             at = time.time()
-            rows = otp_rows_for_plan(self.svc.db, cfg)
+            rows = self._plan_rows(cfg, key)
             with self._rows_lock:
                 self._rows_cache = (key, at, rows)
         # se reintenta en la siguiente; mientras, la anterior
