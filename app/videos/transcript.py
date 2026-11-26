@@ -250,7 +250,7 @@ def from_whisper(video_id: str, folder: Path, info: dict | None = None, data_dir
     try:
         model = _whisper()
         lang = original_language(info or {}) or None
-        segments, detected = model.transcribe(str(audio), language=lang, vad_filter=True, beam_size=1)
+        segments, detected = model.transcribe(_samples(audio), language=lang, vad_filter=True, beam_size=1)
         words: list[tuple[float, str]] = []
         for seg in segments:
             if should_stop and should_stop():
@@ -262,6 +262,24 @@ def from_whisper(video_id: str, folder: Path, info: dict | None = None, data_dir
     if not words:
         return None
     return {"metodo": f"faster-whisper {WHISPER_MODEL}", "tipo": "voz", "idioma": lang or detected.language, "segmentos": chunks(words)}
+
+
+def _samples(audio: Path):
+    """El audio a 16 kHz mono con nuestro ffmpeg: el decodificador de faster-whisper (PyAV) falla con PyAV recientes
+    («unexpected keyword argument 'metadata_errors'»). Sin ffmpeg se le pasa el fichero tal cual."""
+    import subprocess
+
+    import numpy as np
+
+    from app.recorder import ffmpeg_exe
+
+    exe = ffmpeg_exe()
+    if exe is None:
+        return str(audio)
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    out = subprocess.run([exe, "-nostdin", "-v", "error", "-i", str(audio), "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
+                         capture_output=True, check=True, creationflags=flags)
+    return np.frombuffer(out.stdout, np.float32)
 
 
 def _whisper():

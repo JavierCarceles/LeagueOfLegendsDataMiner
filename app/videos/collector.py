@@ -699,7 +699,8 @@ def _clean_temp(older_than_s: float = 600) -> None:
 
 
 def analyze_file(path: Path, duration: float, tools, method: str, should_stop, progress, champ_name,
-                 ckpt: Checkpoint | None = None, on_threads=None, step: float | None = None) -> dict | None:
+                 ckpt: Checkpoint | None = None, on_threads=None, step: float | None = None,
+                 text_s: float = 60) -> dict | None:
     """Minimapa, reloj, cámara, campeón e iconos de un vídeo de partida ya en disco (de YouTube o grabado aquí).
 
     ``should_stop()`` se consulta durante la pasada (``True`` = parar); ``progress(texto, fracción)`` informa del avance
@@ -721,7 +722,7 @@ def analyze_file(path: Path, duration: float, tools, method: str, should_stop, p
     hud = getattr(tools, "hud", None)
     # Las barras y los invocadores, con todos los frames de la sonda (con minimapa): con más frames, más claros.
     tools.hud_layout = hud.calibrate(probe_frames, tools.ability_slots, guess["clave"] if guess else None) if hud else None
-    tools.text_every = max(1, round(10 / step))  # el texto del HUD (OCR) cada ~10 s
+    tools.text_every = max(1, round(text_s / step))  # el texto del HUD (OCR, lento): YouTube cada minuto, grabaciones cada 10 s
     cam = vf.camera_size([vf.white_mask(box.crop(f)) for f in probe_frames], box.size)
     label = f"frames ({workers} hilos)"
     progress(label, 0.0)
