@@ -301,7 +301,7 @@ class GameRecorder:
                 return phase in IN_GAME  # vuelves a jugar: se deja para después (y se graba la nueva)
 
             out = analyze_file(self.root / rec["fichero"], float(rec["duracion"]), tools, "grabación", should_stop,
-                               progress, videos._champ_name, step=STEP_S, text_s=10)
+                               progress, videos._champ_name, step=STEP_S)
             if out is None:
                 return
             from app.videos.hud import habits
