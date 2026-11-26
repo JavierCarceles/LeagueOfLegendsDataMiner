@@ -37,7 +37,8 @@ def test_an_otp_is_whoever_plays_their_main_far_more_than_the_second():
     assert cfg.qualifies([[AATROX, 30_000, now], [GAREN, 20_000, now]])
     assert cfg.own_champs([[AATROX, 30_000, now], [DARIUS, 20_000, now]]) == {AATROX}  # solo su principal
     assert crawler_mod.otp_champs(cfg, [[AATROX, 30_000, now], [DARIUS, 10_000, now]]) == [AATROX]
-    assert cfg.share_ok(20, 0)  # no se le revisa: lo dice su maestría
+    # No se le juzga con sus partidas (lo dice su maestría); solo se deja de bajar las de quien apenas lo juega.
+    assert cfg.share_ok(19, 0) and cfg.share_ok(40, 8) and not cfg.share_ok(20, 0)
 
 
 def test_any_player_still_counts_whoever_has_it_among_their_three_mains():
@@ -200,3 +201,60 @@ def test_a_player_without_elo_gets_the_average_elo_of_the_game(keyed_svc):
     asked.clear()
     worker._game_elo(match, "me")
     assert "asked" not in asked and "none" not in asked  # recordado: ni el clasificado ni el sin clasificar
+
+
+def test_an_otp_by_mastery_who_barely_plays_their_main_is_left_after_twenty_games(keyed_svc):
+    """Su maestría dice OTP, pero esta temporada apenas juega su principal (1 de cada 10): tras 20 revisadas se pasa a
+    otro jugador (en OCE y VN salían visitas de 99 revisadas para 1 con él). Lo guardado de su principal sigue siendo de
+    OTP, y no vuelve a la cola."""
+    from tests.test_crawler_otp import HistoryRiot, history, progress, run_history
+
+    ids, payloads = history("rare", 100, prefix="5", champ_for=lambda i: AATROX if i % 10 == 0 else GAREN, every_h=3)
+    fake = HistoryRiot({"rare": ids}, payloads, {"rare": [(AATROX, 400_000), (GAREN, 100_000)]})
+    run_history(keyed_svc, fake, timeout=60, champions=[AATROX], focus="otp", otp_rule="ratio", only_target_games=True)
+    state = progress(keyed_svc, "rare")
+    assert state["back_done_reason"] == "share" and state["seen"] == 20 and state["hits"] == 2
+    assert len(fake.calls_to("match")) <= 20 + crawler_mod.PREFETCH_AHEAD  # antes, las 100
+    assert otp_details.classify(keyed_svc.db, "rare", AATROX) == "otp"
+    cfg = CrawlerConfig(platforms=["euw1"], tiers=["CHALLENGER"], champions=[AATROX], otp_rule="ratio").validated()
+    assert not cfg.share_ok(20, 3) and cfg.share_ok(20, 4) and cfg.share_ok(19, 0)
+    assert [r["puuid"] for r, _ in crawler_mod.otp_rows_for_plan(keyed_svc.db, cfg)] == []
+
+
+def test_players_from_the_op_gg_boards_keep_their_champions_in_the_queue(keyed_svc):
+    """Las tablas de OP.GG se leen una vez para toda la cola (no con una subconsulta por jugador)."""
+    db, now = keyed_svc.db, _now()
+    with db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES ('board', 'euw1', 'GOLD', 1, 5)")
+        conn.execute("INSERT INTO mastery_checks VALUES ('board', 'euw1', ?, ?)", (now, json.dumps([[GAREN, 900_000, now]])))
+        conn.execute("INSERT INTO otp_sources (puuid, champ, platform, source, fetched_at) VALUES ('board', ?, 'euw1', 'opgg', ?)", (AATROX, now))
+    rows = crawler_mod.otp_rows_for_plan(db, _ratio(), now)
+    assert [(r["puuid"], crawler_mod.sourced_champs(r)) for r, _ in rows] == [("board", {AATROX})]
+
+
+def test_the_unvisited_players_are_reread_every_ten_minutes_not_every_two(keyed_svc, monkeypatch):
+    """La consulta de los nunca visitados es la cara (hasta 55 s en Windows con 8 elos): se reutiliza 10 min. Quien se
+    visita entretanto sale con los visitados, sin repetirse."""
+    monkeypatch.setattr(crawler_mod, "OTP_FRESH_ROWS_S", 600)
+    db, now = keyed_svc.db, _now()
+    cfg = _ratio()
+
+    def add(puuid):
+        with db.write() as conn:
+            conn.execute("INSERT INTO players (puuid, platform, tier, is_seed, lp) VALUES (?, 'euw1', 'GOLD', 1, 1)", (puuid,))
+            conn.execute("INSERT INTO mastery_checks VALUES (?, 'euw1', ?, ?)", (puuid, now, json.dumps([[AATROX, 90_000, now]])))
+
+    add("first")
+    add("second")
+    crawler = keyed_svc.crawler
+
+    def puuids():
+        return sorted(r["puuid"] for r, _ in crawler._plan_rows(cfg, ("clave",), now))
+
+    assert puuids() == ["first", "second"]
+    add("third")  # aparece en el ranking: entra al releer los nunca visitados
+    with db.write() as conn:
+        conn.execute("INSERT INTO otp_progress (puuid, list_key, anchor, seen, hits, updated_at) VALUES ('first', ?, ?, 4, 4, ?)", (otp_list_key(cfg), now, now))
+    assert puuids() == ["first", "second"]  # sin releerlos: «third» aún no, y «first» (ya visitado) una sola vez
+    monkeypatch.setattr(crawler_mod, "OTP_FRESH_ROWS_S", 0)
+    assert puuids() == ["first", "second", "third"]
