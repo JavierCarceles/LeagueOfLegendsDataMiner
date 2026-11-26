@@ -9,8 +9,9 @@ mismo lector que los vídeos de YouTube (minimapa, reloj, cámara, campeón e ic
   ``gdigrab``. Codifica con la gráfica (NVIDIA, AMD o Intel) y si no con ``libx264`` en su modo más rápido.
   Se prueban en orden y se recuerda la primera que funciona. ffmpeg va con prioridad baja: el juego va primero.
 - **Ficheros**: ``data/grabaciones/<nombre>.mp4`` (MP4 fragmentado: si se corta de golpe sigue siendo legible) y al
-  lado ``<nombre>.json`` con el análisis. Los vídeos nunca se suben a GitHub (``.gitignore``); el ``.json`` sí, como el
-  resto de datos. Se guardan los ``KEEP_VIDEOS`` vídeos más recientes; de los anteriores queda solo el análisis.
+  lado ``<nombre>.json`` con el análisis y la partida de Riot (``match_id``) para cruzarlo con su timeline. El vídeo
+  es solo material de trabajo: **se borra en cuanto el análisis acaba** (o tras ``MAX_TRIES`` intentos fallidos) y
+  queda solo el ``.json``, que se sube a GitHub con el resto de datos (el vídeo nunca: ``.gitignore``).
 - **Interruptor**: ``meta`` ``recorder:enabled`` (encendido por defecto), desde la vista de repeticiones.
 """
 
@@ -37,7 +38,8 @@ SCALE = "scale=-2:'min(1080,ih)'"  # 1440p o 4K se graban a 1080p (el lector de 
 IN_GAME = {"InProgress", "Reconnect"}
 STARTUP_CHECK_S = 4  # si ffmpeg muere antes, esa forma de capturar no vale en este equipo
 STOP_WAIT_S = 15
-KEEP_VIDEOS = 10
+MAX_PENDING_VIDEOS = 20  # vídeos sin analizar como mucho (si el análisis no puede ir, no se llena el disco)
+MAX_TRIES = 3  # intentos de análisis con error antes de borrar el vídeo
 MIN_VIDEO_S = 120  # menos que esto (remake, cierre en la carga) no se analiza
 META_ENABLED = "recorder:enabled"
 META_METHOD = "recorder:method"
@@ -123,6 +125,7 @@ class GameRecorder:
             return
         self.root.mkdir(parents=True, exist_ok=True)
         self._recover()
+        self._prune()
         self.thread = threading.Thread(target=self._loop, name="grabacion", daemon=True)
         self.thread.start()
 
@@ -225,7 +228,20 @@ class GameRecorder:
             return {}
         data = session.get("gameData") or {}
         queue = (data.get("queue") or {}).get("id")
-        return {"game_id": data.get("gameId") or None, "cola": queue}
+        game_id = data.get("gameId") or None
+        return {"game_id": game_id, "cola": queue, "match_id": self._match_id(game_id)}
+
+    def _match_id(self, game_id) -> str | None:
+        """``EUW1_7412345678``: el id de Riot de la partida (con el servidor de tu perfil) para cruzarla con su timeline."""
+        if not game_id:
+            return None
+        try:
+            from app.coach import store
+
+            platform = (store.get_profile(self.svc.db) or {}).get("platform")
+        except Exception:  # noqa: BLE001 - sin perfil, queda el game_id
+            platform = None
+        return f"{platform.upper()}_{game_id}" if platform else None
 
     def _stop_recording(self) -> None:
         with self._lock:
@@ -246,6 +262,8 @@ class GameRecorder:
         path = self.root / current["fichero"]
         ok = path.exists() and path.stat().st_size > 0 and current["duracion"] >= MIN_VIDEO_S
         current["estado"] = "pendiente" if ok else "corta"
+        if not ok:
+            self._drop_video(current)
         self._save(current["nombre"], current)
         log.info("Grabación: partida terminada (%d min grabados).", current["duracion"] // 60)
         self._prune()
@@ -287,12 +305,17 @@ class GameRecorder:
                 return
             rec.update(frames=out, vistazos=glances(out), estado="analizada" if out.get("partida") else "sin partida",
                        version=VERSION, analizada=time.time())
+            self._drop_video(rec)
             self._save(rec["nombre"], rec)
-            log.info("Grabación: %s analizada (%s).", rec["nombre"], rec["estado"])
+            log.info("Grabación: %s analizada (%s); borrado el vídeo, quedan los datos.", rec["nombre"], rec["estado"])
         except Exception as exc:
-            rec.update(estado="error", error=str(exc)[:300])
+            rec["intentos"] = int(rec.get("intentos") or 0) + 1
+            rec["error"] = str(exc)[:300]
+            if rec["intentos"] >= MAX_TRIES:
+                rec["estado"] = "error"
+                self._drop_video(rec)
             self._save(rec["nombre"], rec)
-            log.exception("Grabación: no se pudo analizar %s", rec["nombre"])
+            log.exception("Grabación: no se pudo analizar %s (intento %d de %d)", rec["nombre"], rec["intentos"], MAX_TRIES)
         finally:
             self.analyzing = None
 
@@ -326,19 +349,36 @@ class GameRecorder:
             end = path.stat().st_mtime if path.exists() else rec["inicio"]
             rec.update(fin=end, duracion=round(end - rec["inicio"]))
             rec["estado"] = "pendiente" if rec["duracion"] >= MIN_VIDEO_S else "corta"
+            if rec["estado"] == "corta":
+                self._drop_video(rec)
             self._save(rec["nombre"], rec)
 
+    def _drop_video(self, rec: dict) -> None:
+        """Fuera el vídeo: ya se sacó lo que sirve (o no se puede sacar)."""
+        path = self.root / rec["fichero"]
+        try:
+            path.unlink(missing_ok=True)
+            rec["video_borrado"] = True
+        except OSError:
+            log.debug("No se pudo borrar %s", path, exc_info=True)
+
     def _prune(self) -> None:
-        """Solo los ``KEEP_VIDEOS`` vídeos más recientes (de los demás queda el análisis)."""
-        videos = sorted(self.root.glob("*.mp4"), reverse=True)
-        for path in videos[KEEP_VIDEOS:]:
-            if self.current and path.name == self.current.get("fichero"):
+        """Vídeos sueltos: sin su ``.json`` o ya analizados (se borran) y, si el análisis no puede ir, como mucho los
+        ``MAX_PENDING_VIDEOS`` más recientes (para no llenar el disco)."""
+        wanted = {r["fichero"]: r for r in self.recordings() if r.get("estado") in ("grabando", "pendiente")}
+        keep = sorted(wanted, reverse=True)[:MAX_PENDING_VIDEOS]
+        for path in self.root.glob("*.mp4"):
+            if path.name in keep or (self.current and path.name == self.current.get("fichero")):
                 continue
             try:
                 path.unlink()
-                log.info("Grabación: borro el vídeo antiguo %s (queda su análisis).", path.name)
+                log.info("Grabación: borro el vídeo %s (no hace falta: queda su análisis).", path.name)
             except OSError:
                 log.debug("No se pudo borrar %s", path, exc_info=True)
+            rec = wanted.get(path.name)
+            if rec is not None:  # pendiente que no cabe: se queda sin analizar
+                rec.update(estado="sin analizar", video_borrado=True)
+                self._save(rec["nombre"], rec)
 
     def _ensure_ffmpeg(self) -> None:
         from app.videos import deps
@@ -360,6 +400,5 @@ class GameRecorder:
             "grabando": current,
             "analizando": dict(self.analyzing) if self.analyzing else None,
             "ultimo_error": self.last_error,
-            "guardados": KEEP_VIDEOS,
             "carpeta": str(self.root),
         }

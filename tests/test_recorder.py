@@ -151,3 +151,64 @@ def test_ffmpeg_real_rechaza_una_captura_que_no_existe(tmp_path, monkeypatch):
     proc = r._launch(exe, ["-f", "lavfi", "-i", "no_existe_este_filtro"], tmp_path / "x.mp4")
     assert proc is None
     assert subprocess is not None
+
+
+def test_al_analizar_se_borra_el_video_y_quedan_los_datos(tmp_path, monkeypatch):
+    import app.videos.collector as col
+    from app.videos import deps
+
+    r = _recorder(tmp_path, monkeypatch)
+    r.svc.videos = SimpleNamespace(frame_tools=lambda: None, _champ_name=lambda k: k)
+    monkeypatch.setattr(deps, "ensure_base", lambda: True)
+    monkeypatch.setattr(rec_mod.lcu, "gameflow_phase", lambda: "EndOfGame")
+    video = r.root / "20261126-200000_1.mp4"
+    video.write_bytes(b"x")
+    rec = {"nombre": "20261126-200000_1", "fichero": video.name, "inicio": 0, "duracion": 1500, "estado": "pendiente"}
+    r._save(rec["nombre"], rec)
+    monkeypatch.setattr(col, "analyze_file", lambda *a, **k: _frames([[t, 7000, 4000] for t in range(0, 600, 2)]))
+    r._tick()
+    saved = json.loads((r.root / "20261126-200000_1.json").read_text(encoding="utf-8"))
+    assert saved["estado"] == "analizada" and saved["video_borrado"] and saved["frames"]["camara"]
+    assert not video.exists()
+
+
+def test_si_el_analisis_falla_se_reintenta_y_al_tercero_se_borra(tmp_path, monkeypatch):
+    import app.videos.collector as col
+    from app.videos import deps
+
+    r = _recorder(tmp_path, monkeypatch)
+    r.svc.videos = SimpleNamespace(frame_tools=lambda: None, _champ_name=lambda k: k)
+    monkeypatch.setattr(deps, "ensure_base", lambda: True)
+    monkeypatch.setattr(rec_mod.lcu, "gameflow_phase", lambda: None)
+    video = r.root / "20261126-200000_2.mp4"
+    video.write_bytes(b"x")
+    r._save("20261126-200000_2", {"nombre": "20261126-200000_2", "fichero": video.name, "inicio": 0, "duracion": 1500, "estado": "pendiente"})
+
+    def boom(*a, **k):
+        raise RuntimeError("roto")
+
+    monkeypatch.setattr(col, "analyze_file", boom)
+    r._tick()
+    assert video.exists()
+    r._tick()
+    r._tick()
+    saved = json.loads((r.root / "20261126-200000_2.json").read_text(encoding="utf-8"))
+    assert saved["estado"] == "error" and saved["intentos"] == 3 and not video.exists()
+
+
+def test_videos_sueltos_se_borran_al_arrancar(tmp_path, monkeypatch):
+    r = _recorder(tmp_path, monkeypatch)
+    (r.root / "huerfano.mp4").write_bytes(b"x")
+    r._save("a", {"nombre": "a", "fichero": "a.mp4", "inicio": 0, "duracion": 900, "estado": "pendiente"})
+    (r.root / "a.mp4").write_bytes(b"x")
+    r._prune()
+    assert not (r.root / "huerfano.mp4").exists() and (r.root / "a.mp4").exists()
+
+
+def test_match_id_con_el_servidor_del_perfil(tmp_path, monkeypatch):
+    from app.coach import store
+
+    r = _recorder(tmp_path, monkeypatch)
+    monkeypatch.setattr(store, "get_profile", lambda db: {"platform": "euw1"})
+    assert r._match_id(7412345678) == "EUW1_7412345678"
+    assert r._match_id(None) is None
