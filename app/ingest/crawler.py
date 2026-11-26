@@ -796,14 +796,32 @@ _PLAN_COLS = (
 )
 
 
+def _plan_filter(cfg: CrawlerConfig) -> tuple[str, tuple]:
+    """Condición de los jugadores del ranking de la búsqueda (servidores y elos) y sus parámetros."""
+    platforms, tiers = list(cfg.platforms), list(cfg.tiers)
+    cond = f"p.is_seed = 1 AND p.platform IN ({','.join('?' * len(platforms))}) AND p.tier IN ({','.join('?' * len(tiers))})"
+    return cond, (*platforms, *tiers)
+
+
 def _plan_base(cfg: CrawlerConfig) -> tuple[str, tuple]:
     """``FROM … WHERE`` de los jugadores del ranking de la búsqueda (servidores y elos) y sus parámetros."""
-    platforms, tiers = list(cfg.platforms), list(cfg.tiers)
-    base = (
-        "FROM mastery_checks m JOIN players p ON p.puuid = m.puuid LEFT JOIN otp_progress o ON o.puuid = p.puuid "
-        f"WHERE p.is_seed = 1 AND p.platform IN ({','.join('?' * len(platforms))}) AND p.tier IN ({','.join('?' * len(tiers))})"
+    cond, args = _plan_filter(cfg)
+    return f"FROM mastery_checks m JOIN players p ON p.puuid = m.puuid LEFT JOIN otp_progress o ON o.puuid = p.puuid WHERE {cond}", args
+
+
+def _known_rows(db, cfg: CrawlerConfig) -> list:
+    """Los ya visitados y los de las tablas de OP.GG, partiendo de ellos (``CROSS JOIN`` fija el orden). Antes se
+    recorría todo el ranking (~350.000 jugadores) para quedarse con los ~50.000 visitados: 9 s de media y hasta 44 s en
+    Windows, cada 2 min (26-11-2026)."""
+    cond, args = _plan_filter(cfg)
+    return db.query(
+        f"SELECT {_PLAN_COLS} FROM otp_progress o CROSS JOIN players p ON p.puuid = o.puuid "
+        f"CROSS JOIN mastery_checks m ON m.puuid = o.puuid WHERE {cond} "
+        f"UNION ALL SELECT {_PLAN_COLS} FROM (SELECT DISTINCT puuid FROM otp_sources) s "
+        "CROSS JOIN players p ON p.puuid = s.puuid CROSS JOIN mastery_checks m ON m.puuid = s.puuid "
+        f"LEFT JOIN otp_progress o ON o.puuid = s.puuid WHERE o.puuid IS NULL AND {cond}",
+        (*args, *args),
     )
-    return base, (*platforms, *tiers)
 
 
 def unvisited_rows(db, cfg: CrawlerConfig, now: int | None = None) -> list:
@@ -830,13 +848,9 @@ def otp_rows_for_plan(db, cfg: CrawlerConfig, now: int | None = None, fresh: lis
     if not targets or not cfg.platforms or not cfg.tiers:
         return []
     now = now or now_s()
-    base, args = _plan_base(cfg)
     # Las tablas de OP.GG, una vez (no una subconsulta por jugador).
     boards = {r[0]: r[1] for r in db.query("SELECT puuid, group_concat(champ) FROM otp_sources GROUP BY puuid")}
-    known = [
-        {**dict(r), "sourced": boards.get(r["puuid"])}
-        for r in db.query(f"SELECT {_PLAN_COLS} {base} AND (o.puuid IS NOT NULL OR p.puuid IN (SELECT puuid FROM otp_sources))", args)
-    ]
+    known = [{**dict(r), "sourced": boards.get(r["puuid"])} for r in _known_rows(db, cfg)]
     visited = {r["puuid"] for r in known}
     fresh = unvisited_rows(db, cfg, now) if fresh is None else [r for r in fresh if r["puuid"] not in visited]
     wanted = set(targets)
