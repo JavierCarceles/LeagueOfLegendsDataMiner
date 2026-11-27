@@ -1,45 +1,63 @@
 {
- "at": 1795771252,
+ "at": 1795771349,
  "diagnostico": {
-  "warm-opgg-mcp": {
-   "muestras": 112,
+  "videos-frames": {
+   "muestras": 1958,
    "en": {
-    "esperando a la red (Riot, OP.GG, GitHub)": 96,
-    "parado esperando trabajo": 2,
-    "otro": 2
+    "otro": 100
    },
    "lineas": {
-    "external/opgg.py:465 _mcp_post → ssl.py:read": 96,
-    "warmer.py:178 _work → threading.py:wait": 2,
-    "external/base.py:112 wait": 2,
-    "external/opgg.py:465 _mcp_post → ssl.py:send": 1
+    "videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run": 71,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 13,
+    "videos/frames.py:142 every": 5,
+    "videos/frames.py:140 every": 2,
+    "videos/frames.py:148 every": 2,
+    "videos/hud.py:268 _texts → utils.py:normalize": 2
+   }
+  },
+  "warm-opgg-mcp": {
+   "muestras": 492,
+   "en": {
+    "esperando a la red (Riot, OP.GG, GitHub)": 93,
+    "otro": 6,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "external/opgg.py:465 _mcp_post → ssl.py:read": 93,
+    "external/base.py:112 wait": 6,
+    "warmer.py:178 _work → threading.py:wait": 0,
+    "external/base.py:155 peek → db.py:one": 0,
+    "external/opgg.py:465 _mcp_post → ssl.py:send": 0,
+    "external/opgg.py:465 _mcp_post → utils.py:get_netrc_auth": 0
    }
   },
   "warm-opgg-web": {
-   "muestras": 112,
+   "muestras": 492,
    "en": {
-    "esperando a la red (Riot, OP.GG, GitHub)": 86,
-    "otro": 12,
-    "parado esperando trabajo": 2
+    "esperando a la red (Riot, OP.GG, GitHub)": 54,
+    "parado esperando trabajo": 37,
+    "otro": 9
    },
    "lineas": {
-    "external/opgg.py:345 _page → ssl.py:read": 85,
-    "external/base.py:112 wait": 12,
-    "warmer.py:178 _work → threading.py:wait": 2,
-    "external/opgg.py:345 _page → ssl.py:do_handshake": 1
+    "external/opgg.py:345 _page → ssl.py:read": 53,
+    "warmer.py:178 _work → threading.py:wait": 37,
+    "external/base.py:112 wait": 9,
+    "external/opgg.py:345 _page → ssl.py:do_handshake": 0,
+    "external/base.py:170 _cache_put → db.py:write": 0
    }
   },
   "db-checkpoint": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
     "esperando un candado (base de datos, ficheros)": 100
    },
    "lineas": {
-    "data/db.py:516 run → threading.py:wait": 100
+    "data/db.py:516 run → threading.py:wait": 100,
+    "data/db.py:486 _run_checkpoint": 0
    }
   },
   "MainThread": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
     "otro": 100
    },
@@ -48,33 +66,56 @@
    }
   },
   "warm-lolalytics": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
-    "otro": 82,
-    "esperando a la red (Riot, OP.GG, GitHub)": 16,
-    "parado esperando trabajo": 2
+    "otro": 85,
+    "esperando a la red (Riot, OP.GG, GitHub)": 14
    },
    "lineas": {
-    "external/base.py:112 wait": 82,
-    "external/lolalytics.py:107 _get → ssl.py:read": 16,
-    "warmer.py:178 _work → threading.py:wait": 2
+    "external/base.py:112 wait": 85,
+    "external/lolalytics.py:107 _get → ssl.py:read": 14,
+    "warmer.py:178 _work → threading.py:wait": 0
+   }
+  },
+  "videos-campeon": {
+   "muestras": 190,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "videos/frames.py:551 _scan": 95,
+    "thread.py _worker": 5
    }
   },
   "videos": {
-   "muestras": 52,
+   "muestras": 242,
    "en": {
-    "esperando a la red (Riot, OP.GG, GitHub)": 52,
-    "otro": 38,
-    "parado esperando trabajo": 8,
-    "comprimiendo o escribiendo ficheros": 2
+    "parado esperando trabajo": 43,
+    "esperando a la red (Riot, OP.GG, GitHub)": 38,
+    "otro": 19
    },
    "lineas": {
-    "videos/youtube.py:253 run → ssl.py:read": 42,
-    "videos/youtube.py:253 run → common.py:download": 33,
-    "videos/youtube.py:160 run → ssl.py:read": 4,
-    "videos/youtube.py:253 run → threading.py:join": 4,
-    "videos/frames.py:197 _search_corner": 4,
-    "videos/deps.py:187 js_runtimes → shutil.py:_access_check": 2
+    "videos/frames.py:776 sample_pass → threading.py:wait": 37,
+    "videos/youtube.py:253 run → ssl.py:read": 36,
+    "videos/youtube.py:253 run → common.py:download": 10,
+    "videos/frames.py:562 _add_scans → threading.py:wait": 4,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 3,
+    "videos/frames.py:197 _search_corner": 2
+   }
+  },
+  "web": {
+   "muestras": 487,
+   "en": {
+    "parado esperando trabajo": 96,
+    "consultando o escribiendo la base de datos": 4
+   },
+   "lineas": {
+    "threading.py wait": 96,
+    "api/system.py:36 _db_counts → db.py:one": 3,
+    "api/system.py:37 _db_counts → db.py:one": 0,
+    "videos/deps.py:88 _version → <frozen importlib._bootstrap_external>:get_data": 0,
+    "hardware.py:47 gpu → threading.py:join": 0,
+    "api/system.py:34 _db_counts → db.py:conn": 0
    }
   },
   "otp-summaries": {
@@ -93,6 +134,19 @@
     "ingest/otp_details.py:1316 _numeric_block": 6
    }
   },
+  "autopush": {
+   "muestras": 21,
+   "en": {
+    "parado esperando trabajo": 67,
+    "otro": 33
+   },
+   "lineas": {
+    "autopush.py:91 _git → threading.py:join": 67,
+    "autopush.py:132 _read_progress": 24,
+    "logbus.py:227 copy_tail": 5,
+    "autopush.py:567 _write_log → tokenize.py:open": 5
+   }
+  },
   "videos-iconos": {
    "muestras": 5,
    "en": {
@@ -106,19 +160,40 @@
     "thread.py _worker": 20
    }
   },
-  "web": {
-   "muestras": 126,
+  "Thread-47 (": {
+   "muestras": 4,
    "en": {
-    "parado esperando trabajo": 97,
-    "consultando o escribiendo la base de datos": 2,
-    "otro": 1
+    "otro": 100
    },
    "lineas": {
-    "threading.py wait": 96,
-    "api/system.py:36 _db_counts → db.py:one": 2,
-    "videos/deps.py:88 _version → <frozen importlib._bootstrap_external>:get_data": 1,
-    "hardware.py:47 gpu → threading.py:join": 1,
-    "api/system.py:37 _db_counts → db.py:one": 1
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-46 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-82 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-81 (": {
+   "muestras": 4,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
    }
   },
   "startup": {
@@ -135,47 +210,101 @@
     "videos/store.py:314 load_result → __init__.py:open": 25
    }
   },
-  "autopush": {
+  "grabacion": {
+   "muestras": 246,
+   "en": {
+    "parado esperando trabajo": 99
+   },
+   "lineas": {
+    "recorder.py:144 _loop → threading.py:wait": 99,
+    "lcu.py:93 _lockfile → __init__.py:open": 0,
+    "lcu.py:109 _credentials → _pswindows.py:cmdline": 0
+   }
+  },
+  "Thread-49 (": {
    "muestras": 2,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "logbus.py:227 copy_tail": 50,
-    "autopush.py:567 _write_log → tokenize.py:open": 50
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-48 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-65 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-64 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "mis-partidas": {
+   "muestras": 246,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/files.py:107 _run → threading.py:wait": 100,
+    "coach/files.py:132 sync → db.py:query": 0
    }
   },
   "warm-planner": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
-    "parado esperando trabajo": 98,
-    "esperando a la red (Riot, OP.GG, GitHub)": 2
+    "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:322 _plan_loop → threading.py:wait": 98,
-    "external/opgg.py:345 _page → ssl.py:read": 2
+    "warmer.py:322 _plan_loop → threading.py:wait": 100,
+    "external/opgg.py:345 _page → ssl.py:read": 0
    }
   },
   "draft-live": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
-    "parado esperando trabajo": 98,
-    "consultando o escribiendo la base de datos": 2
+    "parado esperando trabajo": 100
    },
    "lineas": {
-    "draft_live.py:448 _run → threading.py:wait": 98,
-    "draft_live.py:95 get_prefs → db.py:one": 2
+    "draft_live.py:448 _run → threading.py:wait": 100,
+    "draft_live.py:95 get_prefs → db.py:one": 0
    }
   },
   "lol-client-watch": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
-    "parado esperando trabajo": 98,
-    "comprimiendo o escribiendo ficheros": 2
+    "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/tracker.py:496 _watch_loop → threading.py:wait": 98,
-    "lcu.py:98 _lockfile → __init__.py:open": 2
+    "coach/tracker.py:496 _watch_loop → threading.py:wait": 100,
+    "lcu.py:98 _lockfile → __init__.py:open": 0
+   }
+  },
+  "game-tracker": {
+   "muestras": 246,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:400 _sleep → threading.py:wait": 100,
+    "coach/store.py:52 get_profile → db.py:one": 0
    }
   },
   "Thread-4 (": {
@@ -295,26 +424,72 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "mis-partidas": {
-   "muestras": 56,
+  "Thread-55 (": {
+   "muestras": 1,
    "en": {
-    "parado esperando trabajo": 100
+    "otro": 100
    },
    "lineas": {
-    "coach/files.py:107 _run → threading.py:wait": 100
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-54 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-67 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-66 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-78 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-77 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
    }
   },
   "tier-calibrator": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/calibrate.py:61 _run → threading.py:wait": 100
+    "coach/calibrate.py:75 _run → threading.py:wait": 52,
+    "coach/calibrate.py:61 _run → threading.py:wait": 48
    }
   },
   "warm-demand": {
-   "muestras": 168,
+   "muestras": 738,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -323,30 +498,12 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 56,
+   "muestras": 246,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "warmer.py:178 _work → threading.py:wait": 100
-   }
-  },
-  "grabacion": {
-   "muestras": 56,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "recorder.py:144 _loop → threading.py:wait": 100
-   }
-  },
-  "game-tracker": {
-   "muestras": 56,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/tracker.py:400 _sleep → threading.py:wait": 100
    }
   },
   "autopush-check": {
@@ -359,7 +516,7 @@
    }
   },
   "rofl": {
-   "muestras": 54,
+   "muestras": 244,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -368,21 +525,31 @@
    }
   },
   "updater": {
-   "muestras": 53,
+   "muestras": 243,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "updater.py:137 _loop → threading.py:wait": 100
+    "updater.py:137 _loop → threading.py:wait": 100,
+    "autopush.py:91 _git → threading.py:join": 0
    }
   },
   "track-check": {
-   "muestras": 52,
+   "muestras": 242,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "coach/track_check_job.py:76 _wait → threading.py:wait": 100
+   }
+  },
+  "Thread": {
+   "muestras": 5,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "threading.py wait": 100
    }
   }
  },
@@ -466,6 +633,22 @@
    "source": "videos",
    "message": "Vídeos: recolector en marcha.",
    "hora": "10:20:26"
+  },
+  {
+   "id": 11,
+   "ts": 1795771260.4992115,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (0 partidas, 0 jugadores y 0 vídeos nuevos; rama main).",
+   "hora": "10:21:00"
+  },
+  {
+   "id": 12,
+   "ts": 1795771341.081307,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: recolector en pausa.",
+   "hora": "10:22:21"
   }
  ],
  "hilos": {
@@ -484,6 +667,211 @@
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
+  "AnyIO worker thread #25392": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1124, in run |     result = context.run(func, *args)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\fastapi\\telemetry\\_api.py\", line 244, in _run_sync_endpoint |     return function(**arguments)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\api\\system.py\", line 82, in status |     \"db\": _db_counts(svc),",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\api\\system.py\", line 36, in _db_counts |     \"players\": db.scalar(\"SELECT COUNT(*) FROM players\", default=0),",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\data\\db.py\", line 600, in scalar |     row = self.one(sql, params)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\data\\db.py\", line 594, in one |     row = self.conn().execute(sql, params).fetchone()"
+  ],
+  "AnyIO worker thread #25368": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "AnyIO worker thread #23620": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "AnyIO worker thread #25252": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "videos-frames_21": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_20": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_19": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 180, in run_ocr_steps |     rec_res = self.recognize_txt(cls_img_list)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 371, in recognize_txt |     rec_res = rec_model(rec_input)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_rec\\main.py\", line 131, in __call__ |     preds = self.session(norm_img_batch)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_18": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_17": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_16": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_15": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_14": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_13": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_12": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_11": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 767, in run |     part = _sample_span(source, item[1], box, cam, tools, should_stop, gpu, tick, step)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 812, in _sample_span |     for t, frame in reader.every(step, start):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 148, in every |     ok, frame = self.cap.retrieve()"
+  ],
+  "videos-frames_10": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_9": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_8": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_7": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_6": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_5": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_4": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_3": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_2": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 180, in run_ocr_steps |     rec_res = self.recognize_txt(cls_img_list)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 371, in recognize_txt |     rec_res = rec_model(rec_input)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_rec\\main.py\", line 131, in __call__ |     preds = self.session(norm_img_batch)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_1": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
+  "videos-frames_0": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
+  ],
   "track-check": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
@@ -493,12 +881,12 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "videos": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\YoutubeDL.py\", line 1943, in process_ie_result |     ie_result = self.process_video_result(ie_result, download=download)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\YoutubeDL.py\", line 3130, in process_video_result |     self.process_info(new_info)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\YoutubeDL.py\", line 195, in wrapper |     return func(self, *args, **kwargs)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\YoutubeDL.py\", line 3584, in process_info |     success, real_download = self.dl(temp_filename, info_dict)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\YoutubeDL.py\", line 3319, in dl |     return fd.download(name, new_info, subtitle)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\yt_dlp\\downloader\\common.py\", line 478, in download |     time.sleep(sleep_interval)"
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 740, in analyze_file |     collected = vf.sample_pass(str(path), box, cam, tools, duration, stop, lambda p: progress(label, p), workers,",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 776, in sample_pass |     parts = list(pool.map(run, enumerate(spans)))",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 645, in result_iterator |     yield _result_or_cancel(fs.pop())",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 312, in _result_or_cancel |     return fut.result(timeout)",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
   "updater": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -528,7 +916,7 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\coach\\calibrate.py\", line 61, in _run |     self.stop_event.wait(60)  # deja arrancar lo demás primero",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\coach\\calibrate.py\", line 75, in _run |     self.stop_event.wait(INTERVAL_S)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
@@ -597,20 +985,20 @@
    "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "warm-opgg-web-1": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
-   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 178, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-web-0": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
-   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 178, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "draft-live": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -649,8 +1037,8 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\diag.py\", line 195, in run |     while not (stop.wait(SAMPLE_S) if stop is not None else time.sleep(SAMPLE_S)):",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 667, in wait |     with self._cond:",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 381, in wait |     self._waiters.remove(waiter)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "db-checkpoint": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -660,20 +1048,13 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
-  "AnyIO worker thread #23292": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
-  ],
   "MainThread": [
    "File \"C:\\Python314\\Lib\\asyncio\\runners.py\", line 128, in run |     return self._loop.run_until_complete(task)",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 707, in run_until_complete |     self.run_forever()",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 678, in run_forever |     self._run_once()",
-   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2058, in _run_once |     handle = None  # Needed to break cycles when an exception occurs.",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 453, in select |     tmp = None",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 820, in _poll |     self._unregistered.clear()"
+   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2019, in _run_once |     event_list = self._selector.select(timeout)",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 446, in select |     self._poll(timeout)",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 778, in _poll |     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)"
   ]
  }
 }
