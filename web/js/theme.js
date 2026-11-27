@@ -4,8 +4,9 @@
  *
  *  Va en ``<html data-theme="…">``: cada tema es un fichero de CSS que solo actúa con su valor (``theme-<id>.css``), así
  *  que añadir uno nuevo es añadir su fichero, su línea en ``THEMES``, su id en el script del ``<head>`` y en
- *  ``UI_THEMES`` (app/api/system.py). Los de línea («r-…») comparten la base theme-roles.css y la barra de cristal
- *  lleva la piel de cada uno (scrollbars.js: ``SKINS``). Se guarda en la app (``/api/ui/theme``: vale
+ *  ``UI_THEMES`` (app/api/system.py). Los de línea («r-…») comparten la base theme-roles.css, llevan arte de skins y
+ *  escenas detrás (theme-art.js) y su barra de scroll tiene forma propia (scrollbar-skins.js: ``SKINS``). Su CSS sale
+ *  de tools/temas/generar.py. Se guarda en la app (``/api/ui/theme``: vale
  *  aunque abras otro navegador) y en este navegador, para ponerlo antes de pintar nada (el script del ``<head>`` de
  *  index.html) y que no se vea un instante el otro. */
 import { api } from "./api.js";
@@ -13,13 +14,13 @@ import { api } from "./api.js";
 export const THEMES = [
   { id: "standard", group: "general", label: "Estándar", hint: "El aspecto de siempre: sobrio y limpio." },
   { id: "hextech", group: "general", label: "Hextech", hint: "Como el cliente del juego: oro, turquesa y cristal hextech." },
-  { id: "r-top", group: "line", label: "Top", hint: "Tanques: acero con remaches, forja y ascuas." },
-  { id: "r-jungle", group: "line", label: "Jungla", hint: "Maleza y objetivos: musgo, hojas, luciérnagas y Barón." },
-  { id: "r-mid", group: "line", label: "Mid", hint: "Dagas y magia: plata, runas y chispas arcanas." },
-  { id: "r-adc", group: "line", label: "ADC", hint: "Tiradores: latón, mira, trazadoras y fogonazo." },
-  { id: "r-engage", group: "support", label: "Engage", hint: "Rell, Pyke, Naut, Thresh: cadenas, anclas y farol." },
-  { id: "r-guardian", group: "support", label: "Guardián", hint: "Taric y Braum: escudos, gemas y hielo." },
-  { id: "r-peel", group: "support", label: "Peel", hint: "Escudos y curas: nácar, menta, destellos y corazones." },
+  { id: "r-top", group: "line", label: "Top", hint: "Tanques: la forja de Ornn, acero con remaches, oruga y lava." },
+  { id: "r-jungle", group: "line", label: "Jungla", hint: "Hecarim del bosque Antiguo, lianas, luciérnagas y el ojo de Barón." },
+  { id: "r-mid", group: "line", label: "Mid", hint: "Dagas de plata y magia: círculo arcano, Syndra, Katarina, Ahri." },
+  { id: "r-adc", group: "line", label: "ADC", hint: "Salvaje Oeste: cinta de balas, mira, radar y casquillos." },
+  { id: "r-engage", group: "support", label: "Engage", hint: "Thresh, Pyke, Nautilus, Rell: cadenas, garfios y farol de almas." },
+  { id: "r-guardian", group: "support", label: "Guardián", hint: "Taric y Braum: carámbanos, aurora, escudo y gema." },
+  { id: "r-peel", group: "support", label: "Peel", hint: "Guardianas estelares: banderines, cápsula de cura y corazones." },
 ];
 export const THEME_GROUPS = [
   { id: "general", label: "General" },

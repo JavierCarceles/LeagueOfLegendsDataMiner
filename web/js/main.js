@@ -2,6 +2,7 @@
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
 import { initScrollbars, setHexBars } from "./scrollbars.js";
+import { setThemeArt } from "./theme-art.js";
 import { THEME_GROUPS, THEMES, currentTheme, onTheme, setTheme, syncTheme } from "./theme.js";
 import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, fmt, h, icon, mount, select, toast } from "./ui.js";
@@ -542,7 +543,10 @@ async function watchChampSelect() {
 
 async function boot() {
   initScrollbars();
-  onTheme((theme) => setHexBars(theme !== "standard", theme)); // barras de cristal con la piel de cada tema
+  onTheme((theme) => {
+    setHexBars(theme !== "standard", theme); // barras dibujadas con la forma y la piel de cada tema
+    setThemeArt(theme); // los de línea: arte de skins, escenas y cenefa
+  });
   setupProfileMenu();
   renderSidebar();
   void setupLogs(); // trata sus errores (sin servidor, el panel de actividad se queda vacío)

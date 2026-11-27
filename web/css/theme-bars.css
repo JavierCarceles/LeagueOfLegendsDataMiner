@@ -151,15 +151,39 @@
   left: 50%;
   top: 6px;
   bottom: 6px;
-  width: 6px;
-  margin-left: -3px;
-  border-radius: 3px;
+  width: var(--hx-rail-w, 6px);
+  margin-left: calc(var(--hx-rail-w, 6px) / -2);
+  border-radius: var(--hx-rail-radius, 3px);
   background:
     linear-gradient(180deg, rgba(var(--hx-teal), 0), rgba(var(--hx-teal), 0.1) 50%, rgba(var(--hx-teal), 0)),
     linear-gradient(90deg, rgba(var(--hx-gold), 0.75) 0 1px, rgba(4, 9, 13, 0.94) 1px calc(100% - 1px), rgba(var(--hx-bronze), 0.85) calc(100% - 1px));
   box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5);
   opacity: 0.3;
   transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+/* Temas por línea: su raíl (cinta de balas, cadena, enredadera, columna de runas…; --hx-rail en cada tema) corre al
+   desplazarte (scrollbars.js pone --hx-shift) y se funde en los extremos; las tapas siguen en el canal. */
+[data-theme^="r-"] .hx-channel { background: none; box-shadow: none; opacity: 0.62; }
+[data-theme^="r-"] .hx-channel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--hx-rail);
+  background-position-y: var(--hx-shift, 0px);
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.8);
+  -webkit-mask-image: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(transparent, #000 18px, #000 calc(100% - 18px), transparent);
+}
+[data-theme^="r-"] .hx-bar.awake .hx-channel, [data-theme^="r-"] .hx-bar.live .hx-channel { box-shadow: none; filter: drop-shadow(0 0 6px rgba(var(--hx-teal), 0.35)); }
+[data-theme^="r-"] .hx-label {
+  font-family: var(--t-display);
+  font-weight: var(--t-display-weight, 700);
+  font-size: 12px;
+  letter-spacing: var(--t-display-spacing, 1px);
+  text-transform: var(--t-display-case, uppercase);
+  border-radius: var(--t-radius, 2px);
+  background: var(--t-card-fill) padding-box, var(--t-card-frame) border-box;
 }
 .hx-bar.awake .hx-channel, .hx-bar.live .hx-channel {
   opacity: 1;
@@ -171,7 +195,8 @@
   width: 10px;
   height: 10px;
   margin-left: -5px;
-  transform: rotate(45deg);
+  transform: rotate(var(--hx-cap-rot, 45deg));
+  clip-path: var(--hx-cap-clip, none);
   background: linear-gradient(135deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze)) 80%);
   box-shadow: 0 0 0 1px rgba(16, 11, 3, 0.95), 0 0 8px rgba(var(--hx-gold), 0.35);
 }
@@ -194,7 +219,7 @@
 .hx-rune::after {
   content: "";
   position: absolute;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  clip-path: var(--hx-rune-clip, polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%));
   transition: inset 0.25s ease, opacity 0.25s ease, background 0.25s ease;
 }
 .hx-rune::before { inset: 3px 3.5px; background: linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 45%, rgb(var(--hx-bronze))); opacity: 0.4; }
@@ -263,6 +288,7 @@
     linear-gradient(transparent, var(--t-side-b) 65%) bottom / 100% 44px no-repeat local,
     radial-gradient(farthest-side at 50% 0, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) top / 100% 16px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) bottom / 100% 16px no-repeat scroll,
+    var(--t-side-art, linear-gradient(transparent, transparent)),
     var(--t-side-pattern, linear-gradient(transparent, transparent)) scroll,
     linear-gradient(180deg, var(--t-side-a), var(--t-side-b)) scroll;
 }
