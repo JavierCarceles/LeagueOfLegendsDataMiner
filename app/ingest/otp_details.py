@@ -1029,6 +1029,64 @@ def _resave(db, svc, r, match: dict, timeline: dict | None) -> bool:
         return False
 
 
+# Progreso del re-análisis de las partidas guardadas, visible arriba en la web. El total de la versión se guarda en la
+# base de datos (``PROGRESS_KEY``): al reiniciar la app sigue por donde iba (hechas = total - lo que queda sin rehacer),
+# no vuelve a empezar la cuenta. Al acabar se marca hecho y la etiqueta desaparece.
+PROGRESS_KEY = "otp.reanalysis"
+_progress: dict = {"running": False}
+
+
+def _version_now() -> int:
+    return DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
+
+
+def _saved_progress(db) -> dict:
+    try:
+        return json.loads(db.meta_get(PROGRESS_KEY) or "{}") or {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _save_progress(db, record: dict) -> None:
+    try:
+        db.meta_set(PROGRESS_KEY, json.dumps(record))
+    except Exception:  # noqa: BLE001 - sin guardarlo solo se pierde la cuenta, no el re-análisis
+        log.debug("No se pudo guardar el progreso del re-análisis", exc_info=True)
+
+
+def progress_begin(db, pending: int) -> bool:
+    """Empieza (o sigue) la cuenta del re-análisis de esta versión con ``pending`` partidas por rehacer. ``False`` si
+    ya se acabó y solo quedan las que no se pueden rehacer (sin el bruto guardado): no hace falta volver a intentarlo."""
+    version = _version_now()
+    saved = _saved_progress(db)
+    if saved.get("version") == version:
+        if saved.get("finished") and pending <= int(saved.get("left") or 0):
+            return False
+        total = max(int(saved.get("total") or 0), pending)
+    else:
+        total = pending
+    _save_progress(db, {"version": version, "total": total})
+    _progress.clear()
+    _progress.update(running=True, total=total, done=total - pending)
+    return True
+
+
+def progress_end(db, stopped: bool) -> None:
+    """Fin de una tanda: si se paró a medias (cerrar la app) sigue la próxima vez; si no, queda hecho."""
+    if _progress.get("running") and not stopped:
+        _save_progress(db, {"version": _version_now(), "total": _progress.get("total", 0), "finished": True, "left": outdated(db)})
+    _progress["running"] = False
+
+
+def reanalysis_status() -> dict:
+    """Para la web: {"running", "done", "total", "pct"} mientras se re-analiza; {"running": False} si no."""
+    if not _progress.get("running"):
+        return {"running": False}
+    total = max(1, int(_progress.get("total") or 0))
+    done = min(total, int(_progress.get("done") or 0))
+    return {"running": True, "done": done, "total": total, "pct": int(done * 100 / total)}
+
+
 def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None = None, pause=None) -> int:
     """Rehace los dossiers con el análisis actual a partir del bruto guardado (sin llamadas a Riot) y la carpeta.
 
@@ -1047,6 +1105,8 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
         if _pause_or_stop(stop, pause):
             break
         match, timeline = load_raw(db, svc, r["match_id"], r["puuid"])
+        if _progress.get("running"):
+            _progress["done"] = _progress.get("done", 0) + 1  # también las que no se pueden rehacer: ya están vistas
         if match is None:
             continue
         if _resave(db, svc, r, match, timeline):
@@ -1216,11 +1276,14 @@ def _reanalysis_run(svc, db, stop, pending: int, unclassified: int, stale: bool,
             rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
         elif moved and not pending:
             relocate(svc, moved)
-        if pending:
-            log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
+        if pending and progress_begin(db, pending):
+            log.info("Re-analizando %d partidas guardadas con la versión %d del análisis (%d de %d hechas)…",
+                     pending, ANALYSIS_VERSION, _progress["done"], _progress["total"])
             done = reanalyze(db, svc, stop=stop, pause=lambda: _in_game(svc))
+            progress_end(db, stopped=_stopped(stop))
             log.info("Partidas re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
     except Exception:
+        _progress["running"] = False
         log.exception("Fallo re-analizando o clasificando las partidas guardadas")
 
 

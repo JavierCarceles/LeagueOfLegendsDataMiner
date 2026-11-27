@@ -162,6 +162,7 @@ async function refreshStatus() {
     if (status.crawler?.running) text += " · recolectando";
     pill.lastChild.textContent = text;
     renderProfilePill(status.tracker);
+    renderReanalysisPill(status.reanalysis);
     renderDataPill(status.warmer);
     renderPushPill(status.push);
   } catch {
@@ -223,6 +224,17 @@ function profileExtra(tracker, p) {
   if (tracker.status === "syncing") return h("span.spinner.sm", { title: "Descargando partidas" });
   if (tracker.in_game) return h("span.pill.pill-warn", "en partida");
   return p.linked ? null : h("span.dot.warn");
+}
+
+/** Partidas guardadas re-analizándose con la versión nueva del análisis: hechas de cuántas (sigue la cuenta al
+ * reiniciar la app). Al acabar, la etiqueta desaparece. */
+function renderReanalysisPill(r) {
+  const el = document.getElementById("reanalysis-pill");
+  if (!el) return;
+  el.classList.toggle("hidden", !r?.running);
+  if (!r?.running) return;
+  mount(el, h("span.spinner.sm"), h("span", `Re-analizando ${fmt.int(r.done)} de ${fmt.int(r.total)} (${r.pct} %)`));
+  el.title = "Rehaciendo las partidas guardadas con el análisis nuevo, en segundo plano y en pausa mientras juegas. Si cierras la app, sigue por donde iba.";
 }
 
 function renderDataPill(w) {
