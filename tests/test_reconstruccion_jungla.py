@@ -72,3 +72,42 @@ def test_la_experiencia_elige_que_campamentos_hizo():
     with_xp = A._camp_route(sites, {}, ends, 120_000, 3, (676, A.XP_FACTOR[1]))
     assert {n for n, _ in with_xp[1]} == {red, krugs, raptors}
     assert {n for n, _ in shortest[1]} != {red, krugs, raptors}
+
+
+def test_los_campamentos_que_el_cs_da_por_hechos_se_adelantan_en_orden_sin_solaparse():
+    # Tramo de 2 minutos con el frame del medio sin posición: el CS dice 3 campamentos hechos al 2:00.
+    sites = [(f"100_{n}", geo.CAMPS[(100, n)]) for n in ("blue", "gromp", "wolves")]
+    route = (A._route_length((3800, 7000), tuple(sites), (3800, 6500)), tuple(sites))
+    out, killed = {}, {}
+    A._place_camps(out, killed, (60_000, 180_000, 2), (3800, 7000), route, (9_000, 60_000), [120_000] * 3)
+    times = [t for t, *_ in out[2]]
+    assert times == sorted(times)
+    assert all(b - a >= 9_000 for a, b in zip(times[0::2], times[1::2]))  # cada uno, su limpieza entera
+    assert times[-1] <= 120_000  # el último, hecho a la hora del CS
+
+
+def test_las_dos_primeras_escuttles_solo_son_de_quien_dice_riot():
+    sites = A._camp_sites()
+    nobody = {"scuttles": 3, "enemy": 0, "initial": 0, "buffs": 0}
+    names = {n for n, _ in A._camp_candidates(sites, 100, nobody, killed={})}
+    assert not any(A._is_scuttle(n) for n in names)
+    later = {n for n, _ in A._camp_candidates(sites, 100, nobody, killed={"0_scuttle_top": 200_000})}
+    assert "0_scuttle_top" in later and "0_scuttle_bot" not in later  # la de arriba ya reapareció: esa sí
+    budget = {"scuttles": 2, "initial": 1}
+    A._spend_budget(budget, 100, ["0_scuttle_bot"], frozenset({"0_scuttle_bot", "0_scuttle_top"}))
+    assert budget == {"scuttles": 1, "initial": 0}
+
+
+def test_las_primeras_escuttles_dan_menos_experiencia():
+    assert A._camp_xp("0_scuttle_top", {}) == A.CAMP_XP["scuttle"] * A.INITIAL_SCUTTLE_XP
+    assert A._camp_xp("0_scuttle_top", {"0_scuttle_top": 200_000}) == A.CAMP_XP["scuttle"]
+
+
+def test_una_subida_de_nivel_junto_a_una_muerte_rival_no_es_de_un_campamento():
+    g = _G()
+    g.players = {7: {"team": 200}, 3: {"team": 100}}
+    g.kills = [{"t": 300_000, "killer": 9, "assists": [], "victim": 3}]  # muere un rival cerca: experiencia para todos
+    g.levels = {7: [(300_400, 5), (330_000, 6)]}
+    g.fval = lambda pid, i, key: 0
+    g.ts = [240_000, 360_000]
+    assert A._camp_level_ups(g, 7, 240_000, 360_000) == [330_000]

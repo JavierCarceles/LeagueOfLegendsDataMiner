@@ -338,6 +338,9 @@ def _player_entry(pid: int, p: dict, role: str | None, team: int) -> dict:
         # campamentos se le pueden poner (sin esto, sus escuttles e invasiones salían como campamentos suyos).
         "scuttles": (p.get("challenges") or {}).get("scuttleCrabKills"),
         "enemy_cs": p.get("totalEnemyJungleMinionsKilled"),
+        # De las dos primeras escuttles (las de las 2:55), cuántas fueron suyas, y cuántos bufos rivales robó (exactos).
+        "initial_crabs": (p.get("challenges") or {}).get("initialCrabCount"),
+        "buffs_stolen": (p.get("challenges") or {}).get("buffsStolen"),
     }
 
 
@@ -1128,34 +1131,73 @@ def _is_scuttle(name: str) -> bool:
 
 
 def _jungle_budget(g, pid: int) -> dict:
-    """Lo que le queda por colocar a un jungla en toda la partida según Riot: escuttles y campamentos rivales (``None``:
-    sin dato, sin tope)."""
+    """Lo que le queda por colocar a un jungla en toda la partida según Riot: escuttles (y de ellas, de las dos
+    primeras), campamentos rivales y bufos rivales robados (``None``: sin dato, sin tope)."""
     info = g.players.get(pid) or {}
     enemy_cs = info.get("enemy_cs")
-    return {"scuttles": info.get("scuttles"), "enemy": None if enemy_cs is None else round(_num(enemy_cs) / CAMP_CS)}
+    return {
+        "scuttles": info.get("scuttles"),
+        "enemy": None if enemy_cs is None else round(_num(enemy_cs) / CAMP_CS),
+        "initial": info.get("initial_crabs"),
+        "buffs": info.get("buffs_stolen"),
+    }
 
 
-def _camp_candidates(sites: list, team: int, budget: dict) -> list:
-    """Los sitios que le caben: sin escuttles si ya hizo todas las suyas y sin campamentos rivales si ya agotó su CS
-    de la jungla rival (o si no hizo ninguno: dato exacto de Riot)."""
+# Las dos primeras escuttles (salen a las 2:55) son de quien Riot dice (``initialCrabCount``): a los demás no se les
+# ponen y, mientras al suyo le quede alguna por poner, cuenta como ``INITIAL_SCUTTLE_BONUS`` unidades de rodeo menos
+# (tu Hecarim grabado el 26-11-2026: la de arriba a las 4:10, cuando la app se la ponía por primera vez a las 10:07 y le
+# daba otra de abajo a las 5:56). Los bufos rivales, como mucho los que robó (``buffsStolen``).
+INITIAL_SCUTTLE_BONUS = 0.0  # probado 3.000-8.000: las mete en el primer hueco (antes de las 3:00) y descuadra lo demás
+
+
+def _owed(killed: dict[str, int], budget: dict) -> tuple[frozenset, int]:
+    """(primeras escuttles que siguen sin hacer, cuántas se le deben aún a este jungla)."""
+    left = budget.get("initial")
+    if not left or left <= 0:
+        return frozenset(), 0
+    return frozenset(f"0_scuttle_{side}" for side in geo.SCUTTLE if f"0_scuttle_{side}" not in killed), int(left)
+
+
+def _owed_bonus(combo, owed: tuple[frozenset, int]) -> float:
+    names, left = owed
+    if not left:
+        return 0.0
+    return INITIAL_SCUTTLE_BONUS * min(left, sum(1 for name, _ in combo if name in names))
+
+
+def _camp_candidates(sites: list, team: int, budget: dict, killed: dict[str, int] | None = None) -> list:
+    """Los sitios que le caben: sin escuttles si ya hizo todas las suyas (ni las dos primeras si no son suyas), sin
+    campamentos rivales si ya agotó su CS de la jungla rival (o si no hizo ninguno: dato exacto de Riot) y sin bufos
+    rivales si ya robó los que dice Riot."""
     out = []
     for name, pos in sites:
         if _is_scuttle(name):
             if budget.get("scuttles") is not None and budget["scuttles"] <= 0:
                 continue
-        elif not name.startswith(f"{team}_") and budget.get("enemy") is not None and budget["enemy"] <= 0:
-            continue
+            if killed is not None and name not in killed and budget.get("initial") is not None and budget["initial"] <= 0:
+                continue
+        elif not name.startswith(f"{team}_"):
+            if budget.get("enemy") is not None and budget["enemy"] <= 0:
+                continue
+            if name.rsplit("_", 1)[-1] in BUFFS and budget.get("buffs") is not None and budget["buffs"] <= 0:
+                continue
         out.append((name, pos))
     return out
 
 
-def _spend_budget(budget: dict, team: int, names) -> None:
+def _spend_budget(budget: dict, team: int, names, initial: frozenset = frozenset()) -> None:
+    """Descuenta lo hecho; ``initial``: las primeras escuttles que seguían sin hacer antes de colocar estos campamentos."""
     for name in names:
         if _is_scuttle(name):
             if budget.get("scuttles") is not None:
                 budget["scuttles"] -= 1
-        elif not name.startswith(f"{team}_") and budget.get("enemy") is not None:
-            budget["enemy"] -= 1
+            if name in initial and budget.get("initial") is not None:
+                budget["initial"] -= 1
+        elif not name.startswith(f"{team}_"):
+            if budget.get("enemy") is not None:
+                budget["enemy"] -= 1
+            if name.rsplit("_", 1)[-1] in BUFFS and budget.get("buffs") is not None:
+                budget["buffs"] -= 1
 
 
 def _camp_paces(g, pid: int, a: int, b: int) -> list[tuple[int, float]]:
@@ -1236,9 +1278,10 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
         return  # lo que faltaba del campamento que acababa de hacer (los krugs se dividen): ya está colocado
     # Sin ningún monstruo de la jungla rival en toda la partida (dato exacto de Riot), sus campamentos no se le ponen.
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
-    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget)
+    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
     xp = _span_xp(g, pid, a, b) if not epics else None
-    best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX), xp)
+    owed = _owed(killed, budget)
+    best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX), xp, owed)
     fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
     if fits is None:
         g.camp_misses += 1  # no cuadra: no da tiempo andando (o el CS vino de otra forma)
@@ -1248,10 +1291,42 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     for j in range(1, len(c)):
         due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
     _place_camps(out, killed, span, p0, best, fits, due)
-    _spend_budget(budget, team, [name for name, _ in best[1]])
+    _spend_budget(budget, team, [name for name, _ in best[1]], owed[0])
 
 
 CAMP_PARTIAL = 1  # CS que pueden faltar para dar un campamento por acabado (de 4: con 3 ya está casi hecho)
+
+# Una subida de nivel del jungla sin una kill o asistencia suya ni un objetivo al lado (``LEVEL_CAMP_GAP_MS``) es que
+# acababa de matar un campamento: en un tramo con kills, el trozo donde cae tiene campamentos. En tu Hecarim grabado el
+# 26-11-2026 robó el azul rival a las 7:54 (subió a nivel 7 en ese segundo), después de las dos kills de las 7:27 y las
+# 7:36; la app lo ponía antes de ellas, y luego rapaces, rojo y krugs en vez de rojo, krugs y rapaces.
+LEVEL_CAMP_GAP_MS = 1_500
+LEVEL_MISS_COST = 0.0  # apagado: 2.000-8.000 arreglan tu minuto 7 pero, al cambiar qué campamentos siguen vivos, estropean el 9, el 10, el 13 y el 17 (grabación 1.033 → 1.239)
+
+
+def _camp_level_ups(g, pid: int, t0: int, t1: int) -> list[int]:
+    """Momentos del tramo en que ``pid`` subió de nivel por un campamento. No cuentan las subidas por una kill o
+    asistencia suya ni por un objetivo (esa experiencia llega en el mismo segundo), ni las de un minuto en que hizo CS de
+    súbditos o en que se le ve en una línea (la experiencia de una oleada llega aunque no los remate)."""
+    team = (g.players.get(pid) or {}).get("team")
+    # Una muerte rival da experiencia a todos los de su equipo a menos de 1.600 unidades, aunque no asistan (wiki oficial,
+    # «Experience (champion)», 26.1): cualquier muerte de un rival cerca en el tiempo puede ser la de la subida.
+    near = [k["t"] for k in getattr(g, "kills", ())
+            if pid in (k.get("killer"), *(k.get("assists") or ())) or (g.players.get(k.get("victim")) or {}).get("team") not in (None, team)]
+    near += [t for t, _killer in getattr(g, "epic_kills", ())]
+    out = []
+    for t, _lvl in (getattr(g, "levels", {}) or {}).get(pid) or []:
+        if not t0 < t <= t1 or any(abs(t - x) <= LEVEL_CAMP_GAP_MS for x in near):
+            continue
+        i = bisect.bisect_left(g.ts, t)
+        if 0 < i < len(g.ts):
+            before, after = g.fval(pid, i - 1, "minionsKilled"), g.fval(pid, i, "minionsKilled")
+            if before is None or after is None or after > before:
+                continue
+            if any(q and geo.is_lane(geo.zone(q)) for q in (g.frame_pos(pid, i - 1), g.frame_pos(pid, i))):
+                continue  # en una línea al empezar o al acabar el minuto: pudo ser la experiencia de una oleada
+        out.append(t)
+    return out
 
 
 def _camps_done(cs: float) -> int:
@@ -1268,8 +1343,9 @@ def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], s
     gaps = _camp_gaps(g, pid, (t0, ends[0]), inside, (t1, ends[1]))
     paces = _camp_paces(g, pid, a, span[4])
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
-    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget)
-    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces)
+    candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
+    levels = _camp_level_ups(g, pid, t0, t1)
+    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces, _owed(killed, budget), levels)
     if plan is None:
         _mark_skipped(sites, killed, (t0, t1), ends, k)
         return
@@ -1278,9 +1354,10 @@ def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], s
     for j in range(1, len(c)):
         due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
     for (gs, ps, ge, _pe), route, fits in plan:
+        initial = _owed(killed, budget)[0]
         _place_camps(out, killed, (gs, ge, pid), ps, route, fits, due[: len(route[1])])
         due = due[len(route[1]):]
-        _spend_budget(budget, team, [name for name, _ in route[1]])
+        _spend_budget(budget, team, [name for name, _ in route[1]], initial)
 
 
 def _camp_gaps(g, pid: int, start: tuple, inside: list, end: tuple) -> list[tuple]:
@@ -1301,21 +1378,32 @@ def _camp_gaps(g, pid: int, start: tuple, inside: list, end: tuple) -> list[tupl
     return gaps
 
 
-def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: list) -> list | None:
-    """El reparto de ``k`` campamentos entre los trozos que cabe y menos rodeo hace: [(trozo, ruta, ritmo)] o ``None``."""
+def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: list,
+                owed: tuple[frozenset, int] = (frozenset(), 0), levels: list[int] = ()) -> list | None:
+    """El reparto de ``k`` campamentos entre los trozos que cabe y menos rodeo hace: [(trozo, ruta, ritmo)] o ``None``.
+    ``owed``: las primeras escuttles que se le deben (restan rodeo, ver ``INITIAL_SCUTTLE_BONUS``). ``levels``: sus
+    subidas de nivel por campamento (``_camp_level_ups``): dejar sin campamentos el trozo de una cuesta
+    ``LEVEL_MISS_COST``."""
     best = None
     for counts in _compositions(k, len(gaps)):
         dead = dict(killed)  # lo que hace en un trozo no está vivo en el siguiente
-        plan, extra = [], 0.0
+        plan, left = [], owed
+        extra = LEVEL_MISS_COST * sum(
+            1 for gap, n in zip(gaps, counts) if not n and any(gap[0] < t <= gap[2] + LEVEL_CAMP_GAP_MS for t in levels)
+        )
         for gap, n in zip(gaps, counts):
             if not n:
                 continue
-            step = _camp_piece(gap, n, sites, dead, paces)
+            step = _camp_piece(gap, n, sites, dead, paces, left)
             if step is None:
                 break
             route, fits = step
             plan.append((gap, route, fits))
-            extra += route[0] - (geo.dist(gap[1], gap[3]) if gap[3] is not None else 0.0)
+            bonus = _owed_bonus(route[1], left)
+            extra += route[0] - (geo.dist(gap[1], gap[3]) if gap[3] is not None else 0.0) - bonus
+            if bonus:
+                taken = {name for name, _ in route[1]} & left[0]
+                left = (left[0] - taken, left[1] - len(taken))
             t = gap[0]
             for name, _ in route[1]:
                 dead[name] = t  # basta con que no esté vivo para el trozo siguiente
@@ -1325,22 +1413,25 @@ def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: 
     return best[1] if best else None
 
 
-def _camp_piece(gap: tuple, n: int, sites: list, killed: dict[str, int], paces: list) -> tuple | None:
+def _camp_piece(gap: tuple, n: int, sites: list, killed: dict[str, int], paces: list,
+                owed: tuple[frozenset, int] = (frozenset(), 0)) -> tuple | None:
     """Ruta y ritmo de ``n`` campamentos en un trozo, o ``None`` si no da tiempo. En el que acaba en una vuelta a base
     va a su ritmo (y espera en el último campamento a volver), no estirado hasta llenar el trozo."""
     ts, ps, te, pe = gap
     if pe is not None:
-        route = _camp_route(sites, killed, (ps, pe), te, n)
+        route = _camp_route(sites, killed, (ps, pe), te, n, owed=owed)
         if route is None or len(route[1]) < n:
             return None
         fits = _camp_fit(paces, te - ts, route)
         return (route, fits) if fits else None
     alive = sorted(((name, pos) for name, pos in sites if _alive(name, killed, te)), key=lambda s: geo.dist(s[1], ps))
-    best = None
-    for combo in permutations(alive[:CAMP_CANDIDATES], n):
+    near = _with_owed(alive[:CAMP_CANDIDATES], alive, owed)
+    best, best_score = None, math.inf
+    for combo in permutations(near, n):
         length = _route_length(ps, combo, combo[-1][1])
-        if best is None or length < best[0]:
-            best = (length, combo)
+        score = length - _owed_bonus(combo, owed)
+        if score < best_score:
+            best, best_score = (length, combo), score
     if best is None:
         return None
     for clear_ms, speed in paces:
@@ -1402,8 +1493,14 @@ XP_FACTOR = {1: 2.33, 2: 1.82, 3: 1.84, 4: 2.10, 5: 2.28, 6: 2.29, 7: 2.31, 8: 2
 XP_WEIGHT = 20.0  # unidades de rodeo que vale cada punto de experiencia que no cuadra (medido: 0-50)
 
 
-def _camp_xp(name: str) -> int:
-    return CAMP_XP.get(name.rsplit("_", 1)[-1], 95)
+INITIAL_SCUTTLE_XP = 0.2  # las dos primeras escuttles dan un 80 % menos de experiencia (wiki oficial, 26.1)
+
+
+def _camp_xp(name: str, killed: dict[str, int] | None = None) -> float:
+    if not _is_scuttle(name):
+        return CAMP_XP.get(name.rsplit("_", 1)[-1], 95)
+    base = CAMP_XP["scuttle"]  # «0_scuttle_top»: antes se buscaba «top» y valían 95
+    return base * INITIAL_SCUTTLE_XP if killed is not None and name not in killed else base
 
 
 def _span_xp(g, pid: int, a: int, b: int) -> tuple[float, float] | None:
@@ -1420,23 +1517,32 @@ def _span_xp(g, pid: int, a: int, b: int) -> tuple[float, float] | None:
     return xb - xa, factor
 
 
-def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int, xp: tuple | None = None) -> tuple[float, tuple] | None:
+def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int, xp: tuple | None = None,
+                owed: tuple[frozenset, int] = (frozenset(), 0)) -> tuple[float, tuple] | None:
     """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos).
     Con ``xp`` (la experiencia que ganó y lo que da cada punto de base a su nivel) gana la combinación cuya experiencia
     cuadra con la de Riot: rojo, krugs y rapaces no dan lo mismo que rojo, rapaces y lobos (tu primer despeje grabado)."""
     p0, p1 = ends
     alive = [(name, pos) for name, pos in sites if _alive(name, killed, t1)]
     alive.sort(key=lambda s, p0=p0, p1=p1: geo._dist_segment(s[1], p0, p1))
-    alive = alive[:CAMP_CANDIDATES]
+    near = _with_owed(alive[:CAMP_CANDIDATES], alive, owed)
     best, best_score = None, math.inf
-    for combo in permutations(alive, min(k, len(alive))):
+    for combo in permutations(near, min(k, len(near))):
         length = _route_length(p0, combo, p1)
-        score = length
+        score = length - _owed_bonus(combo, owed)
         if xp is not None:
-            score += XP_WEIGHT * abs(xp[0] - xp[1] * sum(_camp_xp(name) for name, _ in combo))
+            score += XP_WEIGHT * abs(xp[0] - xp[1] * sum(_camp_xp(name, killed) for name, _ in combo))
         if score < best_score:
             best, best_score = (length, combo), score
     return best
+
+
+def _with_owed(near: list, alive: list, owed: tuple[frozenset, int]) -> list:
+    """Los campamentos más cercanos y, aunque estén más lejos, las primeras escuttles vivas que se le deben."""
+    if not owed[1]:
+        return near
+    have = {name for name, _ in near}
+    return near + [s for s in alive if s[0] in owed[0] and s[0] not in have]
 
 
 def _route_length(start, combo: tuple, end) -> float:
@@ -1466,17 +1572,32 @@ def _place_camps(
     length, combo = route
     clear_ms, walk = fits
     speed = length / walk
-    t, here = t0, p0
-    for n, (name, pos) in enumerate(combo):
+    starts, t, here = [], t0, p0
+    for name, pos in combo:
         t += geo.dist(here, pos) / speed if speed > 0 else 0
         t = max(t, _spawn_ms(name))
-        if n < len(due) and t + clear_ms > due[n]:
-            t = max(t0, due[n] - clear_ms)  # el CS dice que ya lo había hecho a esa hora
-        out.setdefault(pid, []).append((int(t), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+        starts.append(t)
         t += clear_ms
-        out[pid].append((int(min(t, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
-        killed[name] = int(t)
         here = pos
+    # El CS de un frame dice que ya había hecho esos campamentos a esa hora: fue más rápido que el ritmo medio del tramo.
+    # Se adelantan desde el último, en orden y andando entre ellos a ``CAMP_MAX_SPEED`` (antes cada uno se ponía en los
+    # 9 s antes del frame y, si eran varios, todos a la vez: saltaba de uno a otro).
+    limit = math.inf
+    for n in range(len(combo) - 1, -1, -1):
+        end = starts[n] + clear_ms
+        if n < len(due):
+            end = min(end, due[n])
+        end = min(end, limit)
+        starts[n] = max(t0, end - clear_ms)
+        if n:
+            limit = starts[n] - geo.dist(combo[n - 1][1], combo[n][1]) / CAMP_MAX_SPEED
+    prev_end = t0
+    for n, (name, pos) in enumerate(combo):
+        start = max(starts[n], prev_end)  # sin solaparse aunque no dé tiempo
+        out.setdefault(pid, []).append((int(start), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+        prev_end = start + clear_ms
+        out[pid].append((int(min(prev_end, t1 - 1)), int(pos[0]), int(pos[1]), ANCHOR_CAMP))
+        killed[name] = int(prev_end)
 
 
 # ---------------------------------------------------------------- paso por la línea deducido del CS de súbditos
