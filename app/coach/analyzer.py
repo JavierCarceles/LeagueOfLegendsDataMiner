@@ -1150,19 +1150,37 @@ def _jungle_budget(g, pid: int) -> dict:
 INITIAL_SCUTTLE_BONUS = 0.0  # probado 3.000-8.000: las mete en el primer hueco (antes de las 3:00) y descuadra lo demás
 
 
-def _owed(killed: dict[str, int], budget: dict) -> tuple[frozenset, int]:
-    """(primeras escuttles que siguen sin hacer, cuántas se le deben aún a este jungla)."""
+BUFF_OWED_BONUS = 0.0  # lo mismo con los bufos rivales robados (buffsStolen) aún sin poner; probado 500-2.000: igual o peor (grabación 1.033 → 1.086)
+
+
+def _initial_left(killed: dict[str, int]) -> frozenset:
+    """Las primeras escuttles que siguen sin hacer (las de las 2:55)."""
+    return frozenset(f"0_scuttle_{side}" for side in geo.SCUTTLE if f"0_scuttle_{side}" not in killed)
+
+
+def _owed(killed: dict[str, int], budget: dict, team: int | None = None) -> tuple:
+    """Lo que Riot dice que hizo y aún no se le ha puesto, por grupos: ((sitios, cuántos, rodeo que descuenta cada uno),
+    …). Solo los grupos con descuento."""
+    groups = []
     left = budget.get("initial")
-    if not left or left <= 0:
-        return frozenset(), 0
-    return frozenset(f"0_scuttle_{side}" for side in geo.SCUTTLE if f"0_scuttle_{side}" not in killed), int(left)
+    if left and left > 0 and INITIAL_SCUTTLE_BONUS:
+        groups.append((_initial_left(killed), int(left), INITIAL_SCUTTLE_BONUS))
+    left = budget.get("buffs")
+    if team is not None and left and left > 0 and BUFF_OWED_BONUS:
+        rival = 300 - team
+        groups.append((frozenset(f"{rival}_{b}" for b in BUFFS), int(left), BUFF_OWED_BONUS))
+    return tuple(groups)
 
 
-def _owed_bonus(combo, owed: tuple[frozenset, int]) -> float:
-    names, left = owed
-    if not left:
-        return 0.0
-    return INITIAL_SCUTTLE_BONUS * min(left, sum(1 for name, _ in combo if name in names))
+def _owed_bonus(combo, owed: tuple) -> float:
+    names = [name for name, _ in combo]
+    return sum(bonus * min(left, sum(1 for n in names if n in group)) for group, left, bonus in owed)
+
+
+def _owed_take(owed: tuple, combo) -> tuple:
+    """Lo que se le sigue debiendo después de hacer ``combo``."""
+    names = {name for name, _ in combo}
+    return tuple((group - names, left - len(group & names), bonus) for group, left, bonus in owed if left - len(group & names) > 0)
 
 
 def _camp_candidates(sites: list, team: int, budget: dict, killed: dict[str, int] | None = None) -> list:
@@ -1280,7 +1298,8 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
     candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
     xp = _span_xp(g, pid, a, b) if not epics else None
-    owed = _owed(killed, budget)
+    owed = _owed(killed, budget, team)
+    initial = _initial_left(killed)
     best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX), xp, owed)
     fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
     if fits is None:
@@ -1291,7 +1310,7 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     for j in range(1, len(c)):
         due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
     _place_camps(out, killed, span, p0, best, fits, due)
-    _spend_budget(budget, team, [name for name, _ in best[1]], owed[0])
+    _spend_budget(budget, team, [name for name, _ in best[1]], initial)
 
 
 CAMP_PARTIAL = 1  # CS que pueden faltar para dar un campamento por acabado (de 4: con 3 ya está casi hecho)
@@ -1345,7 +1364,7 @@ def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], s
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
     candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
     levels = _camp_level_ups(g, pid, t0, t1)
-    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces, _owed(killed, budget), levels)
+    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces, _owed(killed, budget, team), levels)
     if plan is None:
         _mark_skipped(sites, killed, (t0, t1), ends, k)
         return
@@ -1354,7 +1373,7 @@ def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], s
     for j in range(1, len(c)):
         due += [g.ts[a + j]] * max(0, round((c[j] - c[j - 1]) / CAMP_CS))
     for (gs, ps, ge, _pe), route, fits in plan:
-        initial = _owed(killed, budget)[0]
+        initial = _initial_left(killed)
         _place_camps(out, killed, (gs, ge, pid), ps, route, fits, due[: len(route[1])])
         due = due[len(route[1]):]
         _spend_budget(budget, team, [name for name, _ in route[1]], initial)
@@ -1379,7 +1398,7 @@ def _camp_gaps(g, pid: int, start: tuple, inside: list, end: tuple) -> list[tupl
 
 
 def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: list,
-                owed: tuple[frozenset, int] = (frozenset(), 0), levels: list[int] = ()) -> list | None:
+                owed: tuple = (), levels: list[int] = ()) -> list | None:
     """El reparto de ``k`` campamentos entre los trozos que cabe y menos rodeo hace: [(trozo, ruta, ritmo)] o ``None``.
     ``owed``: las primeras escuttles que se le deben (restan rodeo, ver ``INITIAL_SCUTTLE_BONUS``). ``levels``: sus
     subidas de nivel por campamento (``_camp_level_ups``): dejar sin campamentos el trozo de una cuesta
@@ -1399,11 +1418,8 @@ def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: 
                 break
             route, fits = step
             plan.append((gap, route, fits))
-            bonus = _owed_bonus(route[1], left)
-            extra += route[0] - (geo.dist(gap[1], gap[3]) if gap[3] is not None else 0.0) - bonus
-            if bonus:
-                taken = {name for name, _ in route[1]} & left[0]
-                left = (left[0] - taken, left[1] - len(taken))
+            extra += route[0] - (geo.dist(gap[1], gap[3]) if gap[3] is not None else 0.0) - _owed_bonus(route[1], left)
+            left = _owed_take(left, route[1])
             t = gap[0]
             for name, _ in route[1]:
                 dead[name] = t  # basta con que no esté vivo para el trozo siguiente
@@ -1414,7 +1430,7 @@ def _camp_split(gaps: list, k: int, sites: list, killed: dict[str, int], paces: 
 
 
 def _camp_piece(gap: tuple, n: int, sites: list, killed: dict[str, int], paces: list,
-                owed: tuple[frozenset, int] = (frozenset(), 0)) -> tuple | None:
+                owed: tuple = ()) -> tuple | None:
     """Ruta y ritmo de ``n`` campamentos en un trozo, o ``None`` si no da tiempo. En el que acaba en una vuelta a base
     va a su ritmo (y espera en el último campamento a volver), no estirado hasta llenar el trozo."""
     ts, ps, te, pe = gap
@@ -1518,7 +1534,7 @@ def _span_xp(g, pid: int, a: int, b: int) -> tuple[float, float] | None:
 
 
 def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: int, xp: tuple | None = None,
-                owed: tuple[frozenset, int] = (frozenset(), 0)) -> tuple[float, tuple] | None:
+                owed: tuple = ()) -> tuple[float, tuple] | None:
     """De los campamentos vivos más cerca del tramo, los ``k`` que forman el camino más corto: (longitud, campamentos).
     Con ``xp`` (la experiencia que ganó y lo que da cada punto de base a su nivel) gana la combinación cuya experiencia
     cuadra con la de Riot: rojo, krugs y rapaces no dan lo mismo que rojo, rapaces y lobos (tu primer despeje grabado)."""
@@ -1537,12 +1553,13 @@ def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: in
     return best
 
 
-def _with_owed(near: list, alive: list, owed: tuple[frozenset, int]) -> list:
-    """Los campamentos más cercanos y, aunque estén más lejos, las primeras escuttles vivas que se le deben."""
-    if not owed[1]:
+def _with_owed(near: list, alive: list, owed: tuple) -> list:
+    """Los campamentos más cercanos y, aunque estén más lejos, los vivos que se le deben (``_owed``)."""
+    if not owed:
         return near
+    want = set().union(*(group for group, _left, _bonus in owed))
     have = {name for name, _ in near}
-    return near + [s for s in alive if s[0] in owed[0] and s[0] not in have]
+    return near + [s for s in alive if s[0] in want and s[0] not in have]
 
 
 def _route_length(start, combo: tuple, end) -> float:
