@@ -187,6 +187,9 @@ class VideoCollector:
             tracker = getattr(self.svc, "tracker", None)
             if tracker is not None and (tracker.state.get("busy") or tracker.state.get("in_game")):
                 return "en_partida"
+        recorder = getattr(self.svc, "recorder", None)
+        if recorder is not None and recorder.analyzing:
+            return "tu_grabacion"  # tu partida grabada va primero: los dos leyendo vídeo a la vez se repartían la CPU
         if time.time() < self.limited_until:
             return "youtube_frena"
         return None
@@ -436,9 +439,10 @@ class VideoCollector:
         self.threads = workers
 
     def _should_stop_frames(self) -> bool:
-        """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar, esperar a que acabe."""
-        while not self.stop_event.is_set() and self.paused_reason() == "en_partida":
-            self._step_label("en pausa: estás jugando")
+        """Durante el análisis de frames: parar si se cierra la app; si empiezas a jugar o se analiza tu grabación,
+        esperar a que acabe."""
+        while not self.stop_event.is_set() and (reason := self.paused_reason()) in ("en_partida", "tu_grabacion"):
+            self._step_label("en pausa: estás jugando" if reason == "en_partida" else "en pausa: analizando tu partida grabada")
             self.stop_event.wait(20)
         return self.stop_event.is_set()
 

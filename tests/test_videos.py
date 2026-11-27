@@ -579,6 +579,22 @@ def test_autostart_resumes_after_manual_pause(tmp_path, monkeypatch):
     assert not collector.store.paused and collector.paused_reason() is None and started == [True]
 
 
+def test_waits_while_your_recording_is_analyzed(tmp_path, monkeypatch):
+    """Tu partida grabada va primero: mientras se analiza, el recolector de YouTube espera (los dos leyendo vídeo a la
+    vez se repartían la CPU y la grabación tardaba más del doble)."""
+    from types import SimpleNamespace
+
+    from app.videos import collector as C
+
+    monkeypatch.setattr(C, "_clean_temp", lambda: None)
+    recorder = SimpleNamespace(analyzing={"nombre": "20261127-160405_8058584624", "paso": "frames"})
+    svc = SimpleNamespace(settings=SimpleNamespace(data_dir=tmp_path, pause_in_game=True), tracker=None, recorder=recorder)
+    collector = C.VideoCollector(svc)
+    assert collector.paused_reason() == "tu_grabacion"
+    recorder.analyzing = None
+    assert collector.paused_reason() is None
+
+
 def test_unlimited_channels_keep_their_500_latest_videos(tmp_path):
     """Un canal añadido con «Todos» y 90.000 vídeos: la cola se queda con los más recientes (500) y yt-dlp no lee más."""
     from app.videos import collector as C
