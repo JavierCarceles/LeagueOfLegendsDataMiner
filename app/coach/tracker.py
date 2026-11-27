@@ -783,8 +783,13 @@ class GameTracker:
             ids = [r[0] for r in db.query("SELECT match_id FROM my_games WHERE match_raw IS NOT NULL AND status IN ('ready', 'no_timeline', 'pending_timeline')")]
         else:
             ids = store.outdated(db, ANALYSIS_VERSION, with_items=bool(items))
+        from app.ingest import otp_details  # la etiqueta «Re-analizando X de Y» de la web (sigue la cuenta al reiniciar)
+
+        counting = bool(ids) and not force and otp_details.progress_begin(db, len(ids), part="mine")
         done = 0
         for match_id in ids:
+            if counting:
+                otp_details.progress_tick("mine")
             match, timeline, pid = store.raw_game(db, match_id)
             if not match:
                 continue
@@ -794,6 +799,8 @@ class GameTracker:
                 continue
             store.update_analysis(db, match_id, analysis, digest(analysis), analysis_version(analysis))
             done += 1
+        if counting:
+            otp_details.progress_end(db, stopped=False, part="mine", left=len(store.outdated(db, ANALYSIS_VERSION, with_items=bool(items))))
         if done:
             log.info("Re-analizadas %d partidas con la versión %d del análisis.", done, ANALYSIS_VERSION)
         return done

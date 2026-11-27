@@ -80,3 +80,15 @@ def test_las_del_ranking_se_vuelven_a_bajar_y_se_sustituyen_al_subir_la_version(
     assert od.outdated_ranking(db) == 0
     rows = db.query("SELECT COUNT(*) AS n FROM otp_games WHERE match_id = 'EUW1_901' AND kind = 'ranking'")
     assert rows[0]["n"] == players  # sustituidas, no duplicadas
+
+
+def test_la_etiqueta_suma_tus_partidas_y_las_recogidas():
+    db = _Db(0)
+    assert od.progress_begin(db, 40, part="mine")
+    od.progress_tick("mine")
+    assert od.reanalysis_status() == {"running": True, "done": 1, "total": 40, "pct": 2}
+    assert od.progress_begin(db, 60)
+    assert od.reanalysis_status()["total"] == 100
+    od.progress_end(db, stopped=False)
+    od.progress_end(db, stopped=False, part="mine", left=0)
+    assert od.reanalysis_status() == {"running": False}

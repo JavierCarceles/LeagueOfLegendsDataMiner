@@ -85,7 +85,7 @@ def status(svc=Depends(svc_from)):
         "crawler": svc.crawler.status(),
         "tracker": _tracker_brief(svc),
         "warmer": svc.warmer.status(),
-        "reanalysis": otp_details.reanalysis_status(),
+        "reanalysis": otp_details.reanalysis_status("mine"),  # tus partidas: arriba, junto a «Datos al día»
         "ratelimit": svc.limiter.snapshot(),
         "model": {"alpha": get_alpha(svc), "priors": svc.priors.get() if svc.startup_done.is_set() else None, "backtest": last_backtest(svc)},
         "features": {

@@ -1404,6 +1404,7 @@ async function loadLive() {
         mount(sections.eloTotal, totalBox);
       }
       totalAll = details;
+      showReanalysis(totalBox, details.reanalysis);
       void paintEloTotal();
     }
   } catch {
@@ -1522,8 +1523,18 @@ function eloTotalCard() {
   return h(
     "div.elo-chart-box",
     h("div.row-wrap", { style: { gap: "8px", marginBottom: "10px", alignItems: "center" } }, h("div", { style: { width: "240px", maxWidth: "100%" } }, picker), all),
+    h("div.elo-total-reanalysis.tiny.muted.hidden"),
     eloChartShell(true),
   );
+}
+
+/** Partidas guardadas re-analizándose con la versión nueva (OTPs, jugadores y todo el ranking): solo mientras dura. */
+function showReanalysis(box, r) {
+  const el = box?.querySelector(".elo-total-reanalysis");
+  if (!el) return;
+  el.classList.toggle("hidden", !r?.running);
+  if (!r?.running) return;
+  mount(el, h("span.spinner.sm"), ` Re-analizando las partidas guardadas con el análisis nuevo: ${fmt.int(r.done)}/${fmt.int(r.total)} (${r.pct} %)`);
 }
 
 function selectTotalChamp(id) {

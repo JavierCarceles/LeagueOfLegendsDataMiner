@@ -226,15 +226,16 @@ function profileExtra(tracker, p) {
   return p.linked ? null : h("span.dot.warn");
 }
 
-/** Partidas guardadas re-analizándose con la versión nueva del análisis: hechas de cuántas (sigue la cuenta al
- * reiniciar la app). Al acabar, la etiqueta desaparece. */
+/** Tus partidas re-analizándose con la versión nueva del análisis, en pequeño como la subida a GitHub: «12/57
+ * partidas» (sigue la cuenta al reiniciar la app). Al acabar, la etiqueta desaparece. Las recogidas van aparte, en
+ * «Partidas por elo (total)». */
 function renderReanalysisPill(r) {
   const el = document.getElementById("reanalysis-pill");
   if (!el) return;
   el.classList.toggle("hidden", !r?.running);
   if (!r?.running) return;
-  mount(el, h("span.spinner.sm"), h("span", `Re-analizando ${fmt.int(r.done)} de ${fmt.int(r.total)} (${r.pct} %)`));
-  el.title = "Rehaciendo las partidas guardadas con el análisis nuevo, en segundo plano y en pausa mientras juegas. Si cierras la app, sigue por donde iba.";
+  mount(el, h("span.spinner.sm"), h("span", `Re-analizando ${fmt.int(r.done)}/${fmt.int(r.total)} partidas`));
+  el.title = `Rehaciendo tus partidas con el análisis nuevo (${r.pct} %). Si cierras la app, sigue por donde iba.`;
 }
 
 function renderDataPill(w) {
