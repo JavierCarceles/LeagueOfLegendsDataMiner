@@ -22,14 +22,24 @@ EXIT_CODE = 75  # «vuelve a lanzarme»: el supervisor de run.py lo distingue de
 
 _lock = threading.Lock()
 _stopper: Callable[[], None] | None = None
+_exiting: Callable[[], bool] | None = None
 _reason: str | None = None
 
 
-def register(stopper: Callable[[], None]) -> None:
-    """``run.py``: cómo cerrar el servidor ordenadamente (``server.should_exit = True``)."""
-    global _stopper
+def register(stopper: Callable[[], None], exiting: Callable[[], bool] | None = None) -> None:
+    """``run.py``: cómo cerrar el servidor ordenadamente (``server.should_exit = True``) y cómo saber que se está
+    cerrando (también con Ctrl+C o al cerrar la ventana)."""
+    global _stopper, _exiting
     with _lock:
-        _stopper = stopper
+        _stopper, _exiting = stopper, exiting
+
+
+def stopping() -> bool:
+    """¿Se está cerrando el servidor? Las conexiones que no acaban solas (el directo de los registros en la web) se
+    cierran al verlo: si no, uvicorn esperaba 3 s, las cortaba y escribía «timeout graceful shutdown exceeded» con
+    una traza de error en cada reinicio."""
+    exiting = _exiting
+    return bool(exiting and exiting())
 
 
 def available() -> bool:

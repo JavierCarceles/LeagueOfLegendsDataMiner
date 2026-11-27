@@ -338,3 +338,29 @@ def test_supervisor_restarts_the_app_on_code_75(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "QUICK_S", 0)
     assert run.supervise(Path(sys.executable), ["--port", "9"], None) == 0
     assert len(launches) == 2 and "--no-browser" not in launches[0] and "--no-browser" in launches[1]
+
+
+def test_log_stream_ends_by_itself_when_the_app_stops(monkeypatch):
+    """Al reiniciar (o cerrar) la app, el directo de los registros de la web acaba solo: antes uvicorn esperaba 3 s, lo
+    cortaba y escribía «timeout graceful shutdown exceeded» con una traza de error en cada actualización."""
+    import asyncio
+
+    from app.api import system
+
+    stop = {"now": False}
+    monkeypatch.setattr(restart, "_exiting", lambda: stop["now"])
+    monkeypatch.setattr(system, "STREAM_POLL_S", 0.05)
+
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    async def run():
+        response = await system.stream_logs(Request())
+        events = response.body_iterator
+        await events.__anext__()  # «retry: 3000»
+        stop["now"] = True
+        rest = [chunk async for chunk in events]
+        return rest
+
+    assert asyncio.run(asyncio.wait_for(run(), timeout=2)) == []

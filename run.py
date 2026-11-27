@@ -658,7 +658,7 @@ def serve(args) -> int:
         # timeout_graceful_shutdown: la web abierta (stream de logs) no impide cerrar con Ctrl+C
         server = uvicorn.Server(uvicorn.Config("app.main:create_app", factory=True, host=args.host, port=port, log_level="warning",
                                                timeout_graceful_shutdown=3))
-        restart.register(lambda: setattr(server, "should_exit", True))
+        restart.register(lambda: setattr(server, "should_exit", True), lambda: bool(server.should_exit))
         server.run()
         return RESTART_CODE if restart.requested() else 0
     finally:
