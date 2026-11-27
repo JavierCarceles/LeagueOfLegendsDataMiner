@@ -9,7 +9,8 @@ Se escribe solo mientras el recolector baja partidas de OTPs (Tempu Drafter). Es
   solo cada pocos minutos mientras entran partidas.
 * `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/perfil.json`: el OTP (Riot ID, servidor, elo actual) y sus partidas
   con ese campeón en ese rol, por elo.
-* `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/partidas.jsonl.gz`: una línea JSON por partida con el dossier entero:
+* `<Campeón>/<ROL>/<servidor>_<Riot ID>_<id>/partidas.jsonl.gz` (y `partidas-<n>.jsonl.gz`, las que llegaron después de
+  subirlo a GitHub: léelos todos): una línea JSON por partida con el dossier entero:
   elo del OTP en ese momento (`tier`, `division`, `lp`), análisis (muertes con contexto, oro, build, jungla,
   objetivos, macro, fase de líneas, series por minuto), build completa (cada compra/venta con su segundo, orden de
   objetos, vueltas a base, objetos finales, habilidades), runas, hechizos, estadísticas de Riot, posición/zona/oro/CS
