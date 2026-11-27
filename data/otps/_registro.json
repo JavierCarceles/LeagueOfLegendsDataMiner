@@ -1,5 +1,5 @@
 {
- "at": 1795821325,
+ "at": 1795821334,
  "diagnostico": {
   "videos-frames": {
    "muestras": 4720,
@@ -90,7 +90,7 @@
    }
   },
   "db-checkpoint": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "esperando un candado (base de datos, ficheros)": 96,
     "consultando o escribiendo la base de datos": 4
@@ -103,7 +103,7 @@
    }
   },
   "MainThread": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "otro": 100
    },
@@ -217,20 +217,36 @@
    }
   },
   "videos": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
-    "parado esperando trabajo": 78,
+    "parado esperando trabajo": 75,
     "otro": 13,
-    "esperando a la red (Riot, OP.GG, GitHub)": 8,
+    "esperando a la red (Riot, OP.GG, GitHub)": 11,
     "comprimiendo o escribiendo ficheros": 1
    },
    "lineas": {
-    "videos/frames.py:776 sample_pass → threading.py:wait": 47,
-    "videos/frames.py:562 _add_scans → threading.py:wait": 22,
-    "videos/youtube.py:253 run → ssl.py:read": 7,
+    "videos/frames.py:776 sample_pass → threading.py:wait": 45,
+    "videos/frames.py:562 _add_scans → threading.py:wait": 21,
+    "videos/youtube.py:253 run → ssl.py:read": 10,
     "videos/collector.py:241 _sleep → threading.py:wait": 7,
     "videos/youtube.py:253 run → common.py:download": 4,
     "videos/frames.py:197 _search_corner": 3
+   }
+  },
+  "warm-opgg-mcp": {
+   "muestras": 1038,
+   "en": {
+    "parado esperando trabajo": 88,
+    "esperando a la red (Riot, OP.GG, GitHub)": 10,
+    "otro": 2
+   },
+   "lineas": {
+    "warmer.py:201 _work → threading.py:wait": 88,
+    "external/opgg.py:465 _mcp_post → ssl.py:read": 8,
+    "external/base.py:112 wait": 2,
+    "external/opgg.py:465 _mcp_post → utils.py:get_netrc_auth": 1,
+    "external/opgg.py:465 _mcp_post → response.py:decompress": 0,
+    "external/opgg.py:465 _mcp_post → request.py:getproxies_registry": 0
    }
   },
   "otp-summaries": {
@@ -250,7 +266,7 @@
    }
   },
   "web": {
-   "muestras": 1277,
+   "muestras": 1302,
    "en": {
     "parado esperando trabajo": 92,
     "otro": 5,
@@ -267,55 +283,39 @@
    }
   },
   "warm-opgg-web": {
-   "muestras": 1006,
+   "muestras": 1038,
    "en": {
     "parado esperando trabajo": 90,
-    "esperando a la red (Riot, OP.GG, GitHub)": 8,
+    "esperando a la red (Riot, OP.GG, GitHub)": 9,
     "otro": 1
    },
    "lineas": {
-    "warmer.py:201 _work → threading.py:wait": 90,
+    "warmer.py:201 _work → threading.py:wait": 88,
     "external/opgg.py:345 _page → ssl.py:read": 7,
+    "warmer.py:178 _work → threading.py:wait": 2,
     "external/base.py:112 wait": 1,
     "external/opgg.py:345 _page → response.py:decompress": 1,
-    "external/opgg.py:345 _page → utils.py:get_netrc_auth": 0,
-    "external/base.py:170 _cache_put → db.py:write": 0
-   }
-  },
-  "warm-opgg-mcp": {
-   "muestras": 1006,
-   "en": {
-    "parado esperando trabajo": 91,
-    "esperando a la red (Riot, OP.GG, GitHub)": 8,
-    "otro": 1
-   },
-   "lineas": {
-    "warmer.py:201 _work → threading.py:wait": 91,
-    "external/opgg.py:465 _mcp_post → ssl.py:read": 7,
-    "external/base.py:112 wait": 1,
-    "external/opgg.py:465 _mcp_post → utils.py:get_netrc_auth": 0,
-    "external/opgg.py:465 _mcp_post → response.py:decompress": 0,
-    "external/opgg.py:465 _mcp_post → request.py:getproxies_registry": 0
+    "external/opgg.py:345 _page → utils.py:get_netrc_auth": 0
    }
   },
   "warm-lolalytics": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
-    "parado esperando trabajo": 91,
-    "otro": 6,
-    "esperando a la red (Riot, OP.GG, GitHub)": 3
+    "parado esperando trabajo": 88,
+    "otro": 8,
+    "esperando a la red (Riot, OP.GG, GitHub)": 4
    },
    "lineas": {
-    "warmer.py:201 _work → threading.py:wait": 91,
-    "external/base.py:112 wait": 6,
-    "external/lolalytics.py:107 _get → ssl.py:read": 2,
+    "warmer.py:201 _work → threading.py:wait": 88,
+    "external/base.py:112 wait": 8,
+    "external/lolalytics.py:107 _get → ssl.py:read": 3,
     "external/lolalytics.py:107 _get → utils.py:get_netrc_auth": 1,
     "external/lolalytics.py:107 _get → ssl.py:do_handshake": 0,
     "external/lolalytics.py:107 _get → utils.py:proxy_bypass_registry": 0
    }
   },
   "draft-live": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 96,
     "otro": 2,
@@ -332,7 +332,7 @@
    }
   },
   "grabacion": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 96,
     "comprimiendo o escribiendo ficheros": 3,
@@ -347,6 +347,19 @@
     "lcu.py:109 _credentials → _pswindows.py:is_permission_err": 0
    }
   },
+  "autopush": {
+   "muestras": 72,
+   "en": {
+    "parado esperando trabajo": 85,
+    "otro": 15
+   },
+   "lineas": {
+    "ingest/otp_details.py:2122 wait_summaries → threading.py:join": 76,
+    "autopush.py:132 _read_progress": 14,
+    "autopush.py:91 _git → threading.py:join": 8,
+    "autopush.py:567 _write_log → tokenize.py:open": 1
+   }
+  },
   "crawler-rows": {
    "muestras": 10,
    "en": {
@@ -359,7 +372,7 @@
    }
   },
   "lol-client-watch": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 98,
     "otro": 1,
@@ -374,7 +387,7 @@
    }
   },
   "mis-partidas": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 99,
     "consultando o escribiendo la base de datos": 1
@@ -386,7 +399,7 @@
    }
   },
   "game-tracker": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 99,
     "consultando o escribiendo la base de datos": 1
@@ -424,6 +437,42 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-4165 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4164 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4171 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4170 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "busquedas": {
    "muestras": 6660,
    "en": {
@@ -435,7 +484,7 @@
    }
   },
   "updater": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -447,7 +496,7 @@
    }
   },
   "rofl": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -457,7 +506,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1509,
+   "muestras": 1557,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -529,17 +578,6 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "autopush": {
-   "muestras": 56,
-   "en": {
-    "parado esperando trabajo": 98,
-    "otro": 2
-   },
-   "lineas": {
-    "ingest/otp_details.py:2122 wait_summaries → threading.py:join": 98,
-    "autopush.py:567 _write_log → tokenize.py:open": 2
-   }
-  },
   "Thread-4144 (": {
    "muestras": 1,
    "en": {
@@ -576,8 +614,44 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-4163 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4162 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4181 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-4180 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "tier-calibrator": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -586,7 +660,7 @@
    }
   },
   "warm-planner": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -595,32 +669,25 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 503,
+   "muestras": 519,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
     "warmer.py:178 _work → threading.py:wait": 100
    }
+  },
+  "Thread": {
+   "muestras": 10,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "threading.py wait": 100
+   }
   }
  },
  "registro": [
-  {
-   "id": 2686,
-   "ts": 1795818957.2200677,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:1893 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 2530 veces, 4338.3 s en total, la peor 4.8 s",
-   "hora": "23:35:57"
-  },
-  {
-   "id": 2687,
-   "ts": 1795818957.220327,
-   "kind": "info",
-   "source": "crawler",
-   "message": "Base de datos lenta: lectura · ingest/crawler.py:846 unvisited_rows · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 34 veces, 1849.4 s en total, la peor 177.7 s",
-   "hora": "23:35:57"
-  },
   {
    "id": 2688,
    "ts": 1795818957.2205822,
@@ -3004,16 +3071,36 @@
    "source": "videos",
    "message": "Vídeos: recolector en pausa.",
    "hora": "00:14:56"
+  },
+  {
+   "id": 2986,
+   "ts": 1795821333.7653072,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (416 partidas, 20 jugadores y 2 vídeos nuevos; rama main).",
+   "hora": "00:15:33"
+  },
+  {
+   "id": 2987,
+   "ts": 1795821333.767997,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: había otra en cola; subo también lo nuevo.",
+   "hora": "00:15:33"
   }
  ],
  "hilos": {
-  "autopush": [
+  "Thread-4196 (_readerthread)": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 507, in _loop |     self._run(wait_summaries)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 606, in _run |     self._run_steps(stop, t0)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 702, in _run_steps |     self._prepare_report()",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 635, in _prepare_report |     self._write_log()",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 567, in _write_log |     stack = traceback.format_stack(frame)[-6:]"
+   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
+  ],
+  "Thread-4195 (_readerthread)": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
   ],
   "AnyIO worker thread": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3022,21 +3109,36 @@
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
+  "autopush": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 507, in _loop |     self._run(wait_summaries)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 606, in _run |     self._run_steps(stop, t0)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 702, in _run_steps |     self._prepare_report()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 635, in _prepare_report |     self._write_log()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 567, in _write_log |     stack = traceback.format_stack(frame)[-6:]"
+  ],
+  "AnyIO worker thread #26104": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
   "videos": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1492, in getresponse |     return response",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 408, in begin |     self.length is None):",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 334, in _read_status |     return version, status, reason",
    "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
    "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
    "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "updater": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 137, in _loop |     self.wake.wait(CHECK_EVERY_S)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 76, in _git |     return git(repo, *args, check=False, timeout=timeout)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 91, in _git |     proc = subprocess.run(",
+   "File \"C:\\Python314\\Lib\\subprocess.py\", line 557, in run |     stdout, stderr = process.communicate(input, timeout=timeout)",
+   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1221, in communicate |     stdout, stderr = self._communicate(input, endtime, timeout)",
+   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1662, in _communicate |     self.stdout_thread.join(self._remaining_time(endtime))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1133, in join |     self._os_thread_handle.join(timeout)"
   ],
   "rofl": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3111,12 +3213,12 @@
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 112, in wait |     time.sleep(delay)"
   ],
   "warm-opgg-mcp-1": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 220, in _cached |     return self._fetch(kind, key, fetch, None)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 252, in _fetch |     self._lead(kind, key, fetch, flight)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 267, in _lead |     value = fetch()",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\opgg.py\", line 644, in fetch |     raw = self.mcp_call(",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\opgg.py\", line 503, in mcp_call |     _, data = self._mcp_post(",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 112, in wait |     time.sleep(delay)"
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "warm-opgg-mcp-0": [
    "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
@@ -3127,20 +3229,20 @@
    "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "warm-opgg-web-1": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1492, in getresponse |     return response",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 407, in begin |     not self.chunked and",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 334, in _read_status |     return version, status, reason",
-   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 178, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "warm-opgg-web-0": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
-   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\warmer.py\", line 178, in _work |     prio, seq, key = lane.queue.get(timeout=1.0)",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 210, in get |     self.not_empty.wait(remaining)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "draft-live": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3179,8 +3281,8 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\diag.py\", line 195, in run |     while not (stop.wait(SAMPLE_S) if stop is not None else time.sleep(SAMPLE_S)):",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 667, in wait |     with self._cond:",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 381, in wait |     self._waiters.remove(waiter)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "db-checkpoint": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
