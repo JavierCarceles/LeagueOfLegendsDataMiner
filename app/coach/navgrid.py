@@ -93,6 +93,34 @@ WALL_HOPPERS = {
     107: 3.0,  # Rengar (salto desde un arbusto)
 }
 WALL_COST = 50.0  # resto de campeones: solo si no hay otra (Destello en un muro fino)
+# Los que no están arriba, según su ficha de campeón (``movilidad.salta_muros``, macro/campeones): «si», como los que
+# saltan muros finos con un desplazamiento; «con_condiciones» (hace falta un objetivo, un ward o la R), algo más caro.
+FICHA_WALL_COST = {"si": 3.0, "con_condiciones": 25.0}  # medido 6-25: igual (ruido); con 6 tu Hecarim cruzaba con la R sin tenerla
+
+
+@lru_cache(maxsize=1)
+def _ficha_wall_costs() -> dict[int, float]:
+    """{id del campeón: coste de cruzar un muro} de las fichas (vacío si no hay fichas o Data Dragon)."""
+    try:
+        from app.coach import fichas
+
+        cards = fichas.all_cards()
+        out = {}
+        for key, info in fichas.champions().items():
+            jump = ((cards.get(key) or {}).get("movilidad") or {}).get("salta_muros")
+            if jump in FICHA_WALL_COST:
+                out[info["id"]] = FICHA_WALL_COST[jump]
+        return out
+    except Exception:  # noqa: BLE001 - sin fichas, como antes
+        return {}
+
+
+def wall_cost(champ: int | None) -> float:
+    """Lo que cuesta a ``champ`` cruzar un muro en las rutas: la tabla de arriba, su ficha o ``WALL_COST``."""
+    champ = champ or 0
+    if champ in WALL_HOPPERS:
+        return WALL_HOPPERS[champ]
+    return _ficha_wall_costs().get(champ, WALL_COST)
 
 
 def cell(p) -> tuple[int, int]:
@@ -348,7 +376,7 @@ def route(p, q, champ: int | None = None, rift: str | None = None) -> list[tuple
     special = bool(_links_for(rift) or _cost_for(rift))
     if a == b or (not special and _line_clear(a, b, rift)):
         return [p, q]
-    cells = _route(a, b, WALL_HOPPERS.get(champ or 0, WALL_COST), rift)
+    cells = _route(a, b, wall_cost(champ), rift)
     mid = [center(c) for c in cells[1:-1]]
     return [p, *mid, q]
 
