@@ -1,8 +1,22 @@
 {
- "at": 1795793409,
+ "at": 1795794329,
  "diagnostico": {
+  "videos-frames": {
+   "muestras": 4833,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run": 31,
+    "videos/frames.py:142 every": 22,
+    "videos/frames.py:143 every": 7,
+    "thread.py _worker": 6,
+    "videos/frames.py:535 read": 5,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 4
+   }
+  },
   "fetch": {
-   "muestras": 3920,
+   "muestras": 4056,
    "en": {
     "otro": 100
    },
@@ -10,418 +24,519 @@
     "thread.py _worker": 100
    }
   },
-  "videos-frames": {
-   "muestras": 570,
+  "crawler-dl-europe": {
+   "muestras": 1521,
    "en": {
-    "otro": 100
+    "esperando turno de la key de Riot": 61,
+    "otro": 29,
+    "esperando a la red (Riot, OP.GG, GitHub)": 10
    },
    "lineas": {
-    "thread.py _worker": 94,
-    "videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run": 5,
-    "videos/frames.py:148 every": 1,
-    "videos/hud.py:268 _texts → utils.py:__call__": 0,
-    "videos/frames.py:125 __init__": 0
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 61,
+    "thread.py _worker": 29,
+    "riot/client.py:72 request → ssl.py:read": 6,
+    "riot/client.py:72 request → response.py:decompress": 2,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1
    }
   },
-  "Thread-20 (": {
-   "muestras": 490,
+  "crawler-dl-sea": {
+   "muestras": 1521,
    "en": {
-    "otro": 100
+    "esperando turno de la key de Riot": 68,
+    "esperando a la red (Riot, OP.GG, GitHub)": 27,
+    "otro": 6
    },
    "lineas": {
-    "subprocess.py _readerthread": 100
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 68,
+    "riot/client.py:72 request → ssl.py:read": 19,
+    "thread.py _worker": 5,
+    "riot/client.py:72 request → response.py:decompress": 5,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1
    }
   },
-  "Thread-19 (": {
-   "muestras": 490,
+  "crawler-dl-americas": {
+   "muestras": 1521,
+   "en": {
+    "esperando turno de la key de Riot": 71,
+    "esperando a la red (Riot, OP.GG, GitHub)": 17,
+    "otro": 12
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 71,
+    "riot/client.py:72 request → ssl.py:read": 12,
+    "thread.py _worker": 11,
+    "riot/client.py:72 request → response.py:decompress": 3,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1,
+    "riot/client.py:72 request → request.py:getproxies_registry": 0
+   }
+  },
+  "crawler-dl-asia": {
+   "muestras": 1521,
+   "en": {
+    "esperando turno de la key de Riot": 67,
+    "esperando a la red (Riot, OP.GG, GitHub)": 21,
+    "otro": 12
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 67,
+    "riot/client.py:72 request → ssl.py:read": 15,
+    "thread.py _worker": 11,
+    "riot/client.py:72 request → response.py:decompress": 4,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1,
+    "riot/client.py:72 request → request.py:getproxies_registry": 1
+   }
+  },
+  "videos-campeon": {
+   "muestras": 1126,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "subprocess.py _readerthread": 100
+    "videos/frames.py:551 _scan": 98,
+    "thread.py _worker": 2
    }
   },
   "db-checkpoint": {
-   "muestras": 490,
+   "muestras": 507,
    "en": {
-    "esperando un candado (base de datos, ficheros)": 100
+    "esperando un candado (base de datos, ficheros)": 99,
+    "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "data/db.py:516 run → threading.py:wait": 100,
-    "data/db.py:531 wal_mb → __init__.py:stat": 0
+    "data/db.py:516 run → threading.py:wait": 99,
+    "data/db.py:486 _run_checkpoint": 1,
+    "data/db.py:484 _run_checkpoint": 0
    }
   },
   "MainThread": {
-   "muestras": 490,
+   "muestras": 507,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "windows_events.py _poll": 100,
+    "windows_events.py _poll": 95,
+    "windows_events.py recv": 1,
+    "windows_events.py finish_socket_func": 1,
+    "windows_events.py recv_into": 1,
+    "windows_events.py send": 1,
     "budget.py:105 send_wrapper → windows_events.py:send": 0
    }
   },
-  "grabacion": {
-   "muestras": 490,
+  "crawler-europe": {
+   "muestras": 507,
    "en": {
-    "otro": 99,
-    "parado esperando trabajo": 1
+    "parado esperando trabajo": 44,
+    "analizando partidas": 16,
+    "consultando o escribiendo la base de datos": 10,
+    "esperando turno de la key de Riot": 8,
+    "esperando a la red (Riot, OP.GG, GitHub)": 7,
+    "comprimiendo o escribiendo ficheros": 7,
+    "esperando un candado (base de datos, ficheros)": 7,
+    "otro": 2
    },
    "lineas": {
-    "videos/frames.py:551 _scan": 91,
-    "videos/frames.py:280 find_camera": 3,
-    "videos/frames.py:281 find_camera": 3,
-    "videos/frames.py:776 sample_pass → threading.py:wait": 1,
-    "videos/frames.py:282 find_camera": 1,
-    "videos/frames.py:535 read": 0
+    "ingest/crawler.py:1118 take → threading.py:wait": 44,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 8,
+    "riot/client.py:72 request → ssl.py:read": 4,
+    "data/repository.py:270 store_match → db.py:write": 4,
+    "ingest/otp_details.py:658 save → db.py:write": 3,
+    "coach/navgrid.py:345 _expand": 3
    }
   },
-  "warm-lolalytics": {
-   "muestras": 490,
+  "crawler-sea": {
+   "muestras": 507,
    "en": {
-    "otro": 54,
-    "parado esperando trabajo": 38,
-    "esperando a la red (Riot, OP.GG, GitHub)": 7
-   },
-   "lineas": {
-    "external/base.py:112 wait": 54,
-    "warmer.py:178 _work → threading.py:wait": 38,
-    "external/lolalytics.py:107 _get → ssl.py:read": 7,
-    "external/base.py:170 _cache_put → db.py:write": 0,
-    "external/lolalytics.py:107 _get → utils.py:get_netrc_auth": 0
-   }
-  },
-  "warm-opgg-web": {
-   "muestras": 980,
-   "en": {
-    "parado esperando trabajo": 82,
-    "esperando a la red (Riot, OP.GG, GitHub)": 15,
-    "otro": 3
-   },
-   "lineas": {
-    "warmer.py:178 _work → threading.py:wait": 82,
-    "external/opgg.py:345 _page → ssl.py:read": 15,
-    "external/base.py:112 wait": 3,
-    "external/base.py:170 _cache_put → db.py:write": 0,
-    "external/opgg.py:345 _page → utils.py:proxy_bypass_registry": 0
-   }
-  },
-  "autopush": {
-   "muestras": 22,
-   "en": {
-    "parado esperando trabajo": 50,
-    "otro": 50
-   },
-   "lineas": {
-    "autopush.py:91 _git → threading.py:join": 50,
-    "autopush.py:132 _read_progress": 50
-   }
-  },
-  "lol-client-watch": {
-   "muestras": 490,
-   "en": {
-    "parado esperando trabajo": 99,
-    "comprimiendo o escribiendo ficheros": 1,
+    "parado esperando trabajo": 52,
+    "analizando partidas": 15,
+    "consultando o escribiendo la base de datos": 14,
+    "comprimiendo o escribiendo ficheros": 10,
+    "esperando un candado (base de datos, ficheros)": 7,
+    "esperando turno de la key de Riot": 2,
+    "otro": 1,
     "esperando a la red (Riot, OP.GG, GitHub)": 1
    },
    "lineas": {
-    "coach/tracker.py:496 _watch_loop → threading.py:wait": 99,
-    "lcu.py:93 _lockfile → __init__.py:open": 1,
-    "lcu.py:127 _request → ssl.py:read": 0,
-    "lcu.py:127 _request → ssl.py:do_handshake": 0,
-    "lcu.py:127 _request → ssl.py:__new__": 0
+    "ingest/crawler.py:1118 take → threading.py:wait": 52,
+    "ingest/otp_details.py:658 save → db.py:write": 4,
+    "ingest/otp_details.py:1871 _player_dir → __init__.py:iterdir": 3,
+    "data/repository.py:270 store_match → db.py:write": 3,
+    "data/repository.py:91 estimate_match_tier": 3,
+    "coach/navgrid.py:345 _expand": 2
    }
   },
-  "web": {
-   "muestras": 866,
+  "crawler-americas": {
+   "muestras": 507,
    "en": {
-    "parado esperando trabajo": 99
+    "parado esperando trabajo": 56,
+    "consultando o escribiendo la base de datos": 18,
+    "analizando partidas": 10,
+    "comprimiendo o escribiendo ficheros": 7,
+    "esperando un candado (base de datos, ficheros)": 7,
+    "otro": 2,
+    "esperando turno de la key de Riot": 1
    },
    "lineas": {
-    "threading.py wait": 99,
-    "api/system.py:61 _count_db → db.py:one": 0,
-    "lcu.py:93 _lockfile → __init__.py:open": 0,
-    "lcu.py:127 _request → ssl.py:read": 0
+    "ingest/crawler.py:1118 take → threading.py:wait": 56,
+    "ingest/crawler.py:1893 _lacking_details → db.py:query": 5,
+    "ingest/otp_details.py:658 save → db.py:write": 4,
+    "data/repository.py:270 store_match → db.py:write": 3,
+    "data/repository.py:106 upsert_match_players": 3,
+    "coach/navgrid.py:345 _expand": 2
    }
   },
-  "draft-live": {
-   "muestras": 490,
+  "crawler-asia": {
+   "muestras": 507,
    "en": {
-    "parado esperando trabajo": 99
+    "parado esperando trabajo": 58,
+    "consultando o escribiendo la base de datos": 17,
+    "analizando partidas": 11,
+    "comprimiendo o escribiendo ficheros": 7,
+    "esperando un candado (base de datos, ficheros)": 6,
+    "otro": 1,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1
    },
    "lineas": {
-    "draft_live.py:448 _run → threading.py:wait": 99,
-    "lcu.py:127 _request → ssl.py:load_default_certs": 0,
-    "draft_live.py:89 get_prefs → db.py:one": 0,
-    "lcu.py:127 _request → ssl.py:__new__": 0
-   }
-  },
-  "Thread-317 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-316 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-330 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-329 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-362 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-361 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-375 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-374 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-383 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-382 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-297 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-296 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-301 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-300 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-307 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-306 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-334 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-333 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-344 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-343 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-346 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-345 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-354 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-353 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-389 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-388 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "track-check": {
-   "muestras": 490,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/track_check_job.py:100 _execute → threading.py:join": 100
+    "ingest/crawler.py:1118 take → threading.py:wait": 58,
+    "ingest/otp_details.py:658 save → db.py:write": 4,
+    "ingest/crawler.py:1893 _lacking_details → db.py:query": 4,
+    "data/repository.py:91 estimate_match_tier": 3,
+    "data/repository.py:106 upsert_match_players": 2,
+    "coach/navgrid.py:345 _expand": 2
    }
   },
   "videos": {
-   "muestras": 490,
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 59,
+    "esperando a la red (Riot, OP.GG, GitHub)": 21,
+    "otro": 20
+   },
+   "lineas": {
+    "videos/frames.py:776 sample_pass → threading.py:wait": 41,
+    "videos/youtube.py:253 run → ssl.py:read": 21,
+    "videos/frames.py:562 _add_scans → threading.py:wait": 12,
+    "videos/collector.py:238 _sleep → threading.py:wait": 6,
+    "videos/frames.py:535 read": 3,
+    "videos/youtube.py:253 run → common.py:download": 3
+   }
+  },
+  "otp-summaries": {
+   "muestras": 140,
+   "en": {
+    "otro": 54,
+    "consultando o escribiendo la base de datos": 35,
+    "comprimiendo o escribiendo ficheros": 9,
+    "esperando un candado (base de datos, ficheros)": 1
+   },
+   "lineas": {
+    "coach/store.py:25 unpack": 51,
+    "ingest/otp_details.py:1987 write_summary → db.py:query": 33,
+    "coach/store.py:25 unpack → decoder.py:raw_decode": 2,
+    "coach/store.py:25 unpack → decoder.py:decode": 2,
+    "ingest/otp_details.py:1987 write_summary → db.py:conn": 2,
+    "ingest/otp_details.py:2001 write_summary": 1
+   }
+  },
+  "web": {
+   "muestras": 1226,
+   "en": {
+    "parado esperando trabajo": 94,
+    "otro": 3,
+    "consultando o escribiendo la base de datos": 2,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "threading.py wait": 94,
+    "config.py:23 _env_values → main.py:_get_stream": 1,
+    "config.py:23 _env_values → parser.py:__init__": 1,
+    "config.py:22 _env_values → __init__.py:exists": 1,
+    "config.py:23 _env_values → main.py:_is_file_or_fifo": 1,
+    "proactor_events.py _write_to_self": 0
+   }
+  },
+  "draft-live": {
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 97,
+    "otro": 1,
+    "esperando a la red (Riot, OP.GG, GitHub)": 1,
+    "consultando o escribiendo la base de datos": 1,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "draft_live.py:448 _run → threading.py:wait": 97,
+    "draft_live.py:89 get_prefs → db.py:one": 1,
+    "lcu.py:127 _request → ssl.py:read": 1,
+    "lcu.py:93 _lockfile → __init__.py:open": 1,
+    "lcu.py:109 _credentials → _pswindows.py:cmdline": 0,
+    "lcu.py:109 _credentials → _pswindows.py:convert_oserror": 0
+   }
+  },
+  "lol-client-watch": {
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 98,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "coach/tracker.py:496 _watch_loop → threading.py:wait": 98,
+    "lcu.py:93 _lockfile → __init__.py:open": 1,
+    "lcu.py:109 _credentials → _pswindows.py:convert_oserror": 0,
+    "lcu.py:109 _credentials → _pswindows.py:cmdline": 0
+   }
+  },
+  "mis-partidas": {
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 99,
+    "consultando o escribiendo la base de datos": 1
+   },
+   "lineas": {
+    "coach/files.py:107 _run → threading.py:wait": 99,
+    "coach/files.py:132 sync → db.py:query": 1
+   }
+  },
+  "busquedas": {
+   "muestras": 7605,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "videos/collector.py:238 _sleep → threading.py:wait": 93,
-    "videos/frames.py:776 sample_pass → threading.py:wait": 6,
-    "videos/frames.py:775 sample_pass → threading.py:join": 0
+    "ingest/crawler.py:2831 _search_step → threading.py:wait": 100,
+    "riot/keys.py:64 _reload → __init__.py:stat": 0,
+    "riot/keys.py:122 get": 0
+   }
+  },
+  "crawler-rows": {
+   "muestras": 3,
+   "en": {
+    "consultando o escribiendo la base de datos": 67,
+    "otro": 33
+   },
+   "lineas": {
+    "ingest/crawler.py:877 otp_rows_for_plan": 33,
+    "ingest/crawler.py:863 otp_rows_for_plan → db.py:query": 33,
+    "ingest/crawler.py:828 _known_rows → db.py:query": 33
    }
   },
   "updater": {
-   "muestras": 490,
+   "muestras": 507,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "updater.py:137 _loop → threading.py:wait": 99,
-    "autopush.py:91 _git → threading.py:join": 1
+    "updater.py:137 _loop → threading.py:wait": 98,
+    "autopush.py:91 _git → threading.py:join": 2,
+    "autopush.py:91 _git → subprocess.py:_get_handles": 0,
+    "config.py:23 _env_values → main.py:_is_file_or_fifo": 0
+   }
+  },
+  "game-tracker": {
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/tracker.py:400 _sleep → threading.py:wait": 100,
+    "riot/client.py:72 request → ssl.py:read": 0,
+    "coach/store.py:52 get_profile → db.py:one": 0
+   }
+  },
+  "Thread-519 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-518 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "otp-counts": {
+   "muestras": 2,
+   "en": {
+    "consultando o escribiendo la base de datos": 100
+   },
+   "lineas": {
+    "ingest/otp_details.py:982 counts → db.py:conn": 50,
+    "ingest/otp_details.py:955 _tier_breakdown → db.py:query": 50
+   }
+  },
+  "tier-calibrator": {
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/calibrate.py:75 _run → threading.py:wait": 100,
+    "coach/store.py:52 get_profile → db.py:one": 0
+   }
+  },
+  "Thread-498 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-497 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-507 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-506 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-513 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-512 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "crawler-funnel": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "ingest/crawler.py:3378 _funnel_visits → __init__.py:emit": 100
+   }
+  },
+  "Thread-525 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-524 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-532 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-531 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-541 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-540 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-547 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-546 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-549 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-548 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
    }
   },
   "rofl": {
-   "muestras": 490,
+   "muestras": 507,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -429,26 +544,8 @@
     "replays_local.py:301 _run → threading.py:wait": 100
    }
   },
-  "mis-partidas": {
-   "muestras": 490,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/files.py:107 _run → threading.py:wait": 100
-   }
-  },
-  "tier-calibrator": {
-   "muestras": 490,
-   "en": {
-    "parado esperando trabajo": 100
-   },
-   "lineas": {
-    "coach/calibrate.py:75 _run → threading.py:wait": 100
-   }
-  },
   "warm-planner": {
-   "muestras": 490,
+   "muestras": 507,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -457,7 +554,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1470,
+   "muestras": 1521,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -466,7 +563,16 @@
    }
   },
   "warm-riot-web": {
-   "muestras": 490,
+   "muestras": 507,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "warmer.py:178 _work → threading.py:wait": 100
+   }
+  },
+  "warm-lolalytics": {
+   "muestras": 507,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -475,7 +581,7 @@
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 980,
+   "muestras": 1014,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -483,22 +589,22 @@
     "warmer.py:178 _work → threading.py:wait": 100
    }
   },
-  "game-tracker": {
-   "muestras": 490,
+  "warm-opgg-web": {
+   "muestras": 1014,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/tracker.py:400 _sleep → threading.py:wait": 100
+    "warmer.py:178 _work → threading.py:wait": 100
    }
   },
-  "Thread": {
-   "muestras": 11,
+  "grabacion": {
+   "muestras": 507,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "threading.py wait": 100
+    "videos/frames.py:776 sample_pass → threading.py:wait": 100
    }
   }
  },
@@ -2342,32 +2448,837 @@
    "source": "precarga",
    "message": "Precarga completa: 2856 tareas al día.",
    "hora": "16:28:34"
+  },
+  {
+   "id": 231,
+   "ts": 1795793416.9682136,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (0 partidas, 0 jugadores y 0 vídeos nuevos; rama main).",
+   "hora": "16:30:16"
+  },
+  {
+   "id": 232,
+   "ts": 1795793707.181594,
+   "kind": "info",
+   "source": "track_check",
+   "message": "Validación de recorridos hecha en 38 min 9 s (data/registro/track_check.txt).",
+   "hora": "16:35:07"
+  },
+  {
+   "id": 233,
+   "ts": 1795793967.2212455,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector americas por campeones (jugadores) iniciado (NA, BR, LAN, LAS): periodo season.",
+   "hora": "16:39:27"
+  },
+  {
+   "id": 234,
+   "ts": 1795793967.2217555,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector europe por campeones (jugadores) iniciado (EUW, EUNE, TR, RU, ME): periodo season.",
+   "hora": "16:39:27"
+  },
+  {
+   "id": 235,
+   "ts": 1795793967.2226577,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector asia por campeones (jugadores) iniciado (KR, JP): periodo season.",
+   "hora": "16:39:27"
+  },
+  {
+   "id": 236,
+   "ts": 1795793967.223926,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector sea por campeones (jugadores) iniciado (OCE, SEA, TW, VN): periodo season.",
+   "hora": "16:39:27"
+  },
+  {
+   "id": 237,
+   "ts": 1795793967.2339804,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Recolector en marcha en 4 regiones en paralelo.",
+   "hora": "16:39:27"
+  },
+  {
+   "id": 238,
+   "ts": 1795793992.2025461,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas None de 49.5 (reserva 1 %), asia None de 49.5 (reserva 1 %), europe 0.0 de 49.5 (reserva 1 %), sea None de 49.5 (reserva 1 %)",
+   "hora": "16:39:52"
+  },
+  {
+   "id": 239,
+   "ts": 1795793992.4412212,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Reparto por elo (parte de las partidas nuevas / últimas partidas analizadas / analizadas en total): IRON 9.7%/8.7%/1220, BRONZE 10.5%/10.8%/1150, SILVER 10.5%/11.7%/1145, GOLD 10.6%/11.9%/1139, PLATINUM 10.8%/11.9%/1124, EMERALD 10.4%/11.7%/1157, DIAMOND 9.5%/9.4%/1245, MASTER 9.5%/8.1%/1241, GRANDMASTER 9.3%/7.9%/1263, CHALLENGER 9.3%/7.8%/1264",
+   "hora": "16:39:52"
+  },
+  {
+   "id": 240,
+   "ts": 1795793992.4863877,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 1477/0/1/11, BRONZE 1425/0/2/11, SILVER 1460/0/9/9, GOLD 1473/0/3/13, PLATINUM 1480/0/42/10, EMERALD 1495/0/2/13, DIAMOND 1517/0/3/12, MASTER 1522/0/1/17, GRANDMASTER 1518/0/0/17, CHALLENGER 1324/0/3/16",
+   "hora": "16:39:52"
+  },
+  {
+   "id": 241,
+   "ts": 1795793993.9346025,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Dónde se va el tiempo (5 min): fetch: otro 100 % (más en thread.py _worker) | busquedas: esperando turno de la key de Riot 48 %, esperando a la red (Riot, OP.GG, GitHub) 20 %, esperando un candado (base de datos, ficheros) 17 %, parado esperando trabajo 11 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | videos-frames: otro 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run) | db-checkpoint: esperando un candado (base de datos, ficheros) 100 % (más en data/db.py:516 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-dl-americas: esperando turno de la key de Riot 62 %, otro 25 %, esperando a la red (Riot, OP.GG, GitHub) 12 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 80 %, esperando a la red (Riot, OP.GG, GitHub) 20 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 71 %, esperando a la red (Riot, OP.GG, GitHub) 29 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-funnel: consultando o escribiendo la base de datos 77 %, comprimiendo o escribiendo ficheros 10 %, otro 10 %, esperando un candado (base de datos, ficheros) 4 % (más en ingest/crawler.py:668 search_funnel → db.py:query) | crawler-europe: esperando turno de la key de Riot 33 %, esperando a la red (Riot, OP.GG, GitHub) 17 %, analizando partidas 15 %, consultando o escribiendo la base de datos 12 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-europe: otro 93 %, esperando turno de la key de Riot 4 %, esperando a la red (Riot, OP.GG, GitHub) 2 % (más en thread.py _worker) | crawler-rows: consultando o escribiendo la base de datos 94 %, otro 6 % (más en ingest/crawler.py:846 unvisited_rows → db.py:query) | crawler-asia: parado esperando trabajo 58 %, consultando o escribiendo la base de datos 17 %, esperando un candado (base de datos, ficheros) 10 %, analizando partidas 6 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-sea: parado esperando trabajo 67 %, esperando un candado (base de datos, ficheros) 13 %, consultando o escribiendo la base de datos 6 %, otro 4 % (más en ingest/crawler.py:1118 take → threading.py:wait) | web: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en threading.py wait) | warm-opgg-web: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 %, esperando un candado (base de datos, ficheros) 1 % (más en warmer.py:178 _work → threading.py:wait) | crawler-americas: parado esperando trabajo 71 %, esperando un candado (base de datos, ficheros) 12 %, consultando o escribiendo la base de datos 8 %, esperando turno de la key de Riot 4 % (más en ingest/crawler.py:1118 take → threading.py:wait) | Thread-20 (: otro 100 % (más en subprocess.py _readerthread) | Thread-19 (: otro 100 % (más en subprocess.py _readerthread) | draft-live: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en draft_live.py:448 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 99 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:496 _watch_loop → threading.py:wait) | updater: parado esperando trabajo 100 % (más en updater.py:137 _loop → threading.py:wait) | Thread-456 (: otro 100 % (más en subprocess.py _readerthread) | Thread-455 (: otro 100 % (más en subprocess.py _readerthread) | Thread-460 (: otro 100 % (más en subprocess.py _readerthread) | Thread-459 (: otro 100 % (más en subprocess.py _readerthread) | Thread-466 (: otro 100 % (más en subprocess.py _readerthread) | Thread-465 (: otro 100 % (más en subprocess.py _readerthread) | Thread-472 (: otro 100 % (más en subprocess.py _readerthread) | Thread-471 (: otro 100 % (más en subprocess.py _readerthread) | otp-summaries: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:1987 write_summary → db.py:conn) | track-check: parado esperando trabajo 100 % (más en coach/track_check_job.py:100 _execute → threading.py:join) | videos: parado esperando trabajo 100 % (más en videos/collector.py:238 _sleep → threading.py:wait) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | mis-partidas: parado esperando trabajo 100 % (más en coach/files.py:107 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:322 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | grabacion: parado esperando trabajo 100 % (más en videos/frames.py:776 sample_pass → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:400 _sleep → threading.py:wait)",
+   "hora": "16:39:53"
+  },
+  {
+   "id": 242,
+   "ts": 1795793993.9367368,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · analytics/builds.py:239 _own_items_query · SELECT items, win FROM participants WHERE champ = ? AND role = ? AND i — 16 veces, 77.8 s en total, la peor 17.4 s",
+   "hora": "16:39:53"
+  },
+  {
+   "id": 243,
+   "ts": 1795793993.9508636,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 37 veces, 56.0 s en total, la peor 4.9 s",
+   "hora": "16:39:53"
+  },
+  {
+   "id": 244,
+   "ts": 1795793993.9651852,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:846 unvisited_rows · SELECT * FROM (SELECT p.id, p.puuid, p.platform, p.tier, p.division, p — 3 veces, 43.5 s en total, la peor 17.4 s",
+   "hora": "16:39:53"
+  },
+  {
+   "id": 245,
+   "ts": 1795793993.9969323,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado americas: 6 partidas nuevas (—/min ahora) · 2 analizadas · errores 0 · tiempo: cola 2, riot_listas 1, esperando_descarga 19, partidas 17, guardar_partida 0, riot 0, analizar_guardar 1",
+   "hora": "16:39:53"
+  },
+  {
+   "id": 246,
+   "ts": 1795793994.0181487,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado europe: 0 partidas nuevas (—/min ahora) · 5 analizadas · errores 0 · tiempo: cola 2, riot_listas 1, esperando_descarga 2, partidas 2, riot 12, analizar_guardar 4",
+   "hora": "16:39:54"
+  },
+  {
+   "id": 247,
+   "ts": 1795793994.0196893,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado asia: 4 partidas nuevas (—/min ahora) · 4 analizadas · errores 0 · tiempo: cola 1, riot_listas 2, esperando_descarga 16, guardar_partida 0, riot 0, analizar_guardar 3, partidas 14",
+   "hora": "16:39:54"
+  },
+  {
+   "id": 248,
+   "ts": 1795793994.020217,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado sea: 2 partidas nuevas (—/min ahora) · 2 analizadas · errores 0 · tiempo: cola 2, riot_listas 2, esperando_descarga 19, guardar_partida 0, riot 0, analizar_guardar 1, partidas 6",
+   "hora": "16:39:54"
+  },
+  {
+   "id": 249,
+   "ts": 1795794002.8708103,
+   "kind": "info",
+   "source": "crawler",
+   "message": "LAN · GOLD · jugador: 9 partidas nuevas, 3 analizadas en 0.6 min (historial: 32 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado GOLD.",
+   "hora": "16:40:02"
+  },
+  {
+   "id": 250,
+   "ts": 1795794018.3395274,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · BRONZE · jugador: 0 partidas nuevas, 0 analizadas en 0.8 min (historial: 16 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "16:40:18"
+  },
+  {
+   "id": 251,
+   "ts": 1795794033.5330474,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: recolector reanudado.",
+   "hora": "16:40:33"
+  },
+  {
+   "id": 252,
+   "ts": 1795794034.522969,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · SILVER · jugador: 20 partidas nuevas, 20 analizadas en 1.1 min (historial: 24 revisadas) · fin: páginas de la visita · elegido: nuevo, elo más atrasado SILVER.",
+   "hora": "16:40:34"
+  },
+  {
+   "id": 253,
+   "ts": 1795794050.5994425,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · PLATINUM · jugador: 20 partidas nuevas, 19 analizadas en 1.4 min (historial: 29 revisadas) · fin: páginas de la visita · elegido: nuevo, elo más atrasado PLATINUM.",
+   "hora": "16:40:50"
+  },
+  {
+   "id": 254,
+   "ts": 1795794084.7590463,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 100 de 2000 partidas nuevas.",
+   "hora": "16:41:24"
+  },
+  {
+   "id": 255,
+   "ts": 1795794096.3187287,
+   "kind": "info",
+   "source": "crawler",
+   "message": "TR · BRONZE · jugador: 0 partidas nuevas, 0 analizadas en 1.3 min (historial: 40 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "16:41:36"
+  },
+  {
+   "id": 256,
+   "ts": 1795794135.2832363,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "1jo8MX9m: 9 partidas pasan a OTP y 1 a otros jugadores por lo que juega.",
+   "hora": "16:42:15"
+  },
+  {
+   "id": 257,
+   "ts": 1795794135.2839777,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · EMERALD · jugador: 50 partidas nuevas, 48 analizadas en 2.2 min (historial: 73 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado EMERALD.",
+   "hora": "16:42:15"
+  },
+  {
+   "id": 258,
+   "ts": 1795794135.3713918,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 2.",
+   "hora": "16:42:15"
+  },
+  {
+   "id": 259,
+   "ts": 1795794153.1126952,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUNE · BRONZE · jugador: 13 partidas nuevas, 13 analizadas en 0.9 min (historial: 19 revisadas, completo) · fin: historial completo · elegido: nuevo, elo más atrasado BRONZE.",
+   "hora": "16:42:33"
+  },
+  {
+   "id": 260,
+   "ts": 1795794165.2801204,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 200 de 2000 partidas nuevas.",
+   "hora": "16:42:45"
+  },
+  {
+   "id": 261,
+   "ts": 1795794176.265326,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "q9IP75m_: 0 partidas pasan a OTP y 6 a otros jugadores por lo que juega.",
+   "hora": "16:42:56"
+  },
+  {
+   "id": 262,
+   "ts": 1795794176.2707944,
+   "kind": "info",
+   "source": "crawler",
+   "message": "OCE · IRON · jugador: 49 partidas nuevas, 49 analizadas en 2.3 min (historial: 52 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado IRON.",
+   "hora": "16:42:56"
+  },
+  {
+   "id": 263,
+   "ts": 1795794176.3341951,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 1.",
+   "hora": "16:42:56"
+  },
+  {
+   "id": 264,
+   "ts": 1795794185.6898108,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "c-V29gqg: 0 partidas pasan a OTP y 2 a otros jugadores por lo que juega.",
+   "hora": "16:43:05"
+  },
+  {
+   "id": 265,
+   "ts": 1795794185.72053,
+   "kind": "info",
+   "source": "crawler",
+   "message": "KR · MASTER · jugador: 50 partidas nuevas, 50 analizadas en 2.2 min (historial: 70 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado MASTER.",
+   "hora": "16:43:05"
+  },
+  {
+   "id": 266,
+   "ts": 1795794185.8668067,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 1.",
+   "hora": "16:43:05"
+  },
+  {
+   "id": 267,
+   "ts": 1795794234.486892,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 300 de 2000 partidas nuevas.",
+   "hora": "16:43:54"
+  },
+  {
+   "id": 268,
+   "ts": 1795794285.915304,
+   "kind": "info",
+   "source": "crawler",
+   "message": "BR · DIAMOND · jugador: 60 partidas nuevas, 40 analizadas en 2.3 min (historial: 81 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado DIAMOND.",
+   "hora": "16:44:45"
+  },
+  {
+   "id": 269,
+   "ts": 1795794285.9269695,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 44.8 de 49.5 (reserva 1 %), asia 45.2 de 49.5 (reserva 1 %), europe 44.1 de 49.5 (reserva 1 %), sea 48.3 de 49.5 (reserva 1 %)",
+   "hora": "16:44:45"
+  },
+  {
+   "id": 270,
+   "ts": 1795794286.2566476,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Reparto por elo (parte de las partidas nuevas / últimas partidas analizadas / analizadas en total): IRON 9.5%/9.9%/1259, BRONZE 10.1%/9.6%/1203, SILVER 10.6%/10.1%/1165, GOLD 10.8%/11.1%/1148, PLATINUM 10.8%/10.8%/1143, EMERALD 10.1%/11.8%/1201, DIAMOND 9.6%/10.4%/1250, MASTER 9.4%/9.8%/1276, GRANDMASTER 9.5%/9.2%/1263, CHALLENGER 9.5%/7.3%/1264",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 271,
+   "ts": 1795794286.2715871,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 1·49·49.0·2.3·0%, BRONZE 3·13·4.3·1.0·100%, SILVER 1·20·20.0·1.1·0%, GOLD 1·3·3.0·0.6·100%, PLATINUM 1·19·19.0·1.4·0%, EMERALD 1·48·48.0·2.2·0%, DIAMOND 1·40·40.0·2.3·0%, MASTER 1·50·50.0·2.2·0%",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 272,
+   "ts": 1795794286.303423,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 1477/0/10/7, BRONZE 1423/0/15/3, SILVER 1460/0/25/1, GOLD 1472/0/17/1, PLATINUM 1479/0/61/1, EMERALD 1495/0/18/3, DIAMOND 1518/0/22/0, MASTER 1521/0/20/0, GRANDMASTER 1518/0/17/0, CHALLENGER 1324/0/20/0",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 273,
+   "ts": 1795794286.5114775,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Dónde se va el tiempo (5 min): videos-frames: otro 100 % (más en videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run) | fetch: otro 100 % (más en thread.py _worker) | crawler-dl-sea: esperando turno de la key de Riot 68 %, esperando a la red (Riot, OP.GG, GitHub) 28 %, otro 5 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 71 %, esperando a la red (Riot, OP.GG, GitHub) 19 %, otro 11 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 67 %, esperando a la red (Riot, OP.GG, GitHub) 21 %, otro 12 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-europe: esperando turno de la key de Riot 49 %, otro 43 %, esperando a la red (Riot, OP.GG, GitHub) 9 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | videos-campeon: otro 100 % (más en videos/frames.py:551 _scan) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:516 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-europe: parado esperando trabajo 30 %, analizando partidas 17 %, esperando turno de la key de Riot 15 %, esperando a la red (Riot, OP.GG, GitHub) 12 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-sea: parado esperando trabajo 51 %, analizando partidas 15 %, consultando o escribiendo la base de datos 15 %, comprimiendo o escribiendo ficheros 10 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-americas: parado esperando trabajo 54 %, consultando o escribiendo la base de datos 17 %, analizando partidas 13 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-asia: parado esperando trabajo 57 %, consultando o escribiendo la base de datos 17 %, analizando partidas 11 %, esperando un candado (base de datos, ficheros) 7 % (más en ingest/crawler.py:1118 take → threading.py:wait) | videos: parado esperando trabajo 60 %, esperando a la red (Riot, OP.GG, GitHub) 22 %, otro 18 %, comprimiendo o escribiendo ficheros 1 % (más en videos/frames.py:776 sample_pass → threading.py:wait) | otp-summaries: otro 54 %, consultando o escribiendo la base de datos 38 %, comprimiendo o escribiendo ficheros 6 %, esperando un candado (base de datos, ficheros) 2 % (más en coach/store.py:25 unpack) | web: parado esperando trabajo 92 %, otro 4 %, consultando o escribiendo la base de datos 2 %, comprimiendo o escribiendo ficheros 1 % (más en threading.py wait) | busquedas: parado esperando trabajo 100 % (más en ingest/crawler.py:2831 _search_step → threading.py:wait) | draft-live: parado esperando trabajo 96 %, esperando a la red (Riot, OP.GG, GitHub) 1 %, consultando o escribiendo la base de datos 1 %, otro 1 % (más en draft_live.py:448 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 97 %, comprimiendo o escribiendo ficheros 1 %, esperando a la red (Riot, OP.GG, GitHub) 1 % (más en coach/tracker.py:496 _watch_loop → threading.py:wait) | mis-partidas: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en coach/files.py:107 _run → threading.py:wait) | updater: parado esperando trabajo 100 % (más en updater.py:137 _loop → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:400 _sleep → threading.py:wait) | Thread-478 (: otro 100 % (más en subprocess.py _readerthread) | Thread-477 (: otro 100 % (más en subprocess.py _readerthread) | Thread-485 (: otro 100 % (más en subprocess.py _readerthread) | Thread-484 (: otro 100 % (más en subprocess.py _readerthread) | Thread-494 (: otro 100 % (más en subprocess.py _readerthread) | Thread-493 (: otro 100 % (más en subprocess.py _readerthread) | crawler-rows: otro 50 %, consultando o escribiendo la base de datos 50 % (más en ingest/crawler.py:877 otp_rows_for_plan) | Thread-519 (: otro 100 % (más en subprocess.py _readerthread) | Thread-518 (: otro 100 % (más en subprocess.py _readerthread) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:982 counts → db.py:conn) | Thread-475 (: otro 100 % (más en subprocess.py _readerthread) | Thread-498 (: otro 100 % (más en subprocess.py _readerthread) | Thread-497 (: otro 100 % (más en subprocess.py _readerthread) | Thread-507 (: otro 100 % (más en subprocess.py _readerthread) | Thread-506 (: otro 100 % (más en subprocess.py _readerthread) | Thread-513 (: otro 100 % (más en subprocess.py _readerthread) | Thread-512 (: otro 100 % (más en subprocess.py _readerthread) | crawler-funnel: otro 100 % (más en ingest/crawler.py:3378 _funnel_visits → __init__.py:emit) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:322 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | grabacion: parado esperando trabajo 100 % (más en videos/frames.py:776 sample_pass → threading.py:wait)",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 274,
+   "ts": 1795794286.5320415,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · analytics/builds.py:239 _own_items_query · SELECT items, win FROM participants WHERE champ = ? AND role = ? AND i — 16 veces, 77.8 s en total, la peor 17.4 s",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 275,
+   "ts": 1795794286.5333033,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 52 veces, 76.0 s en total, la peor 4.9 s",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 276,
+   "ts": 1795794286.53626,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:1893 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 51 veces, 67.1 s en total, la peor 3.8 s",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 277,
+   "ts": 1795794286.5378537,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado americas: 119 partidas nuevas (23.0/min ahora) · 93 analizadas · errores 0 · tiempo: cola 12, riot_listas 4, esperando_descarga 174, partidas 293, guardar_partida 41, riot 5, analizar_guardar 77, visitas 306",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 278,
+   "ts": 1795794286.5415995,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado europe: 59 partidas nuevas (11.8/min ahora) · 105 analizadas · errores 0 · tiempo: cola 3, riot_listas 6, esperando_descarga 81, partidas 162, riot 91, analizar_guardar 102, visitas 183, guardar_partida 21",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 279,
+   "ts": 1795794286.542735,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado asia: 93 partidas nuevas (17.8/min ahora) · 92 analizadas · errores 0 · tiempo: cola 14, riot_listas 8, esperando_descarga 172, guardar_partida 31, riot 0, analizar_guardar 87, partidas 293, visitas 216",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 280,
+   "ts": 1795794286.5433798,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado sea: 108 partidas nuevas (21.2/min ahora) · 108 analizadas · errores 0 · tiempo: cola 8, riot_listas 6, esperando_descarga 164, guardar_partida 34, riot 0, analizar_guardar 101, partidas 303, visitas 203",
+   "hora": "16:44:46"
+  },
+  {
+   "id": 281,
+   "ts": 1795794293.3130822,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "cWMXZfmn: 0 partidas pasan a OTP y 6 a otros jugadores por lo que juega.",
+   "hora": "16:44:53"
+  },
+  {
+   "id": 282,
+   "ts": 1795794293.313808,
+   "kind": "info",
+   "source": "crawler",
+   "message": "EUW · GOLD · jugador: 49 partidas nuevas, 49 analizadas en 2.3 min (historial: 104 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GOLD.",
+   "hora": "16:44:53"
+  },
+  {
+   "id": 283,
+   "ts": 1795794293.394844,
+   "kind": "info",
+   "source": "otp-details",
+   "message": "Jugadores cambiados de carpeta (OTP u otros jugadores): 3.",
+   "hora": "16:44:53"
+  },
+  {
+   "id": 284,
+   "ts": 1795794294.1295378,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: recogido «Getting 2500 gold on the FIRST recall» (transcripción: yt-dlp json3, partida 1158 s con Twitch).",
+   "hora": "16:44:54"
+  },
+  {
+   "id": 285,
+   "ts": 1795794300.7415416,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Subida a GitHub: 400 de 2000 partidas nuevas.",
+   "hora": "16:45:00"
+  },
+  {
+   "id": 286,
+   "ts": 1795794307.473008,
+   "kind": "info",
+   "source": "crawler",
+   "message": "VN · GRANDMASTER · jugador: 50 partidas nuevas, 49 analizadas en 2.2 min (historial: 108 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado GRANDMASTER.",
+   "hora": "16:45:07"
+  },
+  {
+   "id": 287,
+   "ts": 1795794328.789829,
+   "kind": "info",
+   "source": "updater",
+   "message": "Actualización automática: versión nueva en GitHub (d28787014); subo los datos y la bajo.",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 288,
+   "ts": 1795794328.8015125,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Key de Riot (llamadas/min del recolector, de un máximo de): americas 45.5 de 49.5 (reserva 1 %), asia 45.2 de 49.5 (reserva 1 %), europe 45.2 de 49.5 (reserva 1 %), sea 47.9 de 49.5 (reserva 1 %)",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 289,
+   "ts": 1795794328.8034127,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Reparto por elo (parte de las partidas nuevas / últimas partidas analizadas / analizadas en total): IRON 9.6%/9.8%/1269, BRONZE 10.2%/9.8%/1209, SILVER 10.7%/10.2%/1165, GOLD 10.5%/11.2%/1182, PLATINUM 11.0%/11.2%/1143, EMERALD 10.3%/11.1%/1205, DIAMOND 9.5%/9.8%/1278, MASTER 9.4%/9.7%/1291, GRANDMASTER 9.4%/9.6%/1295, CHALLENGER 9.4%/7.6%/1286",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 290,
+   "ts": 1795794328.8037038,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Visitas por elo desde que arrancó (visitas · analizadas · por visita · min por visita · historial completo): IRON 1·49·49.0·2.3·0%, BRONZE 3·13·4.3·1.0·100%, SILVER 1·20·20.0·1.1·0%, GOLD 2·52·26.0·1.5·50%, PLATINUM 1·19·19.0·1.4·0%, EMERALD 1·48·48.0·2.2·0%, DIAMOND 1·40·40.0·2.3·0%, MASTER 1·50·50.0·2.2·0%, GRANDMASTER 1·49·49.0·2.2·0%",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 291,
+   "ts": 1795794328.8039465,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Cola por elo, las regiones juntas (nuevos/partidas nuevas/historial/sin análisis): IRON 1477/0/10/7, BRONZE 1422/0/14/4, SILVER 1460/0/25/1, GOLD 1471/0/18/1, PLATINUM 1479/0/61/1, EMERALD 1495/0/18/3, DIAMOND 1518/0/22/0, MASTER 1521/0/20/0, GRANDMASTER 1517/0/18/0, CHALLENGER 1324/0/20/0",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 292,
+   "ts": 1795794328.810997,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Dónde se va el tiempo (5 min): videos-frames: otro 100 % (más en videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run) | fetch: otro 100 % (más en thread.py _worker) | crawler-dl-europe: esperando turno de la key de Riot 61 %, otro 29 %, esperando a la red (Riot, OP.GG, GitHub) 10 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-sea: esperando turno de la key de Riot 68 %, esperando a la red (Riot, OP.GG, GitHub) 27 %, otro 6 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-americas: esperando turno de la key de Riot 71 %, esperando a la red (Riot, OP.GG, GitHub) 17 %, otro 12 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | crawler-dl-asia: esperando turno de la key de Riot 67 %, esperando a la red (Riot, OP.GG, GitHub) 21 %, otro 12 % (más en riot/ratelimit.py:215 acquire → threading.py:wait) | videos-campeon: otro 100 % (más en videos/frames.py:551 _scan) | db-checkpoint: esperando un candado (base de datos, ficheros) 99 %, consultando o escribiendo la base de datos 1 % (más en data/db.py:516 run → threading.py:wait) | MainThread: otro 100 % (más en windows_events.py _poll) | crawler-europe: parado esperando trabajo 44 %, analizando partidas 16 %, consultando o escribiendo la base de datos 10 %, esperando turno de la key de Riot 8 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-sea: parado esperando trabajo 52 %, analizando partidas 15 %, consultando o escribiendo la base de datos 14 %, comprimiendo o escribiendo ficheros 10 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-americas: parado esperando trabajo 56 %, consultando o escribiendo la base de datos 18 %, analizando partidas 10 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:1118 take → threading.py:wait) | crawler-asia: parado esperando trabajo 58 %, consultando o escribiendo la base de datos 17 %, analizando partidas 11 %, comprimiendo o escribiendo ficheros 7 % (más en ingest/crawler.py:1118 take → threading.py:wait) | videos: parado esperando trabajo 59 %, esperando a la red (Riot, OP.GG, GitHub) 21 %, otro 20 % (más en videos/frames.py:776 sample_pass → threading.py:wait) | otp-summaries: otro 54 %, consultando o escribiendo la base de datos 35 %, comprimiendo o escribiendo ficheros 9 %, esperando un candado (base de datos, ficheros) 1 % (más en coach/store.py:25 unpack) | web: parado esperando trabajo 94 %, otro 3 %, consultando o escribiendo la base de datos 2 %, comprimiendo o escribiendo ficheros 1 % (más en threading.py wait) | draft-live: parado esperando trabajo 97 %, otro 1 %, esperando a la red (Riot, OP.GG, GitHub) 1 %, consultando o escribiendo la base de datos 1 % (más en draft_live.py:448 _run → threading.py:wait) | lol-client-watch: parado esperando trabajo 98 %, comprimiendo o escribiendo ficheros 1 % (más en coach/tracker.py:496 _watch_loop → threading.py:wait) | mis-partidas: parado esperando trabajo 99 %, consultando o escribiendo la base de datos 1 % (más en coach/files.py:107 _run → threading.py:wait) | busquedas: parado esperando trabajo 100 % (más en ingest/crawler.py:2831 _search_step → threading.py:wait) | crawler-rows: consultando o escribiendo la base de datos 67 %, otro 33 % (más en ingest/crawler.py:877 otp_rows_for_plan) | updater: parado esperando trabajo 100 % (más en updater.py:137 _loop → threading.py:wait) | game-tracker: parado esperando trabajo 100 % (más en coach/tracker.py:400 _sleep → threading.py:wait) | Thread-519 (: otro 100 % (más en subprocess.py _readerthread) | Thread-518 (: otro 100 % (más en subprocess.py _readerthread) | otp-counts: consultando o escribiendo la base de datos 100 % (más en ingest/otp_details.py:982 counts → db.py:conn) | tier-calibrator: parado esperando trabajo 100 % (más en coach/calibrate.py:75 _run → threading.py:wait) | Thread-498 (: otro 100 % (más en subprocess.py _readerthread) | Thread-497 (: otro 100 % (más en subprocess.py _readerthread) | Thread-507 (: otro 100 % (más en subprocess.py _readerthread) | Thread-506 (: otro 100 % (más en subprocess.py _readerthread) | Thread-513 (: otro 100 % (más en subprocess.py _readerthread) | Thread-512 (: otro 100 % (más en subprocess.py _readerthread) | crawler-funnel: otro 100 % (más en ingest/crawler.py:3378 _funnel_visits → __init__.py:emit) | Thread-525 (: otro 100 % (más en subprocess.py _readerthread) | Thread-524 (: otro 100 % (más en subprocess.py _readerthread) | Thread-532 (: otro 100 % (más en subprocess.py _readerthread) | Thread-531 (: otro 100 % (más en subprocess.py _readerthread) | Thread-541 (: otro 100 % (más en subprocess.py _readerthread) | Thread-540 (: otro 100 % (más en subprocess.py _readerthread) | Thread-547 (: otro 100 % (más en subprocess.py _readerthread) | Thread-546 (: otro 100 % (más en subprocess.py _readerthread) | Thread-549 (: otro 100 % (más en subprocess.py _readerthread) | Thread-548 (: otro 100 % (más en subprocess.py _readerthread) | rofl: parado esperando trabajo 100 % (más en replays_local.py:301 _run → threading.py:wait) | warm-planner: parado esperando trabajo 100 % (más en warmer.py:322 _plan_loop → threading.py:wait) | warm-demand: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-riot-web: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-lolalytics: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-opgg-mcp: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | warm-opgg-web: parado esperando trabajo 100 % (más en warmer.py:178 _work → threading.py:wait) | grabacion: parado esperando trabajo 100 % (más en videos/frames.py:776 sample_pass → threading.py:wait)",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 293,
+   "ts": 1795794328.8112614,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · analytics/builds.py:239 _own_items_query · SELECT items, win FROM participants WHERE champ = ? AND role = ? AND i — 16 veces, 77.8 s en total, la peor 17.4 s",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 294,
+   "ts": 1795794328.8115177,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 52 veces, 76.0 s en total, la peor 4.9 s",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 295,
+   "ts": 1795794328.8117034,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Base de datos lenta: lectura · ingest/crawler.py:1893 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 56 veces, 71.6 s en total, la peor 3.8 s",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 296,
+   "ts": 1795794328.8119419,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado americas: 137 partidas nuevas (24.2/min ahora) · 99 analizadas · errores 0 · tiempo: cola 17, riot_listas 6, esperando_descarga 205, partidas 329, guardar_partida 42, riot 5, analizar_guardar 80, visitas 306",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 297,
+   "ts": 1795794328.8121674,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado europe: 73 partidas nuevas (14.6/min ahora) · 119 analizadas · errores 0 · tiempo: cola 5, riot_listas 6, esperando_descarga 121, partidas 210, riot 91, analizar_guardar 108, visitas 323, guardar_partida 22",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 298,
+   "ts": 1795794328.8123114,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado asia: 111 partidas nuevas (19.2/min ahora) · 110 analizadas · errores 0 · tiempo: cola 14, riot_listas 8, esperando_descarga 205, guardar_partida 31, riot 0, analizar_guardar 96, partidas 336, visitas 216",
+   "hora": "16:45:28"
+  },
+  {
+   "id": 299,
+   "ts": 1795794328.812514,
+   "kind": "info",
+   "source": "crawler",
+   "message": "Estado sea: 122 partidas nuevas (20.8/min ahora) · 121 analizadas · errores 0 · tiempo: cola 8, riot_listas 10, esperando_descarga 189, guardar_partida 35, riot 0, analizar_guardar 107, partidas 336, visitas 332",
+   "hora": "16:45:28"
   }
  ],
  "hilos": {
-  "autopush": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 507, in _loop |     self._run(wait_summaries)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 606, in _run |     self._run_steps(stop, t0)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 702, in _run_steps |     self._prepare_report()",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 635, in _prepare_report |     self._write_log()",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 567, in _write_log |     stack = traceback.format_stack(frame)[-6:]"
+  "AnyIO worker thread": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "AnyIO worker thread #26304": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "crawler-dl-europe_2": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-europe_1": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1108, in _fetch |     timeline = w.svc.riot.timeline(match_id, **kw)  # aún no guardada (si no, no se estaría descargando)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 266, in timeline |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}/timeline\", method=\"match-v5.timeline\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "AnyIO worker thread #24688": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
+   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "crawler-dl-sea_2": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-sea_1": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1284, in stream |     yield from self.read_chunked(amt, decode_content=decode_content)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1459, in read_chunked |     self._update_chunk_length()",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1367, in _update_chunk_length |     line = self._fp.fp.readline(_MAX_CHUNK_LINE_LENGTH + 1)  # type: ignore[union-attr]",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+  ],
+  "crawler-dl-sea_0": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-europe_0": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-americas_2": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-americas_1": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-americas_0": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1096, in _fetch |     payload = w.svc.riot.match(match_id, **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 262, in match |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}\", method=\"match-v5.match\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-asia_2": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1108, in _fetch |     timeline = w.svc.riot.timeline(match_id, **kw)  # aún no guardada (si no, no se estaría descargando)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 266, in timeline |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}/timeline\", method=\"match-v5.timeline\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-asia_1": [
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1108, in _fetch |     timeline = w.svc.riot.timeline(match_id, **kw)  # aún no guardada (si no, no se estaría descargando)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 266, in timeline |     return self.request(region_of(platform), f\"/lol/match/v5/matches/{match_id}/timeline\", method=\"match-v5.timeline\", **kw)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\client.py\", line 69, in request |     if not self.limiter.acquire(host, method, priority, stop):",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\riot\\ratelimit.py\", line 215, in acquire |     self._cond.wait(timeout=min(wait, 0.5))",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-dl-asia_0": [
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1284, in stream |     yield from self.read_chunked(amt, decode_content=decode_content)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1459, in read_chunked |     self._update_chunk_length()",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1367, in _update_chunk_length |     line = self._fp.fp.readline(_MAX_CHUNK_LINE_LENGTH + 1)  # type: ignore[union-attr]",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+  ],
+  "crawler-me1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-vn2-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-ru-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-tw2-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-tr1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-sg2-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-la2-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-eun1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-jp1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-la1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-oc1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-kr-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-br1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-euw1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-sea": [
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2239, in _visit_ingest |     got = self._ingest(match_id, v.player)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2608, in _ingest |     payload, failed = self._download_match(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2500, in _download_match |     payload = self._prefetch.take(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1118, in take |     payload, timeline = fut.result()",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "crawler-na1-otps": [
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2800, in run |     self._search_step(tiers)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2831, in _search_step |     w.stop_event.wait(SCOUT_BACKLOG_WAIT_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+  ],
+  "crawler-asia": [
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2239, in _visit_ingest |     got = self._ingest(match_id, v.player)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2608, in _ingest |     payload, failed = self._download_match(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2500, in _download_match |     payload = self._prefetch.take(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1118, in take |     payload, timeline = fut.result()",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "crawler-europe": [
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2239, in _visit_ingest |     got = self._ingest(match_id, v.player)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2608, in _ingest |     payload, failed = self._download_match(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2500, in _download_match |     payload = self._prefetch.take(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1118, in take |     payload, timeline = fut.result()",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+  ],
+  "crawler-americas": [
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2239, in _visit_ingest |     got = self._ingest(match_id, v.player)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2608, in _ingest |     payload, failed = self._download_match(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 2500, in _download_match |     payload = self._prefetch.take(match_id)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\ingest\\crawler.py\", line 1118, in take |     payload, timeline = fut.result()",
+   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
   ],
   "videos-frames_0": [
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 119, in _worker |     work_item.run(ctx)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 86, in run |     result = ctx.run(self.task)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 73, in run |     return fn(*args, **kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 767, in run |     part = _sample_span(source, item[1], box, cam, tools, should_stop, gpu, tick, step)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 812, in _sample_span |     for t, frame in reader.every(step, start):",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 148, in every |     ok, frame = self.cap.retrieve()"
-  ],
-  "AnyIO worker thread": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\fastapi\\telemetry\\_api.py\", line 244, in _run_sync_endpoint |     return function(**arguments)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\api\\system.py\", line 107, in status |     \"db\": _db_counts(svc),",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\api\\system.py\", line 49, in _db_counts |     _counts[\"value\"] = _count_db(svc)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\api\\system.py\", line 61, in _count_db |     \"players\": db.scalar(\"SELECT COUNT(*) FROM players\", default=0),",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\data\\db.py\", line 600, in scalar |     row = self.one(sql, params)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\data\\db.py\", line 594, in one |     row = self.conn().execute(sql, params).fetchone()"
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
   ],
   "fetch_7": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -2417,41 +3328,21 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
    "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
   ],
-  "Thread-20 (_readerthread)": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
-  ],
-  "Thread-19 (_readerthread)": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
-  ],
-  "track-check": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\coach\\track_check_job.py\", line 61, in run |     output, ok = execute() if execute else _execute(stop, lambda: _in_game(svc))",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\coach\\track_check_job.py\", line 100, in _execute |     out, err = proc.communicate(timeout=CHECK_S)  # sin perder salida: se puede volver a llamar",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1221, in communicate |     stdout, stderr = self._communicate(input, endtime, timeout)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1662, in _communicate |     self.stdout_thread.join(self._remaining_time(endtime))",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1133, in join |     self._os_thread_handle.join(timeout)"
-  ],
   "videos": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 217, in _loop |     self._sleep(IDLE_S)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 238, in _sleep |     self.wake.wait(seconds)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1046, in _raw_read |     data = self._fp_read(amt, read1=read1) if not fp_closed else b\"\"",
+   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\urllib3\\response.py\", line 1029, in _fp_read |     return self._fp.read(amt) if amt is not None else self._fp.read()",
+   "File \"C:\\Python314\\Lib\\http\\client.py\", line 494, in read |     s = self.fp.read(amt)",
+   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
+   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "updater": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 137, in _loop |     self.wake.wait(CHECK_EVERY_S)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 285, in apply |     auto.run_now()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 661, in run_now |     self._run()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 606, in _run |     self._run_steps(stop, t0)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 702, in _run_steps |     self._prepare_report()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 635, in _prepare_report |     self._write_log()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 567, in _write_log |     stack = traceback.format_stack(frame)[-6:]"
   ],
   "rofl": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -2609,9 +3500,9 @@
    "File \"C:\\Python314\\Lib\\asyncio\\runners.py\", line 128, in run |     return self._loop.run_until_complete(task)",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 707, in run_until_complete |     self.run_forever()",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 678, in run_forever |     self._run_once()",
-   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2019, in _run_once |     event_list = self._selector.select(timeout)",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 446, in select |     self._poll(timeout)",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 778, in _poll |     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)"
+   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2058, in _run_once |     handle = None  # Needed to break cycles when an exception occurs.",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 453, in select |     tmp = None",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 820, in _poll |     self._unregistered.clear()"
   ]
  }
 }
