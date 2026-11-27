@@ -89,7 +89,8 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 # 173 fichas de campeón (saltos de muro, daño de lejos) y empezar de cero (``app/reinicio.py``), 27-11-2026.
 # 17: el primer despeje empieza por el campamento junto al que te pone Riot al 1:00 (azul, gromp y lobos salía azul,
 #     gromp, azul, lobos), 27-11-2026.
-ANALYSIS_VERSION = 17
+# 18: las primeras escuttles que Riot dice que son tuyas se colocan antes del 4:30 (tu segunda grabación), 27-11-2026.
+ANALYSIS_VERSION = 18
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1153,7 +1154,11 @@ def _jungle_budget(g, pid: int) -> dict:
 # ponen y, mientras al suyo le quede alguna por poner, cuenta como ``INITIAL_SCUTTLE_BONUS`` unidades de rodeo menos
 # (tu Hecarim grabado el 26-11-2026: la de arriba a las 4:10, cuando la app se la ponía por primera vez a las 10:07 y le
 # daba otra de abajo a las 5:56). Los bufos rivales, como mucho los que robó (``buffsStolen``).
-INITIAL_SCUTTLE_BONUS = 0.0  # probado 3.000-8.000: las mete en el primer hueco (antes de las 3:00) y descuadra lo demás
+INITIAL_SCUTTLE_BONUS = 1_500.0  # solo en los tramos que acaban hasta el 4:30 (``OWED_UNTIL_MS``): tu Hecarim del 27-11
+# hizo las dos (``initialCrabCount`` 2: arriba a las 3:10 y abajo a las 3:45) y salía escuttle de abajo y gromp (grabación
+# 1.191 → 999; la del 26-11 igual, 1.010). En toda la partida (antes, 3.000-8.000) cambiaba qué campamentos estaban vivos
+# más tarde y descuadraba el resto (la del 26-11: 1.010 → 1.304, el 13:00 en sus campamentos en vez de invadiendo).
+OWED_UNTIL_MS = 270_000
 
 
 BUFF_OWED_BONUS = 0.0  # lo mismo con los bufos rivales robados (buffsStolen) aún sin poner; probado 500-2.000: igual o peor (grabación 1.033 → 1.086)
@@ -1304,7 +1309,7 @@ def _camp_span(g, sites: list, killed: dict[str, int], out: dict[int, list], kno
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
     candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
     xp = _span_xp(g, pid, a, b) if not epics else None
-    owed = _owed(killed, budget, team)
+    owed = _owed(killed, budget, team) if t1 <= OWED_UNTIL_MS else ()
     initial = _initial_left(killed)
     best = _camp_route(candidates, killed, (p0, p1), t1, min(k, CAMP_MAX), xp, owed)
     fits = _camp_fit(_camp_paces(g, pid, a, b), t1 - t0, best) if best is not None else None
@@ -1370,7 +1375,7 @@ def _camp_pieces(g, sites: list, killed: dict[str, int], out: dict[int, list], s
     own_only = (g.players.get(pid) or {}).get("enemy_camps") == 0
     candidates = _camp_candidates(sites, team, {**budget, "enemy": 0} if own_only else budget, killed)
     levels = _camp_level_ups(g, pid, t0, t1)
-    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces, _owed(killed, budget, team), levels)
+    plan = _camp_split(gaps, min(k, CAMP_MAX), candidates, killed, paces, _owed(killed, budget, team) if t1 <= OWED_UNTIL_MS else (), levels)
     if plan is None:
         _mark_skipped(sites, killed, (t0, t1), ends, k)
         return
