@@ -1,5 +1,30 @@
 Validación de la reconstrucción de recorridos (app.coach.track_check): la más reciente arriba. Se ejecuta sola al arrancar la app.
 
+=== 2026-11-27 17:09 · código ecf0c4bb0 · 58 partidas · 10 min 31 s ===
+1) Posición real de un evento quitada y reconstruida con el resto:
+   Línea recta   9307 casos · error mediano 1221 u. · medio 1882 · p90 4403 · más de 4000 u.: 12.0 %
+   Sin peleas    9307 casos · error mediano 1138 u. · medio 1592 · p90 3515 · más de 4000 u.: 7.2 %
+   Reconstruido  9307 casos · error mediano 1134 u. · medio 1574 · p90 3453 · más de 4000 u.: 6.7 %
+1b) Posición del minuto escondida a quien pegó a campeones sin kill que lo explique (peleas sin muerte):
+   Sin peleas    808 casos · error mediano 2441 u. · medio 3259 · p90 7193 · más de 4000 u.: 33.0 %
+   Con peleas    808 casos · error mediano 1738 u. · medio 2962 · p90 6954 · más de 4000 u.: 28.8 %
+1c) Posición del minuto escondida a quien rompió un ward rival:
+   Sin wards     1157 casos · error mediano 2072 u. · medio 2804 · p90 6359 · más de 4000 u.: 26.4 %
+   Con wards     1157 casos · error mediano 1772 u. · medio 2390 · p90 5191 · más de 4000 u.: 17.9 %
+1d) Posición del minuto escondida a cualquiera (recorridos típicos aprendidos de las partidas guardadas):
+   Sin típicos   6454 casos · error mediano 1257 u. · medio 1831 · p90 4134 · más de 4000 u.: 10.7 %
+   Con típicos   6454 casos · error mediano 1234 u. · medio 1804 · p90 4064 · más de 4000 u.: 10.3 %
+2) Posición del jungla escondida en un minuto (su CS sí se sabe), con lo de antes y lo de después:
+   Sin campamentos  1332 casos · error mediano 3273 u. · medio 3564 · más de 4000 u.: 37.9 %
+   Con campamentos  1332 casos · error mediano 2512 u. · medio 2934 · más de 4000 u.: 25.2 %
+   Tramos de jungla sin otros datos: 2046; no cuadraban con el CS (no se inventa nada): 3 (0 %).
+3) Experiencia y CS de súbditos de cada minuto frente al recorrido (laners, sin pelear ni volver a base):
+   1450 minutos. Fuera de todas las líneas ≥ 75 % del minuto con ≥ 6 CS de súbditos (imposible): reconstruido 0, línea recta 2.
+   En su línea 0-25 % del minuto: 19 minutos · 6.4 CS · 345 de experiencia de media
+   En su línea 25-50 % del minuto: 18 minutos · 6.7 CS · 456 de experiencia de media
+   En su línea 50-75 % del minuto: 38 minutos · 8.1 CS · 547 de experiencia de media
+   En su línea 75-100 % del minuto: 1375 minutos · 8.7 CS · 533 de experiencia de media
+
 === 2026-11-27 15:56 · código 50006c40b · 58 partidas · 38 min 9 s ===
 1) Posición real de un evento quitada y reconstruida con el resto:
    Línea recta   9245 casos · error mediano 1218 u. · medio 1881 · p90 4403 · más de 4000 u.: 12.0 %
@@ -451,31 +476,6 @@ Validación de la reconstrucción de recorridos (app.coach.track_check): la más
    En su línea 75-100 % del minuto: 1329 minutos · 8.7 CS · 534 de experiencia de media
 
 === 2026-11-25 19:10 · código 049aadc2f · 56 partidas · 10 min 7 s ===
-1) Posición real de un evento quitada y reconstruida con el resto:
-   Línea recta   9227 casos · error mediano 1224 u. · medio 1881 · p90 4390 · más de 4000 u.: 11.9 %
-   Sin peleas    9227 casos · error mediano 1130 u. · medio 1577 · p90 3436 · más de 4000 u.: 6.8 %
-   Reconstruido  9227 casos · error mediano 1126 u. · medio 1559 · p90 3380 · más de 4000 u.: 6.4 %
-1b) Posición del minuto escondida a quien pegó a campeones sin kill que lo explique (peleas sin muerte):
-   Sin peleas    807 casos · error mediano 2630 u. · medio 3410 · p90 7314 · más de 4000 u.: 35.4 %
-   Con peleas    807 casos · error mediano 2176 u. · medio 3113 · p90 7006 · más de 4000 u.: 30.1 %
-1c) Posición del minuto escondida a quien rompió un ward rival:
-   Sin wards     1217 casos · error mediano 2277 u. · medio 2967 · p90 6488 · más de 4000 u.: 28.6 %
-   Con wards     1217 casos · error mediano 1946 u. · medio 2544 · p90 5374 · más de 4000 u.: 20.0 %
-1d) Posición del minuto escondida a cualquiera (recorridos típicos aprendidos de las partidas guardadas):
-   Sin típicos   6539 casos · error mediano 1336 u. · medio 1913 · p90 4296 · más de 4000 u.: 11.6 %
-   Con típicos   6539 casos · error mediano 1313 u. · medio 1886 · p90 4259 · más de 4000 u.: 11.2 %
-2) Posición del jungla escondida en un minuto (su CS sí se sabe), con lo de antes y lo de después:
-   Sin campamentos  216 casos · error mediano 2939 u. · medio 3418 · más de 4000 u.: 35.2 %
-   Con campamentos  216 casos · error mediano 2605 u. · medio 3007 · más de 4000 u.: 27.8 %
-   Tramos de jungla sin otros datos: 832; no cuadraban con el CS (no se inventa nada): 0 (0 %).
-3) Experiencia y CS de súbditos de cada minuto frente al recorrido (laners, sin pelear ni volver a base):
-   1398 minutos. Fuera de todas las líneas ≥ 75 % del minuto con ≥ 6 CS de súbditos (imposible): reconstruido 0, línea recta 2.
-   En su línea 0-25 % del minuto: 14 minutos · 5.5 CS · 314 de experiencia de media
-   En su línea 25-50 % del minuto: 18 minutos · 6.2 CS · 452 de experiencia de media
-   En su línea 50-75 % del minuto: 37 minutos · 7.8 CS · 541 de experiencia de media
-   En su línea 75-100 % del minuto: 1329 minutos · 8.7 CS · 534 de experiencia de media
-
-=== 2026-11-25 18:37 · código 05d03e441 · 56 partidas · 15 min 57 s ===
 1) Posición real de un evento quitada y reconstruida con el resto:
    Línea recta   9227 casos · error mediano 1224 u. · medio 1881 · p90 4390 · más de 4000 u.: 11.9 %
    Sin peleas    9227 casos · error mediano 1130 u. · medio 1577 · p90 3436 · más de 4000 u.: 6.8 %
