@@ -81,3 +81,18 @@ def test_mapas_reales_del_alma():
     assert ring.get(c[1] * nav.N + c[0]) == 0.74 and nav.cell((3821, 7901))[1] * nav.N + nav.cell((3821, 7901))[0] not in ring
     for fn in (nav._free_for, nav._links_for, nav._cost_for, nav._route, nav._line_clear):
         fn.cache_clear()
+
+
+def test_la_repeticion_usa_el_mapa_del_alma_y_rehace_las_rutas_antiguas():
+    from app.coach.analyzer import rift_of
+
+    timeline = {"info": {"frames": [{"events": [{"type": "DRAGON_SOUL_GIVEN", "name": "Hextech", "teamId": 0, "timestamp": 786_000}]}]}}
+    assert rift_of(timeline) == ["Hextech", 796.0]
+    assert rift_of({"info": {"frames": [{"events": []}]}}) is None
+    # Un portal de doble sentido (``RIFT_CHANGES``): de un extremo al otro, después del alma, se cruza por él.
+    (a, b, _two_way) = nav.RIFT_CHANGES["Hextech"]["portals"][0]
+    track = {"a": [[900.0, a[0] + 150, a[1], 0], [960.0, b[0] + 150, b[1], 0]], "dead": []}
+    old = nav.route_replay({"tracks": {"1": track}, "rift": None}, {"1": None})  # como las guardadas sin alma
+    new = nav.route_replay({**old, "rift": ["Hextech", 796.0]}, {"1": None})
+    hop = lambda rep: any(nav.portal_hop((p[1], p[2]), (q[1], q[2]), "Hextech") for p, q in zip(rep["tracks"]["1"]["a"], rep["tracks"]["1"]["a"][1:]))
+    assert not hop(old) and hop(new)
