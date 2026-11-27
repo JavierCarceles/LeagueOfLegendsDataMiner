@@ -1,0 +1,696 @@
+/* =====================================================================
+   Tema «Hextech» (web/js/theme.js): la página entera con la estética del cliente del juego. Solo actúa con
+   <html data-theme="hextech">; el estándar (styles.css) no se toca. Paleta del cliente (azules casi negros, oro
+   #c8aa6e/#785a28/#463714, turquesa #0ac8b9), títulos en Cinzel (lo más parecido a la Beaufort del juego), esquinas
+   rectas con remates de oro, rejilla hexagonal de fondo y las barras de scroll de cristal (al final del fichero).
+   ===================================================================== */
+:root[data-theme="hextech"] {
+  --bg: #010a13;
+  --bg-2: #050f1a;
+  --panel: #0a1428;
+  --panel-2: #08111f;
+  --raised: #0f1d33;
+  --line: #1c2a38;
+  --line-2: #463714;
+  --text: #f0e6d2;
+  --text-2: #c4b998;
+  --muted: #8d8775;
+  --faint: #5b5a56;
+
+  --gold: #c8aa6e;
+  --gold-2: #f0e6d2;
+  --gold-soft: rgba(200, 170, 110, 0.13);
+  --blue: #0ac8b9;
+  --blue-soft: rgba(10, 200, 185, 0.13);
+  --red: #e84057;
+  --red-soft: rgba(232, 64, 87, 0.14);
+  --good: #19d3a2;
+  --good-soft: rgba(25, 211, 162, 0.13);
+  --bad: #e84057;
+  --bad-soft: rgba(232, 64, 87, 0.14);
+  --warn: #f0b232;
+  --warn-soft: rgba(240, 178, 50, 0.14);
+  --violet: #a77bf3;
+
+  --radius: 2px;
+  --radius-sm: 2px;
+  --shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(200, 170, 110, 0.08);
+  --font-display: "Cinzel", "Beaufort for LOL", "Times New Roman", serif;
+  --hx-frame: linear-gradient(180deg, #c8aa6e, #785a28 55%, #463714);
+  --hx-frame-dim: linear-gradient(180deg, #785a28, #463714 60%, #2b2210);
+  --hx-hexes: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cpath fill='%23c8aa6e' fill-opacity='0.035' fill-rule='evenodd' d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- fondo, texto y selección */
+[data-theme="hextech"] body {
+  background:
+    radial-gradient(1100px 620px at 82% -12%, rgba(10, 200, 185, 0.09), transparent 62%),
+    radial-gradient(900px 600px at 0% 110%, rgba(200, 170, 110, 0.07), transparent 60%),
+    var(--hx-hexes),
+    linear-gradient(180deg, #030d18, #010a13 40%);
+  background-attachment: fixed;
+}
+[data-theme="hextech"] ::selection { background: rgba(10, 200, 185, 0.35); color: #fff; }
+[data-theme="hextech"] a { color: #4fe0d4; }
+[data-theme="hextech"] a:hover { color: #cdfafa; }
+[data-theme="hextech"] :focus-visible { outline-color: #0ac8b9 !important; }
+
+/* ---------------------------------------------------------------- menú de la izquierda */
+[data-theme="hextech"] .sidebar {
+  padding: 16px 22px 16px 12px; /* a la derecha, sitio para su barra de cristal (22 px), que no tape los enlaces */
+  border-right: 1px solid #463714;
+  box-shadow: inset -1px 0 0 rgba(200, 170, 110, 0.12), 6px 0 24px rgba(0, 0, 0, 0.45);
+}
+[data-theme="hextech"] .brand-mark {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(160deg, #f0e6d2, #c8aa6e 35%, #785a28 75%, #463714);
+  color: #0a1428;
+  font-family: var(--font-display);
+  box-shadow: none;
+}
+[data-theme="hextech"] .brand-name { font-family: var(--font-display); font-weight: 700; letter-spacing: 1.2px; color: #f0e6d2; text-transform: uppercase; font-size: 13px; }
+[data-theme="hextech"] .brand-name small { color: #0ac8b9; letter-spacing: 1.6px; font-family: var(--font); font-size: 10px; }
+[data-theme="hextech"] .nav-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #785a28;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 2px;
+}
+[data-theme="hextech"] .nav-section::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(120, 90, 40, 0.7), rgba(120, 90, 40, 0)); }
+[data-theme="hextech"] .nav-link { position: relative; border-radius: 0; color: #a09b8c; border: 0; transition: color 0.15s, background 0.2s; }
+[data-theme="hextech"] .nav-link svg { color: #785a28; opacity: 1; transition: color 0.15s, filter 0.2s; }
+[data-theme="hextech"] .nav-link:hover { background: linear-gradient(90deg, rgba(200, 170, 110, 0.1), rgba(200, 170, 110, 0) 90%); color: #f0e6d2; }
+[data-theme="hextech"] .nav-link:hover svg { color: #c8aa6e; }
+[data-theme="hextech"] .nav-link.active {
+  background: linear-gradient(90deg, rgba(10, 200, 185, 0.16), rgba(10, 200, 185, 0.03) 70%, rgba(10, 200, 185, 0));
+  color: #f0e6d2;
+  box-shadow: inset 2px 0 0 #c8aa6e;
+}
+[data-theme="hextech"] .nav-link.active svg { color: #0ac8b9; filter: drop-shadow(0 0 4px rgba(10, 200, 185, 0.7)); }
+/* Un rombo de oro a la derecha de la vista en la que estás. */
+[data-theme="hextech"] .nav-link.active::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #f0e6d2, #c8aa6e 50%, #785a28);
+  box-shadow: 0 0 6px rgba(200, 170, 110, 0.7);
+}
+[data-theme="hextech"] .sidebar-foot { color: #5b5a56; }
+@media (max-width: 1100px) {
+  [data-theme="hextech"] .sidebar { padding-left: 8px; } /* plegado: sitio para su barra sin apretar los iconos */
+  [data-theme="hextech"] .nav-link { padding: 9px 7px; }
+  [data-theme="hextech"] .nav-link.active::after { display: none; }
+  [data-theme="hextech"] .nav-section { display: none; }
+}
+@media (max-width: 860px) {
+  [data-theme="hextech"] .main { padding-right: 26px; } /* sitio para su barra de cristal, que no tape las tarjetas */
+  [data-theme="hextech"] .sidebar { padding: 6px; border-right: 0; border-top: 1px solid #463714; }
+  [data-theme="hextech"] .nav-link.active { box-shadow: inset 0 -2px 0 #c8aa6e; }
+}
+
+/* ---------------------------------------------------------------- barra de arriba */
+[data-theme="hextech"] .topbar {
+  background: linear-gradient(180deg, rgba(10, 20, 40, 0.96), rgba(3, 10, 19, 0.94));
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, #463714, #c8aa6e 30%, #f0e6d2 50%, #c8aa6e 70%, #463714) 1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+[data-theme="hextech"] .topbar h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #f0e6d2, #c8aa6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-theme="hextech"] .filter label { color: #785a28; font-weight: 700; }
+
+/* ---------------------------------------------------------------- títulos de cada vista */
+[data-theme="hextech"] .section-head h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #f0e6d2;
+  text-shadow: 0 0 18px rgba(200, 170, 110, 0.25);
+}
+/* Bajo el título, una línea de oro con un rombo. */
+[data-theme="hextech"] .section-head h2::after {
+  content: "";
+  display: block;
+  width: 180px;
+  margin-top: 8px;
+  height: 9px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='9'%3E%3Cdefs%3E%3ClinearGradient id='g'%3E%3Cstop offset='0' stop-color='%23c8aa6e'/%3E%3Cstop offset='1' stop-color='%23c8aa6e' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='d' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23f0e6d2'/%3E%3Cstop offset='1' stop-color='%23785a28'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M4.5 0 9 4.5 4.5 9 0 4.5Z' fill='url(%23d)'/%3E%3Crect x='12' y='4' width='168' height='1' fill='url(%23g)'/%3E%3C/svg%3E") no-repeat;
+}
+[data-theme="hextech"] .section-head p { color: #a09b8c; }
+
+/* ---------------------------------------------------------------- tarjetas: marco de oro con esquinas
+   Todo con fondos (sin pseudo-elementos ni cambiar su posición): arriba, los remates brillantes de las cuatro
+   esquinas; debajo, el relleno; abajo del todo, el marco de oro apagado que asoma por el borde transparente. */
+[data-theme="hextech"] .card,
+[data-theme="hextech"] .modal {
+  border: 1px solid transparent;
+  border-radius: 0;
+  background:
+    linear-gradient(#e6d3a3, #e6d3a3) top left / 16px 1px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top left / 1px 16px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top right / 16px 1px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top right / 1px 16px no-repeat border-box,
+    linear-gradient(#c8aa6e, #c8aa6e) bottom left / 16px 1px no-repeat border-box,
+    linear-gradient(#c8aa6e, #c8aa6e) bottom left / 1px 16px no-repeat border-box,
+    linear-gradient(#c8aa6e, #c8aa6e) bottom right / 16px 1px no-repeat border-box,
+    linear-gradient(#c8aa6e, #c8aa6e) bottom right / 1px 16px no-repeat border-box,
+    radial-gradient(120% 70% at 50% 0%, rgba(10, 200, 185, 0.05), transparent 60%) padding-box,
+    linear-gradient(180deg, rgba(12, 24, 44, 0.96), rgba(4, 12, 22, 0.97)) padding-box,
+    linear-gradient(180deg, #5c4520, #2e2410 60%, #3d3015) border-box;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(240, 230, 210, 0.04);
+}
+[data-theme="hextech"] .card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1.6px;
+  color: #f0e6d2;
+  padding-bottom: 9px;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, #785a28, rgba(120, 90, 40, 0.15) 60%, rgba(120, 90, 40, 0)) 1;
+}
+[data-theme="hextech"] .card-title svg { color: #0ac8b9; filter: drop-shadow(0 0 4px rgba(10, 200, 185, 0.55)); }
+[data-theme="hextech"] .card-sub { color: #8d8775; }
+[data-theme="hextech"] .divider { background: linear-gradient(90deg, rgba(120, 90, 40, 0), #785a28 20%, #785a28 80%, rgba(120, 90, 40, 0)); }
+[data-theme="hextech"] .collapse-body > .card { background: transparent; box-shadow: none; border: 0; }
+
+/* Desplegables (llevan la clase card): cabecera en Cinzel. */
+[data-theme="hextech"] .collapse > .collapse-head { font-family: var(--font-display); font-weight: 700; letter-spacing: 1.6px; color: #f0e6d2; border-radius: 0; }
+[data-theme="hextech"] .collapse > .collapse-head:hover { background: linear-gradient(90deg, rgba(200, 170, 110, 0.08), transparent 70%); }
+[data-theme="hextech"] .collapse-title svg { color: #0ac8b9; }
+[data-theme="hextech"] .collapse-summary { font-family: var(--font); letter-spacing: 0; color: #8d8775; }
+[data-theme="hextech"] .collapse-chevron { color: #c8aa6e; }
+[data-theme="hextech"] .collapse[open] > .collapse-head { border-bottom-color: #463714; }
+
+/* ---------------------------------------------------------------- botones (los del cliente) */
+[data-theme="hextech"] .btn {
+  border-radius: 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, #1e2328, #10151b) padding-box,
+    linear-gradient(180deg, #c8aa6e, #785a28) border-box;
+  color: #cdbe91;
+  letter-spacing: 0.3px;
+  transition: color 0.15s, box-shadow 0.2s, filter 0.2s, transform 0.05s;
+}
+[data-theme="hextech"] .btn:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, #2a2f35, #161c23) padding-box,
+    linear-gradient(180deg, #f0e6d2, #c8aa6e) border-box;
+  color: #f0e6d2;
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.3), inset 0 0 10px rgba(200, 170, 110, 0.12);
+}
+[data-theme="hextech"] .btn-primary {
+  background:
+    linear-gradient(180deg, #0a3c46, #062631) padding-box,
+    linear-gradient(180deg, #cdfafa, #0ac8b9 40%, #005a82) border-box;
+  color: #cdfafa;
+  font-weight: 700;
+  box-shadow: inset 0 0 14px rgba(10, 200, 185, 0.25), 0 0 12px rgba(10, 200, 185, 0.18);
+  text-shadow: 0 0 8px rgba(10, 200, 185, 0.6);
+}
+[data-theme="hextech"] .btn-primary:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, #0d4f5c, #083341) padding-box,
+    linear-gradient(180deg, #ffffff, #cdfafa 30%, #0ac8b9) border-box;
+  color: #ffffff;
+  box-shadow: inset 0 0 18px rgba(10, 200, 185, 0.4), 0 0 18px rgba(10, 200, 185, 0.4);
+}
+[data-theme="hextech"] .btn-danger {
+  background:
+    linear-gradient(180deg, #2a1015, #170a0d) padding-box,
+    linear-gradient(180deg, #ff8796, #8a2232) border-box;
+  color: #ffb3bd;
+}
+[data-theme="hextech"] .btn-ghost { background: transparent; border-color: transparent; color: #a09b8c; }
+[data-theme="hextech"] .btn-ghost:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(200, 170, 110, 0.1), rgba(200, 170, 110, 0.03)) padding-box, linear-gradient(180deg, rgba(200, 170, 110, 0.5), rgba(120, 90, 40, 0.3)) border-box;
+  color: #f0e6d2;
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- campos */
+[data-theme="hextech"] .select,
+[data-theme="hextech"] .input {
+  border-radius: 0;
+  background-color: #010a13;
+  border-color: #463714;
+  color: #f0e6d2;
+}
+[data-theme="hextech"] .select { background-image: linear-gradient(45deg, transparent 50%, #c8aa6e 50%), linear-gradient(135deg, #c8aa6e 50%, transparent 50%); }
+[data-theme="hextech"] .select:hover, [data-theme="hextech"] .input:hover { border-color: #785a28; }
+[data-theme="hextech"] .select:focus,
+[data-theme="hextech"] .input:focus { border-color: #c8aa6e; box-shadow: 0 0 0 1px rgba(200, 170, 110, 0.35), 0 0 14px rgba(10, 200, 185, 0.18); }
+[data-theme="hextech"] .input::placeholder { color: #5b5a56; }
+[data-theme="hextech"] .check input { accent-color: #0ac8b9; }
+[data-theme="hextech"] .check-box { border-radius: 0; border-color: #785a28; transform: rotate(45deg) scale(0.85); }
+[data-theme="hextech"] .check-box.on { background: linear-gradient(135deg, #cdfafa, #0ac8b9); border-color: #0ac8b9; box-shadow: 0 0 6px rgba(10, 200, 185, 0.6); }
+[data-theme="hextech"] .check-box.on::after { border-color: #01262b; transform: rotate(0deg); left: 4.5px; top: 1.5px; }
+[data-theme="hextech"] .filter-list { border-radius: 0; border-color: #463714; background: rgba(1, 10, 19, 0.75); }
+[data-theme="hextech"] .filter-item + .filter-item { border-top-color: #1c2a38; }
+[data-theme="hextech"] .filter-label { color: #785a28; font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; }
+[data-theme="hextech"] .filter-item.open > .filter-row { background: linear-gradient(90deg, rgba(10, 200, 185, 0.08), transparent 70%); }
+[data-theme="hextech"] .filter-item.open > .filter-row .filter-label { color: #c8aa6e; }
+[data-theme="hextech"] .choice { border-radius: 0; border-color: #463714; }
+[data-theme="hextech"] .choice.on { border-color: #c8aa6e; background: linear-gradient(90deg, rgba(200, 170, 110, 0.14), rgba(200, 170, 110, 0.03)); }
+[data-theme="hextech"] .choice-dot { border-radius: 0; transform: rotate(45deg) scale(0.8); border-color: #785a28; }
+[data-theme="hextech"] .choice.on .choice-dot { border-color: #0ac8b9; background: #0ac8b9; box-shadow: inset 0 0 0 3px #08111f, 0 0 6px rgba(10, 200, 185, 0.7); }
+
+/* ---------------------------------------------------------------- pestañas, chips y pastillas */
+[data-theme="hextech"] .tabs { border-radius: 0; background: rgba(1, 10, 19, 0.8); border-color: #463714; }
+[data-theme="hextech"] .tab { border-radius: 0; color: #a09b8c; font-weight: 600; }
+[data-theme="hextech"] .tab:hover { background: rgba(200, 170, 110, 0.07); color: #f0e6d2; }
+[data-theme="hextech"] .tab.active {
+  background: linear-gradient(180deg, rgba(200, 170, 110, 0.04), rgba(200, 170, 110, 0.16));
+  color: #f0e6d2;
+  box-shadow: inset 0 -2px 0 #c8aa6e, 0 6px 12px -8px rgba(200, 170, 110, 0.7);
+}
+[data-theme="hextech"] .chip { border-radius: 0; border-color: #463714; background: rgba(1, 10, 19, 0.7); color: #a09b8c; }
+[data-theme="hextech"] .chip:hover { border-color: #c8aa6e; color: #f0e6d2; }
+[data-theme="hextech"] .chip.on { border-color: #0ac8b9; background: rgba(10, 200, 185, 0.12); color: #cdfafa; box-shadow: 0 0 8px rgba(10, 200, 185, 0.25); }
+[data-theme="hextech"] .pill,
+[data-theme="hextech"] .patch-badge,
+[data-theme="hextech"] .chip-bad,
+[data-theme="hextech"] .chip-warn,
+[data-theme="hextech"] .chip-muted,
+[data-theme="hextech"] .chip-good,
+[data-theme="hextech"] .src { border-radius: 2px; }
+[data-theme="hextech"] .pill-gold { color: #f0e6d2; border-color: rgba(200, 170, 110, 0.55); }
+[data-theme="hextech"] .pill-blue { color: #cdfafa; border-color: rgba(10, 200, 185, 0.45); }
+[data-theme="hextech"] .status-pill,
+[data-theme="hextech"] .profile-pill {
+  border-radius: 0;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #0f1d33, #08111f) padding-box, linear-gradient(180deg, #785a28, #463714) border-box;
+  color: #cdbe91;
+}
+[data-theme="hextech"] .status-pill:hover,
+[data-theme="hextech"] .profile-pill:hover { background: linear-gradient(180deg, #13233d, #0a1526) padding-box, linear-gradient(180deg, #f0e6d2, #c8aa6e) border-box; color: #f0e6d2; }
+[data-theme="hextech"] .status-pill.ok .dot { background: #0ac8b9; box-shadow: 0 0 10px rgba(10, 200, 185, 0.8); }
+[data-theme="hextech"] .profile-pill img { border-radius: 0; border-color: #c8aa6e; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+[data-theme="hextech"] .tier { border-radius: 0; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); padding: 0 9px; }
+
+/* ---------------------------------------------------------------- cifras, tablas y avisos */
+[data-theme="hextech"] .kpi {
+  border-radius: 0;
+  border: 1px solid #1c2a38;
+  border-left: 2px solid #c8aa6e;
+  background: linear-gradient(135deg, rgba(10, 200, 185, 0.06), transparent 45%), linear-gradient(180deg, #0a1428, #050d18);
+}
+[data-theme="hextech"] .kpi-label { color: #785a28; font-weight: 700; }
+[data-theme="hextech"] .kpi-value { font-family: var(--font-display); color: #f0e6d2; letter-spacing: 0.5px; }
+[data-theme="hextech"] .table-wrap { border-radius: 0; border-color: #463714; }
+[data-theme="hextech"] .table th {
+  background: linear-gradient(180deg, #0f1d33, #08111f);
+  color: #c8aa6e;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  border-bottom: 1px solid #785a28;
+}
+[data-theme="hextech"] .table th.sorted { color: #0ac8b9; }
+[data-theme="hextech"] .table td { border-bottom-color: rgba(70, 55, 20, 0.35); }
+[data-theme="hextech"] .table tbody tr:hover td { background: linear-gradient(90deg, rgba(10, 200, 185, 0.08), rgba(10, 200, 185, 0.02)); }
+[data-theme="hextech"] .notice { border-radius: 0; border-left-width: 2px; }
+[data-theme="hextech"] .empty h3 { font-family: var(--font-display); letter-spacing: 1px; color: #f0e6d2; }
+[data-theme="hextech"] .wrbar { border-radius: 0; border-color: #463714; background: #010a13; }
+[data-theme="hextech"] .wrbar .fill { border-radius: 0; }
+
+/* Retratos de campeón y objetos: marco de oro como en el cliente. */
+[data-theme="hextech"] .champ-img { border-radius: 2px; border-color: #785a28; box-shadow: 0 0 0 1px rgba(1, 10, 19, 0.9); }
+[data-theme="hextech"] .champ-img.lg, [data-theme="hextech"] .champ-img.xl { border-color: #c8aa6e; box-shadow: 0 0 0 1px #010a13, 0 0 12px rgba(200, 170, 110, 0.25); }
+[data-theme="hextech"] .item-img, [data-theme="hextech"] .item-slot { border-radius: 0; border-color: #463714; }
+
+/* ---------------------------------------------------------------- cargando */
+[data-theme="hextech"] .spinner { border-radius: 0; border-color: rgba(120, 90, 40, 0.5); border-top-color: #0ac8b9; border-right-color: #c8aa6e; transform: rotate(45deg); animation: hx-spin 1s cubic-bezier(0.6, 0.1, 0.4, 0.9) infinite; }
+@keyframes hx-spin { from { transform: rotate(45deg); } to { transform: rotate(405deg); } }
+[data-theme="hextech"] .skeleton { border-radius: 0; background: linear-gradient(90deg, #08111f, rgba(10, 200, 185, 0.12), #08111f); background-size: 200% 100%; }
+
+/* ---------------------------------------------------------------- ventanas, avisos flotantes y actividad */
+[data-theme="hextech"] .modal-backdrop { background: rgba(1, 6, 12, 0.8); backdrop-filter: blur(6px) saturate(0.8); }
+[data-theme="hextech"] .modal-head { border-bottom: 1px solid #463714; }
+[data-theme="hextech"] .modal-head h3 { font-family: var(--font-display); letter-spacing: 1.4px; color: #f0e6d2; text-transform: uppercase; font-size: 16px; }
+[data-theme="hextech"] .toast {
+  border-radius: 0;
+  border: 1px solid #463714;
+  border-left: 3px solid #0ac8b9;
+  background: linear-gradient(90deg, rgba(10, 200, 185, 0.08), transparent 40%), #0a1428;
+}
+[data-theme="hextech"] .drawer { background: linear-gradient(180deg, #071422, #010a13); border-left: 1px solid #463714; }
+[data-theme="hextech"] .drawer-head { font-family: var(--font-display); letter-spacing: 1.2px; color: #f0e6d2; border-bottom-color: #463714; }
+[data-theme="hextech"] .picker-btn { border-radius: 0; border-color: #463714; background: #010a13; }
+[data-theme="hextech"] .picker-btn:hover { border-color: #c8aa6e; }
+[data-theme="hextech"] .picker-pop {
+  border-radius: 0;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #0a1428, #050d18) padding-box, linear-gradient(180deg, #c8aa6e, #463714) border-box;
+}
+
+/* ---------------------------------------------------------------- menú del perfil */
+[data-theme="hextech"] .profile-menu {
+  border-radius: 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#e6d3a3, #e6d3a3) top left / 14px 1px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top left / 1px 14px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top right / 14px 1px no-repeat border-box,
+    linear-gradient(#e6d3a3, #e6d3a3) top right / 1px 14px no-repeat border-box,
+    linear-gradient(180deg, #0c1a30, #050d18) padding-box,
+    linear-gradient(180deg, #785a28, #463714) border-box;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.7), 0 0 24px rgba(10, 200, 185, 0.08);
+}
+[data-theme="hextech"] .profile-menu-head { border-bottom: 1px solid #463714; }
+[data-theme="hextech"] .profile-menu-head b { font-family: var(--font-display); letter-spacing: 1px; color: #f0e6d2; }
+[data-theme="hextech"] .profile-menu-head img { border-radius: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+[data-theme="hextech"] .profile-menu-item { border-radius: 0; }
+[data-theme="hextech"] .profile-menu-item:hover { background: linear-gradient(90deg, rgba(200, 170, 110, 0.12), transparent); }
+[data-theme="hextech"] .profile-menu-section { font-family: var(--font-display); font-weight: 700; letter-spacing: 2px; color: #785a28; }
+[data-theme="hextech"] .theme-option { border-radius: 0; border-color: #463714; }
+[data-theme="hextech"] .theme-option:hover { border-color: #c8aa6e; }
+[data-theme="hextech"] .theme-option.on { border-color: #0ac8b9; background: linear-gradient(90deg, rgba(10, 200, 185, 0.14), rgba(10, 200, 185, 0.02)); box-shadow: 0 0 12px rgba(10, 200, 185, 0.15); }
+[data-theme="hextech"] .theme-option.on .theme-check { color: #0ac8b9; }
+[data-theme="hextech"] .theme-text b { font-family: var(--font-display); letter-spacing: 1px; }
+
+/* ---------------------------------------------------------------- gráficas por elo */
+[data-theme="hextech"] .elo-chart { border-radius: 0; border-color: #463714; background: linear-gradient(180deg, rgba(10, 20, 40, 0.85), rgba(1, 10, 19, 0.9)); }
+[data-theme="hextech"] .elo-chart-bar { border-radius: 0; }
+[data-theme="hextech"] .elo-chart-seg.rest { background: linear-gradient(180deg, #cdfafa, #0ac8b9 40%, #005a82); }
+[data-theme="hextech"] .elo-chart-seg.otp { background: linear-gradient(180deg, #f0e6d2, #c8aa6e 40%, #785a28); }
+[data-theme="hextech"] .elo-chart-sw.rest { background: #0ac8b9; }
+[data-theme="hextech"] .elo-chart-title { font-family: var(--font-display); letter-spacing: 1px; }
+
+
+/* ---------------------------------------------------------------- barras de scroll (solo en este tema)
+   Propias en toda la app (27-11-2026): en Windows salía la barra gris del sistema, de 17 px, también en el menú de la
+   izquierda con el zoom al 100 %. Oro hextech, como el cliente del juego:
+   · el pulgar es una barra de oro con volumen (bronce, oro y brillo de lado a lado, canto oscuro y reflejo arriba);
+   · en reposo, fina y medio apagada; con el ratón encima de lo que se desplaza se ensancha, se enciende y aparece su
+     ranura; encima del pulgar, más ancha y brillante;
+   · al desplazar (``scrollbars.js`` pone ``.is-scrolling`` un momento) se enciende un núcleo turquesa por el centro y
+     un destello recorre el pulgar; al arrastrarlo, oro claro con el núcleo encendido.
+   Cómo se anima: el pulgar es un pseudo-elemento y no admite transiciones ni animaciones, pero toma de su caja
+   variables registradas (``@property``) que sí se animan: --sb-a (cuánto se ve), --sb-k (borde transparente, en
+   parte del ancho: cuanto menos, más gordo), --sb-core (núcleo turquesa) y --sb-shine (dónde va el destello).
+   Chrome y Edge usan ``::-webkit-scrollbar``; Firefox, ``scrollbar-color`` (más sencillo). */
+@property --sb-a { syntax: "<number>"; inherits: false; initial-value: 0.62; }
+@property --sb-k { syntax: "<number>"; inherits: false; initial-value: 0.28; }
+@property --sb-core { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --sb-shine { syntax: "<percentage>"; inherits: false; initial-value: -40%; }
+:root {
+  --sb-size: 12px;
+  /* Oro y turquesa hextech (los del cliente del juego), en r, g, b para poder darles transparencia. */
+  --hx-cream: 240, 230, 210;
+  --hx-gold: 200, 170, 110;
+  --hx-gold-2: 200, 155, 60;
+  --hx-bronze: 120, 90, 40;
+  --hx-deep: 70, 55, 20;
+  --hx-teal: 10, 200, 185;
+  --hx-teal-2: 205, 250, 250;
+}
+:root[data-theme="hextech"] *:hover { --sb-a: 0.85; --sb-k: 0.17; }
+[data-theme="hextech"] .is-scrolling,
+[data-theme="hextech"] .is-scrolling:hover {
+  --sb-a: 1;
+  --sb-k: 0.17;
+  --sb-core: 1;
+  transition: --sb-a 0.12s ease-out, --sb-k 0.12s ease-out, --sb-core 0.15s ease-out;
+  animation: sb-shine 1.15s linear infinite;
+}
+@keyframes sb-shine { from { --sb-shine: -40%; } to { --sb-shine: 140%; } }
+[data-theme="hextech"] :is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb) {
+  transition: --sb-a 0.45s ease, --sb-k 0.3s ease, --sb-core 0.7s ease;
+}
+
+[data-theme="hextech"] ::-webkit-scrollbar { width: var(--sb-size); height: var(--sb-size); background: transparent; }
+[data-theme="hextech"] ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+[data-theme="hextech"] ::-webkit-scrollbar-corner { background: transparent; }
+/* La ranura: hundida, con una línea de oro por el centro; aparece con el ratón encima (en reposo no se ve). */
+[data-theme="hextech"] ::-webkit-scrollbar-track { --sb-a: inherit; border-radius: 999px; background: transparent; }
+[data-theme="hextech"] *:hover::-webkit-scrollbar-track:vertical {
+  background:
+    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
+      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(90deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
+  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 1px 0 3px rgba(0, 0, 0, 0.5);
+}
+[data-theme="hextech"] *:hover::-webkit-scrollbar-track:horizontal {
+  background:
+    linear-gradient(180deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
+      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(180deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
+  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* El pulgar, por capas (de arriba abajo): destello que lo recorre, núcleo turquesa, sombra en los extremos y la barra
+   de oro con volumen. Vertical; el horizontal, igual girado. */
+[data-theme="hextech"] ::-webkit-scrollbar-thumb {
+  --sb-a: inherit;
+  --sb-k: inherit;
+  --sb-core: inherit;
+  --sb-shine: inherit;
+  min-height: 44px;
+  min-width: 44px;
+  border: calc(var(--sb-size) * var(--sb-k)) solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: transparent;
+  background-image:
+    linear-gradient(180deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
+      transparent calc(var(--sb-shine) + 22%)),
+    linear-gradient(90deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
+      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
+    linear-gradient(180deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
+    linear-gradient(90deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
+      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--hx-deep), calc(var(--sb-a) * 0.7)),
+    inset 0 0 6px rgba(var(--hx-teal), calc(var(--sb-core) * 0.55));
+}
+[data-theme="hextech"] ::-webkit-scrollbar-thumb:horizontal {
+  background-image:
+    linear-gradient(90deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
+      transparent calc(var(--sb-shine) + 22%)),
+    linear-gradient(180deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
+      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
+    linear-gradient(90deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
+    linear-gradient(180deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
+      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
+}
+[data-theme="hextech"] ::-webkit-scrollbar-thumb:hover { --sb-a: 1; --sb-k: 0.08; }
+[data-theme="hextech"] ::-webkit-scrollbar-thumb:active {
+  --sb-a: 1;
+  --sb-k: 0.08;
+  --sb-core: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--hx-cream), 0.35),
+    inset 0 0 8px rgba(var(--hx-teal), 0.8);
+}
+
+/* ---- Núcleo hextech de la vista y del menú (scrollbars.js: ``HexBar``), dibujado encima de su caja; la barra nativa se
+   esconde (solo la vertical: la horizontal del menú en móvil sigue siendo la de arriba). Partes:
+   · canal hundido con cantos de oro y gemas en los extremos; las secciones son runas hexagonales que se encienden
+     dentro del cristal cuando el pulgar pasa por ellas;
+   · el pulgar: cristal tallado (puntas de gema) con marco de oro, dentro energía turquesa que fluye (más deprisa al
+     desplazarte; con velocidad se calienta a oro y fuego, ``--hx-heat`` lo pone scrollbars.js), reflejo de cristal y
+     un sello hextech que gira al pasar el ratón;
+   · chispas, estela, ondas y Flash se pintan en un lienzo (``.hx-fx``) que sobresale hacia la página. */
+.hx-host { scrollbar-width: none; }
+.hx-host::-webkit-scrollbar:vertical { width: 0; }
+.hx-host.is-scrolling { animation: none; }
+.hx-bar {
+  --hx-heat: 0;
+  position: fixed;
+  z-index: 30;
+  width: 22px;
+  touch-action: none;
+  user-select: none;
+  transition: opacity 0.35s ease;
+}
+.hx-bar.off { opacity: 0; pointer-events: none; }
+.hx-fx { position: absolute; z-index: 1; pointer-events: none; }
+
+.hx-channel {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(var(--hx-teal), 0), rgba(var(--hx-teal), 0.1) 50%, rgba(var(--hx-teal), 0)),
+    linear-gradient(90deg, rgba(var(--hx-gold), 0.75) 0 1px, rgba(4, 9, 13, 0.94) 1px calc(100% - 1px), rgba(var(--hx-bronze), 0.85) calc(100% - 1px));
+  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5);
+  opacity: 0.3;
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+.hx-bar.awake .hx-channel, .hx-bar.live .hx-channel {
+  opacity: 1;
+  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 12px rgba(var(--hx-gold), 0.14);
+}
+.hx-cap {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze)) 80%);
+  box-shadow: 0 0 0 1px rgba(16, 11, 3, 0.95), 0 0 8px rgba(var(--hx-gold), 0.35);
+}
+.hx-cap.top { top: -6px; }
+.hx-cap.bottom { bottom: -6px; }
+.hx-cap::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px;
+  background: radial-gradient(circle at 35% 35%, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 55%, #023a44);
+  opacity: 0.5;
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+.hx-bar.awake .hx-cap::after, .hx-bar.live .hx-cap::after { opacity: 1; box-shadow: 0 0 8px rgb(var(--hx-teal)); }
+
+/* Runas: hexágonos de oro en el canal; bajo el pulgar se encienden en turquesa por encima del cristal. */
+.hx-ticks { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.hx-rune { position: absolute; left: 50%; top: -7px; width: 14px; height: 14px; margin-left: -7px; pointer-events: auto; cursor: pointer; }
+.hx-rune::before,
+.hx-rune::after {
+  content: "";
+  position: absolute;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  transition: inset 0.25s ease, opacity 0.25s ease, background 0.25s ease;
+}
+.hx-rune::before { inset: 3px 3.5px; background: linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 45%, rgb(var(--hx-bronze))); opacity: 0.4; }
+.hx-rune::after { inset: 5px 5.3px; background: #071219; opacity: 0.4; }
+.hx-bar.awake .hx-rune::before, .hx-bar.awake .hx-rune::after { opacity: 1; }
+.hx-rune:hover::before { inset: 1px 1.5px; background: linear-gradient(180deg, #fff, rgb(var(--hx-cream)) 40%, rgb(var(--hx-gold-2))); }
+.hx-rune:hover::after { inset: 3.5px 3.8px; background: radial-gradient(circle, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 70%); }
+.hx-rune.lit { pointer-events: none; filter: drop-shadow(0 0 3px rgb(var(--hx-teal))) drop-shadow(0 0 1px rgb(var(--hx-teal-2))); }
+.hx-rune.lit::before { opacity: 1; background: linear-gradient(180deg, #fff, rgb(var(--hx-teal-2)) 40%, rgb(var(--hx-teal))); }
+.hx-rune.lit::after { opacity: 1; background: radial-gradient(circle, #fff, rgb(var(--hx-teal-2)) 50%, rgba(var(--hx-teal), 0.2)); }
+
+/* El pulgar se pinta en el lienzo (gema, plasma, medallón, rayos: scrollbars.js); esto es solo para cogerlo. */
+.hx-thumb { position: absolute; z-index: 3; left: 50%; top: 0; width: 20px; margin-left: -10px; cursor: grab; }
+.hx-bar.dragging .hx-thumb { cursor: grabbing; }
+
+/* El rótulo: placa del juego, canto de oro en degradado y gema turquesa. */
+.hx-label {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 2px);
+  max-width: 260px;
+  padding: 6px 12px 6px 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 700 10.5px/1.2 var(--font);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgb(var(--hx-cream));
+  text-shadow: 0 0 8px rgba(var(--hx-gold), 0.35);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, #172231, #0a0f16) padding-box,
+    linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze))) border-box;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 14px rgba(var(--hx-gold), 0.16), inset 0 0 12px rgba(var(--hx-teal), 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s linear;
+}
+.hx-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 1px 0;
+  transform: rotate(45deg);
+  background: radial-gradient(circle at 35% 35%, #fff, rgb(var(--hx-teal-2)) 35%, rgb(var(--hx-teal)));
+  box-shadow: 0 0 6px rgb(var(--hx-teal));
+  vertical-align: middle;
+}
+.hx-label.show { opacity: 1; right: calc(100% + 12px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-label { transition: opacity 0.2s ease; }
+}
+
+/* Firefox: sin pseudo-elementos, el color estándar (fino y dorado, más vivo con el ratón encima). */
+@supports not selector(::-webkit-scrollbar) {
+  [data-theme="hextech"] * { scrollbar-width: thin; scrollbar-color: rgba(var(--hx-gold), 0.5) transparent; }
+  [data-theme="hextech"] *:hover { scrollbar-color: rgba(var(--hx-gold), 0.85) transparent; }
+}
+
+/* Menú de la izquierda: si queda menú por ver arriba o abajo, ese borde se funde con un brillo dorado (las tapas van
+   con el contenido y las sombras quietas con la caja: al llegar al final la tapa cubre la sombra). Sin JavaScript. */
+[data-theme="hextech"] .sidebar {
+  --sb-size: 10px;
+  background:
+    linear-gradient(#0c1119 35%, rgba(12, 17, 25, 0)) top / 100% 44px no-repeat local,
+    linear-gradient(rgba(10, 15, 22, 0), #0a0f16 65%) bottom / 100% 44px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) top / 100% 16px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) bottom / 100% 16px no-repeat scroll,
+    linear-gradient(180deg, #0c1119, #0a0f16) scroll;
+}
+
+/* Cuánto llevas bajado en la vista: bajo la barra de arriba, una línea de oro que crece al desplazarte con una
+   cabeza turquesa encendida en la punta (animación ligada al scroll, sin JavaScript; donde no se puede, no sale). */
+@supports (animation-timeline: scroll()) {
+  [data-theme="hextech"] .app { timeline-scope: --main-scroll; }
+  [data-theme="hextech"] .main { scroll-timeline: --main-scroll block; }
+  [data-theme="hextech"] .topbar::after,
+  [data-theme="hextech"] .topbar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    pointer-events: none;
+    opacity: 0;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: --main-scroll;
+  }
+  [data-theme="hextech"] .topbar::after {
+    background: linear-gradient(90deg, rgba(var(--hx-bronze), 0), rgb(var(--hx-gold-2)) 30%, rgb(var(--hx-gold)) 75%, rgb(var(--hx-cream)));
+    box-shadow: 0 0 8px rgba(var(--hx-gold), 0.4);
+    transform-origin: 0 50%;
+    animation-name: sb-progress;
+  }
+  /* La cabeza: una caja del ancho de la barra con un punto de luz en su borde derecho, que se desliza hasta su sitio. */
+  [data-theme="hextech"] .topbar::before {
+    bottom: -4px;
+    height: 8px;
+    z-index: 1;
+    background: radial-gradient(4px 4px at 100% 50%, rgb(var(--hx-teal-2)), rgba(var(--hx-teal), 0.9) 45%, rgba(var(--hx-teal), 0));
+    animation-name: sb-progress-head;
+  }
+  @keyframes sb-progress { 0% { opacity: 0; transform: scaleX(0); } 2% { opacity: 1; } 100% { opacity: 1; transform: scaleX(1); } }
+  @keyframes sb-progress-head { 0% { opacity: 0; transform: translateX(-100%); } 2% { opacity: 1; } 100% { opacity: 1; transform: translateX(0); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="hextech"] :is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb),
+  [data-theme="hextech"] .is-scrolling, [data-theme="hextech"] .is-scrolling:hover { transition: none; animation: none; }
+}

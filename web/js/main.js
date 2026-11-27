@@ -1,7 +1,8 @@
 // Arranque de la aplicación: navegación, filtros globales, estado de la API key y logs.
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
-import { initScrollbars } from "./scrollbars.js";
+import { initScrollbars, setHexBars } from "./scrollbars.js";
+import { THEMES, currentTheme, onTheme, setTheme, syncTheme } from "./theme.js";
 import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, fmt, h, icon, mount, select, toast } from "./ui.js";
 
@@ -204,9 +205,12 @@ function validKeyPill(pill, key) {
   return `Riot API · ${left < 1 ? "< 1" : Math.round(left)} h`;
 }
 
+let lastTracker = null;
+
 function renderProfilePill(tracker) {
   const el = document.getElementById("profile-pill");
   if (!el || !tracker) return;
+  lastTracker = tracker;
   const p = tracker.profile;
   el.classList.remove("hidden");
   el.classList.toggle("empty", !p);
@@ -217,7 +221,80 @@ function renderProfilePill(tracker) {
   }
   const extra = profileExtra(tracker, p);
   mount(el, p.profile_icon != null ? h("img", { src: dd.profileIcon(p.profile_icon), alt: "" }) : icon("user"), h("span.name", p.game_name), extra);
-  el.title = `${p.game_name}#${p.tag_line} · Mi progreso${tracker.in_game ? " (estás en partida: se analizará al terminar)" : ""}`;
+  el.title = `${p.game_name}#${p.tag_line} · Mi progreso y aspecto de la página${tracker.in_game ? " (estás en partida: se analizará al terminar)" : ""}`;
+}
+
+// ------------------------------------------------------------------ menú del perfil
+/** Al pulsar tu perfil (arriba a la derecha): ir a Mi progreso y elegir el aspecto de la página entera (theme.js). */
+function setupProfileMenu() {
+  const pill = document.getElementById("profile-pill");
+  if (!pill) return;
+  pill.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleProfileMenu();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    const menu = document.getElementById("profile-menu");
+    if (menu && !menu.contains(event.target) && !pill.contains(event.target)) toggleProfileMenu(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") toggleProfileMenu(false);
+  });
+  window.addEventListener("hashchange", () => toggleProfileMenu(false));
+  window.addEventListener("resize", () => toggleProfileMenu(false));
+}
+
+function toggleProfileMenu(open) {
+  const pill = document.getElementById("profile-pill");
+  const current = document.getElementById("profile-menu");
+  const show = open ?? !current;
+  pill?.setAttribute("aria-expanded", String(show));
+  if (!show) {
+    current?.remove();
+    return;
+  }
+  if (current) return;
+  const menu = profileMenu();
+  document.body.appendChild(menu);
+  const rect = pill.getBoundingClientRect();
+  menu.style.top = `${Math.round(rect.bottom + 8)}px`;
+  menu.style.right = `${Math.max(8, Math.round(window.innerWidth - rect.right))}px`;
+  menu.querySelector(".theme-option.on")?.focus();
+}
+
+function profileMenu() {
+  const p = lastTracker?.profile;
+  const avatar = p?.profile_icon != null ? h("img", { src: dd.profileIcon(p.profile_icon), alt: "" }) : icon("user");
+  const head = p
+    ? h("div.profile-menu-head", avatar, h("div", h("b", p.game_name), h("small", `#${p.tag_line}`)))
+    : h("div.profile-menu-head", avatar, h("div", h("b", "Sin perfil guardado"), h("small", "Guárdalo para analizar tus partidas")));
+  const options = THEMES.map((theme) => {
+    const on = theme.id === currentTheme();
+    return h(
+      `button.theme-option${on ? ".on" : ""}`,
+      {
+        type: "button",
+        role: "menuitemradio",
+        "aria-checked": String(on),
+        onclick: () => {
+          setTheme(theme.id);
+          toggleProfileMenu(false);
+          toggleProfileMenu(true); // repinta el menú con el tema nuevo marcado
+        },
+      },
+      h(`span.theme-swatch.theme-${theme.id}`, h("i"), h("i"), h("i")),
+      h("span.theme-text", h("b", theme.label), h("small", theme.hint)),
+      h("span.theme-check", on ? icon("check") : null),
+    );
+  });
+  return h(
+    "div.profile-menu#profile-menu",
+    { role: "menu", "aria-label": "Tu perfil" },
+    head,
+    h("a.profile-menu-item", { href: "#/progreso", role: "menuitem", onclick: () => toggleProfileMenu(false) }, icon("chart"), p ? "Mi progreso" : "Guardar mi perfil"),
+    h("div.profile-menu-section", "Aspecto de la página"),
+    h("div.theme-options", options),
+  );
 }
 
 /** Indicador junto a tu nombre: descargando partidas, en partida o cuenta sin vincular con Riot. */
@@ -458,11 +535,14 @@ async function watchChampSelect() {
 
 async function boot() {
   initScrollbars();
+  onTheme((theme) => setHexBars(theme === "hextech")); // barras de cristal solo con el tema Hextech
+  setupProfileMenu();
   renderSidebar();
   void setupLogs(); // trata sus errores (sin servidor, el panel de actividad se queda vacío)
   try {
     const [meta, opgg] = await Promise.all([api.get("/api/meta"), api.get("/api/opgg/status").catch(() => null)]);
     setMeta(meta);
+    syncTheme(meta.ui?.theme); // el tema guardado en la app manda (por si lo cambiaste en otro navegador)
     state.opgg = opgg;
   } catch (err) {
     mount(main, h("div.view", errorBox(err)));

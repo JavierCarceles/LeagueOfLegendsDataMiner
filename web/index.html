@@ -9,8 +9,18 @@
     <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <!-- Tema de la página (web/js/theme.js), puesto antes de pintar nada para que no se vea un instante el otro. -->
+    <script>
+      try {
+        var theme = localStorage.getItem("tempu.theme");
+        document.documentElement.dataset.theme = theme === "hextech" ? theme : "standard";
+      } catch (e) {
+        document.documentElement.dataset.theme = "standard";
+      }
+    </script>
     <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/theme-hextech.css" />
   </head>
   <body>
     <div class="app">
@@ -24,7 +34,7 @@
         <span class="status-pill push-pill busy hidden" id="reanalysis-pill"></span>
         <button class="status-pill data-pill hidden" id="data-pill" type="button" title="Precarga de datos en segundo plano"></button>
         <button class="status-pill push-pill hidden" id="push-pill" type="button" title="Subir a GitHub todo lo recogido"></button>
-        <a class="profile-pill hidden" id="profile-pill" href="#/progreso" aria-label="Tu perfil (Mi progreso)"><span class="sr-only">Tu perfil</span></a>
+        <button class="profile-pill hidden" id="profile-pill" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Tu perfil: Mi progreso y aspecto de la página"><span class="sr-only">Tu perfil</span></button>
         <button class="status-pill" id="key-pill" type="button" title="Estado de la API key de Riot"><span class="dot"></span><span>API key</span></button>
         <button class="btn btn-ghost btn-icon" id="log-toggle" title="Actividad en tiempo real"></button>
       </header>

@@ -10,7 +10,7 @@
  *  Alrededor: canal hundido con cantos de oro y gemas en los extremos; las secciones de la página son runas que se
  *  encienden al pasar el pulgar (con chispas si pasas desplazándote); estela de energía y chispas al moverse, onda de
  *  choque al llegar arriba o abajo y Flash al pinchar el raíl (desaparece con un destello y aparece donde pinchas). El
- *  rótulo dice en qué sección estás. El lienzo solo trabaja mientras hay algo que animar; en reposo, un fotograma.
+ *  rótulo dice en qué sección estás. El plasma no para nunca (en reposo, despacio y a 30 fotogramas por segundo).
  *  El desplazamiento sigue siendo el nativo (rueda, teclado, táctil): esta barra solo se dibuja y se maneja con el
  *  ratón. El resto de cajas (tablas, listas, ventanas) usan ``::-webkit-scrollbar`` en oro (styles.css). Al desplazar
  *  cualquier cosa, su barra se enciende un momento (``.is-scrolling``). */
@@ -53,11 +53,20 @@ const ENHANCED = [
 
 export function initScrollbars() {
   document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-  for (const [selector, marks] of ENHANCED) {
-    const host = document.querySelector(selector);
-    if (host) bars.set(host, new HexBar(host, marks));
-  }
   window.addEventListener("resize", () => bars.forEach((bar) => bar.schedule(true)), { passive: true });
+}
+
+/** Barras de cristal en la vista y el menú: solo con el tema Hextech (theme.js); con el estándar, las del sistema. */
+export function setHexBars(on) {
+  if (on && !bars.size) {
+    for (const [selector, marks] of ENHANCED) {
+      const host = document.querySelector(selector);
+      if (host) bars.set(host, new HexBar(host, marks));
+    }
+  } else if (!on && bars.size) {
+    bars.forEach((bar) => bar.destroy());
+    bars.clear();
+  }
 }
 
 /** Los eventos de scroll no suben, pero se cogen en la fase de captura del documento: uno para toda la app. */
@@ -157,11 +166,11 @@ class HexBar {
     this.fxRaf = 0;
     this.fxAt = 0;
     this.moteAt = 0;
-    this.plasmaAt = 0;
     this.edgeHit = 0; // -1 arriba, 1 abajo (para no repetir la onda mientras sigues empujando)
     this.plasma = document.createElement("canvas");
     this.plasmaCtx = this.plasma.getContext("2d");
 
+    this.ac = new AbortController(); // quita todos los escuchadores al cambiar de tema
     host.classList.add("hx-host");
     this.bar = node("div", "hx-bar off");
     this.bar.setAttribute("aria-hidden", "true");
@@ -178,10 +187,26 @@ class HexBar {
     this.bindHover();
     this.bindDrag();
     this.bindTrack();
-    new ResizeObserver(() => this.schedule(true)).observe(host);
+    this.ro = new ResizeObserver(() => this.schedule(true));
+    this.ro.observe(host);
     // El contenido cambia sin que cambie la caja (vistas nuevas, listas que crecen): se vuelve a medir.
-    new MutationObserver(() => this.schedule(true)).observe(host, { childList: true, subtree: true });
+    this.mo = new MutationObserver(() => this.schedule(true));
+    this.mo.observe(host, { childList: true, subtree: true });
     this.schedule(true);
+  }
+
+  /** Se quita entera (tema estándar): la caja vuelve a su barra del sistema. */
+  destroy() {
+    this.dead = true;
+    this.ac.abort();
+    this.ro.disconnect();
+    this.mo.disconnect();
+    cancelAnimationFrame(this.raf);
+    cancelAnimationFrame(this.fxRaf);
+    clearTimeout(this.marksTimer);
+    this.bar.remove();
+    this.host.classList.remove("hx-host");
+    this.host.style.scrollBehavior = "";
   }
 
   // ------------------------------------------------------------------ eventos
@@ -193,12 +218,12 @@ class HexBar {
       this.bar.classList.toggle("awake", this.over.host || this.over.bar);
       this.wakeFx();
     };
-    this.host.addEventListener("pointerenter", () => set("host", true));
-    this.host.addEventListener("pointerleave", () => set("host", false));
-    this.bar.addEventListener("pointerenter", () => set("bar", true));
-    this.bar.addEventListener("pointerleave", () => set("bar", false));
-    this.thumb.addEventListener("pointerenter", () => set("thumb", true));
-    this.thumb.addEventListener("pointerleave", () => set("thumb", false));
+    this.host.addEventListener("pointerenter", () => set("host", true), { signal: this.ac.signal });
+    this.host.addEventListener("pointerleave", () => set("host", false), { signal: this.ac.signal });
+    this.bar.addEventListener("pointerenter", () => set("bar", true), { signal: this.ac.signal });
+    this.bar.addEventListener("pointerleave", () => set("bar", false), { signal: this.ac.signal });
+    this.thumb.addEventListener("pointerenter", () => set("thumb", true), { signal: this.ac.signal });
+    this.thumb.addEventListener("pointerleave", () => set("thumb", false), { signal: this.ac.signal });
     // La barra está fuera de la caja: la rueda encima de ella desplaza la caja.
     this.bar.addEventListener(
       "wheel",
@@ -278,6 +303,7 @@ class HexBar {
   }
 
   setLive(on) {
+    if (this.dead) return;
     const live = on || !!this.drag;
     if (live === this.bar.classList.contains("live")) return;
     this.bar.classList.toggle("live", live);
@@ -290,7 +316,7 @@ class HexBar {
   /** Repinta en el siguiente fotograma (``full``: también sitio, tamaño y secciones). */
   schedule(full) {
     this.full ||= full;
-    if (this.raf) return;
+    if (this.raf || this.dead) return;
     this.raf = requestAnimationFrame(() => {
       this.raf = 0;
       const full = this.full;
@@ -532,19 +558,25 @@ class HexBar {
   }
 
   wakeFx() {
-    if (this.fxRaf) return;
+    if (this.fxRaf || this.dead) return;
     this.fxAt = performance.now();
     this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
   }
 
   fxFrame(now) {
     this.fxRaf = 0;
-    if (this.bar.classList.contains("off")) return;
-    const dt = clamp(now - this.fxAt, 1, 48);
-    this.fxAt = now;
+    if (this.dead || this.bar.classList.contains("off")) return;
     const still = !!calm?.matches;
     const live = this.bar.classList.contains("live");
     const awake = this.over.host || this.over.bar;
+    const busy = this.particles.length || this.rings.length || this.trail.length || this.bolts.length || this.heat > 0.01;
+    // En reposo el plasma sigue fluyendo, pero a 30 fotogramas por segundo (no hace falta más y gasta la mitad).
+    if (!still && !awake && !live && !busy && !this.drag && now - this.fxAt < 32) {
+      this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
+      return;
+    }
+    const dt = clamp(now - this.fxAt, 1, 48);
+    this.fxAt = now;
     // Calor: sube con la velocidad y baja solo.
     const target = live ? clamp(Math.abs(this.velocity) / 1.1, 0, 1) : 0;
     this.heat += (target - this.heat) * (target > this.heat ? 0.25 : 0.06);
@@ -556,17 +588,16 @@ class HexBar {
     this.stretch += (sTarget - this.stretch) * 0.3;
     // Tiempo del plasma y giro del medallón: más deprisa al desplazarte o arrastrar.
     if (!still) {
-      const pace = 0.0009 * (awake || live ? 1 : 0) + (live ? 0.0022 + this.heat * 0.004 : 0) + (this.drag ? 0.002 : 0);
+      // Siempre en movimiento (en reposo, despacio); más deprisa con el ratón encima, al desplazarte o al arrastrar.
+      const pace = 0.00045 + (awake || live ? 0.0005 : 0) + (live ? 0.0022 + this.heat * 0.004 : 0) + (this.drag ? 0.002 : 0);
       this.t += dt * pace;
       this.spin += dt * (0.0005 + (live ? 0.004 + this.heat * 0.008 : 0) + (this.drag ? 0.004 : 0));
       this.emit(dt, live, awake, now);
     }
     this.draw(now, dt, live, awake);
     const moving = Math.abs(wTarget - this.w) > 0.05 || Math.abs(sTarget - this.stretch) > 0.003;
-    const busy = this.particles.length || this.rings.length || this.trail.length || this.bolts.length || this.heat > 0.01;
-    if (!still && (busy || awake || live || moving || now - this.flashAt < 450)) {
-      this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
-    } else if (still && moving) this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
+    // Sin «reducir movimiento», siempre en marcha (el navegador lo para solo con la pestaña oculta).
+    if (!still || moving) this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
   }
 
   /** Chispas al moverse (desde el extremo que va detrás), rayos del orbe y motas con el ratón encima. */
@@ -749,11 +780,7 @@ class HexBar {
     // El cristal: plasma, profundidad, reflejo y cortes de gema.
     const inset = w >= 15 ? 2.4 : 2;
     const bright = 0.62 + energy * 0.45;
-    if (!this.plasmaFresh || now - this.plasmaAt > 33 || live) {
-      this.paintPlasma(h, bright);
-      this.plasmaAt = now;
-      this.plasmaFresh = true;
-    }
+    this.paintPlasma(h, bright);
     ctx.save();
     this.gemPath(cx, top, h, w, tip, inset);
     ctx.clip();

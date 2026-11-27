@@ -105,8 +105,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  /* A la derecha, sitio para su barra de scroll (dibujada encima: scrollbars.js), que no tape los enlaces. */
-  padding: 16px 22px 16px 12px;
+  padding: 16px 12px;
   gap: 4px;
   overflow-y: auto;
 }
@@ -141,7 +140,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: relative; z-index: 5;
 }
 .topbar h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.2px; white-space: nowrap; }
-.filters { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-left: 12px; min-width: 0; overflow-x: auto; --sb-size: 8px; }
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-left: 12px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
 .filter { display: flex; flex-direction: column; gap: 2px; }
 .filter label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: var(--faint); padding-left: 2px; }
 .main { grid-area: main; overflow-y: auto; padding: 22px 24px 60px; scroll-behavior: smooth; }
@@ -491,6 +490,38 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .profile-pill.empty { border-style: dashed; color: var(--gold-2); }
 .profile-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
 .spinner.sm { width: 12px; height: 12px; border-width: 2px; display: inline-block; }
+button.profile-pill { font-family: inherit; cursor: pointer; }
+/* Menú del perfil: ir a Mi progreso y elegir el aspecto de la página (web/js/theme.js). */
+.profile-menu { position: fixed; z-index: 65; width: 300px; max-width: calc(100vw - 16px); padding: 8px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raised); box-shadow: var(--shadow); animation: menuIn 0.14s ease-out; }
+@keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } }
+.profile-menu-head { display: flex; align-items: center; gap: 10px; padding: 6px 8px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.profile-menu-head img { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--gold); }
+.profile-menu-head svg { width: 22px; height: 22px; color: var(--gold); }
+.profile-menu-head b { display: block; color: var(--text); }
+.profile-menu-head small { color: var(--muted); font-size: 11.5px; }
+.profile-menu-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--text-2); font-weight: 600; }
+.profile-menu-item:hover { background: var(--panel-2); color: var(--text); }
+.profile-menu-item svg { width: 16px; height: 16px; color: var(--gold); }
+.profile-menu-section { padding: 10px 10px 6px; font-size: 10.5px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--faint); }
+.theme-options { display: flex; flex-direction: column; gap: 6px; }
+.theme-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.theme-option:hover { border-color: var(--gold); }
+.theme-option.on { border-color: rgba(214, 181, 109, 0.55); background: var(--gold-soft); }
+.theme-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.theme-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.theme-text small { color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+.theme-check { width: 18px; flex: none; color: var(--gold); }
+.theme-check svg { width: 18px; height: 18px; }
+/* Muestra de cada tema: sus tres colores principales. */
+.theme-swatch { display: flex; width: 42px; height: 30px; flex: none; border-radius: 6px; overflow: hidden; border: 1px solid var(--line-2); }
+.theme-swatch i { flex: 1; }
+.theme-standard i:nth-child(1) { background: #090d13; }
+.theme-standard i:nth-child(2) { background: #151e2b; }
+.theme-standard i:nth-child(3) { background: #d6b56d; }
+.theme-hextech { border-radius: 0; border-color: #785a28; }
+.theme-hextech i:nth-child(1) { background: #010a13; }
+.theme-hextech i:nth-child(2) { background: linear-gradient(180deg, #f0e6d2, #c8aa6e 50%, #785a28); }
+.theme-hextech i:nth-child(3) { background: linear-gradient(180deg, #cdfafa, #0ac8b9 50%, #005a82); }
 
 /* ---------------------------------------------------------------- mi progreso */
 .coach-setup { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: start; }
@@ -1009,8 +1040,7 @@ body.no-filters .filters, body.no-filters .filters-toggle { display: none !impor
 @media (max-width: 1100px) {
   :root { --sidebar: 68px; }
   .brand-name, .nav-link span, .nav-section, .sidebar-foot { display: none; }
-  .nav-link { justify-content: center; padding: 9px 7px; }
-  .sidebar { padding-left: 8px; } /* plegado: sitio para su barra de scroll (22 px) sin apretar los iconos */
+  .nav-link { justify-content: center; }
   .filters { overflow-x: auto; }
   .grid-3 { grid-template-columns: 1fr 1fr; }
 }
@@ -1270,297 +1300,4 @@ img.elo-chart-champ.top-otp { border-color: var(--gold); }
 @media (max-width: 720px) {
   .video-row { flex-wrap: wrap; }
   .video-pills { justify-content: flex-start; }
-}
-
-/* ---------------------------------------------------------------- barras de scroll
-   Propias en toda la app (27-11-2026): en Windows salía la barra gris del sistema, de 17 px, también en el menú de la
-   izquierda con el zoom al 100 %. Oro hextech, como el cliente del juego:
-   · el pulgar es una barra de oro con volumen (bronce, oro y brillo de lado a lado, canto oscuro y reflejo arriba);
-   · en reposo, fina y medio apagada; con el ratón encima de lo que se desplaza se ensancha, se enciende y aparece su
-     ranura; encima del pulgar, más ancha y brillante;
-   · al desplazar (``scrollbars.js`` pone ``.is-scrolling`` un momento) se enciende un núcleo turquesa por el centro y
-     un destello recorre el pulgar; al arrastrarlo, oro claro con el núcleo encendido.
-   Cómo se anima: el pulgar es un pseudo-elemento y no admite transiciones ni animaciones, pero toma de su caja
-   variables registradas (``@property``) que sí se animan: --sb-a (cuánto se ve), --sb-k (borde transparente, en
-   parte del ancho: cuanto menos, más gordo), --sb-core (núcleo turquesa) y --sb-shine (dónde va el destello).
-   Chrome y Edge usan ``::-webkit-scrollbar``; Firefox, ``scrollbar-color`` (más sencillo). */
-@property --sb-a { syntax: "<number>"; inherits: false; initial-value: 0.62; }
-@property --sb-k { syntax: "<number>"; inherits: false; initial-value: 0.28; }
-@property --sb-core { syntax: "<number>"; inherits: false; initial-value: 0; }
-@property --sb-shine { syntax: "<percentage>"; inherits: false; initial-value: -40%; }
-:root {
-  --sb-size: 12px;
-  /* Oro y turquesa hextech (los del cliente del juego), en r, g, b para poder darles transparencia. */
-  --hx-cream: 240, 230, 210;
-  --hx-gold: 200, 170, 110;
-  --hx-gold-2: 200, 155, 60;
-  --hx-bronze: 120, 90, 40;
-  --hx-deep: 70, 55, 20;
-  --hx-teal: 10, 200, 185;
-  --hx-teal-2: 205, 250, 250;
-}
-*:hover { --sb-a: 0.85; --sb-k: 0.17; }
-.is-scrolling, .is-scrolling:hover {
-  --sb-a: 1;
-  --sb-k: 0.17;
-  --sb-core: 1;
-  transition: --sb-a 0.12s ease-out, --sb-k 0.12s ease-out, --sb-core 0.15s ease-out;
-  animation: sb-shine 1.15s linear infinite;
-}
-@keyframes sb-shine { from { --sb-shine: -40%; } to { --sb-shine: 140%; } }
-:is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb) {
-  transition: --sb-a 0.45s ease, --sb-k 0.3s ease, --sb-core 0.7s ease;
-}
-
-::-webkit-scrollbar { width: var(--sb-size); height: var(--sb-size); background: transparent; }
-::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-::-webkit-scrollbar-corner { background: transparent; }
-/* La ranura: hundida, con una línea de oro por el centro; aparece con el ratón encima (en reposo no se ve). */
-::-webkit-scrollbar-track { --sb-a: inherit; border-radius: 999px; background: transparent; }
-*:hover::-webkit-scrollbar-track:vertical {
-  background:
-    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
-      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-    linear-gradient(90deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
-  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 1px 0 3px rgba(0, 0, 0, 0.5);
-}
-*:hover::-webkit-scrollbar-track:horizontal {
-  background:
-    linear-gradient(180deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
-      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
-    linear-gradient(180deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
-  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-/* El pulgar, por capas (de arriba abajo): destello que lo recorre, núcleo turquesa, sombra en los extremos y la barra
-   de oro con volumen. Vertical; el horizontal, igual girado. */
-::-webkit-scrollbar-thumb {
-  --sb-a: inherit;
-  --sb-k: inherit;
-  --sb-core: inherit;
-  --sb-shine: inherit;
-  min-height: 44px;
-  min-width: 44px;
-  border: calc(var(--sb-size) * var(--sb-k)) solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-  background-color: transparent;
-  background-image:
-    linear-gradient(180deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
-      transparent calc(var(--sb-shine) + 22%)),
-    linear-gradient(90deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
-      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
-    linear-gradient(180deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
-    linear-gradient(90deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
-      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
-  box-shadow:
-    inset 0 0 0 1px rgba(var(--hx-deep), calc(var(--sb-a) * 0.7)),
-    inset 0 0 6px rgba(var(--hx-teal), calc(var(--sb-core) * 0.55));
-}
-::-webkit-scrollbar-thumb:horizontal {
-  background-image:
-    linear-gradient(90deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
-      transparent calc(var(--sb-shine) + 22%)),
-    linear-gradient(180deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
-      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
-    linear-gradient(90deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
-    linear-gradient(180deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
-      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
-}
-::-webkit-scrollbar-thumb:hover { --sb-a: 1; --sb-k: 0.08; }
-::-webkit-scrollbar-thumb:active {
-  --sb-a: 1;
-  --sb-k: 0.08;
-  --sb-core: 1;
-  box-shadow:
-    inset 0 0 0 1px rgba(var(--hx-cream), 0.35),
-    inset 0 0 8px rgba(var(--hx-teal), 0.8);
-}
-
-/* ---- Núcleo hextech de la vista y del menú (scrollbars.js: ``HexBar``), dibujado encima de su caja; la barra nativa se
-   esconde (solo la vertical: la horizontal del menú en móvil sigue siendo la de arriba). Partes:
-   · canal hundido con cantos de oro y gemas en los extremos; las secciones son runas hexagonales que se encienden
-     dentro del cristal cuando el pulgar pasa por ellas;
-   · el pulgar: cristal tallado (puntas de gema) con marco de oro, dentro energía turquesa que fluye (más deprisa al
-     desplazarte; con velocidad se calienta a oro y fuego, ``--hx-heat`` lo pone scrollbars.js), reflejo de cristal y
-     un sello hextech que gira al pasar el ratón;
-   · chispas, estela, ondas y Flash se pintan en un lienzo (``.hx-fx``) que sobresale hacia la página. */
-.hx-host { scrollbar-width: none; }
-.hx-host::-webkit-scrollbar:vertical { width: 0; }
-.hx-host.is-scrolling { animation: none; }
-.hx-bar {
-  --hx-heat: 0;
-  position: fixed;
-  z-index: 30;
-  width: 22px;
-  touch-action: none;
-  user-select: none;
-  transition: opacity 0.35s ease;
-}
-.hx-bar.off { opacity: 0; pointer-events: none; }
-.hx-fx { position: absolute; z-index: 1; pointer-events: none; }
-
-.hx-channel {
-  position: absolute;
-  left: 50%;
-  top: 6px;
-  bottom: 6px;
-  width: 6px;
-  margin-left: -3px;
-  border-radius: 3px;
-  background:
-    linear-gradient(180deg, rgba(var(--hx-teal), 0), rgba(var(--hx-teal), 0.1) 50%, rgba(var(--hx-teal), 0)),
-    linear-gradient(90deg, rgba(var(--hx-gold), 0.75) 0 1px, rgba(4, 9, 13, 0.94) 1px calc(100% - 1px), rgba(var(--hx-bronze), 0.85) calc(100% - 1px));
-  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5);
-  opacity: 0.3;
-  transition: opacity 0.4s ease, box-shadow 0.4s ease;
-}
-.hx-bar.awake .hx-channel, .hx-bar.live .hx-channel {
-  opacity: 1;
-  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 12px rgba(var(--hx-gold), 0.14);
-}
-.hx-cap {
-  position: absolute;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
-  transform: rotate(45deg);
-  background: linear-gradient(135deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze)) 80%);
-  box-shadow: 0 0 0 1px rgba(16, 11, 3, 0.95), 0 0 8px rgba(var(--hx-gold), 0.35);
-}
-.hx-cap.top { top: -6px; }
-.hx-cap.bottom { bottom: -6px; }
-.hx-cap::after {
-  content: "";
-  position: absolute;
-  inset: 2.5px;
-  background: radial-gradient(circle at 35% 35%, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 55%, #023a44);
-  opacity: 0.5;
-  transition: opacity 0.4s ease, box-shadow 0.4s ease;
-}
-.hx-bar.awake .hx-cap::after, .hx-bar.live .hx-cap::after { opacity: 1; box-shadow: 0 0 8px rgb(var(--hx-teal)); }
-
-/* Runas: hexágonos de oro en el canal; bajo el pulgar se encienden en turquesa por encima del cristal. */
-.hx-ticks { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.hx-rune { position: absolute; left: 50%; top: -7px; width: 14px; height: 14px; margin-left: -7px; pointer-events: auto; cursor: pointer; }
-.hx-rune::before,
-.hx-rune::after {
-  content: "";
-  position: absolute;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  transition: inset 0.25s ease, opacity 0.25s ease, background 0.25s ease;
-}
-.hx-rune::before { inset: 3px 3.5px; background: linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 45%, rgb(var(--hx-bronze))); opacity: 0.4; }
-.hx-rune::after { inset: 5px 5.3px; background: #071219; opacity: 0.4; }
-.hx-bar.awake .hx-rune::before, .hx-bar.awake .hx-rune::after { opacity: 1; }
-.hx-rune:hover::before { inset: 1px 1.5px; background: linear-gradient(180deg, #fff, rgb(var(--hx-cream)) 40%, rgb(var(--hx-gold-2))); }
-.hx-rune:hover::after { inset: 3.5px 3.8px; background: radial-gradient(circle, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 70%); }
-.hx-rune.lit { pointer-events: none; filter: drop-shadow(0 0 3px rgb(var(--hx-teal))) drop-shadow(0 0 1px rgb(var(--hx-teal-2))); }
-.hx-rune.lit::before { opacity: 1; background: linear-gradient(180deg, #fff, rgb(var(--hx-teal-2)) 40%, rgb(var(--hx-teal))); }
-.hx-rune.lit::after { opacity: 1; background: radial-gradient(circle, #fff, rgb(var(--hx-teal-2)) 50%, rgba(var(--hx-teal), 0.2)); }
-
-/* El pulgar se pinta en el lienzo (gema, plasma, medallón, rayos: scrollbars.js); esto es solo para cogerlo. */
-.hx-thumb { position: absolute; z-index: 3; left: 50%; top: 0; width: 20px; margin-left: -10px; cursor: grab; }
-.hx-bar.dragging .hx-thumb { cursor: grabbing; }
-
-/* El rótulo: placa del juego, canto de oro en degradado y gema turquesa. */
-.hx-label {
-  position: absolute;
-  top: 0;
-  right: calc(100% + 2px);
-  max-width: 260px;
-  padding: 6px 12px 6px 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font: 700 10.5px/1.2 var(--font);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgb(var(--hx-cream));
-  text-shadow: 0 0 8px rgba(var(--hx-gold), 0.35);
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background:
-    linear-gradient(180deg, #172231, #0a0f16) padding-box,
-    linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze))) border-box;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 14px rgba(var(--hx-gold), 0.16), inset 0 0 12px rgba(var(--hx-teal), 0.08);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s linear;
-}
-.hx-label::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin: 0 8px 1px 0;
-  transform: rotate(45deg);
-  background: radial-gradient(circle at 35% 35%, #fff, rgb(var(--hx-teal-2)) 35%, rgb(var(--hx-teal)));
-  box-shadow: 0 0 6px rgb(var(--hx-teal));
-  vertical-align: middle;
-}
-.hx-label.show { opacity: 1; right: calc(100% + 12px); }
-
-@media (prefers-reduced-motion: reduce) {
-  .hx-label { transition: opacity 0.2s ease; }
-}
-
-/* Firefox: sin pseudo-elementos, el color estándar (fino y dorado, más vivo con el ratón encima). */
-@supports not selector(::-webkit-scrollbar) {
-  * { scrollbar-width: thin; scrollbar-color: rgba(var(--hx-gold), 0.5) transparent; }
-  *:hover { scrollbar-color: rgba(var(--hx-gold), 0.85) transparent; }
-}
-
-/* Menú de la izquierda: si queda menú por ver arriba o abajo, ese borde se funde con un brillo dorado (las tapas van
-   con el contenido y las sombras quietas con la caja: al llegar al final la tapa cubre la sombra). Sin JavaScript. */
-.sidebar {
-  --sb-size: 10px;
-  background:
-    linear-gradient(#0c1119 35%, rgba(12, 17, 25, 0)) top / 100% 44px no-repeat local,
-    linear-gradient(rgba(10, 15, 22, 0), #0a0f16 65%) bottom / 100% 44px no-repeat local,
-    radial-gradient(farthest-side at 50% 0, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) top / 100% 16px no-repeat scroll,
-    radial-gradient(farthest-side at 50% 100%, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) bottom / 100% 16px no-repeat scroll,
-    linear-gradient(180deg, #0c1119, #0a0f16) scroll;
-}
-
-/* Cuánto llevas bajado en la vista: bajo la barra de arriba, una línea de oro que crece al desplazarte con una
-   cabeza turquesa encendida en la punta (animación ligada al scroll, sin JavaScript; donde no se puede, no sale). */
-@supports (animation-timeline: scroll()) {
-  .app { timeline-scope: --main-scroll; }
-  .main { scroll-timeline: --main-scroll block; }
-  .topbar::after,
-  .topbar::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 2px;
-    pointer-events: none;
-    opacity: 0;
-    animation-timing-function: linear;
-    animation-fill-mode: both;
-    animation-timeline: --main-scroll;
-  }
-  .topbar::after {
-    background: linear-gradient(90deg, rgba(var(--hx-bronze), 0), rgb(var(--hx-gold-2)) 30%, rgb(var(--hx-gold)) 75%, rgb(var(--hx-cream)));
-    box-shadow: 0 0 8px rgba(var(--hx-gold), 0.4);
-    transform-origin: 0 50%;
-    animation-name: sb-progress;
-  }
-  /* La cabeza: una caja del ancho de la barra con un punto de luz en su borde derecho, que se desliza hasta su sitio. */
-  .topbar::before {
-    bottom: -4px;
-    height: 8px;
-    z-index: 1;
-    background: radial-gradient(4px 4px at 100% 50%, rgb(var(--hx-teal-2)), rgba(var(--hx-teal), 0.9) 45%, rgba(var(--hx-teal), 0));
-    animation-name: sb-progress-head;
-  }
-  @keyframes sb-progress { 0% { opacity: 0; transform: scaleX(0); } 2% { opacity: 1; } 100% { opacity: 1; transform: scaleX(1); } }
-  @keyframes sb-progress-head { 0% { opacity: 0; transform: translateX(-100%); } 2% { opacity: 1; } 100% { opacity: 1; transform: translateX(0); } }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb),
-  .is-scrolling, .is-scrolling:hover { transition: none; animation: none; }
 }

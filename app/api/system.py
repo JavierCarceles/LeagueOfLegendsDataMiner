@@ -201,7 +201,31 @@ def meta(svc=Depends(svc_from)):
         "patches": patches,
         "has_legacy": has_legacy,
         "queues": {str(k): v for k, v in QUEUES.items()},
+        "ui": {"theme": ui_theme(svc.db)},
     }
+
+
+# Tema de la página entera (web/js/theme.js): «standard» por defecto o «hextech». Se guarda en la app para que valga
+# aunque se abra en otro navegador.
+UI_THEMES = ("standard", "hextech")
+UI_THEME_KEY = "ui.theme"
+
+
+def ui_theme(db) -> str:
+    value = db.meta_get(UI_THEME_KEY)
+    return value if value in UI_THEMES else UI_THEMES[0]
+
+
+class ThemeBody(BaseModel):
+    theme: str
+
+
+@router.post("/ui/theme")
+def set_ui_theme(body: ThemeBody, svc=Depends(svc_from)):
+    if body.theme not in UI_THEMES:
+        raise HTTPException(400, f"Tema desconocido: {body.theme}")
+    svc.db.meta_set(UI_THEME_KEY, body.theme)
+    return {"theme": body.theme}
 
 
 @router.get("/system/logs/recent")
