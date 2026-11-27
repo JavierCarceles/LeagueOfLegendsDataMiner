@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app import __version__
+from app import __version__, restart
 from app.ingest import otp_details
 from app.analytics.draft import get_alpha, last_backtest
 from app.analytics.filters import available_patches
@@ -233,6 +233,10 @@ def recent_logs(limit: int = 100):
     return {"logs": bus.recent(min(max(limit, 1), 400))}
 
 
+STREAM_POLL_S = 1.0  # cada cuánto mira si la app se está cerrando
+STREAM_KEEPALIVE_S = 15.0
+
+
 @router.get("/system/logs")
 async def stream_logs(request: Request):
     queue = bus.subscribe()
@@ -240,14 +244,19 @@ async def stream_logs(request: Request):
     async def events():
         try:
             yield "retry: 3000\n\n"
-            while True:
+            quiet = 0.0
+            while not restart.stopping():  # al cerrar o reiniciar la app, la conexión acaba sola (sin traza de error)
                 if await request.is_disconnected():
                     break
                 try:
-                    entry = await asyncio.wait_for(queue.get(), timeout=15)
+                    entry = await asyncio.wait_for(queue.get(), timeout=STREAM_POLL_S)
+                    quiet = 0.0
                     yield f"data: {json.dumps(entry, ensure_ascii=False)}\n\n"
                 except asyncio.TimeoutError:
-                    yield ": keep-alive\n\n"
+                    quiet += STREAM_POLL_S
+                    if quiet >= STREAM_KEEPALIVE_S:
+                        quiet = 0.0
+                        yield ": keep-alive\n\n"
         finally:
             bus.unsubscribe(queue)
 
