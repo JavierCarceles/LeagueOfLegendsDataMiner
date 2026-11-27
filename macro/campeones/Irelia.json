@@ -1,0 +1,289 @@
+{
+ "clave": "Irelia",
+ "nombre": "Irelia",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.627,
+   "principal": true
+  },
+  {
+   "rol": "MID",
+   "parte": 0.356,
+   "principal": false
+  }
+ ],
+ "arquetipo": "luchadora de duelo cuerpo a cuerpo de top y mid que vive de los reinicios de la Q (dash de 600 u que vuelve al matar o al golpear a un objetivo marcado), con la pasiva a 4 cargas desde el nivel 1, picos en nivel 6 y Hoja del rey arruinado (~11 min) y presión lateral con Rompecascos",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Desde el nivel 1 gana intercambios si llena la pasiva con la Q sobre súbditos bajos de vida (4 cargas: hasta +40 % de velocidad de ataque a nivel 1 y daño mágico extra al golpear). Su tramo más fuerte va del nivel 6 (R + E para fijar al rival) a los 2-3 objetos (Hoja del rey arruinado ~11:20, Rompecascos ~18:25, tercer objeto ~22:50 de mediana en metabot): gana el 56,6 % de las partidas que acaban hacia el minuto 25. En la tardía sigue siendo una amenaza de duelo, pero el control en cadena y los tanques con mucha armadura la frenan; si va 1000 de oro por detrás a los 15 solo gana el 31 %."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 con la pasiva llena (primera oleada, ~1:00)",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Remata con la Q a los tres súbditos cuerpo a cuerpo (cada muerte reinicia la Q y da 1 carga) y salta al rival para la cuarta: con 4 cargas gana +40 % de velocidad de ataque y daño mágico extra al golpear. Contra la mayoría de rangos y luchadores que no sean Darius, Fiora u Olaf gana ese primer intercambio."
+  },
+  {
+   "cuando": "Nivel 2-3 (~1:45 y ~2:15) con Q-E-W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con la E (aturdimiento de 0,75 s que marca al rival 5 s) la Q contra el marcado vuelve en 0,2 s: E → Q → ataques → Q otra vez. Con Prender busca el all-in de nivel 2-3 escondiendo la primera hoja de la E dentro del dash de la Q."
+  },
+  {
+   "cuando": "Nivel 6 (~5:15-5:45)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Vanguard's Edge (R, 1000 u): marca a todos los golpeados y deja una jaula de 2,5 s que ralentiza un 90 % al cruzarla. Con R + E fija al rival y encadena Q reiniciadas: según skill-capped, uno de los all-in de nivel 6 más fuertes de top y mid; zambulle bajo torre cuando el rival está a ~50 %."
+  },
+  {
+   "cuando": "Primer objeto: Hoja del rey arruinado (mediana 11:18 en metabot)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Hoja del rey arruinado",
+   "por_que": "La Q aplica efectos al golpear y ataca muy rápido: daño según la vida actual, robo de vida y la ralentización del tercer golpe. Es el objeto que se compra primero casi siempre (núcleo en Lolalytics y OP.GG) y el momento de buscar kills en solitario (2,19 de media antes del 15 en metabot)."
+  },
+  {
+   "cuando": "Q al máximo (nivel 9, ~10-11 min) y Rompecascos (2 objetos, mediana 18:24)",
+   "nivel": 9,
+   "objetos": 2,
+   "objeto": "Rompecascos",
+   "por_que": "Q a 6 s de enfriamiento (y casi siempre reiniciada) y Rompecascos (500 de vida y un golpe potenciado cada 5 ataques que destroza torres): duelos 1v1 casi imposibles de ganar para el rival y presión lateral fuerte. En mid el segundo objeto suele ser Verdugo de krakens."
+  },
+  {
+   "cuando": "3 objetos (mediana 22:48) con Final del ingenio o Baile de la muerte",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Baile de la muerte",
+   "por_que": "Ya aguanta peleas largas de 1v2 y puede entrar al flanco a limpiar la retaguardia. Su mejor momento en victorias es hacia el minuto 25; después Ángel de la guarda (61 % de victorias como cuarto objeto en OP.GG) le da la segunda vida para buscar la pelea."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Ionian Fervor: gana una carga por cada campeón golpeado por sus habilidades y una más si golpea al menos a un enemigo que no sea campeón (máximo 4, duran 6 s y los ataques y golpes a campeones, monstruos grandes y estructuras las renuevan). Cada carga da 10-25 % de velocidad de ataque (40-100 % con 4) y con 4 sus ataques hacen 10-61 (+20 % del DA adicional) de daño mágico extra (la mitad a estructuras). La W pausa el contador mientras carga.",
+  "Q": "Bladesurge: dash a un enemigo a 600 u (velocidad 1400 + su velocidad de movimiento) que la deja 100 u más allá del objetivo; 5-85 (+80 % DA) de daño físico que cuenta como ataque y aplica efectos al golpear, con 50-237 extra a súbditos, y le cura un 9-13 % de su DA. Si el objetivo muere, el enfriamiento (10/9/8/7/6 s) se reinicia; si estaba marcado (Unsteady, por la E o la R), baja a 0,2 s y consume la marca. Coste de 15 de maná: el maná es su límite en línea, no el enfriamiento.",
+  "W": "Defiant Dance: se protege hasta 1,5 s sin poder actuar, con un 40-70 % menos de daño físico y un 20-35 % menos de daño mágico (más con PH), y no la interrumpen los controles. Al soltar hace 10-50 (+40 % DA, +50 % PH) a 30-150 (+120 % DA, +150 % PH) en línea según la carga (el máximo llega a media carga) y la reducción dura 0,5 s más. Alcance 775-825 u, enfriamiento 20/18/16/14/12 s. Sirve para bloquear el golpe fuerte del rival, los disparos de torre al zambullir o un control.",
+  "E": "Flawless Duet: clava una hoja a hasta 775 u y, en 3,5 s, lanza la segunda; ambas vuelan una hacia la otra y aturden 0,75 s, revelan y hacen 70-230 (+100 % PH) de daño mágico a todo lo que haya entre ellas. Marca (Unsteady) 5 s a campeones y monstruos grandes, lo que deja la Q lista al instante. Se puede lanzar durante el dash de la Q y durante el lanzamiento de la R. Enfriamiento 16/14,5/13/11,5/10 s. La bloquean los muros de viento y efectos que paran proyectiles.",
+  "R": "Vanguard's Edge: andanada de cuchillas a 1000 u (anchura 320) que hace 125/200/275 (+100 % PH) y marca a todos los golpeados 5 s; al dar al primer campeón forma una jaula de cuchillas de 2,5 s que ralentiza un 90 % 1,5 s al cruzarla y revela 1350 u alrededor. Enfriamiento 125/105/85 s. Lanzarla antes de la E asegura las marcas y deja la Q lista para todos los atrapados."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W es lo más jugado (OP.GG: 40 % en top y 43 % en mid, 53 % de victorias): Q a nivel 1 para llenar la pasiva con los súbditos y E a nivel 2 para el all-in. Lolalytics da su mejor victoria a E a nivel 1 en top (muestra pequeña, para defender una invasión o un nivel 1 agresivo del rival). Maximiza Q (nivel 9), luego W (nivel 13) y E la última; R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: dash de 600 u a un enemigo (súbdito, monstruo o campeón) que la deja 100 u detrás de él; se reinicia al matar o al golpear a un marcado, así que con una oleada delante encadena 4-6 dashes en 2-3 s y recorre 2000-3000 u. No tiene otros desplazamientos; Destello en casi todas las partidas y Grebas codiciosas o Botas blindadas.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la Q y si hay un objetivo al otro lado a 600 u o menos (súbdito, monstruo de la jungla o campeón) y espacio libre tras él. En top y en mid suele cruzar el muro de la línea a la jungla o al río usando un campamento (rapaces, lobos, krugs, escuttle) o un súbdito; sin objetivo no puede.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Q con reinicios: vuelve al instante si mata al objetivo o si estaba marcado por la E o la R. Toda su movilidad y su daño salen de saber qué súbdito puede matar con la Q para acercarse, alejarse o perseguir.",
+  "Pasiva de 4 cargas que se llena con la Q sobre súbditos: con ella llena gana mucha velocidad de ataque y daño extra, así que sus intercambios dependen de tenerla llena y el rival los evita cuando la tiene.",
+  "La E se lanza en dos partes: la primera hoja se esconde durante el dash de la Q y la segunda decide el ángulo; marca a los campeones atrapados y deja la Q lista.",
+  "La W absorbe 40-70 % del daño físico y no la cortan los controles: para golpes de torre, la ráfaga del rival o una R enemiga mientras zambulle.",
+  "La R marca a varios enemigos a la vez y los encierra en una jaula que ralentiza un 90 %: en peleas le da Q reiniciadas sobre todos los marcados."
+ ],
+ "combos": [
+  "Nivel 1: esperar a que los tres súbditos cuerpo a cuerpo estén bajos → Q a cada uno (3 cargas) → Q al rival (4.ª carga) → ataques; retirarse si el rival es Darius, Fiora u Olaf.",
+  "Intercambio estándar: E1 → Q a un súbdito (esconde la animación) → E2 sobre el rival → Q al marcado (vuelve en 0,2 s) → ataques → Q a un súbdito bajo para salir.",
+  "All-in de nivel 6: R → E (siempre después de la R) → Q al marcado → ataques → Q a súbditos para seguirle → Q final al rival cuando pueda matarlo (reinicio) → W al final para el daño o para aguantar la torre.",
+  "Zambullida bajo torre: R desde fuera del alcance de la torre → E → Q → ataques → W para tapar los disparos de torre → Q a un súbdito para salir.",
+  "Pelea de equipo: entrar por el flanco con Q sobre súbditos o monstruos → R al grupo (marca a varios) → E sobre el carry → Q de marcado en marcado → W contra el control clave.",
+  "Huida: Q a un súbdito o monstruo al otro lado de un muro; W si van a matarla con una ráfaga."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Espada de Doran",
+   "Cetro vampírico",
+   "Hoja del rey arruinado",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Grebas codiciosas",
+   "Rompecascos",
+   "Verdugo de krakens",
+   "Final del ingenio",
+   "Baile de la muerte",
+   "Ángel de la guarda",
+   "Hambre insaciable",
+   "Calibrador de Sterak"
+  ],
+  "runas": "Conquistador (95 % en top y 89 % en mid en OP.GG) + Triunfo + Leyenda: Presteza + Último esfuerzo; secundaria Inspiración con Manitas y Tónico triple (o Perspicacia cósmica) en el 61 % de las partidas, o Valor (34 %) con Fuerzas renovadas y Revestimiento de huesos o Inquebrantable contra rivales que la castigan pronto. Claridad mental en lugar de Triunfo si se queda sin maná; Entrega de galletas en líneas perdidas antes del Cetro vampírico; Ataque intensificado en mid (7,5 %). Fragmentos: velocidad de ataque, fuerza adaptable y vida.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender en el 76 % (top) y el 81 % (mid) en OP.GG; Destello + Agotamiento (15 % en top) contra luchadores de all-in y Destello + Teleportar (11 % en mid; skill-capped lo recomienda en líneas difíciles) para volver con el Cetro vampírico. Inicio Espada de Doran + poción (84-88 %); el Cetro vampírico es la primera compra que estabiliza la línea. Hoja del rey arruinado siempre primero; después botas (Botas blindadas 66 % en top, Botas de mercurio 49 % en mid; Grebas codiciosas si va por delante) y Rompecascos en top (presión lateral) o Verdugo de krakens en mid. Cuarto Baile de la muerte, Final del ingenio contra mucho daño mágico o Ángel de la guarda si va por delante; Calibrador de Sterak contra ráfaga y Corazón de hielo contra mucho AD."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Los súbditos llegan hacia el 1:00 (salen a las 0:30 desde 2026). Q a los tres súbditos cuerpo a cuerpo cuando estén bajos para llegar a 3 cargas y saltar al rival a por la cuarta; contra Darius, Fiora u Olaf no entra a nivel 1. A nivel 2 (~1:45) con E busca el all-in con Prender si el rival está bajo; a nivel 3 (~2:15) con W ya tiene el intercambio largo completo. En líneas inciertas juega pasiva hasta el 3.",
+    "tradeos": "Intercambia solo con la pasiva llena: E1 durante la Q a un súbdito, E2 para aturdir, Q de reinicio, ataques y salida con la Q a otro súbdito bajo. Si falla el reinicio, cede espacio y vuelve a cargar la pasiva con la oleada. Contra rangos espera a que gasten su habilidad de huida o control; contra Jax, Renekton o Fiora no pelea dentro de su ventana fuerte.",
+    "oleadas": "Prefiere que la oleada esté de su lado o en el centro con muchos súbditos bajos para sus Q; un rival que congela cerca de su torre la deja sin súbditos con los que moverse. Empuja para placas tras ganar el intercambio y vuelve con al menos 550 de oro (5 cargas de Manitas) o 900 para el Cetro vampírico.",
+    "all_in": "A nivel 2-3 con Prender si el rival está bajo y sin Destello; a nivel 6 con R + E cuando el rival está a ~50 %, incluida la zambullida bajo torre (W para los disparos). Con Hoja del rey arruinado (~11 min) busca el all-in en cuanto el rival gasta su habilidad principal.",
+    "jugar_seguro": "Contra Wukong, Nasus, Poppy, Jax, Malphite, Singed, Sett o Zaahen: Q solo para rematar, no entrar sin la pasiva llena, Biscuits o Valor en secundaria, Teleportar para volver con el Cetro vampírico y esperar al jungla o a la Hoja del rey arruinado. Lo más importante es no morir antes del Cetro vampírico."
+   },
+   "roameos": "Poco a otras líneas: con Prender se mueve al río (escuttle del lado de top y larvas a partir del 8:00) tras empujar la oleada, y desde 2026 la misión de rol de top le da un Teleportar de enfriamiento largo a mitad de partida aunque lleve Prender. Con Teleportar (líneas difíciles) baja a bot o al dragón.",
+   "fase_media": "Con Hoja del rey arruinado y Rompecascos se queda en la lateral: atrae a dos rivales, tira torres con el golpe potenciado de Rompecascos y deja que su equipo haga objetivos en el otro lado. Rota a las peleas de Barón o dragón solo si puede entrar por el flanco a la retaguardia; un 1 por 1 con un carry rival ya le sale a cuenta. No debe dejarse atrapar por 3 o más con control.",
+   "matchups_dificiles": [
+    "Wukong",
+    "Nasus",
+    "Poppy",
+    "Jax",
+    "Singed",
+    "Malphite",
+    "Sett",
+    "Zaahen",
+    "Warwick",
+    "Volibear",
+    "Renekton"
+   ],
+   "matchups_faciles": [
+    "Ryze",
+    "Kennen",
+    "Aurora",
+    "Anivia",
+    "Ambessa",
+    "Yone",
+    "Jayce",
+    "Gnar",
+    "Yorick",
+    "Dr. Mundo"
+   ]
+  },
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Igual que en top: Q a los tres súbditos cuerpo a cuerpo bajos y Q al rival para la cuarta carga; a nivel 1 supera en daño continuo a casi todos los magos. Muchos magos la castigan si entra sin súbditos bajos: guarda la Q para rematar y entrar. Nivel 2 (~1:40) con E para el primer intento de all-in; el Tónico triple le da +60 de oro hacia el nivel 3 para volver con Manitas a 5 cargas.",
+    "tradeos": "Intercambios largos solo con súbditos bajos alrededor del rival para encadenar Q, y siempre con la E escondida dentro de una Q. Contra magos de poke conserva vida hasta tener la oleada de su lado; contra controles en área (Vel'Koz, Malphite, Lissandra) espera a que los gasten.",
+    "oleadas": "Gestiona la oleada para que se acerque a su lado y le deje espacio para perseguir; con prioridad empuja rápido con la Q sobre súbditos y la W para llegar al río (escuttle) o a las laterales. Contra asesinos que roamean, empuja y sigue o avisa.",
+    "all_in": "Nivel 6 es su ventana: R + E + Q reiniciadas + Prender contra el mago o asesino sin Destello o a media vida (skill-capped la cuenta entre los all-in de nivel 6 más fuertes de mid). Con Hoja del rey arruinado repite el all-in o la zambullida con su jungla.",
+    "jugar_seguro": "Contra Vel'Koz, Malphite, Pantheon, Sylas, Ekko, Ahri, Lissandra, LeBlanc o Vladimir: farmear con la Q solo para rematar, Valor o Teleportar en partidas difíciles y esperar al 6 y al primer objeto. Sufre cuando la congelan sin súbditos para moverse."
+   },
+   "roameos": "Moderados: con prioridad tras empujar rota al río y a las laterales cercanas (sobre todo la del lado de su jungla) buscando rivales sobreextendidos, y entra con Q a través de la oleada o de un campamento. Sus mejores roameos son a partir del 6, con la R para fijar a dos rivales; con la misión de rol de mid (2026: botas de nivel 3 y vuelta a base de 4 s) vuelve antes a línea.",
+   "fase_media": "Tras la fase de líneas pasa a una lateral (normalmente la de top o la que tenga más súbditos) con Hoja del rey arruinado y Verdugo de krakens o Rompecascos, y deja el mid a otro aliado. En peleas entra por el flanco con Q sobre súbditos, R sobre el grupo y E sobre el carry.",
+   "matchups_dificiles": [
+    "Vel'Koz",
+    "Malphite",
+    "Pantheon",
+    "Sylas",
+    "Ekko",
+    "Ahri",
+    "Lissandra",
+    "LeBlanc",
+    "Vladimir",
+    "Brand"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Ryze",
+    "Qiyana",
+    "Syndra",
+    "Zed",
+    "Orianna",
+    "Smolder",
+    "Tristana",
+    "Swain"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Luchadora de flanco y limpiadora de retaguardia: entra después del primer control o aprovechando súbditos y monstruos para acercarse con la Q; en partidas igualadas, presión lateral.",
+  "como_entrar": "Desde el flanco, encadenando Q sobre súbditos o monstruos hasta estar a 1000 u; R sobre el grupo para marcar a varios, E sobre el carry y Q de marcado en marcado; W para aguantar la ráfaga o el control importante. Nunca la primera de frente contra tres controles.",
+  "objetivo": "El tirador o mago más cercano que pueda marcar; en escaramuzas, el que esté bajo de vida (cada kill le reinicia la Q para el siguiente).",
+  "posicion": "En un flanco o una lateral, cerca de súbditos o campamentos que le den Q para entrar y salir; con la R en enfriamiento espera a que el rival gaste sus controles."
+ },
+ "macro": {
+  "split_push": "Mucho: es una de las mejores presionando una lateral (percentil 97 de daño a estructuras en metabot y 60,7 % de primera torre en sus partidas según Lolalytics). Con Rompecascos y la Hoja del rey arruinado gana el 1v1 a casi todos y obliga a mandar a dos.",
+  "objetivos": "Tira placas y torres pronto; ayuda con larvas (8:00) y Heraldo (15:00) desde top o mid. No hace dragón ni Barón sola, pero con el Rompecascos el Barón cae rápido con su equipo.",
+  "plan_de_partida": "0-6 min: pasiva llena y ganar la línea, sin morir antes del Cetro vampírico. 6-14 min: all-in y zambullidas con R, placas y escaramuzas en el río. 14-25 min: Hoja del rey arruinado + Rompecascos o Verdugo de krakens y presión lateral; su mejor momento es hacia el 25. 25+: lateral con Ángel de la guarda y entrar a las peleas solo por el flanco."
+ },
+ "debilidades": [
+  "Control en cadena y en área (Malphite, Vel'Koz, Lissandra, Poppy, Sett): sin poder moverse no encadena Q y muere antes de hacer daño.",
+  "Depende de los súbditos bajos para moverse: si el rival congela la oleada o pelea lejos de ella, pierde su movilidad y su sostén.",
+  "Maná escaso antes del Cetro vampírico y de la Hoja del rey arruinado: un mal comienzo la deja sin recursos en línea.",
+  "Muy sensible a ir por detrás: con 1000 de oro de desventaja a los 15 solo gana el 31 % (metabot).",
+  "Luchadores de duelo de nivel 1-3 (Jax, Renekton, Fiora, Darius) y tanques que la aguantan (Nasus, Malphite) le ganan si no espera su momento."
+ ],
+ "contrarrestado_por": [
+  "Wukong",
+  "Poppy",
+  "Nasus",
+  "Jax",
+  "Malphite",
+  "Singed",
+  "Sett",
+  "Vel'Koz",
+  "Pantheon",
+  "Sylas"
+ ],
+ "bueno_contra": [
+  "Ryze",
+  "Kennen",
+  "Aurora",
+  "Ambessa",
+  "Yone",
+  "Ezreal",
+  "Syndra",
+  "Zed"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Sejuani",
+  "Nocturne",
+  "Lulu",
+  "Yuumi",
+  "Rell"
+ ],
+ "errores_comunes": [
+  "Saltar al rival con la Q sin reinicio asegurado (ni marca ni súbdito para salir): queda dentro sin enfriamiento durante 6-10 s.",
+  "Lanzar la E antes de la R en el all-in: si la E falla, la R no marca a nadie y las Q no se reinician.",
+  "Intercambiar sin la pasiva a 4 cargas o dejar que caduque (6 s).",
+  "Gastar la Q para farmear de lejos y quedarse sin maná antes del Cetro vampírico.",
+  "Usar la W de forma reactiva tarde (o cargarla entera sin necesidad) y perder el daño máximo, que llega a mitad de carga.",
+  "Zambullir a nivel 6 sin contar la vida del rival ni los disparos de torre.",
+  "Quedarse en la lateral sin visión con la R en enfriamiento y dejarse atrapar por tres."
+ ],
+ "senales_reconstructor": [
+  "Movilidad en ráfagas: la Q (600 u) se reinicia al matar al objetivo o al golpear a un marcado, así que con una oleada o un campamento delante recorre 2000-3000 u en 2-3 s. Kills o muertes a ~2000 u más allá de lo que daría caminar desde su posición del minuto anterior son normales si había súbditos o monstruos por medio.",
+  "Muros: solo cruza con la Q si hay un súbdito, un monstruo o un campeón al otro lado a 600 u o menos. Huidas de la línea a la jungla o al río a través del muro son coherentes junto a campamentos (rapaces, lobos, krugs, escuttle); sin objetivo no puede cruzar.",
+  "Muy fuerte de nivel 1 a 3: su equipo consigue la primera sangre en el 53 % de sus partidas (Lolalytics, 16.23). Kills suyas en su línea antes del 3:00 y nivel 2-3 adelantado tras ganar la primera oleada son su patrón.",
+  "Zambullidas desde el nivel 6 (~5:15-5:45 en top y algo antes en mid): R + E + Q y W para tapar los disparos; kills bajo la torre rival entre el 6 y el 10 son normales en ella.",
+  "Ritmo de objetos (metabot, top 16.23): Hoja del rey arruinado de mediana a las 11:18, Rompecascos (2 objetos) a las 18:24 y tercer objeto (Final del ingenio o Baile de la muerte) a las 22:48; en mid el segundo suele ser Verdugo de krakens. Antes, Cetro vampírico en la primera o segunda vuelta.",
+  "Presión de torres: su equipo consigue la primera torre en el 60,7 % de sus partidas (Lolalytics) y está en el percentil 97 de daño a estructuras (metabot). En la fase media, posiciones solas en una lateral (top o bot) con placas o torres cayendo son su plan, no un descuido.",
+  "Hechizos: Destello + Prender en el 76-81 %, Agotamiento en un 15 % en top y Teleportar en un 11 % en mid. Con la misión de rol de top (2026) recibe además un Teleportar de enfriamiento largo a mitad de partida: una aparición repentina en bot o en un objetivo con Prender puede ser ese teletransporte, y puede pasar del nivel 18 (límite ampliado).",
+  "Irelia mid: rota al río y a la lateral cercana tras empujar con la Q; con la misión de rol de mid (botas de nivel 3 y vuelta a base de 4 s) vuelve a línea antes que otros campeones. Kills en top o bot con su última posición en mid son roameos normales a partir del 6.",
+  "Curva de victorias: mejor hacia el minuto 25 (56,6 %, metabot) y muy dependiente de ir por delante (61 % de victorias si va por delante de oro a los 15, 34 % si va por detrás). Una Irelia que va por detrás a los 15 suele estar fuera de su plan.",
+  "Visión baja (percentil 17 de visión en metabot): pocos guardianes en sus partidas es lo típico del campeón."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/irelia/build/",
+  "https://lolalytics.com/lol/irelia/build/?lane=middle",
+  "https://lolalytics.com/lol/irelia/counters/",
+  "https://www.op.gg/lol/champions/irelia/build/top",
+  "https://www.op.gg/lol/champions/irelia/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Irelia",
+  "https://www.skill-capped.com/lol/guides/m/builds/irelia/top",
+  "https://www.skill-capped.com/lol/guides/m/builds/irelia/mid",
+  "https://metabot.gg/en/league/champion/Irelia/tips",
+  "https://www.esports.net/wiki/guides/lol-season-changes-2026/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ]
+}
