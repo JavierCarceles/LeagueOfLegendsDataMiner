@@ -2,7 +2,7 @@
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
 import { initScrollbars, setHexBars } from "./scrollbars.js";
-import { THEMES, currentTheme, onTheme, setTheme, syncTheme } from "./theme.js";
+import { THEME_GROUPS, THEMES, currentTheme, onTheme, setTheme, syncTheme } from "./theme.js";
 import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, fmt, h, icon, mount, select, toast } from "./ui.js";
 
@@ -268,14 +268,16 @@ function profileMenu() {
   const head = p
     ? h("div.profile-menu-head", avatar, h("div", h("b", p.game_name), h("small", `#${p.tag_line}`)))
     : h("div.profile-menu-head", avatar, h("div", h("b", "Sin perfil guardado"), h("small", "Guárdalo para analizar tus partidas")));
-  const options = THEMES.map((theme) => {
+  // General (con su descripción) y, en rejilla, los de cada línea y los de support (la descripción, al pasar el ratón).
+  const option = (theme, compact) => {
     const on = theme.id === currentTheme();
     return h(
-      `button.theme-option${on ? ".on" : ""}`,
+      `button.theme-option${on ? ".on" : ""}${compact ? ".compact" : ""}`,
       {
         type: "button",
         role: "menuitemradio",
         "aria-checked": String(on),
+        title: compact ? theme.hint : null,
         onclick: () => {
           setTheme(theme.id);
           toggleProfileMenu(false);
@@ -283,9 +285,14 @@ function profileMenu() {
         },
       },
       h(`span.theme-swatch.theme-${theme.id}`, h("i"), h("i"), h("i")),
-      h("span.theme-text", h("b", theme.label), h("small", theme.hint)),
+      h("span.theme-text", h("b", theme.label), compact ? null : h("small", theme.hint)),
       h("span.theme-check", on ? icon("check") : null),
     );
+  };
+  const options = THEME_GROUPS.map((group) => {
+    const list = THEMES.filter((t) => t.group === group.id);
+    const compact = group.id !== "general";
+    return h("div.theme-group", h("div.theme-group-label", group.label), h(compact ? "div.theme-grid" : "div.theme-options", list.map((t) => option(t, compact))));
   });
   return h(
     "div.profile-menu#profile-menu",
@@ -293,7 +300,7 @@ function profileMenu() {
     head,
     h("a.profile-menu-item", { href: "#/progreso", role: "menuitem", onclick: () => toggleProfileMenu(false) }, icon("chart"), p ? "Mi progreso" : "Guardar mi perfil"),
     h("div.profile-menu-section", "Aspecto de la página"),
-    h("div.theme-options", options),
+    h("div.theme-groups", options),
   );
 }
 
@@ -535,7 +542,7 @@ async function watchChampSelect() {
 
 async function boot() {
   initScrollbars();
-  onTheme((theme) => setHexBars(theme === "hextech")); // barras de cristal solo con el tema Hextech
+  onTheme((theme) => setHexBars(theme !== "standard", theme)); // barras de cristal con la piel de cada tema
   setupProfileMenu();
   renderSidebar();
   void setupLogs(); // trata sus errores (sin servidor, el panel de actividad se queda vacío)

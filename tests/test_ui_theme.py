@@ -16,5 +16,8 @@ def test_theme_is_standard_by_default_and_is_saved(svc):
         assert client.get("/api/meta").json()["ui"] == {"theme": "standard"}
         assert client.post("/api/ui/theme", json={"theme": "hextech"}).json() == {"theme": "hextech"}
         assert client.get("/api/meta").json()["ui"] == {"theme": "hextech"}
+        for theme in ("r-top", "r-jungle", "r-mid", "r-adc", "r-engage", "r-guardian", "r-peel"):  # uno por línea
+            assert client.post("/api/ui/theme", json={"theme": theme}).json() == {"theme": theme}
+        assert client.post("/api/ui/theme", json={"theme": "hextech"}).status_code == 200
         assert client.post("/api/ui/theme", json={"theme": "rosa"}).status_code == 400  # desconocido: no se guarda
         assert client.get("/api/meta").json()["ui"] == {"theme": "hextech"}

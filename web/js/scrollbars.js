@@ -38,12 +38,118 @@ const RGB = {
   white: [255, 255, 255],
 };
 // Paletas del plasma (valor 0 → 1): energía hextech y, con calor, fuego.
-const COOL = [[0, [1, 9, 16]], [0.38, [3, 58, 78]], [0.66, [10, 196, 182]], [0.86, [160, 250, 240]], [1, [255, 255, 255]]];
-const HOT = [[0, [22, 6, 2]], [0.38, [120, 32, 10]], [0.66, [255, 128, 36]], [0.86, [255, 214, 120]], [1, [255, 252, 230]]];
+let COOL = [[0, [1, 9, 16]], [0.38, [3, 58, 78]], [0.66, [10, 196, 182]], [0.86, [160, 250, 240]], [1, [255, 255, 255]]];
+let HOT = [[0, [22, 6, 2]], [0.38, [120, 32, 10]], [0.66, [255, 128, 36]], [0.86, [255, 214, 120]], [1, [255, 252, 230]]];
+
+/** Piel de la barra según el tema (theme.js): colores con nombre (los efectos usan «teal» para el color propio,
+ *  «cyan» para su luz, «gold» para el metal, «fire» y «ember» para el calor), plasma en calma y caliente, marco de
+ *  lado a lado, metal y placa del medallón, garras y la forma del medallón. */
+const SKINS = {
+  hextech: {
+    rgb: { teal: [10, 200, 185], cyan: [205, 250, 250], gold: [240, 200, 110], fire: [255, 128, 36], ember: [255, 72, 40] },
+    cool: COOL,
+    hot: HOT,
+    frame: ["#3a2c0e", "#c89b3c", "#f6ecd4", "#c8aa6e", "#785a28", "#2e220a"],
+    metal: ["#fbf1d8", "#c89b3c", "#6b4f1f"],
+    plate: "rgba(3,16,24,0.92)",
+    prong: "#d7b56d",
+    medallion: "hex",
+  },
+  // Top: forja y tanques. Hierro con remaches, lava dentro (al rojo blanco con velocidad), escudo de medallón.
+  "r-top": {
+    rgb: { teal: [255, 118, 30], cyan: [255, 208, 140], gold: [196, 204, 212], fire: [255, 244, 210], ember: [255, 70, 20] },
+    cool: [[0, [14, 6, 4]], [0.38, [96, 26, 8]], [0.66, [236, 96, 22]], [0.86, [255, 194, 96]], [1, [255, 246, 222]]],
+    hot: [[0, [40, 10, 4]], [0.38, [206, 64, 12]], [0.66, [255, 172, 44]], [0.86, [255, 236, 156]], [1, [255, 255, 255]]],
+    frame: ["#1c2024", "#5d666f", "#e3e7ea", "#9aa4ae", "#3a4148", "#15181b"],
+    metal: ["#eef1f3", "#8a949e", "#2f353c"],
+    plate: "rgba(18,20,24,0.95)",
+    prong: "#a9b2bb",
+    medallion: "shield",
+  },
+  // Jungla: corteza y musgo, savia verde; con velocidad, morado de Barón.
+  "r-jungle": {
+    rgb: { teal: [86, 214, 112], cyan: [206, 255, 176], gold: [206, 166, 96], fire: [166, 86, 255], ember: [255, 142, 52] },
+    cool: [[0, [2, 12, 6]], [0.38, [12, 62, 30]], [0.66, [64, 192, 92]], [0.86, [196, 255, 164]], [1, [250, 255, 236]]],
+    hot: [[0, [10, 3, 18]], [0.38, [62, 20, 112]], [0.66, [152, 72, 255]], [0.86, [222, 172, 255]], [1, [255, 246, 255]]],
+    frame: ["#1e140a", "#6b4a2a", "#c8a46e", "#6f8c3e", "#3a4a1c", "#141a0a"],
+    metal: ["#e2d2a2", "#8a6a3a", "#3a2a14"],
+    plate: "rgba(6,16,8,0.93)",
+    prong: "#a8844f",
+    medallion: "leaf",
+  },
+  // Mid: plata y magia arcana (violeta → magenta), estrella de medallón.
+  "r-mid": {
+    rgb: { teal: [150, 92, 255], cyan: [128, 222, 255], gold: [222, 226, 246], fire: [255, 72, 204], ember: [255, 124, 240] },
+    cool: [[0, [8, 4, 20]], [0.38, [52, 20, 112]], [0.66, [142, 82, 255]], [0.86, [232, 144, 255]], [1, [255, 242, 255]]],
+    hot: [[0, [20, 2, 16]], [0.38, [122, 10, 92]], [0.66, [255, 62, 192]], [0.86, [255, 182, 242]], [1, [255, 255, 255]]],
+    frame: ["#1f2230", "#7b82a0", "#f2f4ff", "#a3a9c4", "#4a4f68", "#1a1c28"],
+    metal: ["#ffffff", "#a8aec8", "#4a4f68"],
+    plate: "rgba(10,6,24,0.93)",
+    prong: "#c9cfe6",
+    medallion: "star",
+  },
+  // ADC: latón de cartucho, energía carmesí y fogonazo; mirilla de medallón.
+  "r-adc": {
+    rgb: { teal: [236, 52, 62], cyan: [255, 204, 126], gold: [232, 192, 104], fire: [255, 242, 176], ember: [255, 92, 40] },
+    cool: [[0, [12, 2, 4]], [0.38, [92, 10, 20]], [0.66, [232, 42, 52]], [0.86, [255, 172, 112]], [1, [255, 242, 212]]],
+    hot: [[0, [26, 12, 2]], [0.38, [170, 90, 12]], [0.66, [255, 196, 64]], [0.86, [255, 242, 172]], [1, [255, 255, 255]]],
+    frame: ["#2a1c08", "#a87b2c", "#f4d58a", "#c69a45", "#6a4a14", "#241806"],
+    metal: ["#fff0c4", "#c69a45", "#4a3410"],
+    plate: "rgba(14,10,8,0.93)",
+    prong: "#d1a552",
+    medallion: "reticle",
+  },
+  // Support engage: hierro de barco, verde de farol de alma; con velocidad, rojo de Pyke. Ancla de medallón.
+  "r-engage": {
+    rgb: { teal: [44, 222, 152], cyan: [172, 255, 212], gold: [152, 168, 178], fire: [232, 42, 72], ember: [255, 92, 92] },
+    cool: [[0, [1, 8, 8]], [0.38, [4, 52, 46]], [0.66, [32, 202, 142]], [0.86, [162, 255, 202]], [1, [236, 255, 246]]],
+    hot: [[0, [14, 2, 4]], [0.38, [92, 8, 20]], [0.66, [222, 32, 62]], [0.86, [255, 142, 152]], [1, [255, 236, 236]]],
+    frame: ["#0d1416", "#3d4b50", "#b6c4ca", "#6d7e84", "#2a3438", "#0a1012"],
+    metal: ["#dfe7ea", "#7f8f96", "#2a3438"],
+    plate: "rgba(2,12,14,0.93)",
+    prong: "#8fa0a8",
+    medallion: "anchor",
+  },
+  // Support guardián: hielo del Freljord y gema de Taric; gema facetada de medallón.
+  "r-guardian": {
+    rgb: { teal: [122, 202, 255], cyan: [232, 248, 255], gold: [204, 226, 246], fire: [255, 112, 216], ember: [202, 142, 255] },
+    cool: [[0, [4, 10, 20]], [0.38, [20, 62, 112]], [0.66, [112, 192, 255]], [0.86, [212, 242, 255]], [1, [255, 255, 255]]],
+    hot: [[0, [16, 4, 16]], [0.38, [102, 20, 92]], [0.66, [255, 102, 212]], [0.86, [255, 202, 242]], [1, [255, 255, 255]]],
+    frame: ["#18283a", "#6f93b4", "#f2fbff", "#a6c8e6", "#3c5874", "#142233"],
+    metal: ["#ffffff", "#a9cbe8", "#3c5874"],
+    plate: "rgba(4,12,24,0.9)",
+    prong: "#c3dcf0",
+    medallion: "gem",
+  },
+  // Support peel: escudos y curas. Blanco nacarado, menta de curación y rosa; escudo dorado con velocidad.
+  "r-peel": {
+    rgb: { teal: [112, 255, 192], cyan: [255, 192, 236], gold: [255, 236, 182], fire: [255, 226, 122], ember: [192, 162, 255] },
+    cool: [[0, [10, 8, 24]], [0.38, [40, 92, 122]], [0.66, [112, 255, 192]], [0.86, [255, 202, 242]], [1, [255, 255, 255]]],
+    hot: [[0, [20, 14, 4]], [0.38, [122, 92, 32]], [0.66, [255, 222, 122]], [0.86, [255, 250, 212]], [1, [255, 255, 255]]],
+    frame: ["#3a2f4a", "#a894cc", "#fffaf0", "#f2d9a8", "#7a6aa0", "#2e2440"],
+    metal: ["#ffffff", "#e8d2ff", "#7a6aa0"],
+    plate: "rgba(16,14,36,0.9)",
+    prong: "#f0dcff",
+    medallion: "heart",
+  },
+};
+let SKIN = SKINS.hextech;
+
+/** Pone la piel de un tema a todas las barras (los puntos de luz se vuelven a pintar con sus colores). */
+function applySkin(themeId) {
+  SKIN = SKINS[themeId] || SKINS.hextech;
+  Object.assign(RGB, SKIN.rgb);
+  COOL = SKIN.cool;
+  HOT = SKIN.hot;
+  for (const key of Object.keys(sprites)) delete sprites[key];
+}
 
 const timers = new WeakMap();
 const bars = new Map(); // caja → su HexBar
-const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+// Con un tema que no es el estándar las animaciones van siempre, aunque Windows tenga apagados los «Efectos de
+// animación» (Chrome lo pasa a la web como prefers-reduced-motion y la barra se quedaba congelada en su PC,
+// 27-11-2026): elegir el tema ya es pedirlas. El estándar no lleva esta barra.
+const calm = null;
 
 /** Cajas con barra dibujada: selector de la caja y de los títulos de sus secciones (las runas). */
 const ENHANCED = [
@@ -56,8 +162,10 @@ export function initScrollbars() {
   window.addEventListener("resize", () => bars.forEach((bar) => bar.schedule(true)), { passive: true });
 }
 
-/** Barras de cristal en la vista y el menú: solo con el tema Hextech (theme.js); con el estándar, las del sistema. */
-export function setHexBars(on) {
+/** Barras de cristal en la vista y el menú, con la piel de cada tema (theme.js); con el estándar, las del sistema. */
+export function setHexBars(on, themeId = "hextech") {
+  if (on) applySkin(themeId);
+  if (on && bars.size) bars.forEach((bar) => bar.wakeFx()); // otro tema: se repinta con su piel
   if (on && !bars.size) {
     for (const [selector, marks] of ENHANCED) {
       const host = document.querySelector(selector);
@@ -129,6 +237,215 @@ function sprite(name) {
   g.fillRect(0, 0, size, size);
   sprites[name] = c;
   return c;
+}
+
+/** Formas del medallón, centradas en 0,0 (``outline`` deja el trazo listo para rellenar y perfilar). ``bar.spin``
+ *  gira con el tiempo y más deprisa al desplazarte; ``bar.t`` es el tiempo del plasma. */
+function polygon(ctx, points) {
+  ctx.beginPath();
+  points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+}
+const ring = (n, radius, angle) => Array.from({ length: n }, (_, k) => [Math.cos(angle + (k * 2 * Math.PI) / n) * radius, Math.sin(angle + (k * 2 * Math.PI) / n) * radius]);
+const MEDALLIONS = {
+  // Hextech: hexágono que gira, otro dentro al revés y luces en los vértices.
+  hex: {
+    outline: (ctx, R, bar) => polygon(ctx, ring(6, R, bar.spin)),
+    inner: (ctx, R, bar, color) => {
+      polygon(ctx, ring(6, R * 0.62, -bar.spin * 1.6 + Math.PI / 6));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    },
+    lights: (R, bar) => ring(6, R, bar.spin),
+  },
+  // Top: escudo de forja con su banda y un remache de lava; se mece un poco.
+  shield: {
+    outline: (ctx, R, bar) => {
+      ctx.rotate(Math.sin(bar.spin) * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.9, -R * 1.0);
+      ctx.quadraticCurveTo(0, -R * 0.78, R * 0.9, -R * 1.0);
+      ctx.lineTo(R * 0.9, -R * 0.1);
+      ctx.quadraticCurveTo(R * 0.82, R * 0.75, 0, R * 1.2);
+      ctx.quadraticCurveTo(-R * 0.82, R * 0.75, -R * 0.9, -R * 0.1);
+      ctx.closePath();
+    },
+    inner: (ctx, R, bar, color, metal) => {
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.78, -R * 0.42);
+      ctx.lineTo(R * 0.78, -R * 0.42);
+      ctx.strokeStyle = metal;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -R * 0.42);
+      ctx.lineTo(0, R * 1.05);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    },
+    lights: (R) => [[-R * 0.62, -R * 0.72], [R * 0.62, -R * 0.72]],
+    orb: 0.36,
+    orbAt: (R) => [0, R * 0.2],
+  },
+  // Jungla: hoja con su nervio y venas que se mece con el viento; una luciérnaga la ronda.
+  leaf: {
+    outline: (ctx, R, bar) => {
+      ctx.rotate(Math.sin(bar.spin * 0.7) * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(0, -R * 1.25);
+      ctx.quadraticCurveTo(R * 1.05, -R * 0.1, 0, R * 1.2);
+      ctx.quadraticCurveTo(-R * 1.05, -R * 0.1, 0, -R * 1.25);
+      ctx.closePath();
+    },
+    inner: (ctx, R, bar, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(0, -R * 1.05);
+      ctx.lineTo(0, R * 1.05);
+      for (const y of [-0.5, -0.05, 0.4]) {
+        ctx.moveTo(0, R * (y + 0.25));
+        ctx.lineTo(R * 0.42, R * y);
+        ctx.moveTo(0, R * (y + 0.25));
+        ctx.lineTo(-R * 0.42, R * y);
+      }
+      ctx.stroke();
+    },
+    orb: 0.3,
+    orbAt: (R, bar) => [Math.cos(bar.spin * 2.2) * R * 1.15, Math.sin(bar.spin * 2.2) * R * 0.8],
+  },
+  // Mid: estrella arcana de ocho puntas que gira y un círculo de runas que gira al revés.
+  star: {
+    outline: (ctx, R, bar) => {
+      const points = [];
+      for (let k = 0; k < 16; k++) {
+        const a = bar.spin + (k * Math.PI) / 8;
+        const r = k % 2 ? R * 0.46 : R * (k % 4 ? 1.0 : 1.18);
+        points.push([Math.cos(a) * r, Math.sin(a) * r]);
+      }
+      polygon(ctx, points);
+    },
+    inner: (ctx, R, bar, color) => {
+      ctx.save();
+      ctx.rotate(-bar.spin * 1.4);
+      ctx.setLineDash([1.6, 1.8]);
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 1.42, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.restore();
+    },
+    lights: (R, bar) => ring(4, R * 1.18, bar.spin),
+    orb: 0.42,
+  },
+  // ADC: mirilla. Aro con cuatro marcas que se cierra al disparar (desplazarte) y punto rojo en el centro.
+  reticle: {
+    outline: (ctx, R, bar) => {
+      ctx.rotate(bar.spin * 0.5);
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.95, 0, Math.PI * 2);
+    },
+    inner: (ctx, R, bar, color, metal) => {
+      const close = 1 - 0.25 * Math.min(1, Math.abs(bar.velocity) * 2);
+      ctx.strokeStyle = metal;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2;
+        ctx.moveTo(Math.cos(a) * R * 0.45 * close, Math.sin(a) * R * 0.45 * close);
+        ctx.lineTo(Math.cos(a) * R * 1.35, Math.sin(a) * R * 1.35);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.55 * close, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    },
+    orb: 0.22,
+  },
+  // Support engage: ancla con su argolla que se balancea colgada.
+  anchor: {
+    outline: (ctx, R, bar) => {
+      ctx.rotate(Math.sin(bar.spin) * 0.18);
+      ctx.beginPath();
+      ctx.arc(0, -R * 0.98, R * 0.26, 0, Math.PI * 2);
+    },
+    inner: (ctx, R, bar, color, metal) => {
+      ctx.strokeStyle = metal;
+      ctx.lineCap = "round";
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(0, -R * 0.72);
+      ctx.lineTo(0, R * 1.0);
+      ctx.moveTo(-R * 0.55, -R * 0.42);
+      ctx.lineTo(R * 0.55, -R * 0.42);
+      ctx.moveTo(-R * 0.95, R * 0.28);
+      ctx.quadraticCurveTo(-R * 0.75, R * 1.05, 0, R * 1.02);
+      ctx.quadraticCurveTo(R * 0.75, R * 1.05, R * 0.95, R * 0.28);
+      ctx.stroke();
+      ctx.fillStyle = metal;
+      polygon(ctx, [[-R * 0.95, R * 0.05], [-R * 1.15, R * 0.42], [-R * 0.72, R * 0.36]]);
+      ctx.fill();
+      polygon(ctx, [[R * 0.95, R * 0.05], [R * 1.15, R * 0.42], [R * 0.72, R * 0.36]]);
+      ctx.fill();
+    },
+    orb: 0.34,
+    orbAt: (R) => [0, R * 0.12],
+  },
+  // Support guardián: gema facetada (Taric) con un destello que la recorre.
+  gem: {
+    outline: (ctx, R) => polygon(ctx, [[-R * 0.55, -R * 0.62], [R * 0.55, -R * 0.62], [R * 1.0, -R * 0.12], [0, R * 1.15], [-R * 1.0, -R * 0.12]]),
+    inner: (ctx, R, bar, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(-R * 1.0, -R * 0.12);
+      ctx.lineTo(R * 1.0, -R * 0.12);
+      ctx.moveTo(-R * 0.55, -R * 0.62);
+      ctx.lineTo(-R * 0.25, -R * 0.12);
+      ctx.lineTo(0, R * 1.15);
+      ctx.lineTo(R * 0.25, -R * 0.12);
+      ctx.lineTo(R * 0.55, -R * 0.62);
+      ctx.moveTo(-R * 0.25, -R * 0.12);
+      ctx.lineTo(0, -R * 0.62);
+      ctx.lineTo(R * 0.25, -R * 0.12);
+      ctx.stroke();
+    },
+    lights: (R, bar) => [[Math.sin(bar.spin * 1.3) * R * 0.8, -R * 0.4 + Math.cos(bar.spin * 1.3) * R * 0.3]],
+    orb: 0.3,
+    orbAt: (R) => [0, -R * 0.05],
+  },
+  // Support peel: cruz de curación en un círculo, con destellos que la rondan.
+  heart: {
+    outline: (ctx, R) => {
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.98, 0, Math.PI * 2);
+    },
+    inner: (ctx, R, bar, color) => {
+      const a = R * 0.2;
+      const b = R * 0.62;
+      polygon(ctx, [[-a, -b], [a, -b], [a, -a], [b, -a], [b, a], [a, a], [a, b], [-a, b], [-a, a], [-b, a], [-b, -a], [-a, -a]]);
+      ctx.fillStyle = color;
+      ctx.fill();
+    },
+    lights: (R, bar) => ring(3, R * 1.3, bar.spin * 1.5),
+    orb: 0.3,
+  },
+};
+
+/** Nombre de una sección: el texto de su título hasta el separador o el primer botón (sin «Todas tus repeticiones» y
+ *  demás botones que llevan algunos títulos dentro). */
+function markTitle(el) {
+  let text = "";
+  for (const child of el.childNodes) {
+    if (child.nodeType === Node.ELEMENT_NODE && (child.matches(".spacer, button, a, select, input, .btn") || child.querySelector?.("button, a, select"))) break;
+    text += child.textContent || "";
+  }
+  return text.replace(/\s+/g, " ").trim();
 }
 
 class HexBar {
@@ -406,7 +723,7 @@ class HexBar {
     for (const el of host.querySelectorAll(this.markSelector)) {
       const rect = el.getBoundingClientRect();
       if (!rect.height) continue; // oculta (pestaña cerrada, menú plegado)
-      const title = (el.textContent || "").replace(/\s+/g, " ").trim();
+      const title = markTitle(el);
       if (!title) continue;
       marks.push({ top: rect.top - hostTop + host.scrollTop, title: title.length > 42 ? `${title.slice(0, 40)}…` : title });
       if (marks.length >= MAX_MARKS) break;
@@ -760,12 +1077,7 @@ class HexBar {
 
     // Marco de oro biselado: de lado a lado (bronce, oro, brillo, oro, bronce) y luz arriba, sombra abajo.
     const frame = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
-    frame.addColorStop(0, "#3a2c0e");
-    frame.addColorStop(0.2, "#c89b3c");
-    frame.addColorStop(0.42, "#f6ecd4");
-    frame.addColorStop(0.6, "#c8aa6e");
-    frame.addColorStop(0.84, "#785a28");
-    frame.addColorStop(1, "#2e220a");
+    [0, 0.2, 0.42, 0.6, 0.84, 1].forEach((at, i) => frame.addColorStop(at, SKIN.frame[i]));
     this.gemPath(cx, top, h, w, tip, 0);
     ctx.fillStyle = frame;
     ctx.fill();
@@ -829,7 +1141,7 @@ class HexBar {
     const ctx = this.ctx;
     ctx.lineCap = "round";
     for (const [y, dir] of [[top, -1], [top + h, 1]]) {
-      ctx.strokeStyle = "#d7b56d";
+      ctx.strokeStyle = SKIN.prong;
       ctx.lineWidth = 1.3;
       for (const side of [-1, 1]) {
         ctx.beginPath();
@@ -862,67 +1174,60 @@ class HexBar {
     }
   }
 
-  /** El medallón del centro: hexágono de oro que gira, otro por dentro al revés y un orbe que late. */
+  /** El medallón del centro, con la forma de cada tema (``SKIN.medallion``): hexágono hextech, escudo, hoja, estrella
+   *  arcana, mirilla, ancla, gema o cruz de curación. Metal y placa de la piel; el orbe late y se calienta. */
   drawMedallion(cx, cy, w, energy) {
     const ctx = this.ctx;
     const R = Math.min(9.5, w * 0.5 + 2.8);
     const pulse = 1 + Math.sin(this.t * 6 + this.spin) * 0.12 * (0.4 + energy);
-    const hex = (radius, angle) => {
-      ctx.beginPath();
-      for (let k = 0; k < 6; k++) {
-        const a = angle + (k * Math.PI) / 3;
-        const x = cx + Math.cos(a) * radius;
-        const y = cy + Math.sin(a) * radius;
-        if (k) ctx.lineTo(x, y);
-        else ctx.moveTo(x, y);
-      }
-      ctx.closePath();
-    };
-    // Placa oscura con canto de oro.
+    const glow = mixRgb(RGB.teal, RGB.fire, this.heat);
+    const metal = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    metal.addColorStop(0, SKIN.metal[0]);
+    metal.addColorStop(0.45, SKIN.metal[1]);
+    metal.addColorStop(1, SKIN.metal[2]);
+    const shape = MEDALLIONS[SKIN.medallion] || MEDALLIONS.hex;
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Placa con su sombra, y el canto de metal.
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.7)";
     ctx.shadowBlur = 4;
-    hex(R, this.spin);
-    ctx.fillStyle = "rgba(3,16,24,0.92)";
+    shape.outline(ctx, R, this);
+    ctx.fillStyle = SKIN.plate;
     ctx.fill();
     ctx.restore();
-    const ring = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
-    ring.addColorStop(0, "#fbf1d8");
-    ring.addColorStop(0.45, "#c89b3c");
-    ring.addColorStop(1, "#6b4f1f");
-    hex(R, this.spin);
-    ctx.strokeStyle = ring;
+    shape.outline(ctx, R, this);
+    ctx.strokeStyle = metal;
     ctx.lineWidth = 1.5;
+    ctx.lineJoin = "round";
     ctx.stroke();
-    // Hexágono interior, girando al revés.
-    hex(R * 0.62, -this.spin * 1.6 + Math.PI / 6);
-    ctx.strokeStyle = rgba(mixRgb(RGB.teal, RGB.fire, this.heat), 0.55 + energy * 0.4);
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
-    // Puntos de luz en los vértices.
+    // Lo de dentro (líneas, nervios, facetas…) en el color del tema.
+    shape.inner?.(ctx, R, this, rgba(glow, 0.55 + energy * 0.4), metal);
+    // Puntos de luz y orbe.
     ctx.globalCompositeOperation = "lighter";
-    for (let k = 0; k < 6; k++) {
-      const a = this.spin + (k * Math.PI) / 3;
+    for (const [x, y] of shape.lights?.(R, this) || []) {
       const s = 3.2 + energy * 2;
       ctx.globalAlpha = 0.55 + energy * 0.45;
-      ctx.drawImage(sprite(this.heat > 0.5 ? "fire" : "gold"), cx + Math.cos(a) * R - s / 2, cy + Math.sin(a) * R - s / 2, s, s);
+      ctx.drawImage(sprite(this.heat > 0.5 ? "fire" : "gold"), x - s / 2, y - s / 2, s, s);
     }
-    // El orbe.
-    const orbR = R * 0.48 * pulse;
-    const core = mixRgb(RGB.cyan, RGB.gold, this.heat);
-    const edge = mixRgb(RGB.teal, RGB.fire, this.heat);
-    const orb = ctx.createRadialGradient(cx - orbR * 0.25, cy - orbR * 0.25, 0, cx, cy, orbR * 1.9);
-    orb.addColorStop(0, "rgba(255,255,255,1)");
-    orb.addColorStop(0.25, rgba(core, 1));
-    orb.addColorStop(0.55, rgba(edge, 0.75));
-    orb.addColorStop(1, rgba(edge, 0));
-    ctx.globalAlpha = 0.75 + energy * 0.25;
-    ctx.fillStyle = orb;
-    ctx.beginPath();
-    ctx.arc(cx, cy, orbR * 1.9, 0, Math.PI * 2);
-    ctx.fill();
+    const orbR = R * (shape.orb ?? 0.48) * pulse;
+    if (orbR > 0) {
+      const [ox, oy] = shape.orbAt?.(R, this) || [0, 0];
+      const core = mixRgb(RGB.cyan, RGB.gold, this.heat);
+      const orb = ctx.createRadialGradient(ox - orbR * 0.25, oy - orbR * 0.25, 0, ox, oy, orbR * 1.9);
+      orb.addColorStop(0, "rgba(255,255,255,1)");
+      orb.addColorStop(0.25, rgba(core, 1));
+      orb.addColorStop(0.55, rgba(glow, 0.75));
+      orb.addColorStop(1, rgba(glow, 0));
+      ctx.globalAlpha = 0.75 + energy * 0.25;
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(ox, oy, orbR * 1.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
   }
 
   drawRings(dt) {

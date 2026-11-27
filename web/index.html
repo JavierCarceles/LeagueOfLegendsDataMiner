@@ -9,18 +9,28 @@
     <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Comfortaa:wght@600;700&family=Cormorant+SC:wght@600;700&family=IM+Fell+English+SC&family=Marcellus+SC&family=Oswald:wght@500;700&family=Pirata+One&family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
     <!-- Tema de la página (web/js/theme.js), puesto antes de pintar nada para que no se vea un instante el otro. -->
     <script>
       try {
         var theme = localStorage.getItem("tempu.theme");
-        document.documentElement.dataset.theme = theme === "hextech" ? theme : "standard";
+        var known = ["standard", "hextech", "r-top", "r-jungle", "r-mid", "r-adc", "r-engage", "r-guardian", "r-peel"];
+        document.documentElement.dataset.theme = known.indexOf(theme) >= 0 ? theme : "standard";
       } catch (e) {
         document.documentElement.dataset.theme = "standard";
       }
     </script>
     <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/theme-bars.css" />
     <link rel="stylesheet" href="/static/css/theme-hextech.css" />
+    <link rel="stylesheet" href="/static/css/theme-roles.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-top.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-jungle.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-mid.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-adc.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-engage.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-guardian.css" />
+    <link rel="stylesheet" href="/static/css/theme-r-peel.css" />
   </head>
   <body>
     <div class="app">
