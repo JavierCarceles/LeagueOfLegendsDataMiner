@@ -48,3 +48,35 @@ def test_con_una_version_nueva_la_cuenta_empieza_de_nuevo(monkeypatch):
     assert od.progress_begin(db, 120_000)
     assert od.reanalysis_status() == {"running": True, "done": 0, "total": 120_000, "pct": 0}
     od.progress_end(db, stopped=True)
+
+
+def test_las_del_ranking_se_vuelven_a_bajar_y_se_sustituyen_al_subir_la_version(keyed_svc, monkeypatch):
+    from types import SimpleNamespace
+
+    from tests.factories import make_match, make_timeline
+
+    db = keyed_svc.db
+    match = make_match("EUW1_901", puuids={1: "p-1"})
+    timeline = make_timeline(match)
+    svc = SimpleNamespace(db=db, dd=keyed_svc.dd, settings=keyed_svc.settings)
+    monkeypatch.setattr(od, "ANALYSIS_VERSION", od.ANALYSIS_VERSION - 1)  # guardada con la versión de antes
+    players = od.save_ranking_game(db, svc, match, timeline, "GOLD")
+    assert players >= 1
+    monkeypatch.undo()
+    assert od.outdated_ranking(db) == 1
+    asked = []
+
+    class _Riot:
+        def match(self, match_id, **kw):
+            asked.append(match_id)
+            return match
+
+        def timeline(self, match_id, **kw):
+            return timeline
+
+    svc.riot = _Riot()
+    done, finished = od.refetch_ranking(db, svc)
+    assert (done, finished, asked) == (1, True, ["EUW1_901"])
+    assert od.outdated_ranking(db) == 0
+    rows = db.query("SELECT COUNT(*) AS n FROM otp_games WHERE match_id = 'EUW1_901' AND kind = 'ranking'")
+    assert rows[0]["n"] == players  # sustituidas, no duplicadas
