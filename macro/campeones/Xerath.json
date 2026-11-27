@@ -1,0 +1,677 @@
+{
+ "clave": "Xerath",
+ "nombre": "Xerath",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.55,
+   "principal": true
+  },
+  {
+   "rol": "SUPPORT",
+   "parte": 0.37,
+   "principal": false
+  }
+ ],
+ "arquetipo": "mago de artillería de rango extremo (Q hasta 1450 u, R a 5000 u) que gana por desgaste y remata desde lejos; sin desplazamientos y muy frágil si le llegan encima",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 4,
+  "nota": "Desde nivel 1 castiga cada último golpe del rival con la Q cargada (1450 u) y con Cometa arcano; a nivel 3 con Q-W-E tiene el poke más largo de las líneas de mago. La R desde nivel 6 (5000 u, 4-6 disparos) remata a cualquiera que huya a menos del ~30 % en cualquier línea cercana. Con Eco de Luden (~11:20) y Llamasombría juega asedios y objetivos dejando al rival a media vida antes de la pelea. En la tardía, con Sombrero mortal de Rabadon, cada Q quita un tercio de la vida de un carry, pero sigue sin escape: contra asesinos, Vi, Malphite o cualquier entrada que le alcance muere en un combo."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1-2 con Q y Cometa arcano",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La Q cargada (hasta 1450 u) con Cometa arcano y Chamuscar hace ~20 % de la vida de un mago por impacto a nivel 1-2. Si el rival se acerca a rematar, pierde vida sin poder responder; la W a nivel 2 (centro: 66 % más de daño y 60 % de ralentización) asegura el segundo impacto."
+  },
+  {
+   "cuando": "Nivel 3 con la E (~2:00)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Orbe de choque: aturdimiento de 0,75 a 2,25 s según la distancia recorrida. E a máximo alcance → W al centro → Q asegura un combo completo; es su herramienta contra el all-in de nivel 3 de asesinos y para ayudar al jungla en ganks."
+  },
+  {
+   "cuando": "Nivel 6 (~5:15 en mid)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Rito arcano: 4 disparos de 170 (+45 % PH) a 5000 u. Remata desde mid a quien escapa en bot, top o en el río sin moverse de su línea, y en la suya convierte cualquier intercambio a media vida en kill."
+  },
+  {
+   "cuando": "Primer objeto (~11:20): Eco de Luden",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Eco de Luden",
+   "por_que": "Más daño de ráfaga, penetración y maná: Q + W limpian la oleada de un golpe y un Q-W-E deja a un tirador por debajo de la mitad. Es la ventana del primer dragón y las larvas con poke previo."
+  },
+  {
+   "cuando": "Dos objetos (~18:30): Llamasombría",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "R a nivel 11 (5 disparos, 115 s) con Eco de Luden + Llamasombría: la R completa mata a un carry de vida media desde fuera de la pelea. Asedia torres sin que el rival pueda defender la oleada."
+  },
+  {
+   "cuando": "Tres objetos (~25:00): Sombrero mortal de Rabadon o Precisión infalible",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "Cada Q a máximo alcance hace 500-600 de daño mágico: dos Q y una W antes de Barón o del Alma deciden la pelea antes de que empiece. A partir de aquí su valor depende de que su frontal le dé espacio."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Oleada de maná: cada 16 s su siguiente ataque básico recupera 30-225 de maná según nivel (el doble, 60-450, si golpea a un campeón). Cada unidad que mata le reduce el enfriamiento 3,5 s. Atacar al rival con la pasiva lista es su forma de sostener el maná en la línea; con 525 u de alcance de ataque es un ataque arriesgado contra cuerpo a cuerpo.",
+  "Q": "Pulso arcano: carga hasta 3 s (el alcance pasa de 700 a 1450 u en ~1,5 s mientras se ralentiza hasta un 40 %) y suelta un rayo que atraviesa todo y hace 70/110/150/190/230 (+90 % PH). Enfriamiento 9/8/7/6/5 s, 80-120 de maná (devuelve la mitad si se cancela). Mientras carga no puede usar Destello ni otras habilidades sin soltarla; es su despeje, su poke y su remate.",
+  "W": "Ojo de la destrucción: zona de 275 u de radio a 1000 u que cae tras ~0,5 s: 50-190 (+65 % PH) y 25 % de ralentización 2,5 s; en el centro (125 u) hace un 66,7 % más y ralentiza un 60-80 % decreciente. Enfriamiento 14-10 s. El centro de la W es lo que permite acertar la Q después.",
+  "E": "Orbe de choque: proyectil a 1125 u (1050 en Data Dragon), velocidad 1400, que choca con el primer enemigo (los súbditos lo bloquean). Daña 70-190 (+45 % PH) y aturde de 0,75 a 2,25 s según la distancia recorrida. Enfriamiento 13-11 s. Es su única defensa contra entradas: lanzada de cerca solo aturde 0,75 s.",
+  "R": "Rito arcano: se queda inmóvil hasta 10 s y lanza 4/5/6 disparos a 5000 u de alcance (radio 200, 0,6 s de retardo cada uno): 170/220/270 (+45 % PH) por disparo, y cada impacto seguido suma daño a los siguientes (Perfección arcana). Enfriamiento 130/115/100 s, 100 de maná; si la cancela sin disparar recupera la mitad del enfriamiento. La zona de impacto se ve para ambos equipos y él queda revelado tras el primer disparo si hay campeones rivales cerca."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "En mid, Q-W-E (Q 1, W 2, E 3) en el ~56 % de las partidas de OP.GG Esmeralda+; Q-E-W para tener el aturdimiento a nivel 2 contra asesinos o junglas con gank temprano. En support empieza con W (W-Q-E, 41 %) o W-E-Q para pegar a los dos rivales de bot a nivel 1 sin depender de la Q. Maximiza siempre Q, luego W y la E al final. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno. Solo Destello (400 u) y, en mid, a veces Fantasmal en lugar de Teleportar. La Q cargada le ralentiza hasta un 40 % y la R le deja quieto hasta 10 s.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "daño",
+    "desde_nivel": 6,
+    "alcance": "5000 unidades",
+    "nota": "4/5/6 disparos de artillería en 10 s a 5000 u de su posición (no se mueve). Desde mid alcanza la línea de bot o top cerca de la torre exterior, el río, el dragón y el Barón; también da visión momentánea del punto de impacto. Kills a 3000-5000 u de su última posición conocida son normales."
+   }
+  ]
+ },
+ "unico": [
+  "La Q tiene dos alcances: 700 u sin cargar y 1450 u cargada; mientras carga camina ralentizado y no puede usar Destello, por eso las entradas rivales buscan ese momento.",
+  "La R es artillería a 5000 u desde una posición fija: remata kills de otras líneas y castiga a quien pasa por el río sin moverse de su sitio, y si no dispara recupera la mitad del enfriamiento.",
+  "El aturdimiento de la E dura más cuanto más lejos viaja (0,75 s de cerca, 2,25 s a máximo alcance): es mejor como herramienta de pick a distancia que como defensa a quemarropa.",
+  "La W hace un 66,7 % más de daño y ralentiza mucho más en su centro (125 u): W al centro → Q es el combo que asegura casi todos sus impactos.",
+  "La pasiva le devuelve el doble de maná si el ataque golpea a un campeón y baja 3,5 s por cada unidad que mata: es un mago que gestiona maná con ataques básicos."
+ ],
+ "combos": [
+  "Poke de línea: Q cargada a máximo alcance cuando el rival remata un súbdito (activa Cometa arcano y Chamuscar).",
+  "Combo completo: E a máximo alcance (2 s de aturdimiento) → W al centro → Q cargada → ataque con la pasiva.",
+  "Contra una entrada: E al que se acerca → paso atrás → W a los pies → Q sin cargar (700 u) si sigue encima.",
+  "Remate con R: R → primer disparo donde va a estar el rival (0,6 s de retardo) → los siguientes ajustados a su dirección de huida; si es una pelea, usa los disparos sobre los que tengan la W o el aturdimiento encima.",
+  "Asedio: W sobre la oleada y el rival → Q que atraviesa la oleada hacia la torre; repetir desde fuera del alcance de sus habilidades."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Eco de Luden",
+   "Llamasombría",
+   "Sombrero mortal de Rabadon",
+   "Precisión infalible",
+   "Sobrecarga tormentosa",
+   "Bastón del Vacío",
+   "Reloj de arena de Zhonya",
+   "Robaalmas de Mejai",
+   "Botas de hechicero",
+   "Perforaplanos de Zaz'Zak"
+  ],
+  "runas": "Cometa arcano (Brujería) con Banda de maná, Trascendencia y Chamuscar (~75 % en OP.GG 16.23); secundaria Precisión (Claridad mental y Golpe de gracia o Derribado) o Inspiración. Alternativa: Mejora glacial (Inspiración) con Brujería secundaria, la que más gana en Lolalytics, para ralentizar con cada habilidad y dar más seguridad en mid y en support.",
+  "hechizos": [
+   "Destello",
+   "Teleportar"
+  ],
+  "nota": "Mid: Destello + Teleportar (72 %) o Destello + Barrera (18 %, contra asesinos); Anillo de Doran + 2 pociones (98 %). Eco de Luden siempre primero, luego Llamasombría y Rabadon o Precisión infalible (más alcance de daño contra rivales lejos); Zhonya contra asesinos y luchadores, Bastón del Vacío contra resistencias mágicas. Botas de hechicero (95 %). Robaalmas de Mejai cuando va por delante. Support: Destello + Curar (78 %) o Agotamiento (13 %), Atlas mundial y pasar a Perforaplanos de Zaz'Zak (95 %), luego Eco de Luden y Llamasombría."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 para pegar al rival cuando remata (la primera oleada llega hacia el 1:05); W a nivel 2 (~1:35) para despejar y asegurar la Q; E a nivel 3 (~2:05). Contra asesinos de nivel 3 (Talon, Katarina, Ekko) se queda a máximo alcance y guarda la E para su entrada.",
+    "tradeos": "Pega con la Q cargada cada vez que el rival entra a rematar y retrocede: no hay intercambio real porque el rival no le alcanza. Usa la pasiva (doble maná) con ataques al rival solo contra magos de rango corto. El combo E-W-Q lo deja para cuando el rival quema el Destello o se queda sin súbditos delante (la E la bloquean los súbditos).",
+    "oleadas": "Despeja con W + Q sobre los súbditos de caster a partir de nivel 3-4 y empuja para coger prioridad; puede farmear desde 1450 u bajo su torre si le presionan. Vuelve a base tras estrellar la oleada hacia el 3:30-4:00 con Tomo amplificador o Libro perdido. Sin maná no tiene presión: cuidado con gastar la Q en súbditos antes del 6.",
+    "all_in": "Desde nivel 3 si el rival está por debajo del 50 % y sin Destello: E a máximo alcance → W → Q; desde nivel 6 la R remata lo que el combo no mató aunque el rival llegue a su torre.",
+    "jugar_seguro": "Contra Talon, Ekko, Katarina, Fizz, Akshan o Naafiri (sus peores matchups): Destello + Barrera, ponerse lejos y guardar la E para la entrada, farmear con la Q desde fuera del alcance de los arbustos, pedir vision del río y no cargar la Q con el asesino fuera de vista (le deja lento y sin Destello)."
+   },
+   "roameos": "Casi no roamea a pie: al ser lento y sin dashes, su roameo es la R. Desde nivel 6 dispara desde mid a bot o top cuando su jungla gankea o cuando un rival huye a poca vida; con Teleportar baja a peleas de bot o al dragón. Sube al río a ayudar a la escuttle (3:30) y a las larvas (8:00) cuando tiene prioridad de oleada.",
+   "fase_media": "Con Eco de Luden empuja mid y se queda en el grupo alrededor del dragón, las larvas y el Heraldo, haciendo poke antes de la pelea; asedia torres con Q y W desde fuera del alcance. Coge oleadas laterales solo cuando el mapa está despejado o con un aliado cerca. Su papel es desgastar antes del objetivo y rematar con la R a quien se retira.",
+   "matchups_dificiles": [
+    "Talon",
+    "Ekko",
+    "Katarina",
+    "Fizz",
+    "Akshan",
+    "Naafiri",
+    "Zed",
+    "Kassadin"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Mel",
+    "Veigar",
+    "Smolder",
+    "Brand",
+    "Tristana",
+    "Lux",
+    "Viktor"
+   ]
+  },
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Empieza con W para pegar a los dos rivales a la vez y ganar el empuje; a nivel 2 (Q o E) castiga con poke cada vez que el tirador rival entra a rematar. No gana el nivel 2 por all-in: contra Leona, Nautilus o Blitzcrank se coloca detrás de los súbditos y guarda la E para su entrada.",
+    "tradeos": "Poke constante con la Q cargada y la W sobre el tirador rival mientras remata (Cometa arcano, Chamuscar y Perforaplanos de Zaz'Zak). Necesita súbditos delante para que el enganchador no le llegue; contra supports curanderos (Soraka, Janna, Sona) el poke rinde menos.",
+    "oleadas": "No toca la oleada salvo para la misión de support: la W sobre los súbditos ayuda a empujar si su tirador quiere placas o el dragón. Ataques con la pasiva al rival para recuperar maná sin perder empuje.",
+    "con_que_adcs": [
+     "Ashe",
+     "Varus",
+     "Jhin",
+     "Caitlyn",
+     "Ezreal",
+     "Miss Fortune",
+     "Senna"
+    ],
+    "sufre_contra": [
+     "Taric",
+     "Shen",
+     "Zilean",
+     "Janna",
+     "Sona",
+     "Amumu",
+     "Blitzcrank",
+     "Pyke"
+    ]
+   },
+   "roameos": "Roamea poco a pie; tras la primera vuelta (~4:30) puede subir a mid con su jungla si la oleada de bot está empujada. Su roameo principal es la R desde bot al dragón, al río o a mid cuando hay una pelea cerca.",
+   "vision": "Visión media-baja para un support: guardianes de control en el arbusto del río de bot y en la entrada del dragón, y usa la mejora del objeto de support para wards en el río antes del dragón (5:00). Prefiere poner wards desde dentro de su lado del río porque no puede escapar de un enganche.",
+   "fase_media": "Igual que en mid: grupo con su tirador, poke antes de cada dragón y larvas, y la R para rematar o dar visión de zona. Con Eco de Luden y Llamasombría hace tanto daño como un mid; se coloca detrás de su frontal porque no aguanta una entrada.",
+   "matchups_dificiles": [
+    "Taric",
+    "Shen",
+    "Zilean",
+    "Janna",
+    "Sona",
+    "Amumu",
+    "Rakan",
+    "Pyke"
+   ],
+   "matchups_faciles": [
+    "Brand",
+    "Elise",
+    "Ashe",
+    "Galio",
+    "Lux",
+    "Zoe",
+    "Vel'Koz",
+    "Zyra"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Poke y artillería: desgasta al rival antes de la pelea y remata con la R desde muy lejos; no inicia salvo con un aturdimiento a máximo alcance.",
+  "como_entrar": "No entra: abre con Q cargadas y W sobre el frontal y los carries antes del objetivo, y cuando su equipo inicia usa la E sobre quien se acerca y la R para rematar a los que se retiran o para castigar a los que se quedan en una zona.",
+  "objetivo": "El que tenga a tiro con la Q a máximo alcance: idealmente el tirador o mago rival; en defensa, la E al asesino o luchador que le busca.",
+  "posicion": "Lo más atrás posible del grupo, a 1200-1450 u de la pelea, con un frontal o un muro entre él y los rivales que pueden entrar; nunca en la primera línea de un pasillo de la jungla sin visión."
+ },
+ "macro": {
+  "split_push": "Muy poco: sin escape no puede estar solo en una lateral. Despeja oleadas laterales de lejos con Q y W y vuelve al grupo.",
+  "objetivos": "No hace dragón ni Barón solo; ayuda desde fuera con el poke. Su fuerza son los asedios: Q y W desde 1000-1450 u sobre los defensores de una torre hasta que la abandonan.",
+  "plan_de_partida": "0-6 min: ganar la línea por desgaste con Q y Cometa arcano, prioridad para la escuttle. 6-14 min: R para rematar kills en otras líneas, Eco de Luden hacia el 11, poke antes del dragón y las larvas. 14-25 min: asedio de torres con el grupo, Llamasombría, controlar la zona de Barón con poke. 25+: pelear desde detrás del frontal, R sobre quien se retira y evitar ponerse a tiro de las entradas."
+ },
+ "debilidades": [
+  "Sin desplazamientos: un asesino, Vi, Malphite o un enganche que le alcance lo mata casi siempre.",
+  "Todo es habilidad direccional con retardo: contra campeones móviles (Akshan, Ezreal fuera de su línea, Ekko) falla muchas y se queda sin maná.",
+  "La Q cargada y la R le dejan lento o quieto: son las ventanas en las que el rival entra a por él.",
+  "La E la bloquean los súbditos y a corta distancia solo aturde 0,75 s: defensa pobre contra entradas a quemarropa.",
+  "Depende del maná antes de Eco de Luden; si falla poke sin parar, pierde la presión en la línea."
+ ],
+ "contrarrestado_por": [
+  "Talon",
+  "Ekko",
+  "Katarina",
+  "Fizz",
+  "Akshan",
+  "Naafiri",
+  "Zed",
+  "Kassadin"
+ ],
+ "bueno_contra": [
+  "Ezreal",
+  "Mel",
+  "Veigar",
+  "Smolder",
+  "Brand",
+  "Tristana",
+  "Lux",
+  "Viktor"
+ ],
+ "sinergias": [
+  "Malphite",
+  "Amumu",
+  "Jarvan IV",
+  "Orianna",
+  "Ashe",
+  "Varus",
+  "Sejuani",
+  "Leona"
+ ],
+ "errores_comunes": [
+  "Cargar la Q con un asesino o el jungla fuera de vista: queda lento y sin Destello justo cuando le entran.",
+  "Gastar la E de poke y no tenerla para la entrada del asesino o del enganchador.",
+  "Usar la R en una pelea perdida o a un rival con vida alta en vez de guardarla para rematar o para la siguiente pelea.",
+  "Ponerse en la primera línea del grupo para tener alcance: su Q llega a 1450 u, no hace falta acercarse.",
+  "Quedarse sin maná antes del 6 por hacer poke con la Q a súbditos en lugar de usar la pasiva.",
+  "Ir solo a una lateral sin visión en la fase media."
+ ],
+ "senales_reconstructor": [
+  "Kills o asistencias suyas con la víctima a 2000-5000 u de su posición (p. ej. él en mid y la víctima en el río de bot o bajo la torre exterior de top) son la R, no un roameo: desde nivel 6 es lo normal.",
+  "Su posición por minuto cambia poco en una pelea: con la R se queda quieto hasta 10 s, y en el resto se queda a 1200-1450 u del grupo. Aparecer en la periferia de una pelea, no en el centro, es lo esperable.",
+  "En mid: nivel 2 hacia la 1:35, nivel 3 hacia las 2:05 y nivel 6 hacia las 5:15, con CS de línea normal de mago (~75-80 a los 10). Teleportar en el ~72 % de las partidas: kills en bot o en el dragón justo después de estar en mid sin pasar por el río suelen ser teletransporte.",
+  "Ritmo de objetos: Eco de Luden hacia el minuto 11-12 (Metabot da 11,3 de media), Botas de hechicero antes o justo después, Llamasombría hacia el 18-19 y Rabadon o Precisión infalible hacia el 25.",
+  "En support: CS casi nulo, objeto de support (Atlas mundial → Perforaplanos de Zaz'Zak) y Eco de Luden como primer objeto completo hacia el 13-15; Destello + Curar en el ~78 % de las partidas.",
+  "Muere mucho a entradas de asesinos y junglas: muertes en mid o en el río con un Talon, Zed, Ekko, Katarina o Vi cerca son su forma típica de morir; casi no muere en solitario contra magos de rango.",
+  "Apenas roamea a pie en mid (es lento y sin dashes): una posición suya en otra línea antes del 14 es rara salvo con Teleportar; el impacto en otras líneas llega con la R.",
+  "Pasado el 14 está casi siempre agrupado o en mid; casi nunca está solo en una lateral."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/xerath/build/",
+  "https://lolalytics.com/lol/xerath/build/?lane=support",
+  "https://www.op.gg/lol/champions/xerath/build/mid",
+  "https://www.op.gg/lol/champions/xerath/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Xerath",
+  "https://metabot.gg/en/league/champion/Xerath/guide",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 52,
+    "victorias": 0.442,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.9,
+     "mediana": 3.5,
+     "p75": 4.3
+    },
+    "primer_objeto_min": {
+     "p25": 9.6,
+     "mediana": 10.7,
+     "p75": 11.9
+    },
+    "segundo_objeto_min": {
+     "p25": 17.1,
+     "mediana": 18.3,
+     "p75": 20.0
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.73
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.22
+     ],
+     [
+      "Malignidad",
+      0.06
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.67
+     ],
+     [
+      "WQEQQRQWQ",
+      0.27
+     ],
+     [
+      "WEQQQRQWQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 49.0,
+     "mediana": 54.6,
+     "p75": 61.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 26.5,
+     "mediana": 29.6,
+     "p75": 34.1
+    },
+    "vision_por_min": {
+     "p25": 0.45,
+     "mediana": 0.59,
+     "p75": 0.78
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.2
+    },
+    "solo_kills_media": 2.37,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 4.0,
+     "mediana": 8.0,
+     "p75": 18.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 27.5,
+     "mediana": 35.6,
+     "p75": 41.9
+    },
+    "cs_10": {
+     "p25": 68.8,
+     "mediana": 76.5,
+     "p75": 85.2
+    },
+    "dif_cs_10": {
+     "p25": -14.8,
+     "mediana": -2.5,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -424.0,
+     "mediana": 87.0,
+     "p75": 799.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.5,
+     "p75": 10.2
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.6,
+     "mediana": 3.0,
+     "p75": 4.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 6.5,
+     "p75": 10.8
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.21-16.23"
+   },
+   "ADC": {
+    "partidas": 22,
+    "victorias": 0.455,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 4.4,
+     "p75": 5.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.1,
+     "mediana": 11.4,
+     "p75": 12.1
+    },
+    "segundo_objeto_min": {
+     "p25": 18.1,
+     "mediana": 19.2,
+     "p75": 20.8
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.55
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.3
+     ],
+     [
+      "Malignidad",
+      0.15
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.79
+     ],
+     [
+      "WQEQQRQWQ",
+      0.16
+     ],
+     [
+      "QWQEQRQWQ",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 42.2,
+     "mediana": 48.3,
+     "p75": 58.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 18.2,
+     "mediana": 21.2,
+     "p75": 25.1
+    },
+    "vision_por_min": {
+     "p25": 0.53,
+     "mediana": 0.67,
+     "p75": 0.77
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 1.8
+    },
+    "solo_kills_media": 1.45,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 7.8,
+     "mediana": 10.2,
+     "p75": 19.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 20.5,
+     "mediana": 27.2,
+     "p75": 32.9
+    },
+    "cs_10": {
+     "p25": 61.0,
+     "mediana": 68.0,
+     "p75": 73.0
+    },
+    "dif_cs_10": {
+     "p25": -11.0,
+     "mediana": -2.0,
+     "p75": 4.0
+    },
+    "dif_oro_10": {
+     "p25": -480.0,
+     "mediana": -261.0,
+     "p75": 720.0
+    },
+    "placas": {
+     "p25": 3.2,
+     "mediana": 5.0,
+     "p75": 8.5
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 0.0
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 1.0,
+     "mediana": 6.0,
+     "p75": 9.5
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.22-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 91,
+    "victorias": 0.538,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.8,
+     "mediana": 4.6,
+     "p75": 6.2
+    },
+    "primer_objeto_min": {
+     "p25": 13.7,
+     "mediana": 15.5,
+     "p75": 17.6
+    },
+    "segundo_objeto_min": {
+     "p25": 22.2,
+     "mediana": 24.1,
+     "p75": 25.7
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.81
+     ],
+     [
+      "Reloj de arena de Zhonya",
+      0.09
+     ],
+     [
+      "Malignidad",
+      0.05
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WEQQQRQWQ",
+      0.54
+     ],
+     [
+      "QWEQQRQWQ",
+      0.27
+     ],
+     [
+      "WQEWWRWEW",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.88
+     ],
+     [
+      "WQE",
+      0.11
+     ],
+     [
+      "WEQ",
+      0.01
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 39.8,
+     "mediana": 49.0,
+     "p75": 60.8
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.4,
+     "mediana": 19.2,
+     "p75": 22.8
+    },
+    "vision_por_min": {
+     "p25": 1.88,
+     "mediana": 2.47,
+     "p75": 2.8
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.64,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.0,
+     "mediana": 3.1,
+     "p75": 7.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 21.2,
+     "mediana": 28.6,
+     "p75": 38.8
+    },
+    "cs_10": {
+     "p25": 9.0,
+     "mediana": 11.0,
+     "p75": 14.0
+    },
+    "dif_cs_10": {
+     "p25": -7.8,
+     "mediana": -3.0,
+     "p75": 1.0
+    },
+    "dif_oro_10": {
+     "p25": -368.0,
+     "mediana": 51.0,
+     "p75": 402.0
+    },
+    "placas": {
+     "p25": 1.5,
+     "mediana": 4.0,
+     "p75": 8.5
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 1.8,
+     "mediana": 4.2,
+     "p75": 8.9
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 11.3,
+     "p75": 14.9
+    },
+    "wards_antes_14": {
+     "p25": 8.0,
+     "mediana": 9.0,
+     "p75": 11.0
+    },
+    "pinks": {
+     "p25": 1.0,
+     "mediana": 3.0,
+     "p75": 5.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   }
+  }
+ }
+}

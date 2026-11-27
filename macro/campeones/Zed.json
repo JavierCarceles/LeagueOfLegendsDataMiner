@@ -1,0 +1,574 @@
+{
+ "clave": "Zed",
+ "nombre": "Zed",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.75,
+   "principal": true
+  },
+  {
+   "rol": "JUNGLE",
+   "parte": 0.25,
+   "principal": false
+  }
+ ],
+ "arquetipo": "asesino de letalidad con energía y sombras: poke con W-E-Q, all-in con R desde nivel 6 y un objeto (Espada ciclovoltaica), roameos a laterales y split push; débil contra controles y contra tanques",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Antes del 6 hace poke con W-E-Q (sombra + campeón para doble shuriken y devolución de energía) y gana la línea a magos lentos, pero no tiene control duro. Desde nivel 6 y sobre todo con Espada ciclovoltaica (~10:30) mata a cualquier blando con R-E-Q-Prender y la pasiva (5-10 % de la vida máxima por debajo del 50 %). Entre el minuto 10 y el 25 es de los mejores asesinos del juego para roamear y hacer split push con dos sombras para escapar. En la tardía los rivales compran Zhonya, Ángel de la guarda y tanques, y su ráfaga deja de matar al objetivo antes de que le controlen."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 con Q-W-E (~2:05)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "W → E (ralentiza si golpea la sombra) → Q doble: intercambio con Primer golpe que quita ~30 % de la vida a un mago y le devuelve energía. Si el rival gastó el Destello, amenaza de Prender a nivel 3."
+  },
+  {
+   "cuando": "Nivel 6 (~5:30)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Marca de la muerte: dash de 625 u inalcanzable, sombra en su posición inicial durante 9 s y explosión del 25 % del daño hecho en 3 s. Con Prender mata a un mago por debajo del ~70 % y puede volver a la sombra para salir."
+  },
+  {
+   "cuando": "Primer objeto (~10:30): Espada ciclovoltaica",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Espada ciclovoltaica",
+   "por_que": "Letalidad y un golpe cargado que ralentiza mucho: R-W-E-Q mata a tiradores y magos de un combo. Ventana de roameos a bot o top y de picks en el río."
+  },
+  {
+   "cuando": "Dos objetos (~17:00): Quiebrabastiones o Arco axiomático",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Quiebrabastiones",
+   "por_que": "Quiebrabastiones le da letalidad y daño a torres para el split push; Arco axiomático le devuelve parte del enfriamiento de la R al matar (R a nivel 11, 110 s). Su pico más fuerte: entra a la retaguardia, mata a un carry y sale con la sombra."
+  },
+  {
+   "cuando": "Tres objetos (~24:00): Recuerdos de lord Dominik, Filo de la noche o Rencor de Serylda",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Recuerdos de lord Dominik",
+   "por_que": "Penetración contra los que compran armadura y Filo de la noche (escudo de hechizos) contra controles. A partir de aquí sigue matando a blandos, pero los tanques y Zhonya le quitan peso."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Desprecio por los débiles: sus ataques a enemigos por debajo del 50 % de vida hacen un 5/7,5/10 % de la vida máxima como daño mágico (una vez cada 10 s por campeón; a monstruos el 75 %, con tope de 175 a épicos). Es el remate de sus combos y le ayuda con dragón y Heraldo.",
+  "Q": "Shuriken afilado: Zed y cada sombra lanzan un shuriken en línea de 900-925 u que atraviesa (80-240 +100 % DA adicional; los siguientes objetivos reciben el 60 %). Enfriamiento 6 s, 75-55 de energía. Con dos sombras puede lanzar tres shurikens: es su poke y su despeje.",
+  "W": "Sombra viviente: su sombra sale disparada hasta 650 u y se queda 5,25 s; al relanzar, Zed cambia de posición con ella. Si Zed y la sombra golpean al mismo objetivo con la misma habilidad recupera 30-50 de energía. Enfriamiento 20-16 s (cada campeón golpeado con la E lo reduce 3 s). Es su escape y su forma de cruzar muros.",
+  "E": "Corte sombrío: Zed y sus sombras cortan alrededor (290 u): 70-160 (+70 % DA adicional); el corte de la sombra ralentiza 1,5 s (20-40 %, más si golpean varios cortes). Enfriamiento 5-3 s, 40 de energía. Cada campeón golpeado reduce el enfriamiento de la W 3 s.",
+  "R": "Marca de la muerte: dash de 625 u al campeón objetivo, inalcanzable durante el dash, dejando una sombra en el punto de partida 9 s (puede volver a ella). Marca al objetivo 3 s y al acabar repite el 25/40/55 % del daño que le hicieron Zed y sus sombras. Enfriamiento 120/110/100 s. Esquiva habilidades durante el dash."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "En mid, Q-W-E o Q-E-W (OP.GG: Q-W-E-Q-Q-R-Q-E-Q-E-E-R-E-W-W, 39 %). Maximiza Q, luego E y la W al final. La R sube en 6, 12 y 16-17 en las páginas de estadísticas (Q a 5 en nivel 9 tiene prioridad sobre la R de nivel 11). En jungla Q-E-W (46 %) o E primero para despejar desde la roja."
+ },
+ "movilidad": {
+  "desplazamientos": "W: sombra a 650 u y cambio de posición con ella (hasta 5,25 s después); R: dash de 625 u inalcanzable al objetivo y vuelta instantánea a la sombra de la R (9 s). Combinando W, R y los dos cambios recorre ~1300-1900 u en pocos segundos; con Destello, otros 400 u.",
+  "salta_muros": "si",
+  "como_salta_muros": "La sombra de la W viaja hasta 650 u atravesando el terreno: si la deja al otro lado de un muro de la jungla o del río y relanza la W, Zed aparece allí. También salta muros al volver a la sombra de la R o con el dash de la R hacia un objetivo tras la pared. Es su forma normal de escapar de ganks y de entrar al foso del dragón o del Barón para robarlos.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Juega con energía (200), no con maná: no se queda sin recursos tras volver a base, pero gasta la energía en 2-3 habilidades; golpear con Zed y la sombra el mismo objetivo devuelve 30-50.",
+  "Las sombras copian la Q y la E: con la W y la sombra de la R puede lanzar hasta tres shurikens y tres cortes a la vez.",
+  "La R le hace inalcanzable durante el dash (esquiva habilidades) y deja una sombra para volver: entra, mata y sale en el mismo combo.",
+  "La marca de la R repite un porcentaje del daño hecho en 3 s: Prender, la pasiva y los objetos aumentan lo que explota; si el objetivo usa Zhonya o un escudo justo al final, la explosión se pierde.",
+  "La sombra de la W cruza muros: se usa para escapar de ganks, robar objetivos y entrar a la jungla rival.",
+  "Cada campeón golpeado con la E baja 3 s la W: en peleas largas tiene sombras para cambiar de posición más a menudo."
+ ],
+ "combos": [
+  "Poke de línea: W hacia el rival → E (la sombra ralentiza) → Q de Zed y sombra (doble impacto y energía de vuelta) → volver con la W si el rival le busca.",
+  "All-in con R: R al objetivo → W detrás o al lado → E → Q (tres shurikens) → ataques con la pasiva → Prender → volver a la sombra de la R antes de que explote la marca.",
+  "Entrada larga: W hacia el objetivo → relanzar W para acercarse → R → E-Q; con Destello extra para objetivos a más de 1300 u.",
+  "Escape: W por encima de un muro → relanzar W; o volver a la sombra de la R tras el kill.",
+  "Robo de objetivos: W dentro del foso del dragón o del Barón → cambiar → E-Q y Castigo (jungla) o Q para rematar."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Espada ciclovoltaica",
+   "Quiebrabastiones",
+   "Arco axiomático",
+   "Recuerdos de lord Dominik",
+   "Filo de la noche",
+   "Rencor de Serylda",
+   "Colmillo de serpiente",
+   "Hambre insaciable",
+   "Ángel de la guarda",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Mid: Primer golpe (Inspiración) con Calzado mágico o Perspicacia cósmica y Precisión secundaria (54 % en OP.GG 16.23, la página que más gana). Alternativa: Electrocutar (Dominación) con Sabor a sangre/Impacto repentino y Cazador definitivo (~28 %) o Conquistador (~6 %). Jungla: Primer golpe con Impacto repentino y Cazador de tesoros (77 %).",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Mid: Destello + Prender (89 %) o Teleportar (8 %); Espada de Doran (44 %) o Espada larga + 3 pociones (21 %). Núcleo Espada ciclovoltaica → Quiebrabastiones → Recuerdos de lord Dominik (18 %) o Arco axiomático (más victorias); Filo de la noche contra controles, Colmillo de serpiente contra escudos, Rencor de Serylda contra tanques. Botas jonias de la lucidez (69 %) o Botas de mercurio (19 %). Jungla: Destello + Castigo (99 %), Cachorro de Garra ígnea (70 %), Pico y botas en la primera vuelta y Soberbia como primer objeto alternativo."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 para rematar desde lejos (900 u); W a nivel 2 (~1:35) para el primer poke W-Q; E a nivel 3 (~2:05). Desde nivel 3, W-E-Q con Primer golpe gana intercambios cortos si el rival no tiene dónde esconderse.",
+    "tradeos": "Poke W → E → Q cuando el rival remata, y W de vuelta si le contraatacan. No gasta la W si el jungla rival puede aparecer: sin sombra no tiene escape. Contra tiradores de mid (Ezreal, Smolder) y magos lentos domina; contra campeones con control en punto (Malphite, Annie, Lissandra) intercambia menos.",
+    "oleadas": "Remata con Q a distancia y despeja con E-Q en área desde el primer objeto; empuja antes del 6 para roamear o coger placas. Vuelve tras estrellar la oleada hacia el 3:30-4:30 con Sierra dentada o Espada larga; desde el 6, empuja y desaparece a bot o top.",
+    "all_in": "Nivel 6 con Prender: R → W → E → Q → ataques con la pasiva. Antes del 6 solo si el rival está por debajo del 40 % sin Destello. Contra Zhonya o escudos de vida, espera a que los gasten.",
+    "jugar_seguro": "Contra Riven, Xerath, Ekko, Malphite o Katarina (sus peores matchups): farmea con Q, guarda la W para escapar y no busca el all-in sin el objeto; contra Xerath y Ekko, Espada de Doran y Botas de mercurio pronto."
+   },
+   "roameos": "Desde el 6 (~5:30) y sobre todo con Espada ciclovoltaica (~10:30), tras empujar mid, baja a bot o top por el río o por la jungla rival; la R le permite matar en otra línea aunque llegue solo. Cuando su torre de mid cae o se intercambian torres, se va a la lateral contraria del grupo rival a hacer split push.",
+   "fase_media": "Split push en la lateral contraria a donde está el grupo rival (Quiebrabastiones da mucho daño a torres) y entrada al grupo con la R solo cuando el carry rival está expuesto o sin Destello. Pica en la niebla de la jungla rival a los que van a poner wards. Si el equipo rival está agrupado y con controles, su papel es dividir el mapa, no entrar de frente.",
+   "matchups_dificiles": [
+    "Riven",
+    "Xerath",
+    "Ekko",
+    "Malphite",
+    "Katarina",
+    "Lissandra",
+    "Annie",
+    "Galio"
+   ],
+   "matchups_faciles": [
+    "Smolder",
+    "Ezreal",
+    "Kassadin",
+    "Taliyah",
+    "Ryze",
+    "Veigar",
+    "Viktor",
+    "Aurelion Sol"
+   ]
+  },
+  "JUNGLE": {
+   "inicio": "Azul en el 78 % de las partidas (jungler.gg) con la Q a nivel 1; jungler.gg recomienda también empezar en roja con la E para despejar en área. Mascota de Garra ígnea (70 %) para ganks de nivel 3-4 con más daño.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde azul con gank a bot",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Gank a bot (la ruta que más gana en jungler.gg: 13,4 % y 51,6 % de victorias) o escuttle de bot; vuelta a base con Pico y botas.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "La más común. Su despeje no es rápido (energía y daño a un solo objetivo), así que acaba hacia las 3:20-3:30 a nivel 4."
+    },
+    {
+     "nombre": "Despeje completo desde roja",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "gromp",
+      "blue"
+     ],
+     "despues": "Escuttle del lado de la azul (top en lado azul) o gank a mid o a la lateral de ese lado.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "La que recomienda jungler.gg (E en roja, Q a nivel 2, W a nivel 3) para acabar del lado de la azul; útil si quiere gankear top o mid."
+    },
+    {
+     "nombre": "Rapaces-krugs-roja y gank de nivel 3",
+     "orden": [
+      "raptors",
+      "krugs",
+      "red"
+     ],
+     "despues": "Gank a la línea del lado de la roja o a mid hacia las 2:10-2:30; luego vuelve a por el resto o invade.",
+     "nivel": 3,
+     "minuto": "2:15",
+     "cuando": "Con una línea sin control rival y con el oponente sin Destello o empujado; aprovecha Primer golpe para el primer gank."
+    }
+   ],
+   "ganks": "Ventanas: nivel 3-4 tras el despeje (~3:30) y nivel 6 (R). No tiene control duro: gankea mejor líneas cuyo aliado tiene control (Leona, Nautilus, Renekton, Sett) o rivales sin Destello. Entra con W desde la niebla o por encima de un muro y R al objetivo; a nivel 6 también hace dives cortos aprovechando la inalcanzabilidad de la R.",
+   "objetivos": "Dragón y Heraldo solo desde nivel 5-6 gracias a la pasiva (75 % a monstruos, tope 175 a épicos); Larvas con su mid. Barón en grupo. Roba objetivos con la W dentro del foso y Castigo.",
+   "invasion": "Poco antes del 6: pierde duelos tempranos contra Trundle, Maokai, Darius, Bel'Veth o Nidalee. Desde el primer objeto invade con su mid para picar al jungla rival en su segunda ronda o en sus mejoras.",
+   "contra_jungla": "Contra invasiones tempranas cede el campamento y escapa con la W por encima de un muro; responde invadiendo el lado contrario.",
+   "plan": "Despeje completo, ganks a líneas con control desde nivel 4 y pico fuerte con R y Espada ciclovoltaica hacia el 10-11. Busca picks en la jungla rival y kills en las laterales; en la fase media, split push o flanqueo como en mid. Es un jungla con menos victorias que en mid (47 % en OP.GG): sin ventaja temprana aporta poco."
+  }
+ },
+ "peleas": {
+  "papel": "Asesino de retaguardia y split pusher: mata a un carry y sale, o divide el mapa en una lateral.",
+  "como_entrar": "Desde el flanco o la niebla, después de que el rival gaste sus controles en su frontal: W hacia el carry → R → E-Q → Prender → volver a una sombra. Con Filo de la noche puede entrar antes de que caigan los controles.",
+  "objetivo": "El tirador o mago rival con menos vida o sin Destello ni Zhonya; nunca el tanque.",
+  "posicion": "Lejos del grupo rival, fuera de visión, en el flanco del carry rival o en una lateral empujando hasta que su equipo empiece la pelea."
+ },
+ "macro": {
+  "split_push": "Alto: con Quiebrabastiones derriba torres rápido y escapa de dos rivales con las sombras por encima de los muros. Es su plan de fase media cuando su equipo puede aguantar el centro.",
+  "objetivos": "Dragón y Heraldo con su jungla o solo en jungla desde nivel 5-6; derriba placas de mid y torres laterales. Barón en grupo; robo con W en el foso.",
+  "plan_de_partida": "0-6 min: poke con W-E-Q y prioridad de oleada. 6-14 min: Espada ciclovoltaica, roameos a laterales y picks en el río. 14-25 min: split push con Quiebrabastiones y amenaza de pick en la jungla rival antes del Barón y del dragón. 25+: flanquear y entrar a un carry solo cuando gasten sus controles, o seguir dividiendo el mapa."
+ },
+ "debilidades": [
+  "No tiene control duro: depende de matar rápido; si no mata, no aporta nada a la pelea.",
+  "Malphite, Lissandra, Annie, Galio y los controles en punto le detienen en cuanto aparece.",
+  "Zhonya, Ángel de la guarda, Barreras y escudos anulan la marca de la R.",
+  "Sin la W no tiene escape: en la línea es vulnerable a ganks tras gastarla en poke.",
+  "Pierde peso en la tardía y contra equipos de tanques."
+ ],
+ "contrarrestado_por": [
+  "Riven",
+  "Xerath",
+  "Ekko",
+  "Malphite",
+  "Katarina",
+  "Lissandra",
+  "Annie",
+  "Galio"
+ ],
+ "bueno_contra": [
+  "Smolder",
+  "Ezreal",
+  "Kassadin",
+  "Taliyah",
+  "Ryze",
+  "Veigar",
+  "Viktor",
+  "Aurelion Sol"
+ ],
+ "sinergias": [
+  "Lee Sin",
+  "Jarvan IV",
+  "Nocturne",
+  "Elise",
+  "Leona",
+  "Nautilus",
+  "Rell"
+ ],
+ "errores_comunes": [
+  "Gastar la W en poke y quedarse sin escape cuando llega el jungla rival.",
+  "Usar la R al tanque o a un objetivo con Zhonya disponible.",
+  "Entrar a una pelea de frente contra controles en lugar de esperar desde el flanco.",
+  "No roamear tras empujar con el primer objeto: es su ventana más fuerte.",
+  "Volver a la sombra de la R antes de tiempo y no rematar al objetivo, o quedarse demasiado y morir.",
+  "Hacer split push sin visión del río ni de la jungla rival."
+ ],
+ "senales_reconstructor": [
+  "Mid: nivel 2 hacia la 1:35, nivel 3 hacia las 2:05, nivel 6 hacia las 5:30; CS ~75-85 a los 10. Espada ciclovoltaica hacia el 10-11, Quiebrabastiones o Arco axiomático hacia el 17, tercer objeto hacia el 24.",
+  "Roameos: desde el 6 y sobre todo tras el primer objeto, kills en bot o top con su posición anterior en mid son lo normal; Destello + Prender en el 89 % (casi nunca Teleportar), así que llega a pie por el río o la jungla rival.",
+  "Saltos de muro: con la sombra de la W (650 u) aparece al otro lado de muros de la jungla o del foso; con la R y su sombra se mueve ~1300-1900 u en pocos segundos. No tiene nada global.",
+  "Kills en la jungla rival o en el río a carries que ponían wards son su patrón de pick; muertes de Zed tras entrar a un grupo con controles son el riesgo típico.",
+  "Fase media: pasar bastante tiempo solo en una lateral (split push) es su plan normal, no un error; derribos de torre laterales con él solo cerca son esperables desde Quiebrabastiones.",
+  "Jungla (~25 % de sus partidas): Destello + Castigo, Cachorro de Garra ígnea, empieza en azul el 78 %; despeje completo hacia las 3:20-3:30 a nivel 4 con ~24 de CS de jungla y gank a bot como ruta más común. Primer objeto algo más tarde que en mid (Pico y botas en la primera vuelta).",
+  "Sus kills llegan en ráfagas cortas: la víctima suele morir en 2-3 s y Zed aparece lejos del sitio en la siguiente posición por minuto gracias a las sombras.",
+  "Su peso cae en partidas largas: a los 30+ min con tanques y Zhonya en el rival, pocas kills nuevas son lo esperable."
+ ],
+ "fuentes": [
+  "https://www.op.gg/lol/champions/zed/build/mid",
+  "https://www.op.gg/lol/champions/zed/runes/mid",
+  "https://www.op.gg/lol/champions/zed/build/jungle",
+  "https://lolalytics.com/lol/zed/build/",
+  "https://jungler.gg/champions/zed/",
+  "https://wiki.leagueoflegends.com/en-us/Zed",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 43,
+    "victorias": 0.419,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 3.7,
+     "p75": 5.2
+    },
+    "primer_objeto_min": {
+     "p25": 8.7,
+     "mediana": 9.6,
+     "p75": 10.9
+    },
+    "segundo_objeto_min": {
+     "p25": 14.2,
+     "mediana": 15.1,
+     "p75": 17.0
+    },
+    "primer_objeto": [
+     [
+      "Soberbia",
+      0.49
+     ],
+     [
+      "Espada ciclovoltaica",
+      0.42
+     ],
+     [
+      "Eclipse",
+      0.07
+     ],
+     [
+      "Quiebrabastiones",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.45
+     ],
+     [
+      "QEQWQRQEQ",
+      0.21
+     ],
+     [
+      "EQWQQRQEQ",
+      0.17
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.98
+     ],
+     [
+      "QWE",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 49.3,
+     "mediana": 57.8,
+     "p75": 65.4
+    },
+    "parte_del_dano_pct": {
+     "p25": 18.3,
+     "mediana": 23.3,
+     "p75": 27.5
+    },
+    "vision_por_min": {
+     "p25": 0.76,
+     "mediana": 0.93,
+     "p75": 1.1
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.77,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.7,
+     "mediana": 3.4,
+     "p75": 6.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 23.3,
+     "mediana": 30.8,
+     "p75": 36.7
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.49
+     ],
+     [
+      "red",
+      0.26
+     ],
+     [
+      "raptors",
+      0.19
+     ],
+     [
+      "wolves",
+      0.05
+     ],
+     [
+      "krugs",
+      0.02
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 22.5,
+     "mediana": 25.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 64.5,
+     "mediana": 72.0,
+     "p75": 79.0
+    },
+    "primer_gank_min": {
+     "p25": 3.3,
+     "mediana": 3.7,
+     "p75": 6.6
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "top",
+      0.34
+     ],
+     [
+      "mid",
+      0.34
+     ],
+     [
+      "bot",
+      0.32
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 13.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.2-16.23"
+   },
+   "MID": {
+    "partidas": 76,
+    "victorias": 0.566,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 4.4,
+     "p75": 6.3
+    },
+    "primer_objeto_min": {
+     "p25": 8.7,
+     "mediana": 9.7,
+     "p75": 10.9
+    },
+    "segundo_objeto_min": {
+     "p25": 16.0,
+     "mediana": 17.2,
+     "p75": 18.5
+    },
+    "primer_objeto": [
+     [
+      "Espada ciclovoltaica",
+      0.92
+     ],
+     [
+      "Eclipse",
+      0.04
+     ],
+     [
+      "Filo fantasmal de Youmuu",
+      0.01
+     ],
+     [
+      "Soberbia",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.68
+     ],
+     [
+      "QEWQQRQEQ",
+      0.27
+     ],
+     [
+      "QWQEQRQEQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 32.6,
+     "mediana": 43.6,
+     "p75": 52.4
+    },
+    "parte_del_dano_pct": {
+     "p25": 21.3,
+     "mediana": 25.9,
+     "p75": 32.2
+    },
+    "vision_por_min": {
+     "p25": 0.43,
+     "mediana": 0.56,
+     "p75": 0.7
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 4.08,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 7.1,
+     "mediana": 12.8,
+     "p75": 21.6
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.8,
+     "mediana": 22.6,
+     "p75": 31.2
+    },
+    "cs_10": {
+     "p25": 62.0,
+     "mediana": 67.5,
+     "p75": 75.8
+    },
+    "dif_cs_10": {
+     "p25": -12.2,
+     "mediana": -1.5,
+     "p75": 6.0
+    },
+    "dif_oro_10": {
+     "p25": -479.0,
+     "mediana": 350.0,
+     "p75": 924.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 11.5,
+     "p75": 16.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.9,
+     "p75": 4.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 6.0,
+     "p75": 9.5
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.15-16.23"
+   }
+  }
+ }
+}

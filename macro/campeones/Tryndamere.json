@@ -1,0 +1,509 @@
+{
+ "clave": "Tryndamere",
+ "nombre": "Tryndamere",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.829,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador de críticos y split push que gana duelos a casi cualquiera con 2-3 objetos, escapa con un dash que cruza muros y no puede morir durante 5 s con la R; presiona una lateral para que el rival tenga que mandar a dos",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 5,
+  "nota": "De nivel 1 a 5 gana intercambios largos de golpes si tiene furia (crítico y curación de la Q), pero es fácil de castigar a distancia y no tiene control salvo la ralentización de la W. A nivel 6 la R (5 s sin poder bajar de 30-70 de vida) le deja zambullir bajo torre y ganar casi cualquier all-in. Con Flechas de los Yun Tal o Hidra voraz y un segundo objeto de crítico (~20 min) gana el 1v1 a casi cualquier luchador y derriba torres muy rápido; con 3-4 objetos (Filo infinito) es uno de los mejores duelistas y split pushers del juego. Su límite es la pelea de equipo contra control en cadena y daño mágico."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:45-2:15) con furia acumulada",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E-Q-W: el dash de la E (660 u) para entrar, la W para quitar DA y ralentizar al que huye, y la Q para curarse con la furia (hasta 80 de curación a nivel 1). Con la barra de furia llena tiene un 50 % de crítico: el intercambio largo contra un cuerpo a cuerpo lo gana casi siempre."
+  },
+  {
+   "cuando": "Nivel 6 (~5:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Undying Rage (120 s): 5 s en los que su vida no baja de 30 y gana 50 de furia (crítico casi al 25 % de golpe). Permite all-ins a vida baja y zambullidas bajo torre: termina la R y se cura con la Q con toda la furia. Es su primer momento de matar al rival de línea solo."
+  },
+  {
+   "cuando": "Primer objeto (~11-13 min): Flechas de los Yun Tal o Hidra voraz",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Flechas de los Yun Tal",
+   "por_que": "Las Flechas de los Yun Tal (velocidad de ataque y crítico que crece) o la Hidra voraz (limpieza de oleadas y curación) le dejan empujar la lateral y ganar duelos; con las Grebas de berserker su velocidad de ataque hace que la E vuelva cada pocos segundos (cada crítico le quita 0,75 s, 1,5 s contra campeones)."
+  },
+  {
+   "cuando": "Dos objetos (~19-21 min) con Filo infinito o Recuerdos de lord Dominik",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Filo infinito",
+   "por_que": "Con dos objetos de crítico y la R a 100 s gana el 1v1 a casi cualquier luchador o tanque; derriba torres exteriores e interiores solo. Es el momento de split push puro: la lateral contraria a donde esté el objetivo."
+  },
+  {
+   "cuando": "Tres-cuatro objetos (~26-30 min) con Hambre insaciable, Baile de la muerte o Ángel de la guarda",
+   "nivel": 14,
+   "objetos": 3,
+   "objeto": "Hambre insaciable",
+   "por_que": "Hambre insaciable (la de más victorias como cuarto en Lolalytics, 61 %) o Baile de la muerte le dan aguante para entrar en la pelea con la R a 80 s (nivel 16); con Ángel de la guarda sobrevive a dos rondas. Es su pico de partida: un Tryndamere con 4 objetos y R obliga a mandar a dos o a tres a pararlo."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Battle Fury: gana 5 de furia por cada ataque, 10 por cada crítico y 10 por cada unidad que mata (máximo 100). La furia le da hasta un 50 % de crítico (0,5 % por punto). Tras 8 s sin pegar ni recibir daño pierde 5 de furia por segundo. Su ritmo es llenar la barra antes del intercambio pegando a súbditos.",
+  "Q": "Bloodlust: 12 s de enfriamiento y gasta toda la furia. Pasiva: +0,22-0,89 de DA por cada 1 % de vida que le falta (hasta 20/35/50/65/80 al 90 % de vida perdida). Activa: se cura 30-70 (+30 % PH) más 0,5-2,3 por cada punto de furia (máximo 80/135/190/245/300 con 100 de furia). Usarla al terminar la R es lo que le salva tras una zambullida; usarla antes le quita el crítico.",
+  "W": "Mocking Shout: 14 s, sin coste, 0,3 s de lanzamiento, radio de 850. Quita 20-80 de DA a los campeones cercanos durante 4 s y ralentiza un 30-50 % durante 3,25 s a los que le dan la espalda (subida en el 26.01). Solo se puede lanzar con un campeón enemigo cerca. Es su forma de alcanzar a quien huye y de ganar intercambios contra DA.",
+  "E": "Spinning Slash: 12/11/10/9/8 s, dash de 660 u hacia un punto (sin alcance mínimo; si apuntas más lejos, va a 660) que hace 80-240 (+100 % DA adicional) (+80 % PH) a todos los que atraviesa (225 de radio). Cada crítico le reduce el enfriamiento 0,75 s (1,5 s contra campeones), así que con mucho crítico vuelve casi cada 3-4 s. Cruza muros. Se puede lanzar la R durante el dash. El Destello durante la E la corta, pero el daño se aplica en la nueva posición.",
+  "R": "Undying Rage: 120/100/80 s, sin coste ni lanzamiento. Durante 5 s su vida no puede bajar de 30/50/70 y gana 50/75/100 de furia al momento. Se puede usar estando aturdido o con cualquier control que impida lanzar hechizos (no durante la W). No evita el control ni el fin de la partida: al acabar los 5 s, si no se ha curado (Q, robo de vida, Hambre insaciable) muere al primer golpe. La castigan la reducción de curación y los aturdimientos largos justo al final."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E a nivel 1 (dash para entrar o salir) y Q a nivel 2 son lo más común en OP.GG (E-Q-W-Q-Q-R, 28,5 %) y Lolalytics (E1, Q2, Q3); algunos cogen Q-E-Q contra rangos para curarse más en la línea o W a nivel 2 contra luchadores de DA para ganar el primer intercambio. Maximiza Q (más DA pasivo y curación), luego E (más daño y menos enfriamiento) y W la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: dash de 660 u (8-12 s, se reduce 0,75 s por crítico y 1,5 s por crítico a campeones; con 50-100 % de crítico vuelve cada 3-5 s en un duelo). Fantasmal en parte de las partidas (Lolalytics lo marca con Prender como la pareja de más victorias). W: ralentiza a quien le da la espalda.",
+  "salta_muros": "si",
+  "como_salta_muros": "El dash de la E (660 u) cruza la mayoría de muros de la jungla y del río, incluido el del foso del dragón o del Barón y los muros de las bases de las torres exteriores; lo usa tanto para entrar por un sitio inesperado como para escapar del split push. Con Destello suma otros 400 u.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Furia como recurso: no tiene maná; la furia (hasta 100) le da hasta un 50 % de crítico y alimenta la curación de la Q. Entra en los intercambios con la barra llena pegando antes a súbditos.",
+  "R que impide morir 5 s (la vida no baja de 30-70) y da 50-100 de furia: le permite zambullir bajo torre y pelear 1v2; el rival tiene que esperar a que acabe o tener control/reducción de curación.",
+  "El dash de la E se recarga con los críticos (0,75 s, 1,5 s contra campeones): con objetos de crítico entra y sale de las peleas varias veces y persigue a quien intenta escapar.",
+  "Su DA crece con la vida que le falta (hasta +80 al 90 % perdido): cuanto más cerca de morir, más pega, sobre todo durante la R.",
+  "La W solo ralentiza a quien le da la espalda: castiga a los que huyen y no a los que se quedan a pelear."
+ ],
+ "combos": [
+  "Intercambio de nivel 1-3: llenar furia pegando súbditos → E al rival → ataques con crítico → W cuando se gire para huir → retirarse y curarse con Q si hace falta.",
+  "All-in de nivel 6: E → W → ataques; cuando la vida baje a ~20 %, R → seguir pegando 5 s → Q con toda la furia justo antes de que acabe la R; Prender para rematar.",
+  "Zambullida bajo torre: E por encima del muro o de la oleada → ataques → R al recibir los disparos de la torre → E para salir (se ha recargado con los críticos) → Q.",
+  "Escape del split push: E por encima del muro de la jungla más cercano → Fantasmal o Destello; R si lo atrapan y Q al final.",
+  "Pelea de equipo: esperar a que el rival gaste el control → E por el flanco al carry → W para quitar DA y ralentizar → R cuando vaya a morir → Q al terminar."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Flechas de los Yun Tal",
+   "Hidra voraz",
+   "Grebas de berserker",
+   "Filo infinito",
+   "Recuerdos de lord Dominik",
+   "Bailarín espectral",
+   "Hambre insaciable",
+   "Baile de la muerte",
+   "Ángel de la guarda",
+   "Filofugaz de Navori",
+   "Recordatorio letal"
+  ],
+  "runas": "Lluvia de cuchillas (54 % en OP.GG) con Impacto repentino, Recuerdo macabro y Cazador de tesoros, y secundaria Precisión con Leyenda: Presteza y Último esfuerzo; fragmentos de fuerza adaptable, velocidad de ataque y vida. Alternativas: Compás letal con secundaria Valor (21 %) o Conquistador con Triunfo, Leyenda: Presteza y Último esfuerzo y secundaria Inspiración (Lolalytics).",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender (68 %) o Destello + Agotamiento (15 %); Fantasmal + Prender en jugadores de split push (Lolalytics). Inicio con Arco de Doran (57 %) o Espada de Doran (29 %) y poción. Dos rutas: Hidra voraz + Bailarín espectral + Filo infinito (la más jugada en OP.GG) o Flechas de los Yun Tal + Grebas de berserker + Recuerdos de lord Dominik (Lolalytics), con Hambre insaciable, Filo infinito, Baile de la muerte o Ángel de la guarda después. Recordatorio letal contra curación; Baile de la muerte o Ángel de la guarda contra ráfaga. Grebas de berserker en el 85 %."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "E a nivel 1 para tener escape o entrada; la oleada llega hacia el 1:00. Llena la furia pegando súbditos antes de intercambiar (con 100 de furia tiene un 50 % de crítico). Nivel 2 (~1:45) con Q para curarse y aguantar; nivel 3 (~2:15) con W ya tiene el combo E-W-ataques. Contra rangos no entra a nivel 1: farmea y se cura con la Q.",
+    "tradeos": "Intercambios largos con la barra de furia llena; la W primero contra luchadores de DA para quitarles 20 de DA. Evita los intercambios cortos contra quien le castiga y se va (Teemo, Quinn, Vayne, Kennen): no tiene control duro para pegarse. Guarda la Q para curarse después del intercambio, no antes.",
+    "oleadas": "Prefiere empujar para presionar la torre y coger placas, y congelar cerca de su torre contra rivales que le ganan en distancia. Con la Hidra voraz limpia la oleada de un golpe y empuja muy rápido. Vuelve a base tras estrellar la oleada (hacia el 3:45-4:15) con Espada larga, Arco curvo o Pico.",
+    "all_in": "A nivel 3 si el rival está a menos de la mitad y sin Destello; desde nivel 6 casi siempre que el rival esté al 60 % o menos: E → W → ataques → R al final → Q. Las zambullidas bajo torre con R son su forma normal de matar en la línea.",
+    "jugar_seguro": "Contra Malphite, Poppy, Quinn, Teemo, Malzahar o Swain: farmear con la Q para curarse, no entrar sin la R, comprar Arco de Doran o Espada de Doran con pociones y esperar a los objetos de crítico. Si el rival tiene control para el final de la R (Malphite, Poppy), no zambullir."
+   },
+   "roameos": "Roamea poco antes del 14: su plan es la lateral. Con prioridad va a mid a ayudar a su mid tras empujar la oleada (cruzando el muro del río con la E), o al río para la escuttle y las Larvas (8:00) con su jungla. Con Teleportar llega a bot al dragón, pero lo normal es que siga empujando.",
+   "fase_media": "Split push puro: tras el primer objeto se queda en la lateral contraria a donde esté el objetivo (dragón → top; Barón → bot) empujando y tirando torres. Obliga a que vengan dos; si viene uno, lo mata. Mientras empuja, se lleva campamentos de la jungla cercana (es el top con más CS de jungla por partida en Lolalytics). Se une a la pelea solo si el objetivo es decisivo o con Teleportar; si no, presiona el inhibidor.",
+   "matchups_dificiles": [
+    "Malphite",
+    "Poppy",
+    "Quinn",
+    "Teemo",
+    "Malzahar",
+    "Swain",
+    "Kennen",
+    "Jax"
+   ],
+   "matchups_faciles": [
+    "Yasuo",
+    "Gwen",
+    "Mordekaiser",
+    "Lissandra",
+    "Ryze",
+    "Anivia",
+    "Sion",
+    "Kayle"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Flanqueador y duelista de una lateral: llega tarde a la pelea por el lado para matar al carry, o directamente no llega y obliga a dos a defender su lateral.",
+  "como_entrar": "Esperar a que los rivales gasten su control → E por el flanco (cruzando muro si hace falta) sobre el carry → W para quitar DA y que no huya → ataques → R cuando su vida baje del 20 % → Q justo al acabar.",
+  "objetivo": "El tirador o el mago con menos vida; contra equipos con mucho control, la torre o el inhibidor en vez de la pelea.",
+  "posicion": "Lejos de la pelea, en la lateral o en la niebla de la jungla cercana, listo para entrar por detrás cuando el rival use su control."
+ },
+ "macro": {
+  "split_push": "Muy alto: es su plan principal. Con 2 objetos derriba torres solo, gana el duelo a quien venga y escapa por encima de los muros con la E. Juega la lateral opuesta al objetivo y presiona el inhibidor.",
+  "objetivos": "Torres e inhibidores (muy rápido con crítico e Hidra voraz). Hace Heraldo y Larvas con su jungla; el dragón y el Barón solo a partir de 3 objetos y si el rival está lejos. Su presión en la lateral es lo que da los objetivos a su equipo.",
+  "plan_de_partida": "0-14 min: farmear, ganar la línea con la R desde nivel 6 y coger placas. 14-25 min: split push en la lateral opuesta al objetivo con 1-2 objetos de crítico. 25+: seguir presionando torres e inhibidores; entrar a la pelea de equipo solo por el flanco cuando el rival haya gastado el control, o cerrar la partida empujando mientras su equipo juega a esperar."
+ },
+ "debilidades": [
+  "Sin control duro: la W solo ralentiza a quien le da la espalda, así que los rangos y los magos con kiteo le castigan.",
+  "La R no evita el control: un aturdimiento o una supresión justo al acabar los 5 s lo mata (Malphite, Poppy, Malzahar, Swain).",
+  "La reducción de curación (Llamada del verdugo, Prender, Malla de espinas) le quita la curación de la Q tras la R.",
+  "Mal en peleas de equipo contra mucho control y daño mágico: si entra antes de tiempo muere sin hacer nada.",
+  "Los tanques con armadura (Malphite, Rammus) y Malla de espinas reducen mucho su daño de críticos."
+ ],
+ "contrarrestado_por": [
+  "Malphite",
+  "Poppy",
+  "Quinn",
+  "Teemo",
+  "Malzahar",
+  "Swain",
+  "Kennen",
+  "Rammus"
+ ],
+ "bueno_contra": [
+  "Yasuo",
+  "Gwen",
+  "Mordekaiser",
+  "Lissandra",
+  "Ryze",
+  "Anivia",
+  "Sion"
+ ],
+ "sinergias": [
+  "Shen",
+  "Twisted Fate",
+  "Lulu",
+  "Galio",
+  "Taric"
+ ],
+ "errores_comunes": [
+  "Usar la Q para curarse antes de la R o al principio del intercambio: se queda sin furia (sin crítico) y sin curación para el final.",
+  "Activar la R demasiado pronto, con vida de sobra: el rival espera los 5 s y luego lo mata.",
+  "No curarse con la Q al acabar la R: muere al primer golpe con 30-70 de vida.",
+  "Entrar a la pelea de equipo el primero contra control en cadena en lugar de esperar al flanco o seguir con la lateral.",
+  "Quedarse en la lateral sin visión ni E disponible: sin el dash por el muro no puede escapar de un 3v1.",
+  "Ignorar la reducción de curación rival y seguir buscando zambullidas que dependen de curarse con la Q."
+ ],
+ "senales_reconstructor": [
+  "Juega top en el 83 % de las partidas (Lolalytics 16.23); mid en ~10 % y jungla en ~7 %. Hechizos: Destello + Prender (68 %) o Destello + Agotamiento (15 %); Fantasmal en parte de los jugadores de split push.",
+  "Ritmo de línea normal de top: nivel 2 hacia la 1:45, 3 hacia las 2:15 y 6 hacia el 5:15; primera vuelta a base hacia el 3:45-4:15 con Espada larga, Arco curvo o Pico. Primer objeto (Flechas de los Yun Tal o Hidra voraz) hacia el 11-13, Grebas de berserker poco después, segundo objeto hacia el 19-21.",
+  "El dash de la E (660 u) cruza muros: posiciones al otro lado de un muro de la jungla o del río sin camino entre dos frames son normales; con críticos vuelve cada 3-5 s, así que puede encadenar dos o tres dashes (~1300-2000 u en pocos segundos) en una persecución o huida.",
+  "Zambullidas con R: kills bajo la torre rival a nivel 6-11 seguidas de supervivencia con poca vida son lo típico; si muere justo después de una kill bajo torre, normalmente es que la R acabó sin curarse con la Q.",
+  "Split push: tras el primer objeto pasa mucho tiempo solo en una lateral (la opuesta al dragón o al Barón) y derriba torres él solo; torres e inhibidores caídos con Tryndamere como único aliado cerca son su plan, no una anomalía.",
+  "CS de jungla alto para un top: Lolalytics lo pone primero de todos los campeones (~13 de CS de jungla por partida en top) porque se lleva campamentos cercanos mientras empuja la lateral; no confundir con un jungla.",
+  "Oro y CS altos (cuarto en oro y séptimo en CS de Lolalytics, ~219 súbditos por partida) y pocas asistencias (de los que menos asistencias tienen): llega poco a las peleas de equipo; una participación en kills baja con muchas torres es su patrón normal.",
+  "La R se puede usar estando aturdido: sobrevivir a un control largo con poca vida es coherente; morir con la R en enfriamiento bajo un control de Malphite o Poppy también.",
+  "Orden E-Q-W o E-Q-Q y Q al máximo, luego E; la W al máximo la última (niveles 14-15). Ver la W subida pronto es una variante contra luchadores de DA."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/tryndamere/build/",
+  "https://www.op.gg/lol/champions/tryndamere/build/top",
+  "https://wiki.leagueoflegends.com/en-us/Tryndamere",
+  "https://metabot.gg/en/league/guides/Tryndamere",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 90,
+    "victorias": 0.611,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 4.8,
+     "p75": 7.2
+    },
+    "primer_objeto_min": {
+     "p25": 9.5,
+     "mediana": 10.6,
+     "p75": 11.4
+    },
+    "segundo_objeto_min": {
+     "p25": 14.7,
+     "mediana": 15.6,
+     "p75": 17.0
+    },
+    "primer_objeto": [
+     [
+      "Hidra voraz",
+      0.99
+     ],
+     [
+      "Cortasendas",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQQWQRQEQ",
+      0.97
+     ],
+     [
+      "EQWQQRQEQ",
+      0.02
+     ],
+     [
+      "EQQWQRQEE",
+      0.01
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 25.0,
+     "mediana": 34.1,
+     "p75": 40.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.7,
+     "mediana": 23.6,
+     "p75": 29.1
+    },
+    "vision_por_min": {
+     "p25": 0.82,
+     "mediana": 0.99,
+     "p75": 1.21
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 3.27,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 24.1,
+     "mediana": 32.5,
+     "p75": 45.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 7.5,
+     "mediana": 16.7,
+     "p75": 24.9
+    },
+    "cs_10": {
+     "p25": 78.0,
+     "mediana": 87.0,
+     "p75": 94.0
+    },
+    "dif_cs_10": {
+     "p25": 0.0,
+     "mediana": 12.0,
+     "p75": 29.0
+    },
+    "dif_oro_10": {
+     "p25": -108.0,
+     "mediana": 454.0,
+     "p75": 1102.0
+    },
+    "placas": {
+     "p25": 8.0,
+     "mediana": 12.0,
+     "p75": 18.8
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.8,
+     "mediana": 8.3,
+     "p75": 11.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 37,
+    "victorias": 0.405,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.4,
+     "mediana": 5.5,
+     "p75": 9.8
+    },
+    "primer_objeto_min": {
+     "p25": 11.3,
+     "mediana": 15.1,
+     "p75": 16.1
+    },
+    "segundo_objeto_min": {
+     "p25": 19.1,
+     "mediana": 21.8,
+     "p75": 23.3
+    },
+    "primer_objeto": [
+     [
+      "Bailarín espectral",
+      0.37
+     ],
+     [
+      "Verdugo de krakens",
+      0.23
+     ],
+     [
+      "Hidra voraz",
+      0.17
+     ],
+     [
+      "Hidra profana",
+      0.09
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQWQ",
+      0.42
+     ],
+     [
+      "QEWQQRQEQ",
+      0.11
+     ],
+     [
+      "EQWQQRQEQ",
+      0.08
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.49
+     ],
+     [
+      "QEW",
+      0.27
+     ],
+     [
+      "EQW",
+      0.24
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.3,
+     "mediana": 42.9,
+     "p75": 50.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 13.5,
+     "mediana": 16.8,
+     "p75": 21.2
+    },
+    "vision_por_min": {
+     "p25": 0.69,
+     "mediana": 0.93,
+     "p75": 1.18
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.11,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 3.2,
+     "mediana": 6.2,
+     "p75": 9.7
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 18.3,
+     "mediana": 24.6,
+     "p75": 29.2
+    },
+    "campamento_inicial": [
+     [
+      "red",
+      0.62
+     ],
+     [
+      "blue",
+      0.22
+     ],
+     [
+      "raptors",
+      0.11
+     ],
+     [
+      "gromp",
+      0.03
+     ],
+     [
+      "krugs",
+      0.03
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 15.0,
+     "mediana": 18.0,
+     "p75": 22.0
+    },
+    "cs_jungla_10": {
+     "p25": 44.0,
+     "mediana": 48.0,
+     "p75": 60.0
+    },
+    "primer_gank_min": {
+     "p25": 3.6,
+     "mediana": 5.6,
+     "p75": 9.4
+    },
+    "ganks_antes_10": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.46
+     ],
+     [
+      "mid",
+      0.33
+     ],
+     [
+      "top",
+      0.22
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 4.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 1.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.5-16.23"
+   }
+  }
+ }
+}

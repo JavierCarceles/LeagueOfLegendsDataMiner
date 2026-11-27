@@ -1,0 +1,398 @@
+{
+ "clave": "Garen",
+ "nombre": "Garen",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.925,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador de top sencillo y resistente, sin maná, que gana intercambios cortos con Q-E, se cura con la pasiva fuera de combate y ejecuta con una R de daño verdadero; fuerte desde nivel 6 y con Cortasendas (~13:30), con mucha presión lateral",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Gana a muchos cuerpo a cuerpo de nivel 1 a 6 con Q (silencio de 1,5 s) y E, y la pasiva le devuelve la vida si deja de recibir daño 8 s. De nivel 6 a 2 objetos (~6:00-20:00) amenaza la kill con la R a cualquiera por debajo del 30-40 %. En la tardía sigue siendo un frontal molesto que presiona laterales, pero sin desplazamientos propios (solo el de Cortasendas) los equipos con control y kiting le paran, y los tiradores con 3 objetos lo derriten."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:45 y ~2:15)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E-Q-W tiene el intercambio completo: Q para acercarse y silenciar 1,5 s, E girando 3 s sobre el rival (el más cercano recibe un 25 % más) y W para aguantar el contragolpe. Contra cuerpo a cuerpo que dependen de habilidades, el silencio les deja sin respuesta."
+  },
+  {
+   "cuando": "Nivel 6 (~6:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Demacian Justice (R, 120 s, 400 u): 125 + 25 % de la vida que le falta al objetivo como daño verdadero. Con Prender, Q-E-R mata a la mayoría de tops que estén por debajo del 40 % y que no tengan Destello."
+  },
+  {
+   "cuando": "Primer objeto (~13:36; p25 12:06, p75 15:18)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Cortasendas",
+   "por_que": "Cortasendas (93 % de las partidas): salto con ralentización que le da el acercamiento que no tiene, más vida y velocidad. Es cuando empieza a llegar a los carries en las peleas y a ganar duelos en la lateral."
+  },
+  {
+   "cuando": "Dos objetos (~19:40) con Bailarín espectral o Filo fantasmal de Youmuu",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Bailarín espectral",
+   "por_que": "La velocidad de ataque da más giros a la E (7 + 1 por cada 25 % de velocidad de ataque adicional) y los críticos los potencian; la R baja a 100 s. Es su mejor momento para partir una lateral y ejecutar carries en las peleas."
+  },
+  {
+   "cuando": "Tres objetos (~24-27 min)",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Coraza del muerto",
+   "por_que": "Con Recordatorio letal, Coraza del muerto o Filo infinito cierra la build de luchador crítico; a nivel 16 la R tiene 80 s y el 35 % de la vida que falta. Desde aquí escala menos que los tiradores y depende de llegar con la Q y el salto de Cortasendas."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Perseverance: regenera entre un 1,5 % y un 10,1 % de su vida máxima cada 5 s (según nivel) si no ha recibido daño de campeones, monstruos épicos o torres, ni habilidades enemigas, en los últimos 8 s. Los golpes absorbidos por escudos no la cortan. Por eso se aleja tras cada intercambio y vuelve a la línea casi con la vida llena sin ir a base.",
+  "Q": "Decisive Strike: quita las ralentizaciones y da velocidad durante 1,4-3,6 s (8 s de enfriamiento); su siguiente ataque en 4,5 s salta al objetivo, no se puede cancelar, hace 30-150 (+50 % DA) de daño físico adicional y silencia 1,5 s. Reinicia el ataque básico. Es su forma de acercarse, de cortar las habilidades del rival y de escapar.",
+  "W": "Courage: pasiva, cada unidad que mata le da 0,2 de armadura y RM, hasta 30 de cada una (150 muertes). Activa (22-12 s): reduce el daño un 25-41 % durante 4 s y, el primer 0,75 s, le da un escudo de 65-145 (+18 % de vida adicional) y un 60 % de tenacidad. Se usa justo antes del golpe o control más fuerte del rival, no después.",
+  "E": "Judgment: gira 3 s con la espada en 325 u (9-6 s, sin coste) dando 7 golpes más 1 por cada 25 % de velocidad de ataque adicional, de 4-16 (+40-52 % DA) cada uno; el enemigo más cercano recibe un 25 % más. Si golpea 6 veces a un campeón le quita un 25 % de armadura durante 6 s. Puede moverse mientras gira (a velocidad normal, atravesando súbditos), y relanzarla tras 1 s la corta. Es su daño principal y su despeje de oleada.",
+  "R": "Demacian Justice: espada del cielo sobre un campeón a 400 u (120/100/80 s, 0,435 s de lanzamiento) que hace 125/200/275 + 25/30/35 % de la vida que le falta como daño verdadero. Los escudos no cuentan en el cálculo de la vida. Si el objetivo se vuelve inalcanzable, muere o sale de la visión durante el lanzamiento, no se gasta. Es su ejecución: lanzarla con el rival a ~30-40 % de vida."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "E-Q-W y maximizar E > Q > W en el 93 % de partidas (Metabot 16.23; OP.GG, 62 %). Q > E > W (5 %) para más silencio y velocidad contra rivales que le kitean. La W con un punto ya da la tenacidad y el escudo; se sube la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno propio: la Q da velocidad (1,4-3,6 s) y quita ralentizaciones, y su ataque potenciado salta un poco al objetivo. Cortasendas le da un salto corto con ralentización desde el primer objeto (~13:30); Grebas de berserker, Bailarín espectral, Filo fantasmal de Youmuu y Coraza del muerto le dan velocidad. A veces lleva Fantasmal.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Pasiva de regeneración fuera de combate (1,5-10,1 % de vida cada 5 s tras 8 s sin recibir daño): le permite ganar la línea por desgaste y quedarse mucho tiempo en una lateral sin ir a base.",
+  "Sin maná ni energía: puede usar la E para empujar o para pelear tantas veces como quiera, y su único límite son los enfriamientos.",
+  "R de ejecución con daño verdadero que crece con la vida que le falta al objetivo (25-35 %): ignora armadura y RM, pero no la reducción por escudos (que no cuentan en el cálculo).",
+  "E que escala con velocidad de ataque: cada 25 % de velocidad de ataque adicional suma un giro, y a los 6 golpes quita un 25 % de armadura al campeón. Por eso sus objetos son de críticos y velocidad de ataque.",
+  "La W pasiva le da hasta 30 de armadura y RM con las unidades que mata: un Garen con mucho CS es más duro sin comprar defensa.",
+  "La Q silencia 1,5 s: corta las habilidades de escape y los combos de campeones que dependen de ellas (Yasuo, Jax, Sylas, Yone, Irelia), y por eso les gana la línea."
+ ],
+ "combos": [
+  "Intercambio básico: Q (velocidad) hacia el rival → ataque con silencio → E girando sobre él → alejarse antes de que acabe el silencio para que la pasiva empiece a contar.",
+  "All-in de nivel 6: Q → ataque con silencio → E → Prender → R cuando el rival está a ~30-40 %. W justo antes del contragolpe o del control del rival.",
+  "Con Cortasendas: activo de Cortasendas (salto y ralentización) → Q → E → R; sirve para llegar al carry que está detrás de la primera línea.",
+  "Huida: Q para quitar la ralentización y ganar velocidad, W si le controlan, y Destello sobre un muro.",
+  "Despeje de oleada: E en el centro de la oleada con un ataque potenciado de la Q en el súbdito más grande."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Cortasendas",
+   "Bailarín espectral",
+   "Filo fantasmal de Youmuu",
+   "Recordatorio letal",
+   "Coraza del muerto",
+   "Filo infinito",
+   "Recuerdos de lord Dominik",
+   "Calibrador de Sterak",
+   "Fuerza de la naturaleza",
+   "Cuchilla negra",
+   "Grebas de berserker",
+   "Botas de rapidez"
+  ],
+  "runas": "Conquistador + Triunfo + Leyenda: Velocidad + Último esfuerzo, secundaria Brujería con Celeridad y Arcanólogo axiomático (~42 % de las páginas en OP.GG 16.23). Alternativa casi igual de común: Tensión del saqueador de tormentas + Arcanólogo axiomático + Celeridad + Se avecina tormenta, secundaria Valor con Sobrecrecimiento y Fuerzas renovadas (~36 %, la de Metabot).",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Teleportar",
+   "Fantasmal"
+  ],
+  "nota": "Destello + Prender en el ~89 % de partidas; Teleportar (~4-5 %) o Fantasmal (Fantasmal + Teleportar o Destello + Fantasmal, ~4 %) en pocas. Inicio: Escudo de Doran (~50 %, contra rangos y pinchazo) o Espada de Doran (~30 %). Primer objeto Cortasendas casi siempre; después Bailarín espectral (54 %) o Filo fantasmal de Youmuu, y Recordatorio letal contra curación, Coraza del muerto contra físicos, Fuerza de la naturaleza contra magos, Filo infinito o Recuerdos de lord Dominik para más daño y Calibrador de Sterak contra burst. Botas: Grebas de berserker (65 %), de rapidez (16 %) o blindadas contra físicos."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con E: la oleada llega a top hacia el 1:00. Farmea con ataques y la E en la oleada, y si el rival cuerpo a cuerpo se acerca, E sobre él. A nivel 2 (~1:45) con Q ya tiene el intercambio Q-silencio-E; a nivel 3 la W. Contra rangos (Kayle, Quinn, Vayne, Teemo) solo farmea y espera a que fallen o gasten el control.",
+    "tradeos": "Intercambios cortos y retirada: Q-ataque-E y alejarse detrás de la oleada o al arbusto para que la pasiva cure en 8 s. No se queda a pelear con el rival si este tiene más daño sostenido (Darius, Camille, Ambessa): su ventaja es el silencio y la regeneración, no el duelo largo.",
+    "oleadas": "Sin maná, controla la oleada como quiere: E para empujar rápido o solo ataques para congelar. Le gusta congelar cerca de su torre contra cuerpo a cuerpo para que tengan que acercarse a su Q; contra rangos empuja para jugar bajo su torre o volver a base. Primera vuelta a base tras estrellar la oleada o cuando tiene oro para Bacteriófago.",
+    "all_in": "A nivel 6 cuando el rival está por debajo del 40 % y sin Destello: Q, E, Prender y R. Antes del 6 solo contra rivales que se han quedado a media vida sin su habilidad de escape. Bajo la torre rival, solo si la R mata desde fuera del alcance de la torre (400 u).",
+    "jugar_seguro": "Contra Camille, Kayle, Darius, Malphite, Vayne, Quinn o Ambessa: Escudo de Doran, Botas blindadas contra físicos, farmear con la E sin acercarse, usar la pasiva para quitarse el pinchazo y esperar a Cortasendas o al jungla. Contra Darius, nunca dejarle cinco cargas de la pasiva."
+   },
+   "roameos": "Casi no roamea: con Prender (89 %) se queda en top. Lo más habitual es ir a la escuttle de su lado o al río con su jungla después de estrellar la oleada, y pasado el 14 a los objetivos del lado de top (Heraldo y larvas). Con Teleportar extra de la misión de rol de top puede llegar a una pelea de bot a mitad de partida.",
+   "fase_media": "Empuja una lateral (casi siempre la de top) con la E, y obliga a mandar a dos rivales a pararle; su pasiva le deja aguantar sin volver a base. Cuando hay un objetivo importante (Barón, dragón del alma), se une al grupo por el flanco y usa Cortasendas y la Q para llegar al carry y ejecutarlo con la R. Si su equipo no puede pelear 4v5, mejor agrupado delante del tirador.",
+   "matchups_dificiles": [
+    "Camille",
+    "Kayle",
+    "Darius",
+    "Maokai",
+    "Lissandra",
+    "Malphite",
+    "Vayne",
+    "Ambessa",
+    "Quinn"
+   ],
+   "matchups_faciles": [
+    "Sylas",
+    "K'Sante",
+    "Yasuo",
+    "Jax",
+    "Illaoi",
+    "Trundle",
+    "Yone",
+    "Mordekaiser",
+    "Nasus"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Luchador de primera línea y ejecutor por el flanco: entra a los carries que están a su alcance y remata con la R.",
+  "como_entrar": "Por el flanco o tras el primer control de su equipo, con Cortasendas para acortar distancias y la Q para quitarse las ralentizaciones; la W justo antes del control rival (60 % de tenacidad). No debe entrar en línea recta al grupo rival: los controles le paran antes de llegar.",
+  "objetivo": "El carry más cercano y más blando; la R al que esté por debajo del 30-40 % para que la ejecución sea segura. Contra equipos de muchos frontales, gira sobre los tanques (quita armadura) y usa la R en el más bajo.",
+  "posicion": "Delante o al lado de su equipo, cerca de los arbustos o pasillos de jungla para llegar por el flanco sin ser visto."
+ },
+ "macro": {
+  "split_push": "Alto: la E despeja oleadas sin coste, la pasiva le deja quedarse sin volver a base y gana los duelos a muchos tops antes del 25. Su plan habitual es una lateral con presión constante para que el equipo rival mande a dos.",
+  "objetivos": "Ayuda en Heraldo y larvas desde top; derriba torres rápido con críticos y velocidad de ataque. No hace dragón ni Barón solo, pero tras el 20 puede hacer un Heraldo solo con buena vida.",
+  "plan_de_partida": "0-14 min: ganar la línea con Q-E y la pasiva, amenazar la kill desde el 6 con la R. 14-25 min: Cortasendas y segundo objeto, presión lateral y escaramuzas en el lado de top. 25+: presión lateral o flanqueo en las peleas de objetivos para ejecutar al carry."
+ },
+ "debilidades": [
+  "Sin desplazamientos propios: los rangos y los equipos con mucho control lo kitean sin que pueda llegar (Kayle, Vayne, Quinn, Teemo).",
+  "Sin escape real: si gasta la Q para entrar, solo le queda Destello para huir de un gank.",
+  "Su R necesita al rival por debajo de ~30-40 % de vida: lanzarla antes no mata y la pierde 80-120 s.",
+  "Los rivales con mucho daño sostenido y curación (Darius, Ambessa, Camille) le ganan los intercambios largos.",
+  "Escala menos que los tiradores y los luchadores de duelo: en la tardía necesita una ventaja o una buena iniciación aliada."
+ ],
+ "contrarrestado_por": [
+  "Camille",
+  "Kayle",
+  "Darius",
+  "Vayne",
+  "Quinn",
+  "Malphite",
+  "Ambessa",
+  "Teemo",
+  "Maokai"
+ ],
+ "bueno_contra": [
+  "Sylas",
+  "K'Sante",
+  "Yasuo",
+  "Jax",
+  "Illaoi",
+  "Trundle",
+  "Yone",
+  "Mordekaiser",
+  "Nasus"
+ ],
+ "sinergias": [
+  "Elise",
+  "Swain",
+  "Shyvana",
+  "Malzahar",
+  "Jinx",
+  "Lulu",
+  "Sejuani"
+ ],
+ "errores_comunes": [
+  "Lanzar la R demasiado pronto: con el rival por encima del 50 % no mata y queda 80-120 s sin ella.",
+  "Usar la Q para entrar y luego no tener forma de perseguir ni de escapar.",
+  "Girar con la E sobre un rival que se puede alejar fuera de las 325 u y perder casi todo el daño.",
+  "Quedarse en la pelea cuando la pasiva no puede actuar y volver a base con poca vida en vez de alejarse 8 s para curarse.",
+  "Activar la W después del control o del golpe fuerte, cuando ya no sirve.",
+  "Entrar en línea recta a las peleas sin Cortasendas ni flanco, y morir antes de llegar al carry."
+ ],
+ "senales_reconstructor": [
+  "Lleva Destello + Prender en el ~89 % de partidas: antes del 14 casi nunca aparece fuera de top y del río de su lado. Una kill suya en bot o mid antes del 14 sin Teleportar es rara; pasado el 15 puede ser el Teleportar extra de la misión de rol de top.",
+  "La R es daño verdadero de ejecución a 400 u: muchas de sus kills son con la R sobre un rival que ya estaba a ~30-40 % de vida; la víctima muere a menos de 400 u de Garen.",
+  "Pocas vueltas a base al principio: la pasiva le cura fuera de combate, así que puede quedarse en línea más tiempo con poca vida que otros tops. Primera vuelta a base tras estrellar la oleada o para Bacteriófago.",
+  "Persecuciones largas: la Q le da hasta 3,6 s de velocidad y quita ralentizaciones, y con Grebas de berserker, Bailarín espectral o Filo fantasmal de Youmuu corre mucho; kills suyas a 1500-2500 u del punto donde empezó la pelea, en el río o la jungla rival, son coherentes.",
+  "Primer objeto Cortasendas hacia el 13:36 (p25 12:06, p75 15:18) en el 93 % de partidas; segundo hacia el 19:40 (Bailarín espectral o Filo fantasmal de Youmuu) y tercero hacia el 24-27 min.",
+  "Duelos ganados con poca vida: la W (25-41 % menos de daño 4 s y escudo) y la pasiva entre intercambios le hacen ganar peleas que por vida parecían perdidas; una kill a Garen bajo su torre suele requerir al jungla rival.",
+  "Pasado el 14 pasa mucho tiempo solo en una lateral (sobre todo top): posiciones en una lateral lejos de su equipo en la fase media son su presión lateral habitual, no un despiste.",
+  "Sin maná: nunca vuelve a base por falta de maná; las vueltas a base que no coinciden con poca vida son para comprar.",
+  "La misión de rol de top le deja llegar a nivel 19-20: no marcar como error un nivel por encima de 18.",
+  "En el ~6 % de sus partidas va a mid (Lolalytics): entonces sus posiciones tempranas son en mid y roamea poco igualmente."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/garen/build/",
+  "https://www.op.gg/lol/champions/garen/build/top",
+  "https://metabot.gg/en/league/champion/Garen/build?role=TOP",
+  "https://wiki.leagueoflegends.com/en-us/Garen",
+  "https://www.dodge.gg/lol/news/garen-build-2026",
+  "https://www.strafe.com/news/read/league-of-legends-role-quests-rewards-for-every-role/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 302,
+    "victorias": 0.54,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 30,
+      "victorias": 0.5
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 67,
+      "victorias": 0.582
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 108,
+      "victorias": 0.574
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 64,
+      "victorias": 0.516
+     },
+     {
+      "minutos": "35+",
+      "partidas": 33,
+      "victorias": 0.424
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.1,
+     "mediana": 4.4,
+     "p75": 6.4
+    },
+    "primer_objeto_min": {
+     "p25": 11.5,
+     "mediana": 12.8,
+     "p75": 14.4
+    },
+    "segundo_objeto_min": {
+     "p25": 17.2,
+     "mediana": 18.8,
+     "p75": 20.5
+    },
+    "primer_objeto": [
+     [
+      "Cortasendas",
+      0.93
+     ],
+     [
+      "Fuerza de trinidad",
+      0.02
+     ],
+     [
+      "Cuchilla negra",
+      0.01
+     ],
+     [
+      "Eclipse",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWEEREQE",
+      0.4
+     ],
+     [
+      "EWQEEREQE",
+      0.14
+     ],
+     [
+      "QEWEEREQE",
+      0.09
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.92
+     ],
+     [
+      "QEW",
+      0.07
+     ],
+     [
+      "QWE",
+      0.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 25.0,
+     "mediana": 33.3,
+     "p75": 44.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.6,
+     "mediana": 20.6,
+     "p75": 24.6
+    },
+    "vision_por_min": {
+     "p25": 0.71,
+     "mediana": 0.83,
+     "p75": 0.98
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.8,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 24.7,
+     "mediana": 32.3,
+     "p75": 44.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 11.1,
+     "mediana": 18.6,
+     "p75": 26.3
+    },
+    "cs_10": {
+     "p25": 66.0,
+     "mediana": 76.0,
+     "p75": 86.0
+    },
+    "dif_cs_10": {
+     "p25": -18.0,
+     "mediana": -4.0,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -690.0,
+     "mediana": -11.0,
+     "p75": 749.0
+    },
+    "placas": {
+     "p25": 7.0,
+     "mediana": 11.0,
+     "p75": 15.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 2.9
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 5.4,
+     "p75": 8.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.19-16.23"
+   }
+  }
+ }
+}

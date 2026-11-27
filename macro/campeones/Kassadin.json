@@ -1,0 +1,352 @@
+{
+ "clave": "Kassadin",
+ "nombre": "Kassadin",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.94,
+   "principal": true
+  }
+ ],
+ "arquetipo": "asesino-mago de mid cuerpo a cuerpo que escala por niveles: sufre hasta el 6, se vuelve peligroso con la R (blink de 500 u) y a nivel 16 la encadena cada 2 s; resistente a magia por la pasiva y muy dependiente del maná",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 1,
+  "media": 3,
+  "tardia": 5,
+  "nota": "Hasta el nivel 6 es de los mid más débiles: cuerpo a cuerpo (150 u de ataque), sin escape y con poco despeje; solo se defiende contra magos gracias a la pasiva (-10 % de daño mágico) y al escudo de la Q. Con la R a nivel 6 (5 s de enfriamiento) gana movilidad y amenaza a magos y tiradores aislados; a nivel 11 (3,5 s) es un peligro en escaramuzas y a nivel 16 (2 s) encadena blinks por toda la pelea y mata a varios carries. Con Bastón del arcángel/Abrazo del serafín y Rabadon es de los mejores campeones de partidas largas."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 6 (~5:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Riftwalk: blink de 500 u con daño en área cada 5 s. Le da escape, all-in contra magos sin Destello y los primeros roameos a bot o top tras despejar."
+  },
+  {
+   "cuando": "Primer objeto (~11:40): Malignidad o Vara de las edades",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Malignidad",
+   "por_que": "Malignidad (70 % en OTP Diamante+) le da velocidad para la R y su zona de daño; Vara de las edades (29 %) le da vida y maná para aguantar. Con la Lágrima de la diosa cargando desde la primera vuelta, empieza a poder encadenar 2-3 R."
+  },
+  {
+   "cuando": "Nivel 11 con Bastón del arcángel (~14:30-18:15)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Bastón del arcángel",
+   "por_que": "R a 3,5 s y el maná del Arcángel: entra sobre un carry, lo mata con R-E-W-Q y sale con otra R. Se transforma en Abrazo del serafín con la Lágrima cargada y gana un escudo."
+  },
+  {
+   "cuando": "Nivel 16 (~25:00)",
+   "nivel": 16,
+   "objetos": 3,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "La R baja a 2 s: con maná suficiente salta 4-5 veces seguidas, cruza la pelea entera y mata a dos o tres carries. Es su pico más famoso."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Void Stone: recibe un 10 % menos de daño mágico y es fantasmal (atraviesa unidades) de forma permanente. Por eso aguanta mejor la línea contra magos que contra campeones de daño físico.",
+  "Q": "Null Sphere: orbe a un objetivo (650 u, 9-7 s de enfriamiento, 60-80 de maná) que hace 65-185 (+80 % PH) de daño mágico, interrumpe canalizaciones (R de Katarina, Malzahar, Fiddlesticks, Nunu, Pantheon…) y le da un escudo contra daño mágico de 80-200 (+30 % PH) durante 1,5 s. Es su forma de farmear de lejos y su protección contra poke.",
+  "W": "Nether Blade: pasivamente sus ataques hacen daño mágico extra. Activa (7 s): el siguiente ataque en 5 s tiene 50 u más de alcance, hace 50-150 (+80 % PH) extra y le devuelve un 4-6 % del maná que le falta (20-30 % si golpea a un campeón). Resetea el ataque: auto-W-auto rápido.",
+  "E": "Force Pulse: cono corto delante de él (400 u en Data Dragon) que hace 70-190 (+70 % PH) y ralentiza un 50-70 % durante 1 s. Enfriamiento 21-17 s, que baja 0,75 s por cada habilidad de campeón lanzada cerca (aliada o enemiga). Es su despeje de oleadas y la ralentización que asegura el combo tras la R.",
+  "R": "Riftwalk: teletransporte de hasta 500 u a un punto, con daño en área al llegar (80/95/110 +50 % PH +2 % del maná máximo). Cada uso en 15 s suma una carga (hasta 4) que aumenta el daño y duplica el coste de maná (40 → 80 → 160 → 320). Enfriamiento 5/3,5/2 s. Cruza muros de hasta 500 u de grosor y no lo frena nada por el camino."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E es lo más común (38 % en OTP Diamante+): Q-W-E-Q-Q-R-Q-E-Q. Variante E-Q-W o E primero (12 %) contra campeones que empujan mucho. Maximizar E tras un punto de Q y W (Q-W-E-E-E-R-E-W-E, 28 % en OP.GG) para despejar mejor y tener la E más a menudo. R en 6, 11 y 16: los niveles 11 y 16 son saltos de poder enormes (enfriamiento 5 → 3,5 → 2 s)."
+ },
+ "movilidad": {
+  "desplazamientos": "R: blink de 500 u cada 5/3,5/2 s (niveles 6/11/16), con coste de maná que se duplica con cada uso en 15 s (40, 80, 160, 320). A nivel 16 encadena 4-5 blinks en menos de 10 s (~2000-2500 u). Destello suma 400 u. La pasiva le hace fantasmal (atraviesa unidades).",
+  "salta_muros": "si",
+  "como_salta_muros": "Desde nivel 6, la R le teletransporta 500 u a un punto, también al otro lado de cualquier muro de la jungla o del río de hasta 500 u de grosor. Encadenándola cruza varios muros seguidos para entrar o huir sin usar caminos. Antes del 6, solo con Destello.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La R es un blink de enfriamiento bajísimo que baja con los niveles (5 → 3,5 → 2 s): su fuerza depende más del nivel que de los objetos.",
+  "Cada R en 15 s duplica su coste de maná (hasta 320): su límite real en una pelea es el maná, por eso construye Lágrima de la diosa, Bastón del arcángel y Vara de las edades.",
+  "La pasiva le quita un 10 % del daño mágico y la Q le da un escudo mágico: es de los pocos asesinos que gana la línea a muchos magos a la larga.",
+  "La Q interrumpe canalizaciones (R de Katarina, de Malzahar, de Fiddlesticks o de Nunu): es la respuesta natural a esos campeones.",
+  "La E se recarga 0,75 s más rápido por cada habilidad de campeón lanzada cerca: en peleas grandes la tiene casi siempre."
+ ],
+ "combos": [
+  "All-in desde nivel 6: R encima del rival → E (ralentización) → W con auto → Q → R para rematar o para salir.",
+  "Intercambio de línea antes del 6: Q para el escudo y el daño → auto + W → retroceder.",
+  "Remate de huida: R por encima del muro → E → Q; si queda algo, otra R (más daño por la carga).",
+  "Pelea en grupo a nivel 16: esperar a que el rival gaste sus controles → R a la retaguardia → E → W → Q → R a otro carry → Zhonya si le centran.",
+  "Escape: R por encima de un muro → R de nuevo en otra dirección; guardar maná para al menos dos R."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Lágrima de la diosa",
+   "Malignidad",
+   "Vara de las edades",
+   "Bastón del arcángel",
+   "Reloj de arena de Zhonya",
+   "Sombrero mortal de Rabadon",
+   "Bastón del Vacío",
+   "Robaalmas de Mejai",
+   "Corazón de hielo",
+   "Botas de hechicero",
+   "Botas de mercurio"
+  ],
+  "runas": "Electrocutar (Dominación) con Impacto repentino, Recuerdo macabro y Cazador definitivo (61 % en OP.GG 16.23); secundaria Precisión con Claridad mental (43 %) y Último esfuerzo (32 %), o Derribado contra tanques. Alternativa defensiva: Pies veloces (Precisión) con Valor secundaria (Fuerzas renovadas, Revestimiento de huesos) en líneas difíciles.",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Destello + Teleportar en el 54 % (83 % en OTP Diamante+) para sobrevivir la línea y escalar; Destello + Prender (42 %) para matar antes. Inicio: Sello oscuro + Poción reutilizable (57 %) o Escudo de Doran + poción (19 %) contra daño físico. Lágrima de la diosa en la primera vuelta (82 % en OTP Diamante+). Primer objeto Malignidad o Vara de las edades; segundo Bastón del arcángel (81 %); después Zhonya, Rabadon y Bastón del Vacío; Corazón de hielo contra equipos de ataque físico. Botas de hechicero (49-61 %) o Botas de mercurio (20-36 %) contra control y daño mágico; Botas blindadas contra asesinos de daño físico."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q para farmear a distancia y tener el escudo; W a nivel 2 (~1:35) para rematar súbditos y recuperar maná; E a nivel 3 (~2:05). No busca intercambios: remata con Q y W, y solo responde a los magos cuando gastan sus habilidades (el escudo y la pasiva le dan ventaja en esos intercambios cortos).",
+    "tradeos": "Q al rival cuando se acerca a rematar (escudo mágico durante 1,5 s) → si queda cerca, auto + W y retroceder. Contra luchadores y asesinos de daño físico (Zed, Talon, Pantheon, Qiyana) no intercambia: el escudo y la pasiva solo bloquean daño mágico.",
+    "oleadas": "Deja que la oleada llegue a su torre y farmea con Q, W y la E cuando se recarga; no puede disputar la prioridad antes del 6. Primera vuelta hacia las 3:55 (p25 3:05, p75 4:30) para comprar la Lágrima de la diosa. Desde el 6, despeja con E y R y empuja para roamear.",
+    "all_in": "Desde el 6 contra magos sin Destello: R → E → W → Q → R. Antes del 6 solo con Prender y si el rival está muy bajo. A nivel 11 y 16 cualquier carry aislado está en peligro.",
+    "jugar_seguro": "Contra Zed, Talon, Pantheon, Qiyana, Riven, Akshan o Tristana: Escudo de Doran, Botas blindadas, Teleportar y farmear desde lejos con Q; aceptar perder algo de CS antes que morir. Ganar la línea no es su objetivo: llegar al 6, al 11 y al 16 sin ir muy por detrás."
+   },
+   "roameos": "Desde el 6 con la R lista, tras despejar la oleada con E: baja a bot por el río (sus kills antes del 14 en OTP Diamante+: 27 % en mid, 24 % en el río, 22 % en bot, 12 % en la jungla rival). En el 55 % de las partidas tiene una kill o asistencia en otra línea antes del 14, la primera hacia el 10:15 de mediana (p25 7:55). Con la R cruza muros de la jungla, así que llega a bot o top por caminos sin visión.",
+   "fase_media": "Después de los primeros objetos farmea mucho (oleadas laterales, campamentos) para llegar a los niveles 11 y 16; usa la R para salir de cada intento de pillarlo. Cuando tiene el 11, busca picks a carries aislados por los flancos y entra a las peleas del dragón y del Barón cuando el rival gasta sus controles. Pasado el 14 está un ~21 % del tiempo en otras líneas y un ~18 % en mid.",
+   "matchups_dificiles": [
+    "Riven",
+    "Zed",
+    "Pantheon",
+    "Talon",
+    "Qiyana",
+    "Akshan",
+    "Tristana"
+   ],
+   "matchups_faciles": [
+    "Malphite",
+    "Ezreal",
+    "Azir",
+    "Zoe",
+    "Lucian",
+    "Vel'Koz",
+    "Lux",
+    "Veigar"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Asesino de flanco y de limpieza tardía: entra a la retaguardia cuando el rival ha gastado sus controles y salta de carry en carry con la R.",
+  "como_entrar": "Esperar en un flanco a que caigan los controles duros rivales (E de Leona, Q de Nautilus, E de Syndra); R a la retaguardia → E → W → Q → R al siguiente; Zhonya si le centran. A nivel 16 entra y sale varias veces de la pelea.",
+  "objetivo": "Magos, tiradores y encantadoras con poco escape; evita a tanques y luchadores de daño físico.",
+  "posicion": "En un flanco o detrás de un muro, a 500-1000 u de la retaguardia rival, fuera de la vista; nunca el primero en entrar."
+ },
+ "macro": {
+  "split_push": "Moderado: farmea oleadas laterales a menudo para ganar niveles y escapa con la R por encima de los muros. Pasado el 14 pasa un ~21 % del tiempo en otras líneas (OTP Diamante+).",
+  "objetivos": "No hace objetivos solo. Llega a los dragones y al Heraldo gracias a la R por la jungla; con el nivel 16 decide las peleas del Barón y del Anciano.",
+  "plan_de_partida": "0-6 min: sobrevivir y farmear con Q y W, Lágrima en la primera vuelta. 6-14 min: roameos con R tras despejar, ayudar en la escuttle y el dragón. 14-25 min: farmear para el 11 y el 16, picks a carries aislados. 25+: R a la retaguardia cuando el rival gasta los controles; su mejor fase."
+ },
+ "debilidades": [
+  "Muy débil hasta el nivel 6: cuerpo a cuerpo, sin escape y con poco despeje; los asesinos de daño físico le ganan la línea con facilidad.",
+  "Depende del maná: si encadena la R sin mirar el maná se queda sin escape en medio de la pelea.",
+  "Casi todo su daño es mágico: Botas de mercurio, Velo del hada de la muerte y resistencia mágica lo frenan mucho.",
+  "Vulnerable a controles duros al entrar: si le aturden tras la primera R muere antes de usar la segunda.",
+  "Sus picos de poder están en niveles, no en kills: si va muy por detrás en experiencia tarda mucho en ser útil."
+ ],
+ "contrarrestado_por": [
+  "Riven",
+  "Zed",
+  "Pantheon",
+  "Talon",
+  "Qiyana",
+  "Akshan",
+  "Tristana"
+ ],
+ "bueno_contra": [
+  "Malphite",
+  "Ezreal",
+  "Azir",
+  "Zoe",
+  "Lucian",
+  "Vel'Koz",
+  "Lux",
+  "Katarina"
+ ],
+ "sinergias": [
+  "Jarvan IV",
+  "Amumu",
+  "Sejuani",
+  "Leona",
+  "Rell",
+  "Orianna",
+  "Malphite"
+ ],
+ "errores_comunes": [
+  "Intercambiar antes del 6 contra campeones de daño físico y perder la línea.",
+  "Encadenar la R para entrar sin dejar maná para la salida (cada R en 15 s cuesta el doble).",
+  "Entrar el primero a la pelea, antes de que el rival gaste sus controles.",
+  "No comprar la Lágrima de la diosa pronto: se queda sin maná toda la partida.",
+  "Pelear lejos de su pico (antes del 11) en lugar de farmear para llegar a él.",
+  "Usar la Q para hacer daño cuando hacía falta para interrumpir una canalización rival (R de Katarina, de Malzahar)."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de línea (OTP Diamante+, 124 partidas de 11 jugadores, parches 16.21-16.23): nivel 2 a la 1:36, nivel 3 a las 2:03, nivel 6 a las 5:16, nivel 11 a las 14:33 y nivel 16 a las 25:04 de mediana. CS 15 a los 3:00, 23 a los 4:00, 74 a los 10:00 (p25 65, p75 83) y 115 a los 15:00.",
+  "Primera vuelta hacia las 3:55 (p25 3:05, p75 4:30) comprando Lágrima de la diosa (82 %) o Vara explosiva. Primer objeto hacia el 11:40 (p25 10:05, p75 13:20): Malignidad 70 % o Vara de las edades 29 %; segundo hacia el 18:15 (Bastón del arcángel 81 %); tercero hacia el 23:00. Botas de hechicero o de mercurio hacia el 12:10.",
+  "Usa la R ~146 veces por partida de mediana (p75 186): la usa para moverse por el mapa, no solo en peleas. Con la R (desde el 6) recorre más que otros mid entre dos posiciones por minuto y cruza muros de la jungla; a nivel 16, 4-5 blinks de 500 u en pocos segundos: kills a 2000-2500 u de su posición de unos segundos antes son posibles.",
+  "Roameos: en el 55 % de las partidas tiene una kill o asistencia en otra línea antes del 14, la primera hacia el 10:15 (p25 7:55). Sus kills y asistencias antes del 14: 27 % en mid, 24 % en el río, 22 % en bot, 12 % en la jungla rival, 9 % en la propia y 6 % en top.",
+  "Teleportar en el 83 % de sus partidas de Diamante+: apariciones en bot o top justo tras estar en mid sin pasar por el río suelen ser Teleportar.",
+  "Escala por niveles: un Kassadin que muere poco antes del 14 (4 muertes de mediana en la partida) y con kills a partir del 11-16 es su partida normal. Gana más cuanto más dura la partida (63 % de victorias en OTP Diamante+).",
+  "Kills, muertes y asistencias de mediana: 9 / 4 / 4,5 con 48 % de participación y ~26 % del daño de su equipo; muchas kills en solitario y pocas asistencias, propio de un asesino que limpia la pelea.",
+  "Pasado el 14: ~18 % del tiempo en mid y ~21 % en otras líneas (farmeo lateral para llegar al 16)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/kassadin/build/",
+  "https://www.op.gg/lol/champions/kassadin/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Kassadin",
+  "https://www.dodge.gg/lol/news/kassadin-build-2026",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, champion.json e item.json)",
+  "Partidas de OTPs de Kassadin mid (data/otps/Kassadin/MID: 202 partidas de 11 jugadores; 124 de Diamante+)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 124,
+    "victorias": 0.629,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 40,
+      "victorias": 0.675
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.4,
+     "p75": 5.1
+    },
+    "primer_objeto_min": {
+     "p25": 10.1,
+     "mediana": 11.7,
+     "p75": 13.3
+    },
+    "segundo_objeto_min": {
+     "p25": 16.8,
+     "mediana": 18.2,
+     "p75": 19.4
+    },
+    "primer_objeto": [
+     [
+      "Malignidad",
+      0.71
+     ],
+     [
+      "Vara de las edades",
+      0.29
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.38
+     ],
+     [
+      "EQWQQRQEQ",
+      0.12
+     ],
+     [
+      "QWEEEREQE",
+      0.07
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.61
+     ],
+     [
+      "EQW",
+      0.36
+     ],
+     [
+      "EWQ",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.7,
+     "mediana": 47.7,
+     "p75": 58.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 21.3,
+     "mediana": 25.9,
+     "p75": 30.8
+    },
+    "vision_por_min": {
+     "p25": 0.66,
+     "mediana": 0.83,
+     "p75": 1.03
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 2.56,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 14.1,
+     "mediana": 23.0,
+     "p75": 32.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 13.5,
+     "mediana": 22.1,
+     "p75": 29.0
+    },
+    "cs_10": {
+     "p25": 65.0,
+     "mediana": 74.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -17.0,
+     "mediana": -6.0,
+     "p75": 4.0
+    },
+    "dif_oro_10": {
+     "p25": -628.0,
+     "mediana": -128.0,
+     "p75": 440.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 9.0,
+     "p75": 14.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 6.7
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.5,
+     "mediana": 7.1,
+     "p75": 10.7
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.21-16.23"
+   }
+  }
+ }
+}

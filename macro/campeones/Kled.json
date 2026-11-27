@@ -1,0 +1,368 @@
+{
+ "clave": "Kled",
+ "nombre": "Kled",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.92,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador de top de bola de nieve que gana la línea desde el nivel 1 con la Q (trampa y tirón), tiene dos vidas (Skaarl y Kled a pie) y abre peleas de lejos con la R de 3500-4500 u",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 5,
+  "media": 4,
+  "tardia": 2,
+  "nota": "De los tops más fuertes del 1 al 6: a nivel 1 la Q (trampa) más la W pasiva ganan el intercambio a casi todos, a nivel 3 tiene la E para perseguir y a nivel 6 una R que le deja entrar desde fuera de la pantalla. Con Hidra titánica (~11:20) sigue ganando escaramuzas y empuja torres rápido. Escala mal: sin daño porcentual fuerte y con 140-110 s de R, a partir del minuto 30 cae. En partidas de OTP (224, parches 16.19-16.23) gana el 75 % de las que acaban antes del 20 y solo el 37 % de las que pasan del 35."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 (~1:00, primera oleada)",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Q (trampa) a 800 u + tirón a los 1,75 s: 90-390 de daño total y ralentización, y la W pasiva (4 ataques con 150 % de velocidad, el cuarto con % de vida máxima) ya funciona sin subirla. A nivel 1 gana casi cualquier intercambio cuerpo a cuerpo y puede forzar Destello."
+  },
+  {
+   "cuando": "Nivel 2-3 con la E (~1:40 y ~2:10)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E (dash de 550 u y vuelta a través del objetivo) el combo Q → tirón → E → W → E de vuelta mata a la mitad de vida a casi cualquier top con Prender. Es su ventana de kill en solitario más clara."
+  },
+  {
+   "cuando": "Nivel 6 (~5:20)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Chaaaaaaaarge!!!: carga de 3500 u con escudo de 200-400 (+300 % DA adicional) e inmune a controles, que deja una estela de velocidad a sus aliados. Le sirve para zambullir la torre de top con su jungla o para llegar a una escaramuza del río o del dragón desde la línea."
+  },
+  {
+   "cuando": "Primer objeto: Hidra titánica (~11:20; p25 10:05, p75 13:05)",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Hidra titánica",
+   "por_que": "Vida extra para Skaarl, empuje de oleada en un ataque y daño en área. Con ella derriba placas muy rápido (mediana de 14 placas por partida en OTP) y gana los duelos 1v1 de la fase media. Soberbia (20 % en OTP) es la alternativa de bola de nieve cuando va muy por delante."
+  },
+  {
+   "cuando": "Dos objetos (~18:50): Cuchilla negra o Rompecascos",
+   "nivel": 12,
+   "objetos": 2,
+   "objeto": "Cuchilla negra",
+   "por_que": "Cuchilla negra para pelear en grupo reduciendo armadura; Rompecascos si va a hacer split push. Con la R a nivel 11 (125 s) es su último pico de verdad: debe cerrar la partida o tirar torres antes del 25-30."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Skaarl, the Cowardly Lizard: montado, todo el daño lo recibe Skaarl (400-1400 de vida base más la vida extra de objetos); cuando Skaarl llega a 0 Kled desmonta, se limpia de controles, es intocable 0,5 s y sigue a pie con menos vida y velocidad, +alcance de ataque y Pocket Pistol. A pie recupera Coraje (15 por ataque a campeón, 5 por súbdito o por disparo que acierta) y con 100 vuelve a montar con el 40-70 % de la vida de Skaarl. Es como tener dos barras de vida: la primera muerte de Skaarl no es una muerte.",
+  "Q": "Bear Trap on a Rope: trampa en línea de 800 u (11-7 s de enfriamiento, sin coste) que se engancha al primer campeón o monstruo grande; si la cuerda aguanta 1,75 s sin romperse (radio de 800 que encoge a 625), tira del objetivo 150 u hacia Kled, hace el daño fuerte y ralentiza un 30-50 % 2,5 s. Total 90-390 (+180 % DA adicional). La bloquean los súbditos. Desmontado se convierte en Pocket Pistol: escopeta en cono de 700 u con 2 cargas (recarga 18-10 s) que le echa 300 u hacia atrás (atraviesa muros finos) y da 5 de Coraje por perdigón que acierta a un campeón (máximo 25 por disparo).",
+  "W": "Violent Tendencies: es pasiva, no se lanza (0 usos en las estadísticas de Riot). Cada 13-9 s su siguiente ataque le da 150 % de velocidad de ataque durante 4 ataques o 4 s; el cuarto hace 20-60 + 4,5-6,5 % de la vida máxima del objetivo (+2 % por cada 100 de DA adicional). Mientras está en enfriamiento, cada golpe lo reduce 0,5 s (1,5 s contra campeones). Contra torres añade daño fijo: es la razón de su empuje.",
+  "E": "Jousting: dash de 550 u (13-9 s de enfriamiento, sin coste) que daña a lo que atraviesa; si toca a un campeón o monstruo grande lo atraviesa 350 u, lo marca y le da 50 % de velocidad 1 s. Desde 0,5 s después y mientras dure la marca (3 s), se puede relanzar para volver a cargar contra el objetivo y 200 u más allá (el mismo daño otra vez). La primera carga no atraviesa muros; la vuelta hacia la marca sí puede. Se usa para entrar, para perseguir y como dash de huida si se apunta a un súbdito o monstruo.",
+  "R": "Chaaaaaaaarge!!!: Kled y Skaarl cargan hacia un punto a 3500/4000/4500 u (140/125/110 s de enfriamiento). Durante la carga son fantasmales e inmunes a controles, van bordeando los muros (no los saltan; buscan el camino), aceleran hasta 950 de velocidad y ganan un escudo de 200-400 (+300 % DA adicional) que crece con lo recorrido. Al llegar embisten al primer campeón visible a 500-800 u: 4-24 % de su vida máxima, hasta el triple según lo que duró la carga, y lo empujan 150 u. Deja una estela de 9 s que da 40 % de velocidad (o hasta 650 fuera de combate) a los aliados que la siguen. Desmontado no la puede usar."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q a nivel 1 siempre. Q-E-W es lo más jugado (47 % en OP.GG, 46 % en OTP); Q-W-E (27 % en OTP) o Q-E-Q contra rivales que no se pueden castigar. Maximiza Q siempre (100 % en OTP) y después W, por el % de vida máxima y la reducción de enfriamiento; E la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: dash de 550 u y relanzamiento hacia la marca (hasta ~550 + 200 u más), en total ~1100 u de carga en 3 s si toca a un campeón. R: carga de 3500/4000/4500 u a ~1000 de velocidad (sube a 950 en 3 s) que sigue el camino bordeando muros; tarda unos 4-5 s a máximo alcance. Desmontado: Pocket Pistol le echa 300 u hacia atrás (2 cargas). Q montada arrastra al rival 150 u hacia él.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "La primera carga de la E no cruza muros, pero el relanzamiento hacia un objetivo marcado al otro lado de un muro fino sí lo atraviesa. A pie, el retroceso de 300 u de Pocket Pistol cruza muros finos. La R no salta nada: rodea el terreno por el camino más corto. Para cruzar muros gruesos depende de Destello.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "otro",
+    "desde_nivel": 6,
+    "alcance": "3500/4000/4500 unidades",
+    "nota": "No es un teletransporte: es una carga por el camino (bordea muros) que dura unos 4-5 s a máximo alcance y arrastra a su equipo con la estela de velocidad. Una kill o asistencia suya a ~4000 u de su posición de pocos segundos antes (de top al río del dragón o del Barón, de la lateral a mid) es normal desde el nivel 6."
+   }
+  ]
+ },
+ "unico": [
+  "Dos barras de vida: perder a Skaarl no es morir. Kled desmonta, es intocable 0,5 s, se limpia de controles y puede volver a montar en mitad de la pelea con el 40-70 % de la vida de Skaarl si consigue 100 de Coraje (15 por ataque a campeón).",
+  "No usa maná ni energía: todas sus habilidades son gratis, así que puede quedarse en línea mucho tiempo y pelear sin límite de recursos.",
+  "La W es pasiva y se reinicia golpeando (1,5 s por golpe a campeón): en un duelo largo la activa varias veces; Riot la cuenta con 0 usos.",
+  "La R da velocidad a todo su equipo con la estela: es una herramienta de enganche y de rotación para cinco, no solo para él.",
+  "Su Q es un tirón con cuerda: si el rival no rompe la distancia (de 800 a 625 u) en 1,75 s, se lo acerca 150 u, lo ralentiza y lo deja a tiro de la E y la W."
+ ],
+ "combos": [
+  "Intercambio de nivel 1: Q (trampa) → acercarse para no romper la cuerda → ataques con la W pasiva → tirón a los 1,75 s → retirarse antes de que lleguen los súbditos.",
+  "All-in de nivel 3: Q → E hacia el enganchado → ataques (W) → E de vuelta para rematar o seguir al que huye → Prender.",
+  "Zambullida con R: R desde fuera de visión hacia la torre o el carry → al chocar, E → Q → W; si Skaarl cae, Pocket Pistol para recuperar Coraje y volver a montar.",
+  "Huida: E a un súbdito o monstruo para alejarse; desmontado, Pocket Pistol en la dirección contraria para que el retroceso de 300 u le saque del alcance (o por encima de un muro fino).",
+  "Rotación de equipo: R desde la lateral hacia el dragón o el Barón con los aliados detrás de la estela para llegar todos a la vez."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Hidra titánica",
+   "Cuchilla negra",
+   "Rompecascos",
+   "Sangría del soberano",
+   "Calibrador de Sterak",
+   "Soberbia",
+   "Baile de la muerte",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Conquistador (Precisión) con Triunfo y Último aliento, secundaria Valor con Demoler y Placas óseas (62 % en OP.GG 16.23; 58 % en OTP). Alternativa: Garras del inmortal (Valor) con Precisión secundaria (18 % en OP.GG, 38 % en OTP, la de más victorias en Lolalytics) contra rivales a los que pega mucho en la línea. Fragmentos: fuerza adaptable, velocidad de ataque y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender en el 58-69 % de las partidas (para matar a partir del nivel 3); Destello + Teleportar (40 % en OTP) contra matchups malos o para unirse al dragón; Agotamiento contra Fiora o Irelia (8 %). Inicio: Espada de Doran + poción (79 %) o Escudo de Doran (11 %) contra rangos. Primera vuelta con Espada larga, Botas o Tiamat. Primer objeto Hidra titánica (71 % en OTP) o Soberbia (20 %, cuando va muy por delante); segundo Cuchilla negra, Rompecascos (para split), Recordatorio letal (contra curaciones) o Sangría del soberano; tercero Calibrador de Sterak o Baile de la muerte. Botas blindadas (60-66 %) o de mercurio contra mucho control mágico."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q: en cuanto llega la oleada (~1:00) busca la trampa sobre el rival cuando va a rematar un súbdito y pega con la W pasiva mientras el tirón carga. Nivel 2 (~1:40) con E y nivel 3 (~2:10) con W: ya tiene el combo completo y amenaza kill con Prender si el rival está por debajo del 60 %. Contra rivales que ganan el nivel 1 (Fiora, Irelia, Pantheon) espera al nivel 2-3.",
+    "tradeos": "Q cuando el rival no tiene súbditos entre ambos (la bloquean) y sigue al enganchado para que la cuerda no se rompa; con la W lista (cuatro golpes rápidos con % de vida) gana cualquier intercambio corto. Usa la primera E para entrar y guarda la vuelta para seguir al que huye o para salir. Si pierde a Skaarl en el intercambio, no se va: un par de ataques o dos disparos de Pocket Pistol le devuelven a Skaarl.",
+    "oleadas": "Empuja mucho: la W hace daño extra a torres y la Hidra titánica despeja en un golpe. Lo normal es ganar el empuje, coger placas (mediana de 14 por partida en OTP) y volver a base pronto (~3:20 de mediana, a menudo con solo 700 de oro para una Espada larga). Contra rivales que escalan, congela cerca de su torre si va por delante para negarles oro y experiencia.",
+    "all_in": "A nivel 3 con Q-E-W y Prender si el rival ya gastó su dash o Destello; a nivel 6 con R sobre la torre rival junto a su jungla (la R es inmune a controles y le da escudo). Tiene dos vidas: entra aunque vaya a perder a Skaarl si cree que puede recuperar el Coraje a mitad del duelo.",
+    "jugar_seguro": "Contra Fiora, Singed, Vayne, Kayle, Warwick o Irelia: no lanzar la Q a través de súbditos, Escudo de Doran o Agotamiento, farmear y esperar a su jungla o a la R. Contra rangos (Vayne, Kayle, Quinn) va a Teleportar y Botas blindadas y busca solo el nivel 6 con su jungla."
+   },
+   "roameos": "Poco: sus kills y asistencias antes del 14 son un 66 % en top y un 16 % en el río (OTP, 224 partidas); solo en una de cada cuatro partidas tiene una kill en mid o bot antes del 14, la primera hacia el 12:00. Lo que sí hace es meterse en el río con la R para el Heraldo/larvas o para una escaramuza del dragón: desde top llega en pocos segundos.",
+   "fase_media": "Con Hidra titánica (~11:20) empuja top, tira la torre exterior (sale muy pronto en sus partidas) y usa la R para llegar a la pelea del objetivo antes que el top rival. Pasado el 14 está una cuarta parte del tiempo solo en una lateral (mediana 27 % en OTP) y un 22 % agrupado: alterna split en top con entradas de R a la pelea. A partir de 25-30 su daño cae: debe convertir su ventaja en torres y Barón.",
+   "matchups_dificiles": [
+    "Fiora",
+    "Singed",
+    "Vayne",
+    "Kayle",
+    "Warwick",
+    "Irelia",
+    "Pantheon",
+    "Maokai"
+   ],
+   "matchups_faciles": [
+    "Nasus",
+    "Yorick",
+    "Dr. Mundo",
+    "Trundle",
+    "Volibear",
+    "Olaf",
+    "Yone",
+    "Akali",
+    "Quinn"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y zambullidor: abre la pelea con la R desde fuera de visión, con todo su equipo detrás de la estela de velocidad, o entra a la retaguardia tras el primer control del rival.",
+  "como_entrar": "R desde la niebla o desde la lateral hacia el grupo rival o el carry (inmune a controles durante la carga, con escudo) → al chocar, E, Q y W sobre el objetivo. Si Skaarl muere, se queda en la pelea: dispara y ataca para volver a montar. Sin R, entra con E tras una Q acertada.",
+  "objetivo": "El tirador o mago que pueda alcanzar con la carga; en escaramuzas tempranas, el que esté aislado. La Q le sirve para sujetar a los que intentan escapar.",
+  "posicion": "Por delante o por el flanco, a 3500-4500 u si guarda la R para abrir; no debe ir el primero visible sin R porque lo controlan antes de llegar."
+ },
+ "macro": {
+  "split_push": "Sí, en la fase media: con Hidra titánica, Rompecascos y la W contra torres empuja mucho (mediana 14 placas). Pasado el 14 está ~27 % del tiempo solo en una lateral (OTP). Con la R puede volver a la pelea del grupo desde la lateral sin Teleportar.",
+  "objetivos": "Ayuda a su jungla en las larvas (5:00-8:00) y en el Heraldo (desde el 14:00) gracias a la prioridad de top; tira placas y torres rápido. No hace dragón ni Barón solo; los asegura empujando antes con la R lista.",
+  "plan_de_partida": "0-6 min: ganar la línea con la Q desde el nivel 1, forzar Destello y kill a nivel 3. 6-14 min: zambullidas de torre con su jungla, R al río para larvas y Heraldo, placas. 14-25 min: tirar la torre exterior y la interior de top, entrar con R a las peleas de dragón. 25+: cerrar con Barón; si la partida se alarga, abrir peleas con la R sobre el carry y no pelear 1v1 contra los que escalan."
+ },
+ "debilidades": [
+  "Escala mal: gana el 37 % de las partidas de más de 35 minutos (OTP); contra tops de tardía (Kayle, Nasus, Fiora) tiene que cerrar pronto.",
+  "Muy dependiente de la Q: la bloquean los súbditos y se rompe si el rival se aleja a más de 625-800 u o tiene dashes.",
+  "Contra rangos que lo frenan (Vayne, Quinn, Kayle) o que lo controlan antes de llegar (Singed, Maokai), sufre en la línea y en las peleas.",
+  "Sin R (140-110 s de enfriamiento) le cuesta llegar a la retaguardia: solo tiene la E para cerrar distancia.",
+  "La reducción de curación y los tanques que no se pueden matar en un combo le quitan el valor de las dos vidas."
+ ],
+ "contrarrestado_por": [
+  "Fiora",
+  "Singed",
+  "Vayne",
+  "Kayle",
+  "Warwick",
+  "Irelia",
+  "Maokai"
+ ],
+ "bueno_contra": [
+  "Nasus",
+  "Yorick",
+  "Dr. Mundo",
+  "Trundle",
+  "Volibear",
+  "Olaf",
+  "Yone",
+  "Quinn"
+ ],
+ "sinergias": [
+  "Lee Sin",
+  "Jarvan IV",
+  "Elise",
+  "Nidalee",
+  "Xin Zhao",
+  "Orianna",
+  "Yasuo"
+ ],
+ "errores_comunes": [
+  "Lanzar la R hacia un grupo sin que su equipo le pueda seguir: llega solo, pierde a Skaarl y muere a pie.",
+  "Rendirse al perder a Skaarl en vez de seguir atacando o disparando para recuperar el Coraje.",
+  "Lanzar la Q a través de súbditos o sin poder seguir al enganchado: la cuerda se rompe y pierde el tirón.",
+  "Gastar las dos cargas de la E para entrar y quedarse sin forma de salir.",
+  "Alargar la partida farmeando en una lateral en lugar de usar su ventaja temprana para tirar torres y forzar objetivos.",
+  "Empujar sin visión del río: es de los tops que más mueren por gank (el 78 % de sus muertes antes del 14 son en top)."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de línea en OTP (224 partidas de 7 jugadores, parches 16.19-16.23, la mitad de Máster en adelante): nivel 2 a la 1:41, nivel 3 a las 2:09, nivel 6 a las 5:23 y nivel 11 a las 13:09 de mediana; CS 15 al 3:00, 23 al 4:00, 69 al 10:00 y 108 al 15:00.",
+  "Primera vuelta a base pronto: mediana 3:20 (p25 2:38, p75 4:08) con solo ~700 de oro, comprando Espada larga (casi siempre), Botas o Tiamat; un 28 % de las veces tras morir. Tiene ~6 vueltas a base por partida.",
+  "Objetos: Hidra titánica (71 %) o Soberbia (20 %) hacia el 11:20 (p25 10:05, p75 13:05); segundo hacia el 18:50 (Cuchilla negra o Rompecascos 23 % cada uno, Recordatorio letal 14 %, Sangría del soberano 11 %); tercero hacia el 24:20. Botas blindadas (60 %) hacia el 13:30.",
+  "La W no se lanza: el timeline la sube de nivel (se maximiza después de la Q) pero Riot cuenta 0 usos. Usa la Q ~90 veces por partida (incluye los disparos a pie) y la R ~7 veces.",
+  "La muerte de Skaarl no es una muerte: en el timeline solo aparece la muerte de Kled. Kled puede perder a Skaarl, seguir peleando a pie y volver a montar; un duelo que parecía perdido y acaba en kill de Kled es normal.",
+  "R de 3500-4500 u desde el nivel 6: una kill o asistencia suya en el río, en el dragón o en mid unos segundos después de estar en top es normal (la carga tarda ~4-5 s a máximo alcance y bordea los muros). Además, los aliados que siguen la estela llegan con él.",
+  "Roamea poco: kills/asistencias antes del 14 un 66 % en top, 16 % en el río, 9 % en la jungla y ~5 % en mid y en bot; solo en el 24 % de las partidas tiene una en otra línea antes del 14 (la primera hacia el 12:00). Muertes antes del 14: 78 % en top (mediana 2).",
+  "Prender (58 %) o Teleportar (40 %) en OTP: con Teleportar, una aparición en bot o en el dragón sin pasar por el río es teletransporte.",
+  "Mucho empuje: mediana de 14 placas por partida y 3 kills en solitario. Pasado el 14, ~27 % del tiempo vivo solo en una lateral y 22 % agrupado.",
+  "Curva de victorias muy temprana en OTP: 75 % en partidas de menos de 20 minutos y 37 % en las de más de 35."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/kled/build/",
+  "https://lolalytics.com/lol/kled/counters/",
+  "https://www.op.gg/lol/champions/kled/build/top",
+  "https://wiki.leagueoflegends.com/en-us/Kled",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Kled top, parches 16.19-16.23 (data/otps/Kled/TOP: 224 partidas de 7 jugadores)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 117,
+    "victorias": 0.538,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 39,
+      "victorias": 0.513
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.6,
+     "mediana": 3.7,
+     "p75": 5.4
+    },
+    "primer_objeto_min": {
+     "p25": 10.0,
+     "mediana": 11.1,
+     "p75": 12.9
+    },
+    "segundo_objeto_min": {
+     "p25": 16.0,
+     "mediana": 17.9,
+     "p75": 19.9
+    },
+    "primer_objeto": [
+     [
+      "Hidra titánica",
+      0.93
+     ],
+     [
+      "Hidra profana",
+      0.03
+     ],
+     [
+      "Corazón de acero",
+      0.02
+     ],
+     [
+      "Cuchilla negra",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQWQ",
+      0.46
+     ],
+     [
+      "QEQWQRQWQ",
+      0.27
+     ],
+     [
+      "QWEQQRQWQ",
+      0.2
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.3,
+     "mediana": 43.5,
+     "p75": 50.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.4,
+     "mediana": 23.2,
+     "p75": 27.5
+    },
+    "vision_por_min": {
+     "p25": 0.62,
+     "mediana": 0.72,
+     "p75": 0.88
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 2.84,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 21.8,
+     "mediana": 33.0,
+     "p75": 44.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.0,
+     "mediana": 21.1,
+     "p75": 27.0
+    },
+    "cs_10": {
+     "p25": 65.0,
+     "mediana": 75.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -6.0,
+     "mediana": 9.0,
+     "p75": 24.0
+    },
+    "dif_oro_10": {
+     "p25": -356.0,
+     "mediana": 352.0,
+     "p75": 1182.0
+    },
+    "placas": {
+     "p25": 10.0,
+     "mediana": 14.0,
+     "p75": 20.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 4.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.2,
+     "mediana": 7.1,
+     "p75": 11.3
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.21-16.23"
+   }
+  }
+ }
+}

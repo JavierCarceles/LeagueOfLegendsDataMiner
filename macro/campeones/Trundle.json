@@ -1,0 +1,595 @@
+{
+ "clave": "Trundle",
+ "nombre": "Trundle",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.659,
+   "principal": true
+  },
+  {
+   "rol": "JUNGLE",
+   "parte": 0.296,
+   "principal": false
+  }
+ ],
+ "arquetipo": "luchador-tanque de duelo y asedio (Q que roba DA, W de velocidad de ataque en su zona y R que roba vida, armadura y resistencia mágica) que gana 1v1 a tanques y luchadores de DA, derriba torres muy deprisa y en jungla despeja rápido y hace Barón solo antes que casi nadie",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Desde nivel 1 la Q (3,5 s, reinicia el ataque y le quita DA al rival) le hace ganar casi cualquier intercambio de golpes contra luchadores de DA; a nivel 3 con W suma un 30 % de velocidad de ataque y un 20 % de velocidad de movimiento dentro de su zona. Su mejor tramo es nivel 6 (R) con Hidra voraz o Fuerza de trinidad (~11-20 min): gana duelos a casi todos los tanques y luchadores, derriba torres con Rompecascos y hace Barón solo. En la tardía sigue siendo un frontal molesto contra tanques (la R roba el 40 % de sus resistencias), pero los tiradores con kiteo, el daño mágico a distancia y el control en cadena lo frenan: no tiene ningún salto."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 (~1:00) con Q",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Chomp (3,5 s) reinicia el ataque, hace 10 (+15 % DA) adicional, le da +20 de DA durante 5 s y quita 10 al rival. Con Compás letal cargando, en un intercambio de 3-4 golpes saca dos Q: contra luchadores de DA cuerpo a cuerpo (Yorick, Irelia, Yasuo, Ambessa) gana la pelea de nivel 1."
+  },
+  {
+   "cuando": "Nivel 3 (~2:15 en top; ~1:55 en jungla tras 3 campamentos)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Q-W-E ya tiene el kit: W (750 u, zona de 775 de radio durante 8 s) da +30 % de velocidad de ataque y +20 % de velocidad, y el Pilar de hielo (1000 u, 34 % de ralentización, 6 s) corta la huida. Es su primer momento de gank en jungla (sobre todo a mid tras roja-krugs-rapaces) y de all-in en top si el rival no tiene Destello."
+  },
+  {
+   "cuando": "Nivel 6 (~5:15 en top, ~6:15 en jungla)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Subjugate (650 u, 120 s): drena el 20 % de la vida máxima del objetivo (mitad al instante, mitad en 4 s), se cura lo mismo y le roba el 40 % de su armadura y resistencia mágica durante 8 s. Contra tanques o luchadores con mucha vida da la vuelta al duelo; también sirve sobre el Heraldo, el dragón o el Barón."
+  },
+  {
+   "cuando": "Primer objeto (~10:30-12:00): Hidra voraz en top o Fuerza de trinidad en jungla",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Fuerza de trinidad",
+   "por_que": "En top, Hidra voraz (la más común primero) da limpieza en área y curación; Fuerza de trinidad (Brillo con la Q, que reinicia el ataque) le da el daño de ráfaga para duelos. En jungla la Fuerza de trinidad es el primer objeto casi siempre. Con uno de los dos y R gana el 1v1 a la mayoría de luchadores y empieza a derribar torres en pocos segundos."
+  },
+  {
+   "cuando": "Dos o tres objetos (~19-25 min) con Rompecascos o con Coraza del muerto y Rostro espiritual",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Rompecascos",
+   "por_que": "Top: Hidra voraz + Fuerza de trinidad + Rompecascos es la ruta de split push más jugada (OP.GG 18 % y 56 % de victorias): solo en una lateral derriba torres en segundos y la R a nivel 11 (100 s) gana el duelo a quien venga. Jungla: Fuerza de trinidad + Coraza del muerto + Rostro espiritual (21 %, 58 %) para entrar con velocidad y curarse un 25 % más en la W. Con la R al 30 % hace Barón solo hacia el minuto 20-25."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "King's Tribute: cuando muere una unidad enemiga a menos de 1400 u, se cura un 1,8-5,94 % (según nivel) de la vida máxima de esa unidad. No funciona con estructuras. Le da mucha sostenibilidad en la línea (cada súbdito que muere cerca) y en la jungla (los monstruos grandes curan mucho); con muertes de campeones o del Barón cerca, la curación es enorme.",
+  "Q": "Chomp: 3,5 s de enfriamiento y 20 de maná. Potencia el siguiente ataque (7 s para usarlo, +25 de alcance y no se puede cancelar): hace 10/30/50/70/90 (+15-55 % DA) de daño físico adicional, ralentiza un 75 % durante 0,1 s, le da +20/25/30/35/40 de DA durante 5 s y le quita la mitad de esa cifra de DA al objetivo. Reinicia el ataque básico: ataque → Q → ataque son dos golpes casi seguidos. Es su daño principal y lo que le hace ganar duelos a campeones de DA.",
+  "W": "Frozen Domain: 18/17/16/15/14 s de enfriamiento y 40 de maná. Congela una zona de 775 de radio a hasta 750 u durante 8 s; dentro de ella gana +30/50/70/90/110 % de velocidad de ataque (subida en el 26.17), +20/28/36/44/52 % de velocidad de movimiento y un 25 % más de curación de todas las fuentes (pasiva, R, Hidra voraz, Rostro espiritual). Se puede lanzar delante para perseguir o detrás para huir; los duelos que pelea dentro de ella los gana casi siempre.",
+  "E": "Pillar of Ice: 21/19,5/18/16,5/15 s y 75 de maná, 0,25 s de lanzamiento. Crea un pilar a hasta 1000 u que dura 6 s y es terreno (150 de radio): bloquea caminos estrechos, aparta 225 u del centro a las unidades que hay debajo y ralentiza un 34-50 % a los enemigos cercanos (~360 u). Puesto detrás del rival lo empuja hacia Trundle; puesto en un pasillo de la jungla le corta la huida. No da visión (se la quitaron). Interrumpe canalizaciones de aliados que pille debajo (Teleportar, vuelta a base). El escudo de hechizos no lo bloquea.",
+  "R": "Subjugate: 120/100/80 s y 100 de maná, 650 u. Drena en total el 20/25/30 % (+2 % por cada 100 de PH) de la vida máxima del objetivo como daño mágico (la mitad al lanzarla y el resto en 4 s) y se cura lo mismo; además le quita el 40 % de su armadura y resistencia mágica actuales (20 % al instante y 20 % en 4 s), se lo queda Trundle y la reducción dura otros 4 s. Funciona con monstruos: sobre el Barón o un dragón es un 20-30 % de su vida. Se cancela sin gastar enfriamiento si el objetivo se vuelve inalcanzable o sale de la visión durante el lanzamiento."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E y Q al máximo en el 72 % de las partidas de top (OP.GG) y en la mayoría de las de jungla; algunos de top suben la W al máximo (W > Q en Lolalytics, con más victorias pero pocas partidas) para despejar y asediar más rápido con más velocidad de ataque. En top, Q-E-W cuando quieren el Pilar a nivel 2 para un all-in con el jungla. La E se queda a nivel 1 hasta el final. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno: no tiene dashes ni saltos. Solo la velocidad de la W (+20-52 % dentro de su zona de 775 de radio, 8 s) y el Destello (400 u). El Pilar de hielo (1000 u) mueve al rival, no a Trundle: lo aparta hasta 225 u del centro.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Roba estadísticas: la Q quita la mitad del DA que gana (hasta 20) y la R le quita al objetivo el 40 % de su armadura y resistencia mágica y un 20-30 % de su vida máxima para dárselo a Trundle. Cuanto más tanque es el rival, mejor le sale el duelo.",
+  "El Pilar de hielo es terreno temporal: bloquea pasillos estrechos de la jungla, encierra a un rival contra un muro o lo empuja 225 u hacia su equipo; también corta caminos de huida a la entrada del río.",
+  "La pasiva le cura un porcentaje de la vida máxima de cualquier unidad que muera cerca (1400 u): en jungla los monstruos grandes le devuelven la vida, y al morir el Barón o un dragón cerca recupera mucho.",
+  "La R sobre monstruos épicos: drenar el 20-30 % de la vida del Barón o de un dragón le permite hacerlos solo antes que casi cualquier otro campeón y robar épicos al lado del rival.",
+  "Asedio: con Hidra voraz o Hidra titánica, Rompecascos y Demoler derriba torres más rápido que casi nadie; el reinicio de la Q también golpea a estructuras."
+ ],
+ "combos": [
+  "Intercambio corto: ataque → Q (reinicia el ataque) → ataque y retirarse; el rival se queda con menos DA 5 s.",
+  "All-in de nivel 3+: W bajo los pies o en el camino del rival → E detrás de él para empujarlo hacia ti o cortarle la huida → ataque → Q → ataques; Prender si baja de la mitad.",
+  "Duelo con R: R al principio contra tanques o luchadores (para quedarse su armadura desde el primer golpe) o al final para rematar curándose; siempre dentro de la W.",
+  "Gank de jungla: entrar por el lado de la huida → E detrás del laner para empujarlo hacia tu aliado → W → Q; si tiene Destello, guardar el Pilar para después de que lo use.",
+  "Barón o dragón solo: W → R al monstruo nada más empezar → ataques con Q en cada enfriamiento; Castigo al final.",
+  "Pelea de equipo: E en medio del grupo rival para separar al frontal de la retaguardia → W debajo del grupo propio → R al tanque rival para quedarse su armadura, o al carry si llega."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Hidra voraz",
+   "Fuerza de trinidad",
+   "Rompecascos",
+   "Baile de la muerte",
+   "Rostro espiritual",
+   "Coraza del muerto",
+   "Hoja del rey arruinado",
+   "Malla de espinas",
+   "Hidra titánica",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Jak'Sho el Proteico"
+  ],
+  "runas": "Top: Compás letal + Triunfo + Leyenda: Presteza + Último esfuerzo; secundaria Valor con Demoler y Revestimiento de huesos, Sobrecrecimiento o Revitalizar (82 % de las páginas en OP.GG); fragmentos de velocidad de ataque, fuerza adaptable y vida. Alternativas: Ataque intensificado (8 %) o Conquistador. Jungla: Ataque intensificado (la más elegida) o Compás letal con secundaria Inspiración (Calzado mágico y Velocidad de acercamiento).",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Top: Destello + Prender (63 %) o Destello + Agotamiento (15 %); Teleportar si el rival le gana la línea. Inicio con Espada de Doran (52 %) o Arco de Doran (29 %) y poción. Primer objeto Hidra voraz, luego Fuerza de trinidad y Rompecascos (split push) o Baile de la muerte; Rostro espiritual y Malla de espinas si va de frontal. Jungla: Destello + Castigo (97 %), mascota Cría de Caminabrisas o Brote de Brincamontes, Brillo pronto y Fuerza de trinidad, y después Coraza del muerto y Rostro espiritual (o Hoja del rey arruinado contra tanques). Botas blindadas contra DA y de mercurio contra control y daño mágico."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q: la oleada llega hacia el 1:00. Busca el intercambio de golpes cuando el rival va a rematar un súbdito: ataque → Q → ataque y sale; con Compás letal cargado gana casi todos los nivel 1 contra cuerpo a cuerpo de DA. Nivel 2 (~1:45) con W para tener velocidad de ataque; nivel 3 (~2:15) con E para el all-in si el rival no tiene Destello.",
+    "tradeos": "Intercambios cortos con la Q cada 3,5 s, aprovechando que el rival tiene menos DA durante 5 s. Los largos solo dentro de la W. Contra rangos (Quinn, Teemo, Vayne) no persigue: espera a que se acerquen a por súbditos o al jungla, porque sin saltos el kiteo le gana. Contra magos y Swain el robo de DA no le sirve de nada.",
+    "oleadas": "Empuja rápido con W y Hidra voraz para coger placas; con Demoler y la Q las torres caen deprisa. Contra rivales que le ganan, congela cerca de su torre y se cura con la pasiva por cada súbdito que muere. Vuelve a base tras estrellar la oleada hacia el 4:00 con Espada larga, Tiamat o Brillo.",
+    "all_in": "A nivel 3 si el rival tiene menos vida y sin Destello; a nivel 6 con R + Prender casi siempre contra luchadores y tanques, incluida la zambullida bajo torre con el Pilar para que no escape. El Pilar detrás del rival lo empuja hacia ti o hacia tu jungla.",
+    "jugar_seguro": "Contra Kled, Jax, Gragas, Akali, Swain, Anivia o Quinn: farmear con la Q, no gastar el Pilar en poke, comprar Botas blindadas o de mercurio pronto y esperar al jungla o a la Hidra voraz. Si el rival tiene Llamada del verdugo, intercambios cortos."
+   },
+   "roameos": "Roamea poco antes del 14: su fuerza está en ganar la línea y derribar la torre. Con prioridad baja al río para la escuttle o las Larvas (8:00) con su jungla, y con Teleportar va al dragón o a bot. Tras tirar la primera torre puede ir a mid a empujar o invadir la jungla rival con su jungla (despeja campamentos muy rápido con la W).",
+   "fase_media": "Split pusher: con Hidra voraz + Fuerza de trinidad (+ Rompecascos) se queda en la lateral (sobre todo top) derribando torres y obliga a dos rivales a venir; con la R lista gana el 1v1 a casi cualquier luchador o tanque. Hacia el 20-25 puede hacer Barón solo con la R o en 2 con su jungla. Se une a las peleas de equipo solo con Teleportar o si el objetivo está cerca; no debe quedarse en la lateral sin visión con la R en enfriamiento.",
+   "matchups_dificiles": [
+    "Kled",
+    "Jax",
+    "Gragas",
+    "Akali",
+    "Swain",
+    "Anivia",
+    "Quinn",
+    "Teemo",
+    "Vayne"
+   ],
+   "matchups_faciles": [
+    "Yorick",
+    "Yasuo",
+    "Ambessa",
+    "Ryze",
+    "Maokai",
+    "Irelia",
+    "Heimerdinger",
+    "Dr. Mundo",
+    "Sion"
+   ]
+  },
+  "JUNGLE": {
+   "inicio": "Roja en ~50 % de las partidas (la más popular según jungler.gg) para ir rápido al gank de mid o de la línea lateral de ese lado con Q-W-E; azul (52,9 % de victorias, más en el lado azul) para el despeje completo. Q a nivel 1, W a nivel 2 (la velocidad de ataque de la W acelera muchísimo el despeje) y E a nivel 3. Mascota Cría de Caminabrisas (la más común) o Brote de Brincamontes.",
+   "rutas": [
+    {
+     "nombre": "Roja-krugs-rapaces y gank de nivel 3",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors"
+     ],
+     "despues": "Gank a mid (o a la lateral del lado de la roja) hacia las 2:00-2:20 con Q-W-E; si no hay gank, sigue por lobos-gromp-azul y llega a nivel 4 hacia las 3:20 para volver a base o ganquear el otro lado.",
+     "nivel": 3,
+     "minuto": "2:05",
+     "cuando": "La ruta recomendada por jungler.gg y la más común: el Pilar de hielo de nivel 3 hace que mid o la lateral cercana sean fáciles de ganquear si el rival está empujado o sin Destello."
+    },
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs",
+      "scuttle_bot"
+     ],
+     "despues": "Escuttle del lado de la roja (o gank a la línea de ese lado) y vuelta a base hacia el 3:45-4:00 con ~1000 de oro a por Brillo o botas.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "La de más victorias en jungler.gg (54,2 % y 7,3 % de uso): en partidas sin ganks claros de nivel 3 o contra junglas que le pueden invadir pronto; en el lado rojo la escuttle final será la de top (scuttle_top)."
+    },
+    {
+     "nombre": "Despeje completo desde roja",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "gromp",
+      "blue"
+     ],
+     "despues": "Escuttle del lado de la azul o gank a top/mid según el lado, y base.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "Cuando nadie se puede ganquear a nivel 3: llega al nivel 4 con Q a nivel 2 y todo el oro de la jungla para el Brillo."
+    }
+   ],
+   "ganks": "Ventanas: nivel 3 (~2:05, Q-W-E) y nivel 6 (~6:15, R). Entra por detrás de la línea para que el Pilar empuje al rival hacia el aliado o le corte el camino a su torre; con la W gana un 20-28 % de velocidad para alcanzarlo. Mejores ganks a mid y a las laterales con rivales cuerpo a cuerpo sin desplazamientos; contra rivales con dash (Ezreal, Lucian) espera a que lo gasten antes del Pilar.",
+   "objetivos": "Dragón (5:00) solo desde nivel 4-5 con la W y la pasiva; desde nivel 6 la R le quita un 20 % de la vida del dragón de golpe. Larvas (8:00) rápidas por la velocidad de ataque de la W. Heraldo (15:00) solo sin problema. Barón solo desde ~nivel 11-13 con 2 objetos (Fuerza de trinidad + Hoja del rey arruinado o Hidra titánica): es su jugada más famosa y la R le permite robarlo en el 50-50.",
+   "invasion": "Sí: gana casi todos los duelos tempranos a junglas de daño físico (Rengar, Kha'Zix, Nidalee, Rek'Sai, Qiyana) y la R le cura al quitar los campamentos grandes. Invade la segunda ronda (4:00-7:00) cuando su mid o la lateral cercana tienen prioridad, y en la fase media se come campamentos del rival muy deprisa.",
+   "contra_jungla": "Contra invasiones de nivel 1-2 aguanta en duelo con Q y la pasiva; contra junglas de control y daño mágico que le ganan (Fiddlesticks, Zac, Elise, Vi, Xin Zhao) cede el campamento y se va al otro lado.",
+   "plan": "Ganks de nivel 3 y 6 con el Pilar, dragones y Heraldo con prioridad, y Fuerza de trinidad hacia el 10-11. Con dos objetos juega alrededor del Barón: lo hace solo o lo roba con la R. En peleas, frontal que separa con el Pilar y se queda las resistencias del tanque rival."
+  }
+ },
+ "peleas": {
+  "papel": "Frontal de duelo y separador: entra con la W, parte la pelea con el Pilar y anula al tanque rival con la R; en top, split pusher que gana el 1v1.",
+  "como_entrar": "Lanza la W por delante para tener velocidad y entra; el Pilar en medio del grupo rival o detrás del carry para aislarlo de su frontal. La R al tanque o luchador rival con más vida y resistencias para convertirse en el más duro de la pelea, o al carry si llega a él.",
+  "objetivo": "El frontal rival (tanque o luchador) para ganar con su R, o el carry que se quede encerrado por el Pilar. No llega a una retaguardia bien protegida sin Destello.",
+  "posicion": "Primera línea, peleando dentro de su W; en peleas en la jungla, en los pasillos estrechos donde el Pilar corta el camino."
+ },
+ "macro": {
+  "split_push": "Alto en top: con Hidra voraz, Rompecascos y Demoler derriba torres en muy pocos golpes y gana el duelo a casi cualquier luchador con la R lista. En jungla, poco: se agrupa para objetivos y peleas.",
+  "objetivos": "Torres muy rápido (top). Dragón solo desde nivel 4-6, Heraldo solo y Barón solo desde ~2 objetos gracias a la R (20-30 % de su vida) y la W; también roba épicos con la R en el último momento.",
+  "plan_de_partida": "0-14 min: ganar la línea con la Q y coger placas (top) o ganquear a nivel 3 y 6 con el Pilar (jungla). 14-25 min: split push con Rompecascos o jugar alrededor del dragón y del Barón, que puede hacer solo. 25+: frontal que separa con el Pilar y anula al tanque rival con la R; si su equipo tiene más daño a distancia, presiona la lateral y obliga a respuestas."
+ },
+ "debilidades": [
+  "Sin desplazamientos: los rangos que kitean (Quinn, Vayne, Teemo), los magos y el control en cadena le ganan, y cualquier ralentización lo deja fuera de la pelea.",
+  "Su Q (robo de DA) no sirve contra daño mágico: Swain, Anivia, Malzahar o Gragas le ganan la línea.",
+  "Depende de pelear dentro de su W: fuera de ella pierde la velocidad de ataque y la curación extra.",
+  "La reducción de curación (Llamada del verdugo, Malla de espinas, Prender) le quita la ventaja de la pasiva y la R.",
+  "Contra equipos sin tanques la R pierde mucho: robar resistencias a un carry blando vale menos que a un frontal."
+ ],
+ "contrarrestado_por": [
+  "Kled",
+  "Jax",
+  "Gragas",
+  "Swain",
+  "Anivia",
+  "Quinn",
+  "Akali",
+  "Fiddlesticks",
+  "Xin Zhao",
+  "Rek'Sai",
+  "Zac",
+  "Elise"
+ ],
+ "bueno_contra": [
+  "Yorick",
+  "Yasuo",
+  "Ambessa",
+  "Ryze",
+  "Maokai",
+  "Irelia",
+  "Zed",
+  "Karthus",
+  "Dr. Mundo",
+  "Skarner",
+  "Nidalee",
+  "Rengar"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Orianna",
+  "Lulu",
+  "Nautilus",
+  "Jarvan IV",
+  "Taliyah"
+ ],
+ "errores_comunes": [
+  "Pelear fuera de su W: pierde hasta un 110 % de velocidad de ataque y la curación extra.",
+  "Lanzar el Pilar mal colocado y empujar al rival lejos de ti o hacia su torre en vez de hacia tu equipo.",
+  "Gastar la R en el carry blando al principio de la pelea cuando el tanque rival es quien le va a parar; contra tanques, la R primero.",
+  "Perseguir a rangos con kiteo sin Destello ni Pilar: sin saltos nunca los alcanza y se come todo el daño.",
+  "No aprovechar el Barón solo: con 2 objetos y la R lo puede hacer en pocos segundos cuando el rival está en otra lateral.",
+  "Quedarse en la lateral con la R en enfriamiento y sin visión: sin desplazamientos, una emboscada de 2 es casi segura muerte."
+ ],
+ "senales_reconstructor": [
+  "Dos roles: ~66 % top y ~30 % jungla (Lolalytics y OP.GG 16.23). En top lleva Destello + Prender (63 %) o Agotamiento (15 %); en jungla Destello + Castigo (97 %). Identificar el rol por el Castigo y el CS de jungla de los primeros minutos.",
+  "Ritmo de top: nivel 2 hacia la 1:45, 3 hacia las 2:15 y 6 hacia el 5:15; primera vuelta a base tras estrellar la oleada hacia el 3:45-4:15 con Tiamat, Espada larga o Brillo. Hidra voraz hacia el 10:30-12:00, Fuerza de trinidad hacia el 17-19 y Rompecascos hacia el 24-26.",
+  "Despeje de jungla: con la W (+30 % de velocidad de ataque desde el 26.17) despeja rápido. Ruta roja-krugs-rapaces con gank de nivel 3 hacia las 2:05-2:20 (unos 12-14 de CS de jungla en ese momento) o despeje completo de 6 campamentos hacia las 3:15-3:25 con ~24 de CS de jungla y vuelta a base hacia el 3:45-4:00.",
+  "No tiene ningún salto, dash ni efecto global: cualquier movimiento más rápido que andar (con la W, hasta +52 % de velocidad en una zona de 775 de radio) es Destello o un error de reconstrucción. Su posición de un minuto al siguiente está limitada por andar.",
+  "Barón solo: con 2 objetos (Fuerza de trinidad + Hoja del rey arruinado o Hidra titánica) y la R (20-30 % de la vida del Barón) puede hacerlo solo hacia el 20-25; un Barón de su equipo con Trundle como único campeón cerca del foso es normal. Igual con el dragón desde nivel 4-6 y el Heraldo.",
+  "Robos de épicos: la R drena un 20-30 % de la vida máxima del monstruo y la pasiva le cura al morir; un Barón o dragón robado por Trundle en la zona del rival es coherente con su kit.",
+  "En top, split push: tras el 14 pasa mucho tiempo solo en una lateral y derriba torres muy deprisa (Hidra voraz + Rompecascos + Demoler); varias torres seguidas en la misma lateral con él solo cerca son lo esperable. Lolalytics le da ~6 de CS de jungla por partida en top: suele quitar campamentos cercanos al volver a la línea.",
+  "Curación muy alta (sexto campeón con más curación en Lolalytics, ~18.000 por partida): sobrevivir a un 1v2 contra luchadores de DA dentro de su W es coherente con su kit.",
+  "El Pilar (1000 u) aparta al rival hasta 225 u y lo ralentiza un 34-50 %: víctimas que mueren cerca de un muro o encerradas en un pasillo del río son lo típico; el Pilar también interrumpe vueltas a base y Teleportar de aliados que estén debajo.",
+  "Orden Q-W-E y Q al máximo casi siempre; la E se queda a nivel 1 hasta el 14-15. Ver W al máximo (W en 8, 10, 12, 13) es una variante de top para asediar, no un error."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/trundle/build/",
+  "https://lolalytics.com/lol/trundle/build/?lane=jungle",
+  "https://www.op.gg/lol/champions/trundle/build/top",
+  "https://www.op.gg/lol/champions/trundle/build/jungle",
+  "https://jungler.gg/champions/trundle/",
+  "https://wiki.leagueoflegends.com/en-us/Trundle",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 29,
+    "victorias": 0.517,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 3.9,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 12.3,
+     "mediana": 13.3,
+     "p75": 14.7
+    },
+    "segundo_objeto_min": {
+     "p25": 17.9,
+     "mediana": 21.1,
+     "p75": 23.2
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.36
+     ],
+     [
+      "Hidra voraz",
+      0.32
+     ],
+     [
+      "Hoja del rey arruinado",
+      0.21
+     ],
+     [
+      "Flechas de los Yun Tal",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.21
+     ],
+     [
+      "QWEQQRWQQ",
+      0.14
+     ],
+     [
+      "QWEQQRWWQ",
+      0.14
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.83
+     ],
+     [
+      "WQE",
+      0.17
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 30.0,
+     "mediana": 35.3,
+     "p75": 40.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.8,
+     "mediana": 19.3,
+     "p75": 23.8
+    },
+    "vision_por_min": {
+     "p25": 0.77,
+     "mediana": 0.94,
+     "p75": 1.08
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.31,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 24.2,
+     "mediana": 32.0,
+     "p75": 39.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 9.7,
+     "mediana": 15.5,
+     "p75": 27.3
+    },
+    "cs_10": {
+     "p25": 60.8,
+     "mediana": 67.0,
+     "p75": 77.5
+    },
+    "dif_cs_10": {
+     "p25": -19.0,
+     "mediana": -1.0,
+     "p75": 4.5
+    },
+    "dif_oro_10": {
+     "p25": -536.0,
+     "mediana": -277.0,
+     "p75": 624.0
+    },
+    "placas": {
+     "p25": 7.0,
+     "mediana": 12.0,
+     "p75": 20.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 10.1,
+     "p75": 12.9
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.9-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 61,
+    "victorias": 0.656,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.7,
+     "mediana": 4.8,
+     "p75": 6.3
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 10.8,
+     "p75": 11.8
+    },
+    "segundo_objeto_min": {
+     "p25": 17.3,
+     "mediana": 19.1,
+     "p75": 20.8
+    },
+    "primer_objeto": [
+     [
+      "Fuerza de trinidad",
+      0.85
+     ],
+     [
+      "Hidra profana",
+      0.1
+     ],
+     [
+      "Hoja del rey arruinado",
+      0.03
+     ],
+     [
+      "Hidra voraz",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.36
+     ],
+     [
+      "QWQEQRQWQ",
+      0.34
+     ],
+     [
+      "QWEQQRWQQ",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.9
+     ],
+     [
+      "WQE",
+      0.1
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 45.0,
+     "mediana": 53.6,
+     "p75": 64.3
+    },
+    "parte_del_dano_pct": {
+     "p25": 13.5,
+     "mediana": 17.1,
+     "p75": 19.5
+    },
+    "vision_por_min": {
+     "p25": 0.89,
+     "mediana": 1.11,
+     "p75": 1.33
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.74,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.6,
+     "p75": 5.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 33.3,
+     "mediana": 40.2,
+     "p75": 50.0
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.44
+     ],
+     [
+      "red",
+      0.38
+     ],
+     [
+      "raptors",
+      0.08
+     ],
+     [
+      "wolves",
+      0.07
+     ],
+     [
+      "krugs",
+      0.02
+     ],
+     [
+      "gromp",
+      0.02
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 20.0,
+     "mediana": 24.0,
+     "p75": 26.0
+    },
+    "cs_jungla_10": {
+     "p25": 58.0,
+     "mediana": 62.0,
+     "p75": 68.0
+    },
+    "primer_gank_min": {
+     "p25": 3.1,
+     "mediana": 5.5,
+     "p75": 8.2
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.53
+     ],
+     [
+      "mid",
+      0.25
+     ],
+     [
+      "top",
+      0.22
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 8.0,
+     "p75": 14.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.19-16.23"
+   }
+  }
+ }
+}

@@ -1,0 +1,385 @@
+{
+ "clave": "Sett",
+ "nombre": "Sett",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.926,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador-juggernaut de top que gana intercambios largos con sus puñetazos alternos y la regeneración de la pasiva, devuelve el daño recibido como daño verdadero con la W y lanza al rival encima de su equipo con la R; fuerte desde nivel 2-3, con pico en el 6 y con Cortasendas",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 5,
+  "tardia": 3,
+  "nota": "De nivel 1 a 6 gana los intercambios largos contra casi todos los cuerpo a cuerpo: el puñetazo derecho es más rápido y fuerte, la Q le acerca y la W le da escudo y daño verdadero con todo lo que ha recibido. Su mejor tramo es de nivel 6 a los 2 objetos (~19 min): R sobre el frontal o el carry para aplastar a los de alrededor, y Cortasendas + Cuchilla negra para pegarse. En la tardía sigue siendo un frontal molesto (Sangría del soberano, Armadura de Warmog), pero los tiradores que le kitean y los equipos de control le quitan la pelea; en OTP gana el 64 % de las partidas de menos de 20 min y ~50-55 % en el resto."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (nivel 2 a la 1:40, nivel 3 a las 2:05 en OTP)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "W-E a nivel 2 (W primera en el 47 % de los OTP) y Q a nivel 3: E para tirar del rival contra un súbdito (aturdimiento si hay alguien a cada lado), Q para los dos puñetazos de daño por vida máxima y W al final con la Valentía acumulada. Con Prender, el all-in de nivel 3 contra un rival que ya ha intercambiado suele ser kill."
+  },
+  {
+   "cuando": "Nivel 6 (~5:20 en OTP)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "The Show Stopper (R, 120 s): agarra al rival a 400 u, salta 600 u con él y lo aplasta (200 + 40 % de su vida adicional) ralentizando 99 % a los de alrededor. Le permite zambullir bajo torre o lanzar al rival hacia su jungla."
+  },
+  {
+   "cuando": "Primer objeto (~11:55; p25 10:25, p75 13:35): Cortasendas",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Cortasendas",
+   "por_que": "Cortasendas en el 95 % de los OTP: el golpe en área ralentiza y da velocidad, que es lo que le falta para pegarse a rangos y a los que huyen. Con él gana casi todas las escaramuzas de río y Heraldo con su jungla."
+  },
+  {
+   "cuando": "Dos objetos (~19:10) con Cuchilla negra o Sangría del soberano",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Cuchilla negra",
+   "por_que": "Cuchilla negra (63 % de segundos objetos) le quita armadura a los frontales y le da vida; con la R a 100 s y la W con Valentía de 3000+ de vida, cada W en el centro quita una barra a un carry. Es su pico de peleas de equipo y de presión lateral."
+  },
+  {
+   "cuando": "Tres objetos (~25:45) con Sangría del soberano o Armadura de Warmog",
+   "nivel": 14,
+   "objetos": 3,
+   "objeto": "Sangría del soberano",
+   "por_que": "Sangría del soberano (vida que se convierte en DA) y Armadura de Warmog le vuelven un frontal muy duro; su W crece con la vida máxima (Valentía de hasta el 50 %). A partir de aquí escala menos que los luchadores de duelo, pero aguanta como iniciador."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Pit Grit: sus ataques alternan puñetazo izquierdo y derecho; el derecho tiene 50 de alcance más, sale casi sin animación y hace 5-100 (+55 % DA adicional) adicional. Si pasa 2 s sin dar un derecho, vuelve a empezar por el izquierdo. Además regenera vida según la que le falta (hasta ~42 por segundo a nivel 18 cerca de morir): alejarse 10 s de la pelea le recupera mucho.",
+  "Q": "Knuckle Down: 9-5 s, sin coste. Sus dos siguientes ataques en 5 s ganan 50 de alcance y hacen 10-50 (+100 % DA) más un 1 % de la vida máxima del objetivo (+1-3 % por cada 100 de DA), con tope de 400 contra monstruos; reinicia el ataque y da izquierdo + derecho seguidos. Durante 1,5 s gana un 30 % de velocidad si va hacia un campeón enemigo visible a menos de 2000 u: es su forma de acercarse.",
+  "W": "Haymaker: 18-12 s. Pasiva: almacena el 100 % del daño que recibe tras mitigaciones como Valentía, hasta el 50 % de su vida máxima, que baja un 30 % por segundo tras 4 s. Activa (0,75 s de carga): gasta toda la Valentía para un escudo de ese valor durante 3 s y un puñetazo en cono de ~720-790 u que hace 80-160 (+25 % de la Valentía, +25 % por cada 100 de DA adicional); los que pilla en la línea central reciben daño verdadero. Es su daño de pelea larga y su supervivencia.",
+  "E": "Facebreaker: 16-10 s, 450-490 u a cada lado. Atrae a los enemigos de los dos lados hacia él y hace 50-130 (+60 % DA). Si hay al menos un enemigo a cada lado (súbditos y monstruos cuentan) aturde 1 s a todos; si solo hay en un lado, los ralentiza un 70 % 0,5 s. Tirar del campeón contra un súbdito del otro lado le da el aturdimiento en línea.",
+  "R": "The Show Stopper: 120/100/80 s. Salta a un campeón a 400 u (inmune a desplazamientos), lo agarra (supresión), salta otras 600 u en la dirección que apunta y lo aplasta: 200/300/400 (+120 % DA adicional) más un 40/50/60 % de la vida adicional del agarrado; a los de alrededor (600 u) les hace parte de ese daño y los ralentiza un 99 % 1 s. Dura ~1,5 s. Sirve para meter al rival en su equipo, sacar a un tanque de la pelea o aplastar al tanque encima de sus carries."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "W",
+   "E",
+   "Q"
+  ],
+  "nota": "Las tres primeras subidas cambian según el rival: W-E-Q (47 % de los OTP Diamante+, la más jugada en Lolalytics) para tener el escudo a nivel 1; E-W-Q (33 %) para tirar del rival contra la oleada a nivel 1-2; E-Q-W (17 %) para un nivel 2 de mucho daño. Maximiza Q (menos enfriamiento y más daño por vida máxima) y luego W (más daño base y menos enfriamiento); E la última (99,6 %). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: +30 % de velocidad durante 1,5 s hacia un campeón enemigo. R: salto de 400 u al objetivo, otras 600 u con él y un deslizamiento de 250 u: mueve al agarrado hasta ~850-1250 u de donde estaba. Destello y, en el 20 % de los OTP, Fantasmal; Cortasendas añade velocidad tras su golpe.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el salto con el rival agarrado cruza muros finos (los que se pueden atravesar con un dash) si apunta al otro lado; contra un muro grueso se para antes y el deslizamiento final no atraviesa terreno. Puede llevarse al rival de un lado a otro de un muro del río o de la jungla. La E atrae, pero no mueve a Sett.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Valentía (W pasiva): todo el daño que recibe se guarda (hasta el 50 % de su vida máxima) y la W lo devuelve como escudo y daño, verdadero en el centro. Por eso busca recibir daño antes de soltarla, no al principio de la pelea.",
+  "Puñetazos alternos: el derecho tiene más alcance y casi no tiene animación; la Q asegura izquierdo + derecho seguidos para el máximo daño en un intercambio corto.",
+  "La R escala con la vida adicional del agarrado: contra tanques es su mejor arma (agarrar al tanque y aplastarlo sobre los carries).",
+  "La E aturde solo si hay enemigos a los dos lados: súbditos, monstruos o dos campeones. Sin otro objetivo detrás solo ralentiza.",
+  "Regeneración por vida perdida: retirarse unos segundos le recupera mucha vida sin volver a base, así que aguanta la línea más de lo que parece."
+ ],
+ "combos": [
+  "Intercambio de línea: Q para acercarse con velocidad → izquierdo + derecho → E con un súbdito al otro lado (aturdimiento) → ataques → W cuando el rival ya le ha pegado (Valentía cargada), apuntando para que la línea central le pille.",
+  "All-in a nivel 6: Q → ataques → E → R para aplastar al rival (o hacia su torre si va a zambullir) → W en el centro al caer, cuando el ralentizado del 99 % le impide esquivar.",
+  "Destello-E: Destello entre dos campeones para atraer a ambos y aturdirlos; después W en el centro.",
+  "Pelea de equipo contra tanques: R al tanque rival que inicia y salto hacia sus carries → aplastarlo encima de ellos (daño por su vida adicional) → E y W sobre el grupo.",
+  "Zambullida bajo torre: R al rival hacia fuera de la torre (la R le saca de su alcance), W cuando la torre le haya pegado."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Espada de Doran",
+   "Cortasendas",
+   "Cuchilla negra",
+   "Sangría del soberano",
+   "Botas de rapidez",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Calibrador de Sterak",
+   "Armadura de Warmog",
+   "Lanza de Shojin",
+   "Baile de la muerte",
+   "Rompecascos"
+  ],
+  "runas": "Conquistador (65 % en OTP, 74 % en OP.GG) + Triunfo + Leyenda: Presteza + Último esfuerzo; secundaria Valor (96 %) con Fuerzas renovadas o Golpe de escudo e Inquebrantable o Revestimiento de huesos. Alternativas: Ataque intensificado (25 % en OTP, 16,5 % en OP.GG) para intercambios cortos, y Pies veloces o Garras del inmortal contra rangos. Fragmentos: fuerza adaptable, velocidad de ataque y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender en el 74 % de los OTP Diamante+ (84 % en OP.GG); Destello + Fantasmal (20 % en OTP; el de más victorias en Lolalytics) contra rangos que le kitean o para correr por el mapa; Teleportar solo un 3-8 %. Inicio con Espada de Doran (70 %) o Escudo de Doran (24 %). Cortasendas casi siempre de primero (95 %), luego Cuchilla negra (63 %) o Sangría del soberano, y tercero Sangría del soberano, Calibrador de Sterak, Armadura de Warmog o Baile de la muerte. Rompecascos para un Sett de lateral. Botas de rapidez (34 %; las que más ganan en Lolalytics), blindadas (30 %) o de mercurio (24 %) hacia el 14:30."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 W (o E contra rivales que se pegan a la oleada): intercambia con izquierdo + derecho cuando el rival va a por un súbdito y suelta la W cuando le ha pegado. Nivel 2 (~1:40) con E: tira del rival contra un súbdito del otro lado para aturdirlo. Nivel 3 (~2:05) con Q: combo entero y amenaza de all-in con Prender.",
+    "tradeos": "Gana los intercambios largos: deja que el rival le pegue primero para cargar la Valentía y responde con la W en el centro. Contra rangos usa la Q para acercarse (30 % de velocidad) y solo intercambia cuando la E puede pillar algo detrás del rival. Contra luchadores de duelo que se curan (Aatrox, Darius) busca el intercambio corto y la W al final.",
+    "oleadas": "Empuja para las placas (mediana de 11 en OTP, p75 17, de los que más de top) y vuelve pronto a base: mediana 2:56 (p25 2:28) con ~700 de oro para Espada larga, Poción reutilizable o Botas. Contra rangos que le ganan, congela delante de su torre para forzarles a acercarse a su E.",
+    "all_in": "A nivel 3 con Prender si el rival ya intercambió y está a menos del 60 %. A nivel 6: Q → E (aturdimiento si hay un súbdito detrás) → R → W en el centro; bajo torre, la R saca al rival hacia fuera.",
+    "jugar_seguro": "Contra Malphite, Warwick, Vayne, Ryze, Quinn, Kennen o Aurora: Escudo de Doran, W primero, farmear desde lejos y esperar a la R o a su jungla. No soltar la W sin Valentía: es su escudo para el ataque del rival. Contra Vayne y Quinn, Fantasmal y Botas de rapidez."
+   },
+   "roameos": "Poco antes del 14: 83 % de las posiciones por minuto en top y solo en el 18 % de las partidas aparece en otra línea antes del 14, normalmente hacia el 13:00 (mid más que bot). Sin Teleportar casi nunca, sus desplazamientos tempranos son al río del Barón (larvas, escuttle, Heraldo) con su jungla tras empujar la oleada.",
+   "fase_media": "Con Cortasendas y Cuchilla negra (12-19 min) entra en las escaramuzas de río y Heraldo con su jungla; pasado el 14 está solo en una lateral un 34 % del tiempo (p75 46 %), empujando para que el rival tenga que mandar a alguien. En las peleas de objetivo hace de frontal: R al tanque o al carry más cercano y W cuando haya recibido daño.",
+   "matchups_dificiles": [
+    "Malphite",
+    "Warwick",
+    "Vayne",
+    "Ryze",
+    "Quinn",
+    "Kennen",
+    "Aurora",
+    "Teemo"
+   ],
+   "matchups_faciles": [
+    "Yasuo",
+    "Olaf",
+    "Yorick",
+    "Master Yi",
+    "Sylas",
+    "Smolder",
+    "Maokai",
+    "Yone"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Frontal e iniciador: entra con R sobre el tanque o el carry más cercano y gana la pelea larga con la W; en escaramuzas, el que atrapa con la E.",
+  "como_entrar": "Con la Q (velocidad hacia el rival) y la R sobre el iniciador o el tanque rival para aplastarlo encima de sus carries, o Destello-E entre dos rivales para aturdirlos. Recibe el daño inicial con la Valentía y suelta la W en el centro cuando la tiene cargada.",
+  "objetivo": "El tanque rival (la R hace daño según su vida adicional y lo saca de la pelea) o el carry que esté a 400 u; en escaramuzas, el que pueda atraer contra otro para el aturdimiento.",
+  "posicion": "Delante, entre el frontal rival y sus carries, buscando que la línea central de la W pille a la retaguardia. No tiene forma de llegar a un carry lejos sin Destello o la R."
+ },
+ "macro": {
+  "split_push": "Moderado-alto: pasado el 14, mediana del 34 % del tiempo vivo solo en una lateral (p75 46 %) y ~19 % agrupado en OTP. Con Rompecascos o Cuchilla negra empuja rápido y gana los 1v1 contra casi todos los que no le kitean.",
+  "objetivos": "Placas (11 de mediana por partida en OTP) y torre exterior de top; Heraldo (15:00) y larvas con su jungla; Barón y dragones en grupo. No los hace solo.",
+  "plan_de_partida": "0-6: ganar la línea con intercambios largos, placas y una primera vuelta temprana. 6-14: all-ins con R y escaramuzas en el río del Barón. 14-25: Cortasendas + Cuchilla negra, lateral y peleas de objetivo como iniciador. 25+: frontal con Sangría del soberano o Armadura de Warmog; R al tanque para abrir la pelea."
+ },
+ "debilidades": [
+  "Los tiradores y magos que le kitean (Vayne, Quinn, Kennen, Ryze) le niegan la línea y las peleas: no tiene dash para acercarse fuera de la Q y la R.",
+  "La W tiene 0,75 s de carga y se esquiva: si la suelta sin Valentía o fuera del centro hace poco.",
+  "Su E necesita enemigos a los dos lados para aturdir; contra un rival solo, solo ralentiza.",
+  "La reducción de curación y los controles en cadena le quitan su pelea larga.",
+  "Escala menos que los luchadores de duelo y los tiradores: necesita ventaja antes del 25."
+ ],
+ "contrarrestado_por": [
+  "Malphite",
+  "Warwick",
+  "Vayne",
+  "Ryze",
+  "Quinn",
+  "Kennen",
+  "Aurora",
+  "Teemo"
+ ],
+ "bueno_contra": [
+  "Yasuo",
+  "Olaf",
+  "Yorick",
+  "Master Yi",
+  "Sylas",
+  "Smolder",
+  "Maokai",
+  "Yone"
+ ],
+ "sinergias": [
+  "Orianna",
+  "Jarvan IV",
+  "Amumu",
+  "Miss Fortune",
+  "Seraphine",
+  "Lillia"
+ ],
+ "errores_comunes": [
+  "Soltar la W al principio del intercambio, sin Valentía acumulada: escudo pequeño y poco daño.",
+  "Lanzar la E sin nada al otro lado del rival y quedarse sin el aturdimiento.",
+  "Usar la R sobre el carry más cercano saltando hacia el equipo rival y quedar dentro de su pelea solo.",
+  "No apuntar la W para que la línea central (daño verdadero) pille al objetivo.",
+  "Ir a por tiradores que le kitean sin Fantasmal, Cortasendas ni Botas de rapidez.",
+  "Quedarse en la lateral pasado el 30 sin visión ni ventaja contra luchadores de duelo que ya escalan más."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de línea en OTP (Diamante-Aspirante, 227 partidas de 8 jugadores): nivel 2 a la 1:40, 3 a las 2:05, 6 a las 5:18, 9 a las 10:25 y 11 a las 13:10; CS 15 a los 3:00, 24 a los 4:00, 70 a los 10:00 y 112 a los 15:00.",
+  "Primera vuelta a base pronto: mediana 2:56 (p25 2:28, p75 3:51) con ~700 de oro (Espada larga 73 %, Poción reutilizable, Botas); un 30 % es tras morir.",
+  "Objetos muy fijos: Cortasendas de primero en el 95 % de las partidas hacia el 11:55, segundo hacia el 19:10 (Cuchilla negra 63 %) y tercero hacia el 25:45 (Sangría del soberano). Botas hacia el 14:30.",
+  "Muchas placas: mediana de 11 por partida (p75 17). Kills o asistencias en la torre rival de top a nivel 6-9 son su zambullida con R.",
+  "Hechizos: Destello + Prender (74 %) o Destello + Fantasmal (20 %); casi nunca Teleportar. Una kill suya en bot antes del 14 implica que fue andando o el teletransporte extra de la misión de top a mitad de partida.",
+  "Muy fijo en top antes del 14: 83 % de las posiciones por minuto en top; solo en el 18 % de las partidas aparece en otra línea antes del 14, hacia el 13:00.",
+  "La R desplaza al rival hasta ~1250 u y puede cruzar muros finos: una kill del rival lejos de donde estaba un instante antes, al otro lado de un muro, es coherente con la R de Sett.",
+  "Kills en solitario frecuentes: mediana de 3 por partida; su daño de pelea larga (W con Valentía) hace que gane duelos en los que parecía ir por debajo de vida.",
+  "Pasado el 14, 34 % del tiempo solo en una lateral y 19 % agrupado: su presión lateral es habitual.",
+  "La misión de top sube el nivel máximo: en un 22 % de las partidas de OTP pasa de nivel 18.",
+  "Victorias por duración en OTP: 64 % antes del 20 y ~50-55 % después: su ventaja temprana se convierte en partidas cortas."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/sett/build/",
+  "https://lolalytics.com/lol/sett/counters/",
+  "https://www.op.gg/lol/champions/sett/build/top",
+  "https://www.op.gg/lol/champions/sett/counters/top",
+  "https://wiki.leagueoflegends.com/en-us/Sett",
+  "https://www.dodge.gg/en-US/lol/news/sett-build-2026",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs Diamante+ de Sett top, parches 16.1-16.23 (data/otps/Sett/TOP, 227 partidas de 8 jugadores)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 227,
+    "victorias": 0.524,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 31,
+      "victorias": 0.613
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 49,
+      "victorias": 0.449
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 74,
+      "victorias": 0.554
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 42,
+      "victorias": 0.5
+     },
+     {
+      "minutos": "35+",
+      "partidas": 31,
+      "victorias": 0.516
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.8,
+     "mediana": 3.9,
+     "p75": 5.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.4,
+     "mediana": 11.9,
+     "p75": 13.6
+    },
+    "segundo_objeto_min": {
+     "p25": 17.6,
+     "mediana": 19.1,
+     "p75": 21.1
+    },
+    "primer_objeto": [
+     [
+      "Cortasendas",
+      0.96
+     ],
+     [
+      "Cuchilla negra",
+      0.04
+     ],
+     [
+      "Hoja del rey arruinado",
+      0.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WEQQQRQWQ",
+      0.46
+     ],
+     [
+      "EWQQQRQWQ",
+      0.32
+     ],
+     [
+      "EQWQQRQWQ",
+      0.17
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ],
+     [
+      "WQE",
+      0.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 25.2,
+     "mediana": 34.0,
+     "p75": 43.9
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.9,
+     "mediana": 21.2,
+     "p75": 25.9
+    },
+    "vision_por_min": {
+     "p25": 0.61,
+     "mediana": 0.74,
+     "p75": 0.9
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 3.04,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 25.0,
+     "mediana": 34.4,
+     "p75": 45.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 11.5,
+     "mediana": 19.2,
+     "p75": 29.2
+    },
+    "cs_10": {
+     "p25": 61.0,
+     "mediana": 70.0,
+     "p75": 80.0
+    },
+    "dif_cs_10": {
+     "p25": -15.0,
+     "mediana": 4.0,
+     "p75": 18.0
+    },
+    "dif_oro_10": {
+     "p25": -647.0,
+     "mediana": 116.0,
+     "p75": 992.0
+    },
+    "placas": {
+     "p25": 6.0,
+     "mediana": 11.0,
+     "p75": 17.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 6.0,
+     "p75": 9.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

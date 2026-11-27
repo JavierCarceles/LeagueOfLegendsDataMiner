@@ -1,0 +1,447 @@
+{
+ "clave": "Briar",
+ "nombre": "Briar",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "JUNGLE",
+   "parte": 0.888,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchadora-asesina de jungla de duelo y persecución, sin maná (sus habilidades cuestan vida) y con curación que crece con la vida perdida; picos en nivel 3, nivel 6 (R de 12.000 u que la lanza sobre el objetivo) y primer objeto, y mejor cuanto antes empiece a encadenar kills",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Gana casi todos los duelos tempranos: con W activa tiene hasta +95 % de velocidad de ataque y +60 % de velocidad, sangrado que la cura y un Mordisco (recast de W) que ejecuta por vida perdida. Desde el nivel 6 su R (12.000 u de alcance, inmune a control durante el lanzamiento) le permite ganquear o entrar a una pelea desde la otra punta del mapa. Su mejor ventana es del nivel 6 al segundo objeto (~6:30-18:00); en la tardía los equipos con mucho control, desenganche (Janna, Lulu, Vayne) o reducción de curación la frenan y su falta de control sobre la W la mete en peleas imposibles. Gana un 53,8 % en Esmeralda+ (Lolalytics 16.23)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:10) con W-Q-E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con la Q (salto de 475 u con aturdimiento de 0,85 s y -10-20 % de armadura y RM) ya tiene enganche: tras rapaces-roja-krugs puede ganquear una línea sin Destello o invadir a un jungla débil a nivel 2-3."
+  },
+  {
+   "cuando": "Nivel 4 (~3:10), fin del despeje completo",
+   "nivel": 4,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Segundo punto en W (más velocidad de ataque y daño en área): termina el despeje hacia el 3:12 (media de skill-capped) y disputa la escuttle o gankea la línea del lado donde acaba."
+  },
+  {
+   "cuando": "Nivel 6 (~6:30)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Muerte segura (R): lanza una gema de 12.000 u que marca al primer campeón que toca y se lanza sobre él a 2500-5000 u/s; al llegar asusta 1,5 s a los demás enemigos y entra en hemomanía (armadura, RM, robo de vida y velocidad) hasta que muere uno de los dos. Ganks desde cualquier lado del mapa y dives a torre."
+  },
+  {
+   "cuando": "Primer objeto (~10:30-12:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Hidra titánica",
+   "por_que": "Hidra titánica (la más jugada en Lolalytics) u Hoja del rey arruinado (skill-capped, luchadora); Espada ciclovoltaica si va de ráfaga contra equipos frágiles. Con la W al máximo en el nivel 9 (~11:00) es su mejor momento para pelear dragón y larvas."
+  },
+  {
+   "cuando": "Segundo objeto (~17:00)",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Cuchilla negra",
+   "por_que": "Cuchilla negra (56 % de victorias como segundo objeto en Lolalytics) o Recaudadora en la versión de críticos. Después, Baile de la muerte (58,7 %) y Ángel de la guarda (66 %) le dejan entrar con R sabiendo que puede sobrevivir."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Maldición carmesí: sus ataques y habilidades ponen un sangrado de 5 s que se acumula hasta 5 veces (10-50 + 50 % del DA adicional por carga) y la cura una parte de lo que hace; matar a un objetivo con sangrado le cura el 125 % del sangrado restante. No regenera vida de forma natural, pero toda la curación que recibe sube hasta un 40 % según su vida perdida. Sin maná: cada habilidad cuesta un 5 % de su vida actual.",
+  "Q": "Embestida craneal (Head Rush): salto de 475 u a una unidad (campeones, súbditos, monstruos e incluso guardianes, plantas y trampas) que hace 60-160 (+80 % del DA adicional, +60 % AP), aturde 0,85 s y reduce un 10-20 % la armadura y la RM 5 s. Reinicia el ataque básico. Se puede lanzar durante el salto de la W. Enfriamiento 13/12/11/10/9 s.",
+  "W": "Frenesí sanguinario: salta hacia delante (~300 u, rompiendo su picota) y durante 5 s persigue sola al enemigo más cercano (prioriza campeones, luego monstruos grandes y súbditos): +55-95 % de velocidad de ataque, +24-60 % de velocidad y ataques que dañan en área (60-100 % del DA) alrededor del objetivo. Durante el frenesí no controla ni su movimiento ni a quién ataca. Recast (Mordisco, en una ventana de 5 s): siguiente ataque con +50 de alcance que hace daño extra según la vida perdida del objetivo y la cura un 24-40 % del daño + un 5 % de su vida máxima. El enfriamiento (14-10 s) empieza con el primer lanzamiento, así que retrasar el Mordisco no cuesta nada.",
+  "E": "Grito escalofriante: cancela el frenesí y carga hasta 1 s (35 % de reducción de daño y curación de hasta el 10-16 % de su vida máxima mientras carga; el control no lo interrumpe). Al soltarlo: daño mágico en un cono de 400-600 u y ralentización del 80 % 0,5 s; cargado del todo empuja 575 u y, si el enemigo choca con un muro, le hace 140-440 de daño extra y lo aturde 1,5 s. Enfriamiento 16 s. Es su forma de salir de su propio frenesí o de la R.",
+  "R": "Muerte segura: 1 s de lanzamiento (inmune a control y le quita los controles que tenga) y una gema de 12.000 u (ancho 320, 2000 u/s) que marca y revela al primer campeón enemigo que toca; se lanza a 2500-5000 u/s hasta 100 u delante de él atravesando terreno, hace 150/250/350 (+130 % AP) en área y asusta 1,5 s (y ralentiza un 35 %) a los demás enemigos cercanos. Después entra en hemomanía: todos los efectos de la W contra el marcado más armadura y RM (20 % de su DA), robo de vida del 10-20 % y +10-30 % de velocidad, hasta que muere el marcado o ella, o hasta que usa la E. Enfriamiento 120/100/80 s."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "niveles_1_3": [
+   "W",
+   "Q",
+   "E"
+  ],
+  "nota": "W siempre a nivel 1 (despeja y da el frenesí) y al máximo primero (nivel 9). Lolalytics da W-Q-E como más jugado; jungler.gg y skill-capped recomiendan W-E-Q (la E cura y despeja rapaces) cuando no se piensa ganquear a nivel 3. La Q se maximiza segunda (nivel 13) y la E la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: salto de 475 u a cualquier unidad, también a guardianes, plantas y monstruos. W: salto corto hacia delante (~300 u) y después +24-60 % de velocidad 5 s (sin control del movimiento). R: desplazamiento de hasta 12.000 u a 2500-5000 u/s hasta el primer campeón que toca la gema. Destello + Castigo siempre (velocidad base 340).",
+  "salta_muros": "si",
+  "como_salta_muros": "Con la Q si hay una unidad a menos de 475 u al otro lado (campeón, súbdito, monstruo, guardián o planta: el salto a un guardián o a una planta sirve para cruzar muros de la jungla). Con la R atraviesa cualquier terreno: la gema y el salto pasan por encima de los muros hasta el campeón marcado. La W no sirve de forma fiable para cruzar muros.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "teletransporte",
+    "desde_nivel": 6,
+    "alcance": "12000 unidades",
+    "nota": "No es un teletransporte instantáneo sino un desplazamiento muy rápido (1 s de lanzamiento + vuelo de la gema + salto a 2500-5000 u/s), pero en 3-5 s la lleva de un lado del mapa al otro, encima del campeón marcado, atravesando muros. Kills o muertes de Briar lejísimos de su posición del minuto anterior son normales desde el nivel 6. Enfriamiento 120/100/80 s."
+   }
+  ]
+ },
+ "unico": [
+  "Sin maná: cada habilidad cuesta un 5 % de su vida actual y no tiene regeneración natural; vive de la curación del sangrado, del Mordisco y de la E, que crece hasta un 40 % con la vida perdida. Pelear con poca vida es parte de su juego.",
+  "Frenesí (W) sin control: durante 5 s persigue y ataca sola al enemigo más cercano (campeón antes que súbdito); la única salida es la E. Es la causa de muchas de sus muertes contra equipos que la reciben con control.",
+  "R de 12.000 u inmune a control durante el lanzamiento: marca al primer campeón que toca la gema, se lanza sobre él atravesando muros y lo persigue en hemomanía hasta que muere uno de los dos.",
+  "La E cargada empuja 575 u y aturde 1,5 s si el enemigo choca con un muro: en la jungla (pasillos estrechos) gana duelos y ganks que en una línea abierta no ganaría.",
+  "El Mordisco (recast de W) hace daño por vida perdida y la cura: es su ejecución; guardarlo para el final del frenesí no cuesta enfriamiento."
+ ],
+ "combos": [
+  "Despeje de campamento: ataque → W → ataque → Q → ataque → ... → W2 (Mordisco) y E cargada al final; con un campamento reapareciendo al lado, cargar la E mientras reaparece.",
+  "Gank: W para acercarse con +60 % de velocidad → Q al objetivo (aturdimiento 0,85 s) → ataques en frenesí → Mordisco cuando el rival está bajo de vida → Destello o E cargada contra un muro si intenta huir.",
+  "Gank con R (nivel 6+): R desde la jungla o desde otra línea sobre el campeón aislado → al llegar asusta 1,5 s a los cercanos → Q → ataques en hemomanía → Mordisco para rematar.",
+  "Duelo en la jungla: Q → W → ataques → E cargada empujando al rival contra el muro (aturdimiento de 1,5 s) → W2.",
+  "Huida: E (cancela el frenesí y cura mientras carga) → Q a un súbdito, monstruo o guardián al otro lado de un muro; no usar la W para huir, porque la lleva hacia el enemigo más cercano."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Brote de Brincamontes",
+   "Hidra titánica",
+   "Hoja del rey arruinado",
+   "Cuchilla negra",
+   "Botas de mercurio",
+   "Botas blindadas",
+   "Baile de la muerte",
+   "Ángel de la guarda",
+   "Hambre insaciable",
+   "Rostro espiritual",
+   "Calibrador de Sterak",
+   "Espada ciclovoltaica",
+   "Recaudadora",
+   "Recuerdos de lord Dominik",
+   "Filo infinito",
+   "Filo de la noche"
+  ],
+  "runas": "Ataque intensificado (jungler.gg y skill-capped) con Leyenda: Presteza (luego Leyenda: Velocidad), Triunfo y Golpe de gracia; secundaria Dominación (Golpe bajo o Sabor a sangre + Cazador de tesoros, la más jugada en Lolalytics) o Inspiración. Alternativa de ráfaga: Lluvia de cuchillas + Impacto repentino + Sexto sentido + Cazador de tesoros con Reembolso y Tónico triple. Compás letal y Conquistador aparecen como variantes. Fragmentos: velocidad de ataque, fuerza adaptable y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Castigo"
+  ],
+  "nota": "Mascota: Brote de Brincamontes (Mosstomper) casi siempre; Cachorro de Garra ígnea a veces. Dos versiones: luchadora (Hidra titánica u Hoja del rey arruinado → Cuchilla negra → Botas de mercurio → Baile de la muerte → Ángel de la guarda / Hambre insaciable / Rostro espiritual) contra equipos con frontales; ráfaga (Espada ciclovoltaica → Botas blindadas → Recaudadora → Recuerdos de lord Dominik → Filo infinito → Ángel de la guarda) contra 3-4 objetivos frágiles. Filo de la noche contra desenganches de un solo objetivo (E de Vayne, R de Janna). Botas de mercurio contra control; Botas blindadas si el rival es casi todo AD."
+ },
+ "por_rol": {
+  "JUNGLE": {
+   "inicio": "Según OP.GG 16.23: en lado azul empieza en azul el 53 %, rapaces 29 % y roja 15 %; en lado rojo, rapaces 40 % y azul 38 %. Siempre W a nivel 1 (el frenesí y el área de sus ataques despejan el campamento). Empieza cada campamento con ataque-W-ataque-Q-ataque y guarda la E y el Mordisco para el final, cuando el sangrado ya la ha curado.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Escuttle del lado de la roja o gank a la línea de ese lado (bot en lado azul); vuelta a base hacia las 3:30-4:00 con Espada larga y botas.",
+     "nivel": 4,
+     "minuto": "3:12",
+     "cuando": "La más jugada y de las más ganadoras (jungler.gg: 5,1 % acabando en escuttle con 53 % de victorias y 3 % acabando en gank a bot con 54 %). OP.GG registra sobre todo la variante sin krugs (azul-gromp-lobos-rapaces-roja-escuttle), que termina hacia el 2:55."
+    },
+    {
+     "nombre": "Rapaces-roja-escuttle y lado de la azul",
+     "orden": [
+      "raptors",
+      "red",
+      "scuttle_bot",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Tras roja (~1:50, nivel 2-3) gankea la línea cercana o espera en el río a la escuttle, que sale a las 2:55 (en lado azul la de bot); después vuelve por lobos-azul-gromp y regresa a base hacia las 4:00 con nivel 4-5.",
+     "nivel": 4,
+     "minuto": "3:45",
+     "cuando": "Segunda más jugada en OP.GG en los dos lados (en lado rojo, la escuttle es la de top). La elige cuando quiere disputar la primera escuttle con prioridad de mid o bot."
+    },
+    {
+     "nombre": "Rapaces-roja-krugs y gank de nivel 3",
+     "orden": [
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Gank a la línea lateral del lado de la roja o a mid hacia las 2:10-2:30 con la Q cogida a nivel 3; después vuelve a base y sigue por lobos-azul-gromp y la escuttle del otro lado (recomendada por jungler.gg).",
+     "nivel": 3,
+     "minuto": "2:10",
+     "cuando": "Cuando la línea cercana tiene un rival sin Destello, empujado o con poca vida, o cuando el jungla rival es débil a nivel 3 y se puede invadir su segundo campamento."
+    }
+   ],
+   "ganks": "Ventanas: nivel 3 (~2:10, Q para enganchar), nivel 4 tras el despeje (~3:10) y sobre todo nivel 6 (~6:30), cuando la R le permite ganquear desde lejos y entrar bajo torre inmune a control durante el lanzamiento. Entra con W para la velocidad y Q para aturdir; contra líneas con muro cerca (río o pasillos de jungla) la E cargada aturde 1,5 s. Gankea mejor líneas con control para seguirla (Ahri, Leona, Nautilus, Sett). Desde el 6, la R desde la jungla a una lateral o a bot es su gank más típico.",
+   "objetivos": "Dragón (5:00) sola desde nivel 4-5 gracias al sangrado y la curación de la E; larvas (8:00) con prioridad de top o mid. Heraldo (15:00) y Barón con el equipo. Su R no está pensada para robar objetivos (solo marca campeones), pero puede lanzarla al campeón rival que disputa el Castigo para llegar al foso.",
+   "invasion": "Sí: es de las mejores junglas de duelo temprano. Invade cuando el jungla rival está solo y a la vista (guardián en su roja o azul), sobre todo en el segundo despeje (4:00-7:00) y con R para cazarlo en su jungla. Evita los duelos tempranos contra Wukong, Master Yi, Shyvana, Cho'Gath, Lillia o Graves.",
+   "contra_jungla": "Contra invasiones a nivel 1-2 aguanta con W y la curación de la E; contra junglas de control (Cho'Gath, Sion, Wukong) cede el campamento e invade el otro lado.",
+   "plan": "Despeje rápido, gank de nivel 3-4 si hay ocasión, y desde el 6 buscar kills con la R en cualquier punto del mapa. Con el primer objeto (~11 min) pelear todos los objetivos y dives; acumular ventaja antes del 25, cuando los equipos con control y desenganche empiezan a castigar su frenesí sin control."
+  }
+ },
+ "peleas": {
+  "papel": "Buceadora y finalizadora: entra con R al objetivo aislado o a la retaguardia y persigue hasta matar.",
+  "como_entrar": "Espera a que el rival gaste su control principal y lanza la R al carry o al que esté más bajo de vida (la gema marca al primer campeón que toca: apuntarla para que no la intercepte un tanque); al llegar asusta 1,5 s a los que estén cerca, Q al marcado, ataques en hemomanía y Mordisco para rematar. Con Ángel de la guarda puede entrar aunque no salga viva.",
+  "objetivo": "Tiradores y magos de la retaguardia; si no llega, el que esté aislado o bajo de vida.",
+  "posicion": "En un flanco o detrás de su frontal hasta que tenga una R limpia; nunca lanzar la W en medio de su equipo rival antes de la pelea, porque la lleva sola hacia el más cercano."
+ },
+ "macro": {
+  "split_push": "Moderado: con Hidra titánica despeja oleadas rápido y puede presionar una lateral, pero su mejor uso es la R desde la lateral hacia la pelea o hacia el que defiende la torre.",
+  "objetivos": "Dragón sola desde nivel 4-5, larvas con prioridad, Heraldo y Barón en grupo; derriba placas en dives a nivel 6.",
+  "plan_de_partida": "Fase 1 (0-10): despeje, gank de nivel 3-4, invasiones y kills con R desde el 6. Fase 2 (10-20): primer y segundo objeto, peleas en dragón, larvas y Heraldo entrando con R al carry. Fase 3 (20+): cerrar antes de que el rival escale; en partidas largas esperar a que gasten el control y el desenganche antes de lanzar la R."
+ },
+ "debilidades": [
+  "El frenesí (W) y la hemomanía (R) la obligan a perseguir sin control: contra equipos con control (Sion, Wukong, Maokai, Leona, Lissandra) entra y muere sin poder salir más que con la E.",
+  "La reducción de curación (Hemorragia, Malla de espinas, Llamada del verdugo) corta su sangrado, su Mordisco y la E, que son todo su aguante.",
+  "Su R la bloquea el primer campeón que toca: un tanque delante del carry se queda con la marca y ella acaba en medio del equipo rival.",
+  "Cada habilidad cuesta vida y no regenera: tras un gank fallido queda baja y es fácil de invadir o de cazar.",
+  "Desenganches de un objetivo (E de Vayne, R de Janna, W de Lulu, R de Poppy) cortan la persecución de la hemomanía."
+ ],
+ "contrarrestado_por": [
+  "Wukong",
+  "Master Yi",
+  "Cho'Gath",
+  "Shyvana",
+  "Graves",
+  "Lillia",
+  "Sion",
+  "Bel'Veth",
+  "Zyra"
+ ],
+ "bueno_contra": [
+  "Qiyana",
+  "Rengar",
+  "Nocturne",
+  "Naafiri",
+  "Lee Sin",
+  "Sylas",
+  "Nidalee",
+  "Skarner",
+  "Fiddlesticks",
+  "Kha'Zix"
+ ],
+ "sinergias": [
+  "Ahri",
+  "Leona",
+  "Nautilus",
+  "Orianna",
+  "Galio",
+  "Sett",
+  "Lulu"
+ ],
+ "errores_comunes": [
+  "Activar la W cerca de varios enemigos: el frenesí la lleva sola hacia el más cercano, normalmente un tanque o un súbdito, y no puede salir.",
+  "Lanzar la R sin mirar quién está delante: la gema marca al primer campeón que toca y acaba atada a un tanque en medio del equipo rival.",
+  "Olvidar que la E cancela el frenesí y la hemomanía: es su forma de salir de un mal enganche y la usan tarde.",
+  "Usar el Mordisco demasiado pronto: hace más daño cuanto menos vida tiene el objetivo, y retrasarlo no cuesta enfriamiento.",
+  "Pelear con muy poca vida tras despejar o tras un gank fallido, sin acordarse de que no regenera vida sola.",
+  "Ir contra equipos con reducción de curación sin Baile de la muerte, Rostro espiritual o Ángel de la guarda."
+ ],
+ "senales_reconstructor": [
+  "Despeje de referencia: despeje completo de 6 campamentos hacia el 3:12 de media (skill-capped; el más rápido 2:46), con ~24 de CS de jungla y nivel 4; la variante rapaces-roja-krugs con gank acaba hacia el 2:10 con ~12 de CS de jungla y nivel 3.",
+  "R de 12.000 u desde el nivel 6 (~6:30): kills y asistencias de Briar muy lejos de su posición del minuto anterior (de su jungla a una lateral, o de top a bot) son su forma normal de ganquear; no son un error de posición. Enfriamiento 120/100/80 s: no se repite en el mismo minuto.",
+  "Tras la R cae junto al objetivo atravesando muros: si mata o muere en la jungla rival o bajo torre, lo esperable es que haya entrado con la R.",
+  "Ganks: primeros ganks a nivel 3-4 (2:10-4:00) hacia la línea del lado donde acaba el despeje; desde el 6, a cualquier línea con la R. Muchas kills propias y también muchas muertes: muere a menudo en dives y persecuciones porque no controla la W ni la R.",
+  "Duelos e invasiones: CS de jungla rival y escuttles robadas son habituales; kills sobre el jungla rival en su propia jungla entre el 4:00 y el 8:00 encajan con su plan.",
+  "Compras: Brote de Brincamontes al empezar; primera vuelta hacia el 3:30-4:00 con Espada larga y botas; primer objeto (Hidra titánica, Hoja del rey arruinado o Espada ciclovoltaica) hacia el 10:30-12:00 y Cuchilla negra o Recaudadora como segundo.",
+  "Vida baja frecuente: como sus habilidades cuestan un 5 % de vida y no regenera, volver a base con poca vida tras despejar es normal en ella; no indica que haya perdido un duelo.",
+  "Fuerte en partidas de mitad corta: si va por detrás a los 25, su aportación se reduce casi a la R sobre un objetivo."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/briar/build/",
+  "https://www.op.gg/lol/champions/briar/jungle-paths",
+  "https://jungler.gg/champions/briar/",
+  "https://www.skill-capped.com/lol/guides/m/builds/briar/jungle",
+  "https://wiki.leagueoflegends.com/en-us/Briar",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 171,
+    "victorias": 0.579,
+    "victorias_por_duracion": [
+     {
+      "minutos": "20-25",
+      "partidas": 38,
+      "victorias": 0.579
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 62,
+      "victorias": 0.661
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 38,
+      "victorias": 0.474
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.3,
+     "mediana": 3.2,
+     "p75": 4.9
+    },
+    "primer_objeto_min": {
+     "p25": 8.2,
+     "mediana": 9.6,
+     "p75": 10.7
+    },
+    "segundo_objeto_min": {
+     "p25": 14.6,
+     "mediana": 16.2,
+     "p75": 17.6
+    },
+    "primer_objeto": [
+     [
+      "Recaudadora",
+      0.46
+     ],
+     [
+      "Filo fantasmal de Youmuu",
+      0.25
+     ],
+     [
+      "Hidra titánica",
+      0.21
+     ],
+     [
+      "Soberbia",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WEQWWRWQW",
+      0.59
+     ],
+     [
+      "EWQWWRWQW",
+      0.35
+     ],
+     [
+      "WQEWWRWQW",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "WQE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 43.9,
+     "mediana": 51.9,
+     "p75": 60.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.4,
+     "mediana": 19.4,
+     "p75": 23.6
+    },
+    "vision_por_min": {
+     "p25": 0.77,
+     "mediana": 0.96,
+     "p75": 1.15
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.82,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.0,
+     "mediana": 3.2,
+     "p75": 6.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 25.0,
+     "mediana": 32.8,
+     "p75": 40.9
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.61
+     ],
+     [
+      "wolves",
+      0.19
+     ],
+     [
+      "blue",
+      0.1
+     ],
+     [
+      "red",
+      0.07
+     ],
+     [
+      "krugs",
+      0.02
+     ],
+     [
+      "gromp",
+      0.01
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 16.0,
+     "mediana": 18.5,
+     "p75": 22.0
+    },
+    "cs_jungla_10": {
+     "p25": 54.2,
+     "mediana": 60.0,
+     "p75": 66.0
+    },
+    "primer_gank_min": {
+     "p25": 2.5,
+     "mediana": 3.3,
+     "p75": 5.6
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.39
+     ],
+     [
+      "top",
+      0.35
+     ],
+     [
+      "mid",
+      0.26
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 12.5
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

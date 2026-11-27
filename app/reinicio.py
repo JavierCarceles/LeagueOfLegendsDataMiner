@@ -19,7 +19,7 @@ from app.logbus import get_logger
 
 log = get_logger("reinicio")
 
-RESET_ID: str | None = None  # p. ej. "v16": solo con el visto bueno del usuario (borra datos)
+RESET_ID: str | None = "v16"  # confirmado por el usuario el 27-11-2026: «Solo los análisis»
 META_KEY = "datos.reinicio"
 TABLES = ("otp_games", "ranking_games", "pattern_games", "peer_samples", "otp_progress", "otp_skips", "otp_sources")
 DIRS = ("otps", "partidas_campeon", "raw_otp")

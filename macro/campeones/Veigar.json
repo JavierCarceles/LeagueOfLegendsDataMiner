@@ -1,0 +1,627 @@
+{
+ "clave": "Veigar",
+ "nombre": "Veigar",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.685,
+   "principal": true
+  }
+ ],
+ "arquetipo": "mago de ráfaga que escala sin límite: suma PH permanente con cada súbdito que remata con la Q y cada campeón que golpea, encierra con la jaula (E) y ejecuta con la R; débil en la línea y muy fuerte a partir de 2-3 objetos",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 3,
+  "tardia": 5,
+  "nota": "De nivel 1 a 5 solo farmea con la Q para sumar cargas: es lento, sin desplazamientos y la W (1,2 s de retardo) solo acierta a rivales inmovilizados. Desde nivel 6 la R (650 u, daño doble al rival con poca vida) le da kills en la línea y con su jungla. Con Eco de Luden o Vara de las edades y unas 100 cargas (~15 min) un combo E-W-Q-R mata a cualquier carry; a partir de 3 objetos con el Sombrero mortal de Rabadon y 200-300 cargas, uno de los mayores daños de ráfaga del juego. Su límite es la movilidad: los asesinos y luchadores que le llegan antes de la jaula lo matan."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1-3 (~1:00-2:00): farmeo con Q",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La Q (80 de daño, 1050 u, golpea a dos) remata dos súbditos a la vez y cada uno le da 1 PH permanente (3 los súbditos de asedio y los monstruos grandes). W a nivel 2 y E a nivel 3-4: con la jaula (aturde 1,5 s) puede defenderse del primer gank o acertar W + Q a un rival enjaulado."
+  },
+  {
+   "cuando": "Nivel 6 (~5:10): Primordial Burst",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "R (650 u, 120 s a nivel 6): 175 (+65 % PH) que se dobla hasta 350 (+130 % PH) contra rivales con poca vida. E-W-Q-R con Prender o con su jungla mata a un mid a media vida. Primer momento de amenaza real."
+  },
+  {
+   "cuando": "Primer objeto (~11-13 min): Eco de Luden o Vara de las edades",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Eco de Luden",
+   "por_que": "Eco de Luden (el más común) da ráfaga y velocidad de habilidades; la ruta de Lágrima de la diosa → Vara de las edades → Abrazo del serafín (13 % en OP.GG, 58 % de victorias) le da maná para farmear todo con la Q. Con ~70-100 cargas su combo ya mata a tiradores y magos."
+  },
+  {
+   "cuando": "Tres objetos (~25 min) con Sombrero mortal de Rabadon",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "Eco de Luden + Sobrecarga tormentosa + Sombrero mortal de Rabadon (la ruta más jugada, 16 % y 57 % de victorias) y R a nivel 11-16 (90-60 s): con 200+ cargas la R sola ejecuta a cualquier carry por debajo de la mitad. La W, con muchas cargas, vuelve muy deprisa."
+  },
+  {
+   "cuando": "Tardía (35+ min) con 300-400 cargas",
+   "nivel": 18,
+   "objetos": 5,
+   "objeto": "Reloj de arena de Zhonya",
+   "por_que": "Su PH no tiene límite: con Florescencia sepulcral, Llamasombría o Bastón del Vacío y Reloj de arena de Zhonya, un acierto de W o una R borran a tanques. Las partidas largas son las suyas."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Phenomenal Evil Power: cada campeón rival golpeado por una habilidad le da 1 carga, y cada derribo de campeón 5 (una más si es con la Q). Cada carga es 1 PH permanente, sin límite. Las cargas también reducen el enfriamiento de la W. Sumar cargas (Q a súbditos y W/E a campeones) es su forma de escalar.",
+  "Q": "Baleful Strike: 6/5,5/5/4,5/4 s y 30-50 de maná, 1050 u (ancho 140), golpea a los dos primeros enemigos. Hace 80/120/160/200/240 (+50-70 % PH). Cada unidad que mata le da 1 PH permanente, 3 si es un súbdito de asedio o un monstruo grande. Rematar dos súbditos con cada Q es su objetivo principal en la línea.",
+  "W": "Dark Matter: 950 u, cae tras 1,2 s en un círculo de 240 de radio y hace 85/140/195/250/305 (+70-110 % PH). Enfriamiento base de 8 s que se reduce con las cargas de la pasiva. Por el retardo solo acierta seguro sobre rivales enjaulados o inmovilizados; también limpia la oleada.",
+  "E": "Event Horizon: 20/18,5/17/15,5/14 s y 70-90 de maná, 725 u. Tras 0,5 s crea una jaula circular durante 3 s; los campeones que cruzan su borde quedan aturdidos 1,5/1,75/2/2,25/2,5 s. Sirve para atrapar (lanzada sobre el rival), para cortar el paso (delante de un asesino o de un pasillo) y para pelear en objetivos. Es lo único que lo protege.",
+  "R": "Primordial Burst: 120/90/60 s (subido en el 26.07) y 100 de maná, 650 u, proyectil a un campeón que hace 175/250/325 (+65/70/75 % PH) y hasta el doble (350/500/650 +130-150 % PH) según la vida que le falta al objetivo. Es su ejecución: se lanza al final del combo."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E-Q-Q-R en el 59 % (OP.GG, 56 % de victorias); Lolalytics prefiere Q-W-Q y la E a nivel 4 para farmear más cargas. Q al máximo (más cargas y menos enfriamiento) y luego W; la E se queda a nivel 1-2 hasta el final salvo contra asesinos, donde algunos la suben antes por el aturdimiento más largo. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno: sin dashes ni saltos. Solo Destello (400 u) y la jaula de la E para cortar el paso a quien le persigue. Lleva Teleportar en el 85 % de las partidas (OP.GG) para volver a la línea y llegar a bot.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "PH permanente sin límite: cada súbdito rematado con la Q (3 con los de asedio y los monstruos grandes), cada campeón golpeado (1) y cada derribo (5) le suma PH para siempre.",
+  "La jaula de la E no aturde al que está dentro: aturde al que cruza el borde. Lanzada encima del rival lo aturde al instante; lanzada delante, le corta el camino.",
+  "La R hace hasta el doble de daño según la vida que le falte al objetivo: es una ejecución que remata a quien huye con poca vida.",
+  "Las cargas de la pasiva reducen el enfriamiento de la W: en la tardía cae casi en cuanto vuelve a estar lista.",
+  "Dos súbditos con una Q: la Q golpea a los dos primeros enemigos, así que el farmeo por cargas depende de alinear súbditos con poca vida.",
+  "El PH acumulado no sale en los objetos: con el mismo inventario, un Veigar de 40 minutos pega mucho más que uno de 20."
+ ],
+ "combos": [
+  "Combo completo: E sobre el rival (aturde 1,5-2,5 s) → W en el mismo sitio (cae tras 1,2 s, aún aturdido) → Q → R para rematar.",
+  "Ejecución rápida: Q → R al rival que huye con poca vida (la R hace el doble a vida baja).",
+  "Defensa contra asesinos: E delante de sí mismo cuando el asesino salta → retroceder → W sobre el aturdido → Q → R.",
+  "Farmeo: Q a dos súbditos con poca vida alineados (sobre todo al de asedio, 3 cargas) → W a la oleada si la quiere limpiar.",
+  "Pelea de equipo: E en el pasillo o sobre el grupo rival que entra → W sobre los aturdidos → Q → R al carry con menos vida."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Eco de Luden",
+   "Sobrecarga tormentosa",
+   "Sombrero mortal de Rabadon",
+   "Lágrima de la diosa",
+   "Vara de las edades",
+   "Abrazo del serafín",
+   "Florescencia sepulcral",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Velo del hada de la muerte",
+   "Bastón del Vacío",
+   "Botas de hechicero"
+  ],
+  "runas": "Primer golpe (44 % en OP.GG) con secundaria Brujería; alternativa Cometa arcano (21 %) con secundaria Dominación. Lolalytics muestra además páginas de Brujería con Invocar a Aery o Tensión del saqueador de tormentas y Banda de maná, Trascendencia y Se avecina tormenta. Fragmentos de fuerza adaptable, velocidad de habilidades y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Teleportar"
+  ],
+  "nota": "Destello + Teleportar (85 %) o Destello + Barrera (6 %, la de más victorias en Lolalytics). Inicio con Anillo de Doran y 2 pociones (84 %) o Lágrima de la diosa y pociones (13 %). Dos rutas: Eco de Luden → Sobrecarga tormentosa → Sombrero mortal de Rabadon, o Lágrima de la diosa → Vara de las edades → Abrazo del serafín → Sombrero mortal de Rabadon. Después Florescencia sepulcral o Bastón del Vacío contra resistencia mágica, Llamasombría para más ráfaga, Reloj de arena de Zhonya contra asesinos y Velo del hada de la muerte contra control. Botas de hechicero (68 %) o jonias de la lucidez (19 %)."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 para rematar súbditos: la oleada llega hacia el 1:00 y cada Q debe matar dos (cuenta los de asedio, 3 cargas). W a nivel 2 (~1:30) para limpiar o castigar, E a nivel 3-4. No busca intercambios: suma cargas y se protege con la jaula.",
+    "tradeos": "Solo con la E acertada (o sobre un rival inmovilizado por su jungla): E → W → Q. La Q de poke cuando el rival se pone detrás de un solo súbdito. Contra magos de largo alcance (Xerath, Vladimir, Swain) y asesinos (Katarina, Akshan) no intercambia: farmea con la Q bajo su torre.",
+    "oleadas": "Prefiere que la oleada se quede cerca de su torre para farmear seguro con la Q; con la W limpia la oleada si necesita prioridad. Primera vuelta a base hacia el 3:30-4:00 con Tomo amplificador o Sello oscuro, o tras completar la Lágrima.",
+    "all_in": "Desde nivel 6 si el rival está a media vida o menos y sin Destello: E → W → Q → R, con Prender si lo lleva. A nivel 3 solo si su jungla inmoviliza al rival.",
+    "jugar_seguro": "Contra Xerath, Vladimir, Swain, Sion, Akshan, Katarina o Zed: farmear con la Q desde lejos, guardar la E para cuando le salten encima, comprar Botas de hechicero y pociones y no alejarse de su torre sin visión. Sin desplazamientos, cada gank sin Destello es casi una muerte."
+   },
+   "roameos": "Roamea poco: pierde cargas si deja la oleada. Con la oleada empujada y la R lista (desde nivel 6) va a bot o al dragón por el río para un gank con la jaula; con Teleportar (85 %) llega a bot o a top en peleas grandes. Antes del 14 su presencia fuera de mid suele ser el río del dragón con su jungla.",
+   "fase_media": "Con 1-2 objetos (~13-20 min) juega alrededor del dragón y el Heraldo esperando con la jaula en los pasillos del río; farmea las oleadas laterales con la Q para seguir sumando cargas. En peleas de objetivos, la jaula sobre el grupo que entra decide. Evita andar solo por la jungla sin visión: es el mid más fácil de atrapar.",
+   "matchups_dificiles": [
+    "Xerath",
+    "Vladimir",
+    "Swain",
+    "Sion",
+    "Akshan",
+    "Katarina",
+    "Zed",
+    "Fizz"
+   ],
+   "matchups_faciles": [
+    "Cassiopeia",
+    "Malphite",
+    "Akali",
+    "Ryze",
+    "Galio",
+    "Twisted Fate",
+    "Yasuo",
+    "Yone"
+   ],
+   "uso_de_la_jaula": "En la línea, la E se guarda para defenderse del asesino o del gank (lanzada delante de él o sobre el que salta) y solo se usa para atacar con la W lista y el rival sin Destello. En objetivos, la jaula se lanza en la entrada del foso o del pasillo del río por donde llega el rival, o sobre el grupo que ya se ha metido para pelear: dos o tres aturdidos de 2-2,5 s a nivel 5 de E ganan la pelea. Con 20-14 s de enfriamiento, si la falla queda vendido hasta que vuelva.",
+   "en_bot": "Como segundo uso (~21-23 % de sus partidas) juega en bot como mago con un support de enganche (Leona, Nautilus, Rell): la jaula sobre el control del support y la W aseguran kills desde el nivel 3. Allí farmea menos con la Q (comparte oleada) y escala más lento, pero castiga mucho a los tiradores sin desplazamientos (Vayne, Jinx, Aphelios)."
+  }
+ },
+ "peleas": {
+  "papel": "Mago de control y ráfaga: la jaula decide la pelea y la W + R borran al carry.",
+  "como_entrar": "No entra: lanza la E sobre el grupo rival que inicia o en el pasillo por el que vienen; W sobre los aturdidos, Q y la R al carry con menos vida. Contra asesinos, la E delante de sí mismo cuando le saltan.",
+  "objetivo": "El carry o el asesino que quede aturdido en la jaula; la R al que tenga menos vida (hace el doble).",
+  "posicion": "Detrás del frontal, a 725-950 u, cerca de un pasillo o de la entrada del objetivo para que la jaula los atrape al entrar; con Reloj de arena de Zhonya listo si le saltan."
+ },
+ "macro": {
+  "split_push": "Bajo: limpia oleadas laterales con la Q y la W para seguir sumando cargas, pero no tiene duelo ni escape para presionar torres solo.",
+  "objetivos": "No hace objetivos solo. Su papel es controlar la entrada a dragón, Heraldo y Barón con la jaula y castigar con W + R; con muchas cargas, la W hace daño enorme a los épicos.",
+  "plan_de_partida": "0-14 min: farmear con la Q todas las oleadas (cada súbdito es PH permanente) y no morir. 14-25 min: 2-3 objetos y peleas de objetivos con la jaula. 25+: con 200-300 cargas es uno de los mayores daños de ráfaga del juego; juega para que el rival tenga que entrar en su jaula."
+ },
+ "debilidades": [
+  "Sin desplazamientos: cualquier gank sin Destello o asesino que le llegue antes de la E lo mata.",
+  "Fase de líneas débil y lenta: depende de farmear con la Q y los magos de largo alcance le quitan las cargas.",
+  "La W tiene 1,2 s de retardo: sin la jaula o un control aliado casi nunca acierta a rivales móviles.",
+  "La R a un solo objetivo con 650 u: tiene que acercarse para ejecutar.",
+  "Si se queda atrás en cargas por morir mucho o no farmear, no escala como debería.",
+  "Su jaula tiene 20-14 s de enfriamiento: si la falla o la gasta antes de tiempo, queda sin protección y sin forma de acertar la W."
+ ],
+ "contrarrestado_por": [
+  "Xerath",
+  "Vladimir",
+  "Swain",
+  "Sion",
+  "Akshan",
+  "Katarina",
+  "Zed",
+  "Fizz"
+ ],
+ "bueno_contra": [
+  "Cassiopeia",
+  "Malphite",
+  "Akali",
+  "Ryze",
+  "Galio",
+  "Twisted Fate"
+ ],
+ "sinergias": [
+  "Amumu",
+  "Jarvan IV",
+  "Sejuani",
+  "Leona",
+  "Nautilus",
+  "Lissandra"
+ ],
+ "errores_comunes": [
+  "Usar la Q de poke en vez de rematar súbditos y quedarse sin cargas.",
+  "Lanzar la W sin jaula ni control aliado: con 1,2 s de retardo casi nunca acierta a un rival móvil.",
+  "Gastar la E de ataque contra asesinos y quedarse sin protección cuando le saltan.",
+  "Lanzar la R al principio del combo con el rival a mucha vida: hace la mitad de daño; va al final.",
+  "Roamear sin la oleada empujada: pierde cargas y oro, que es lo que le hace escalar.",
+  "Andar solo por la jungla sin visión: sin desplazamientos, cualquier emboscada lo mata."
+ ],
+ "senales_reconstructor": [
+  "Mid en el 68-77 % de las partidas (Lolalytics, OP.GG); también juega en bot como mago (~21-23 %) y algo de support (~7 %). Si aparece en bot con un support, no es un error: es su segundo uso.",
+  "Lleva Destello + Teleportar en el 85 %: apariciones en bot o top tras volver a base y teletransportarse son su forma normal de llegar a peleas; sin Teleportar no tiene ningún salto (Destello aparte).",
+  "Sin efectos globales ni desplazamientos: su posición entre frames está limitada por andar (340 de velocidad base). La R tiene 650 u: sus kills están a menos de ~1000 u de él (la W a 950 u).",
+  "Línea muy fija antes del 14: roamea poco porque pierde cargas; kills o asistencias fuera de mid antes del 14 suelen ser en el río del dragón o con Teleportar a bot.",
+  "Ritmo de objetos: Anillo de Doran (84 %) o Lágrima de la diosa (13 %) de inicio; primera vuelta hacia el 3:30-4:00; Eco de Luden o Vara de las edades hacia el 11-13, Botas de hechicero después, segundo objeto hacia el 18-20 y Sombrero mortal de Rabadon hacia el 24-27.",
+  "CS alto para un mago (~216 súbditos por partida en Lolalytics): farmea todo con la Q; una caída de CS por roameos es un mal síntoma para él.",
+  "Escala con el tiempo: su daño a los 35+ minutos es mucho mayor que a los 20 por las cargas sin límite; kills de un solo combo a tanques en la tardía son coherentes.",
+  "Muertes rivales encerradas: la jaula aturde 1,5-2,5 s y la W cae 1,2 s después; varias víctimas en el mismo punto pequeño en una pelea de objetivo son lo típico de su E.",
+  "Orden Q-W-E o Q-W-Q y Q al máximo, luego W; la E se queda baja hasta el final.",
+  "Partidas en bot con otro tirador en mid o top: si su equipo tiene un tirador en otra línea y Veigar comparte experiencia con un support (nivel 6 hacia el 7:00 en vez del 5:10), es Veigar de bot, no un error de rol.",
+  "Las cargas no salen en el timeline: su PH real a mitad de partida puede estar muy por encima de lo que dicen sus objetos. Una kill de un solo combo a un tanque con solo 2-3 objetos es coherente si ha farmeado bien con la Q.",
+  "Visión y movilidad bajas: suele morir en emboscadas en la jungla o en el río cuando va solo; muertes en la niebla sin aliados cerca son su forma típica de morir en la fase media."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/veigar/build/",
+  "https://www.op.gg/lol/champions/veigar/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Veigar",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 102,
+    "victorias": 0.52,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.9,
+     "mediana": 4.5,
+     "p75": 5.9
+    },
+    "primer_objeto_min": {
+     "p25": 10.2,
+     "mediana": 11.2,
+     "p75": 12.4
+    },
+    "segundo_objeto_min": {
+     "p25": 17.9,
+     "mediana": 20.1,
+     "p75": 22.0
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.56
+     ],
+     [
+      "Vara de las edades",
+      0.4
+     ],
+     [
+      "Bastón del arcángel",
+      0.03
+     ],
+     [
+      "Corazón de hielo",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEQWQRQWQ",
+      0.45
+     ],
+     [
+      "QWEQQRQWQ",
+      0.43
+     ],
+     [
+      "QEWQQRQWQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.87
+     ],
+     [
+      "QEW",
+      0.13
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 36.8,
+     "mediana": 43.0,
+     "p75": 52.2
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.8,
+     "mediana": 24.0,
+     "p75": 29.8
+    },
+    "vision_por_min": {
+     "p25": 0.52,
+     "mediana": 0.7,
+     "p75": 0.86
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 2.77,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.5,
+     "mediana": 4.7,
+     "p75": 15.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 18.6,
+     "mediana": 27.0,
+     "p75": 34.4
+    },
+    "cs_10": {
+     "p25": 63.0,
+     "mediana": 74.0,
+     "p75": 82.0
+    },
+    "dif_cs_10": {
+     "p25": -11.0,
+     "mediana": -1.0,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -704.0,
+     "mediana": -66.0,
+     "p75": 472.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 9.5,
+     "p75": 13.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 5.7,
+     "p75": 8.9
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.22"
+   },
+   "ADC": {
+    "partidas": 26,
+    "victorias": 0.615,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.9,
+     "mediana": 4.3,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 9.7,
+     "mediana": 10.3,
+     "p75": 11.6
+    },
+    "segundo_objeto_min": {
+     "p25": 17.2,
+     "mediana": 19.3,
+     "p75": 20.1
+    },
+    "primer_objeto": [
+     [
+      "Vara de las edades",
+      0.69
+     ],
+     [
+      "Eco de Luden",
+      0.23
+     ],
+     [
+      "Corazón de hielo",
+      0.04
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.81
+     ],
+     [
+      "QEWQQRQWQ",
+      0.15
+     ],
+     [
+      "QWEQQRQEQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.54
+     ],
+     [
+      "QWE",
+      0.46
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 36.5,
+     "mediana": 47.0,
+     "p75": 57.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.5,
+     "mediana": 21.1,
+     "p75": 25.0
+    },
+    "vision_por_min": {
+     "p25": 0.77,
+     "mediana": 0.99,
+     "p75": 1.2
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.5,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.96,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 4.9,
+     "mediana": 11.8,
+     "p75": 25.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 19.4,
+     "mediana": 26.8,
+     "p75": 38.4
+    },
+    "cs_10": {
+     "p25": 63.8,
+     "mediana": 75.5,
+     "p75": 79.8
+    },
+    "dif_cs_10": {
+     "p25": -16.5,
+     "mediana": -2.5,
+     "p75": 6.8
+    },
+    "dif_oro_10": {
+     "p25": -964.0,
+     "mediana": -394.0,
+     "p75": 224.0
+    },
+    "placas": {
+     "p25": 4.0,
+     "mediana": 6.0,
+     "p75": 12.8
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 8.0,
+     "p75": 13.4
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.4-16.21"
+   },
+   "SUPPORT": {
+    "partidas": 25,
+    "victorias": 0.48,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.9,
+     "mediana": 7.2,
+     "p75": 9.6
+    },
+    "primer_objeto_min": {
+     "p25": 12.4,
+     "mediana": 13.7,
+     "p75": 16.4
+    },
+    "segundo_objeto_min": {
+     "p25": 20.5,
+     "mediana": 21.4,
+     "p75": 24.0
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.38
+     ],
+     [
+      "Canción de batalla de Shurelya",
+      0.17
+     ],
+     [
+      "Llamasombría",
+      0.17
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.08
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQWQ",
+      0.62
+     ],
+     [
+      "QWEQQRQWQ",
+      0.08
+     ],
+     [
+      "QEWQERQQQ",
+      0.08
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.8
+     ],
+     [
+      "QEW",
+      0.12
+     ],
+     [
+      "EQW",
+      0.08
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 29.4,
+     "mediana": 40.9,
+     "p75": 48.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 11.7,
+     "mediana": 16.4,
+     "p75": 19.5
+    },
+    "vision_por_min": {
+     "p25": 1.21,
+     "mediana": 1.78,
+     "p75": 2.09
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 5.0
+    },
+    "solo_kills_media": 0.52,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 7.8,
+     "p75": 19.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 15.5,
+     "mediana": 31.4,
+     "p75": 39.4
+    },
+    "cs_10": {
+     "p25": 8.0,
+     "mediana": 14.0,
+     "p75": 21.0
+    },
+    "dif_cs_10": {
+     "p25": -6.0,
+     "mediana": 0.0,
+     "p75": 6.0
+    },
+    "dif_oro_10": {
+     "p25": -565.0,
+     "mediana": 52.0,
+     "p75": 520.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.0,
+     "p75": 11.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 1.8,
+     "mediana": 3.6,
+     "p75": 5.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 12.5,
+     "p75": 17.9
+    },
+    "wards_antes_14": {
+     "p25": 6.0,
+     "mediana": 8.0,
+     "p75": 10.0
+    },
+    "pinks": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.2-16.22"
+   }
+  }
+ }
+}

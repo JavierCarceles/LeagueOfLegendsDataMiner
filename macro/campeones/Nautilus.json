@@ -1,0 +1,411 @@
+{
+ "clave": "Nautilus",
+ "nombre": "Nautilus",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.985,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support tanque de enganche con el ancla (Q, ~1120 u) y control encadenado (pasiva de enraizamiento, E, R imparable de punto y clic), muy fuerte en los all-in de nivel 2-3 y del 6, que roamea a mid y abre las peleas",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Desde nivel 2 cada ancla acertada es un all-in con tres controles seguidos (aturdimiento de la Q, enraizamiento del ataque y ralentización de la E). A nivel 6 la R (825 u, no se puede esquivar) le da un pick garantizado cada 80-120 s: es su mejor tramo para roameos a mid y escaramuzas en el río. En la tardía sigue iniciando y pelando bien, pero contra equipos de desenganche y tanques que bloquean el ancla pierde peso; su daño propio es bajo."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:50) con Q y W",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Ancla a 1120 u (aturde 1 s y le pega al rival) + ataque con la pasiva (enraíza 0,75 s) + escudo de la W: con un tirador de all-in a su lado gana casi todos los niveles 2 en los que acierta."
+  },
+  {
+   "cuando": "Nivel 3 (~2:40) con E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Riptide añade daño en área y ralentización del 30 % que decae: Q → ataque → E → ataque mantiene al rival controlado más de 2 s."
+  },
+  {
+   "cuando": "Nivel 6 (~8:30-9:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Depth Charge: a 825 u, persigue al objetivo y no se puede esquivar (solo bloquear con escudos de hechizos o cortar con invulnerabilidad); levanta y aturde 1 s al objetivo y a los que estén en el camino. Con Q + R encadena más de 2 s de control: kill casi segura en bot o en mid."
+  },
+  {
+   "cuando": "Botas y primer objeto (~13:00-14:30): Medallón de los Solari de Hierro",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Medallón de los Solari de Hierro",
+   "por_que": "Con Detracción celestial mejorada y Medallón aguanta para entrar primero en peleas de dragón y larvas; las Botas blindadas o de mercurio le dejan quedarse en medio."
+  },
+  {
+   "cuando": "Dos objetos (~21:00) con Promesa de caballero y nivel 11",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Promesa de caballero",
+   "por_que": "R a 100 s y Q más rápida: inicia con R sobre el carry y luego protege a su tirador enlazado. Desde aquí crece poco con el oro."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Staggering Blow: su primer ataque a cada objetivo hace 14-128 de daño físico extra y lo enraíza 0,75-1,5 s (según nivel); luego no puede volver a enraizar a ese mismo objetivo durante unos segundos. Es lo que convierte cada ancla en un control doble y le deja limpiar campamentos de jungla y oleadas con control.",
+  "Q": "Dredge Line: lanza el ancla a ~1120 u (14-10 s, 60 de maná; 180 de ancho, 2000 de velocidad). Si toca a un enemigo, hace 85-245 (+90 % PH), lo aturde 1 s y los dos se juntan (él se lanza hacia el rival y el rival es arrastrado hacia él). Si toca un muro, Nautilus se lanza hasta el muro y recupera la mitad del enfriamiento y del maná: es su forma de cruzar muros. La bloquean súbditos y campeones en medio.",
+  "W": "Titan's Wrath: escudo de 50-90 (+8-12 % de su vida máxima) durante 6 s; mientras dura, sus ataques hacen 30-70 (+40 % PH) de daño mágico en área al objetivo y a los de alrededor. Enfriamiento 12 s. Le da aguante en los all-in y le deja limpiar oleadas.",
+  "E": "Riptide: tres ondas a su alrededor (hasta 590 de radio) en ~0,56 s: hasta 110-390 (+100 % PH) en total y ralentización del 30-50 % que decae en 1,5 s. Enfriamiento 7-5 s. Daño extra a monstruos. Prolonga el control tras el ancla y castiga a los que se acercan a su tirador.",
+  "R": "Depth Charge: onda de punto y clic contra un campeón a 825 u (120/100/80 s, 100 de maná) que persigue al objetivo acelerando y levanta 1 s a todos los enemigos por el camino; al llegar, el objetivo es levantado y aturdido 1/1,5/2 s y recibe 150-400 (+80 % PH). No se puede esquivar andando ni con dashes; la cortan escudos de hechizos (Velo de la banshee, E de Sivir, W de Morgana) o la invulnerabilidad."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E (73 % en OP.GG): Q a nivel 1 para el primer ancla o para defender la invasión, W a nivel 2 para el escudo del all-in. Maximiza Q (menos enfriamiento de enganche) y luego W (OP.GG) o E (Lolalytics, Q > E > W, más daño y ralentización en área). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Q: si toca a un rival, Nautilus se lanza hasta él (hasta ~1120 u); si toca un muro, se lanza hasta el muro y recupera la mitad del enfriamiento. No tiene otros dashes. Botas de rapidez, blindadas o de mercurio y Destello.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Con la Q a un muro: el ancla se engancha al terreno y Nautilus se lanza hasta él, así que en muros finos (río, jungla) acaba al otro lado o pegado a él; también puede atravesar un muro fino si el ancla toca a un campeón al otro lado. Lo usa para escapar o para entrar desde la jungla a la línea.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Ancla a muros: si la Q toca terreno se lanza hasta él y recupera la mitad del enfriamiento y del maná; es movilidad para huir, entrar a una pelea o cruzar el muro del río.",
+  "Pasiva de enraizamiento en el primer ataque a cada objetivo: tras la Q o la R siempre tiene un control más disponible, y con la W activa reparte daño en área.",
+  "R de punto y clic que no se puede esquivar y levanta a todos los que encuentra en el camino hasta el objetivo: un pick casi garantizado contra cualquier campeón sin escudo de hechizos.",
+  "Sus controles se encadenan en cascada: Q (1 s de aturdimiento) → pasiva (0,75-1,5 s de enraizamiento) → E (ralentización) → R (1-2 s): puede tener a un rival 3-4 s sin moverse.",
+  "Limpieza de oleadas y campamentos con W activa y E (con daño extra a monstruos): puede empujar la oleada de bot con su tirador y robar campamentos de la jungla rival."
+ ],
+ "combos": [
+  "Enganche estándar: Q al rival → ataque con pasiva (enraíza) → E → W para pegar en área mientras su tirador le sigue.",
+  "Pick de nivel 6: R al objetivo prioritario → Q cuando cae (o al revés: Q y R mientras está aturdido) → ataque con pasiva → E.",
+  "Destello-ancla: Destello para cambiar el ángulo y Q justo después cuando el rival no espera el enganche (súbditos ya no bloquean).",
+  "Escape: Q a un muro en dirección contraria al rival (recupera mitad del enfriamiento) → E para ralentizar a los perseguidores.",
+  "Protección: R o Q al luchador o asesino que salta a su tirador; la E y la pasiva lo dejan quieto para que su equipo lo mate."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Detracción celestial",
+   "Trineo del solsticio",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Botas de rapidez",
+   "Medallón de los Solari de Hierro",
+   "Promesa de caballero",
+   "Bandlemusa",
+   "Arnés de protoplasma",
+   "Rookern kaénico",
+   "Malla de espinas"
+  ],
+  "runas": "Reverberacción (65 % en OP.GG) con Fuente de vida o Golpe de escudo, Revestimiento de huesos e Inquebrantable; secundaria Inspiración (Destello hextech, Perspicacia cósmica) o Brujería. Alternativas: Garras del inmortal (Lolalytics) para intercambios cortos y algo de daño, o rama Precisión secundaria. Fragmentos de velocidad de habilidades y vida.",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Curar"
+  ],
+  "nota": "Destello + Prender (58 %) para asegurar el all-in de nivel 2-3; Destello + Curar (26 %) con tiradores de escalado o contra poke. Inicio Atlas mundial + 2 pociones; mejora a Detracción celestial (64 %) o Trineo del solsticio (28 %). Botas blindadas (57 %) contra AD o de mercurio (30 %) contra control/AP; de rapidez si quiere roamear mucho. Medallón de los Solari de Hierro casi siempre primero y Promesa de caballero de segundo; luego Bandlemusa, Arnés de protoplasma, Rookern kaénico contra magos o Malla de espinas contra tiradores con curación."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Su ventana principal: si su tirador empuja la primera oleada y llegan antes a nivel 2 (~1:50), busca el ancla al tirador rival o al support de cuerpo frágil (Yuumi, Zoe, Karma, encantadoras). Con Q acertada: ataque con pasiva, W y su tirador sigue; con Prender suele acabar en kill o Destello.",
+    "tradeos": "Amenaza el ancla desde detrás de su oleada o desde el arbusto y obliga a jugar detrás de los súbditos. No hace pequeños intercambios: si no hay ancla, ataque con pasiva al support rival que se acerca y E para ralentizar. Contra supports con más control o aguante (Taric, Rell, Alistar, Amumu) espera a que el rival gaste su enganche para responder.",
+    "oleadas": "Prefiere que su tirador empuje para ganar nivel 2 y la prioridad; con la oleada estrellada pone visión en el río y amenaza el ancla desde el arbusto del tri o del río. Contra rivales de enganche más fuertes, oleada cerca de su torre para que su jungla pueda acudir. Primera vuelta hacia el 3:30-4:30 con botas y guardián de control.",
+    "con_que_adcs": [
+     "Samira",
+     "Kalista",
+     "Draven",
+     "Lucian",
+     "Kai'Sa",
+     "Miss Fortune",
+     "Nilah"
+    ],
+    "sufre_contra": [
+     "Taric",
+     "Rell",
+     "Renata Glasc",
+     "Amumu",
+     "Alistar",
+     "Braum",
+     "Janna",
+     "Morgana"
+    ]
+   },
+   "roameos": "Roamea mucho a mid: tras estrellar la oleada de bot y con su tirador seguro, entra por el río (o se engancha a un muro con la Q para cortar camino) hacia el mid rival. Su mejor momento es a nivel 6 con R (~9:00) y con Botas de rapidez o blindadas; antes, a nivel 3-4, solo si el mid rival está empujado sin Destello. También acompaña a su jungla en invasiones a la jungla rival del lado de bot.",
+   "vision": "Visión de tanque support: guardianes de control en el río de bot y en los arbustos de la jungla rival antes de dragón (5:00) y larvas; cambia el trinket a Lente del oráculo pronto (primera o segunda vuelta) para limpiar la visión antes de sus enganches desde el arbusto.",
+   "fase_media": "Va delante del grupo a por picks en el río y la jungla antes de cada objetivo: ancla o R al que se quede sin visión. En las peleas inicia con R sobre el carry (o con Q si el carry está en línea limpia) y protege a su tirador enlazado con Promesa de caballero. Pasado el 14 casi siempre está agrupado.",
+   "matchups_dificiles": [
+    "Taric",
+    "Rell",
+    "Renata Glasc",
+    "Amumu",
+    "Alistar",
+    "Braum",
+    "Janna",
+    "Morgana"
+   ],
+   "matchups_faciles": [
+    "Yuumi",
+    "Zoe",
+    "Shaco",
+    "Karma",
+    "Sylas",
+    "Seraphine",
+    "Sona"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador de punto y clic y peeler: abre las peleas con la R sobre el carry o con el ancla, y protege a su tirador con su control encadenado.",
+  "como_entrar": "R al carry rival más peligroso (no se puede esquivar) y ancla cuando llega, o ancla desde la niebla si el carry está en una línea sin súbditos ni tanques delante. Después ataque con pasiva, E y W en el grupo. En defensa, R o Q al asesino que salta a su tirador.",
+  "objetivo": "El tirador o mago rival, o el asesino que amenaza a su carry (con la R le corta el combo).",
+  "posicion": "Delante del equipo o en el flanco, a ~825 u del carry para tener la R lista y con los arbustos o la niebla a favor para el ancla."
+ },
+ "macro": {
+  "split_push": "No. Va con su tirador o con el grupo; pasado el 14 casi nunca está solo en una lateral.",
+  "objetivos": "No hace objetivos solo. Pone la visión de dragón, larvas, Heraldo y Barón, y defiende el foso con R o ancla al jungla rival que entra a disputar el Castigo.",
+  "plan_de_partida": "0-4 min: ganar el nivel 2 con prioridad y buscar el ancla; Prender para asegurar kills. 4-14 min: roameos a mid (sobre todo desde el 6 con R), visión en el río, ancla desde los arbustos antes de dragón. 14-25 min: Medallón + Promesa de caballero, picks antes de cada objetivo. 25+: iniciar con R las peleas de Barón y Alma o pelar a su tirador."
+ },
+ "debilidades": [
+  "Depende de acertar el ancla: es lenta de lanzar y la bloquean súbditos, tanques y supports de rango que se quedan detrás de la oleada.",
+  "Desenganche y escudos de hechizos le anulan: W de Janna, E de Sivir, Velo de la banshee, escudo de Morgana o la R de Taric cortan su all-in.",
+  "Sin escape propio salvo el ancla a un muro: si falla la Q en una línea abierta queda expuesto.",
+  "Daño propio bajo: si engancha y su tirador no le sigue, pierde el intercambio.",
+  "Sin la R (80-120 s) sus inicios son mucho menos fiables."
+ ],
+ "contrarrestado_por": [
+  "Taric",
+  "Rell",
+  "Renata Glasc",
+  "Amumu",
+  "Alistar",
+  "Braum",
+  "Janna",
+  "Morgana"
+ ],
+ "bueno_contra": [
+  "Yuumi",
+  "Zoe",
+  "Shaco",
+  "Karma",
+  "Sylas",
+  "Ashe",
+  "Seraphine"
+ ],
+ "sinergias": [
+  "Samira",
+  "Kalista",
+  "Draven",
+  "Lucian",
+  "Kai'Sa",
+  "Yasuo",
+  "Miss Fortune"
+ ],
+ "errores_comunes": [
+  "Lanzar el ancla a través de súbditos o a rivales lejos del límite del alcance: la bloquean o la esquivan y queda 10-14 s sin enganche.",
+  "Engancharse a un rival cuando su tirador no puede seguir (está farmeando o es de rango largo y sin all-in).",
+  "Gastar la R para rematar a alguien en lugar de guardarla para el carry rival o para cortar al asesino.",
+  "Usar la R contra campeones con escudo de hechizos activo (Sivir, Morgana, Velo de la banshee).",
+  "Olvidar que el ancla a un muro le salva: morir huyendo en línea recta junto a un muro fino.",
+  "Roamear sin que su tirador esté seguro bajo torre y dejarlo solo contra dos."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de support: nivel 2 hacia la 1:50, nivel 3 hacia las 2:40, nivel 6 hacia el 8:30-9:00 y nivel 11 hacia el 21-23; CS ~10-15 al 10:00 (no recoge súbditos con el objeto de support).",
+  "Subidas de habilidad: Q a nivel 1 y maximizada primero; W a nivel 2 y E a nivel 3 (73 % Q-W-E). Una E a nivel 2 indica que su tirador le pide limpiar la oleada o que busca daño en área.",
+  "Kills tempranas en bot entre el 1:50 y el 4:00 con Nautilus y su tirador son su plan (all-in de nivel 2-3 con Prender), no un exceso de riesgo. Prender en el 58 % de partidas y Curar en el 26 %.",
+  "Desplazamiento de víctimas: el ancla junta a los dos a mitad de camino; la víctima puede acabar hasta ~500-600 u más cerca de Nautilus y de su equipo que donde estaba, y Nautilus hasta ~1120 u más adelante de su posición inicial.",
+  "Saltos por muros con el ancla: Nautilus puede aparecer al otro lado de un muro fino del río o de la jungla sin Destello; un trayecto más corto de lo normal entre su posición de un minuto y la siguiente es coherente.",
+  "Roameos a mid desde el 6 (R): kills o asistencias de mid entre el 6:00 y el 14:00 con Nautilus presente son normales; también acompaña a su jungla en invasiones del lado de bot.",
+  "Pocas kills y muchas asistencias, con mucho control aplicado a campeones (Q, pasiva, E y R); muertes suyas también frecuentes porque entra primero: de 5 a 9 muertes en partidas de 30 min son típicas.",
+  "Objetos: Atlas mundial → Detracción celestial (o Trineo del solsticio) hacia el 7-9; Botas blindadas o de mercurio antes del primer objeto; Medallón de los Solari de Hierro hacia el 13-15 y Promesa de caballero hacia el 20-23.",
+  "Visión alta: muchos guardianes de control y trinket Lente del oráculo pronto; guardianes en el río y en la jungla rival antes de cada dragón son lo normal.",
+  "Pasado el 14 casi siempre agrupado y delante del equipo: una muerte suya la primera en una pelea es normal (inicia); una muerte sola en una lateral sin aliados cerca suele ser un error."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/nautilus/build/",
+  "https://www.op.gg/lol/champions/nautilus/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Nautilus",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "SUPPORT": {
+    "partidas": 314,
+    "victorias": 0.481,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 53,
+      "victorias": 0.396
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 77,
+      "victorias": 0.481
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 95,
+      "victorias": 0.505
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 60,
+      "victorias": 0.55
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 3.9,
+     "p75": 5.3
+    },
+    "primer_objeto_min": {
+     "p25": 11.4,
+     "mediana": 12.8,
+     "p75": 14.7
+    },
+    "segundo_objeto_min": {
+     "p25": 20.9,
+     "mediana": 22.6,
+     "p75": 24.8
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.6
+     ],
+     [
+      "Promesa de caballero",
+      0.2
+     ],
+     [
+      "Convergencia de Zeke",
+      0.08
+     ],
+     [
+      "Arnés de protoplasma",
+      0.07
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.68
+     ],
+     [
+      "WQEQQRQWQ",
+      0.23
+     ],
+     [
+      "QWEQQRQEQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.94
+     ],
+     [
+      "QEW",
+      0.03
+     ],
+     [
+      "EQW",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 50.0,
+     "mediana": 58.1,
+     "p75": 66.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 7.2,
+     "mediana": 8.6,
+     "p75": 10.0
+    },
+    "vision_por_min": {
+     "p25": 2.83,
+     "mediana": 3.24,
+     "p75": 3.68
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.13,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.5,
+     "p75": 2.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 28.3,
+     "mediana": 37.7,
+     "p75": 46.9
+    },
+    "cs_10": {
+     "p25": 11.0,
+     "mediana": 14.0,
+     "p75": 17.0
+    },
+    "dif_cs_10": {
+     "p25": -3.0,
+     "mediana": 1.0,
+     "p75": 4.0
+    },
+    "dif_oro_10": {
+     "p25": -372.0,
+     "mediana": -15.0,
+     "p75": 268.0
+    },
+    "placas": {
+     "p25": 0.0,
+     "mediana": 2.0,
+     "p75": 7.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 6.0,
+     "mediana": 8.3,
+     "p75": 12.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 10.1,
+     "mediana": 14.3,
+     "p75": 19.0
+    },
+    "wards_antes_14": {
+     "p25": 10.0,
+     "mediana": 12.5,
+     "p75": 14.8
+    },
+    "pinks": {
+     "p25": 10.0,
+     "mediana": 14.0,
+     "p75": 19.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.22-16.23"
+   }
+  }
+ }
+}

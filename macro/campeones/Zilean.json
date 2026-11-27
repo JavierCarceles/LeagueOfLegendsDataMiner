@@ -1,0 +1,519 @@
+{
+ "clave": "Zilean",
+ "nombre": "Zilean",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.86,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support de utilidad y poke con bombas que aturden en área (Q-W-Q), velocidad o ralentización del 99 % con la E y una R que resucita a un aliado; escala bien y cambia peleas sin necesidad de ventaja de oro",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 5,
+  "nota": "En la línea hace poke con la Q (900 u, 3 s de retraso) y tiene el aturdimiento doble desde nivel 3, pero es muy frágil y lento: si le pillan sin la E (15 s) muere. Desde el nivel 6 la R (120 s) le permite ganar escaramuzas salvando a su tirador. Con niveles y velocidad de habilidad (Botas jonias, Canción de batalla de Shurelya) la W reinicia antes la Q y la E y la R baja a 60 s a nivel 16: en la tardía es de los supports que más pesan en las peleas. Rinde aunque vaya por detrás de oro, porque su valor es la utilidad."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 con Q-W-E (~2:40-3:00 en bot)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Ya tiene la combinación Q → W → Q para aturdir 1,1 s en área y la E para ralentizar al objetivo o acelerar a su tirador. Con un tirador de enganche o de daño (Lucian, Draven, Caitlyn) es una amenaza de kill si el rival se queda cerca de sus súbditos."
+  },
+  {
+   "cuando": "Nivel 6 (~9:00 de mediana en OTP Diamante+)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Chronoshift: si el aliado marcado muere en los 5 s siguientes, revive a los 3 s con 600 (+200 % PH) de vida. Convierte los all-in del rival en peleas perdidas para ellos y le deja jugar zambullidas de torre con su jungla."
+  },
+  {
+   "cuando": "Objeto de support mejorado y Botas jonias de la lucidez (~8:00-11:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Trineo del solsticio",
+   "por_que": "Las Botas jonias (81 % en OP.GG) y la mejora del Atlas mundial (Trineo del solsticio, o Detracción celestial) le dan velocidad de habilidad: la W baja de 14 s y tiene la doble bomba y la doble E más a menudo."
+  },
+  {
+   "cuando": "Canción de batalla de Shurelya (~14:00-16:00)",
+   "nivel": 10,
+   "objetos": 2,
+   "objeto": "Canción de batalla de Shurelya",
+   "por_que": "Primer objeto de la ruta más jugada: velocidad de grupo para entrar o salir de la pelea encadenada con su E (40-99 % de velocidad). Con E en máximo, el equipo llega o se va antes que el rival."
+  },
+  {
+   "cuando": "Niveles 11 y 16 con velocidad de habilidad (~20:00 y ~30:00)",
+   "nivel": 16,
+   "objetos": 3,
+   "objeto": "Bandlemusa",
+   "por_que": "La R baja a 90 s (nivel 11) y a 60 s (nivel 16) y la W a 6 s: puede salvar al tirador en cada pelea y aturdir dos veces por combate. Con Mandato imperial o Bandlemusa como segundo o tercer objeto es su momento más fuerte."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Time in a Bottle: va guardando experiencia (2-12 cada 5 s según su nivel) que no cuenta para él; con un enfriamiento de 120 s puede regalársela a un aliado que pueda subir de nivel (canalización de 1,2 s que se corta si él o el aliado entran en combate con campeones o reciben daño de torre). Zilean recibe la misma experiencia que da. Hace que su tirador o su jungla suban de nivel antes de tiempo.",
+  "Q": "Time Bomb: bomba a 900 u que se pega a la primera unidad que toca o que pasa por su zona (prioriza campeones) y explota a los 3 s haciendo 75-300 (+90 % PH) en 350 u. Si se pone una segunda bomba sobre la misma unidad, la primera explota al instante y aturde a los enemigos cercanos 1,1-1,5 s. Enfriamiento 10-8 s y 60-80 de maná. Se puede pegar a un súbdito junto al rival para que el aturdimiento le pille.",
+  "W": "Rewind: le quita 10 s al enfriamiento restante de la Q y de la E (35 de maná, enfriamiento 14/12/10/8/6 s). Solo se puede usar si una de las dos está en enfriamiento y desde el 26.08 no se puede aprender a nivel 1. Es lo que permite el Q-W-Q del aturdimiento y la doble E.",
+  "E": "Time Warp: a 550 u, durante 2,5 s ralentiza a un enemigo o acelera a un aliado (o a sí mismo) un 40/55/70/85/99 %. Enfriamiento fijo de 15 s y 50 de maná. Es su herramienta de huida, de persecución (99 % de velocidad a rango 5) y de preparación de la doble bomba sobre un rival lento.",
+  "R": "Chronoshift: marca a un aliado o a sí mismo a 900 u durante 5 s; si recibe daño letal, entra 3 s en estasis (invulnerable, sin poder actuar) y revive en el mismo sitio con 600/850/1100 (+200 % PH) de vida. Enfriamiento 120/90/60 s y 125-175 de maná. Si el aliado no muere, solo se pierde el enfriamiento."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E casi siempre (la W no se puede aprender a nivel 1 desde el 26.08). Maximiza Q en la mayoría de partidas (49 % en OP.GG, con la R en 6, 11 y 16), pero muchos OTP de alto elo ponen tres puntos en Q y luego maximizan E (Lolalytics la da como prioridad) para tener el 99 % de velocidad o ralentización antes: más utilidad que daño. La W siempre la última."
+ },
+ "movilidad": {
+  "desplazamientos": "No tiene dashes ni saltos. Su movilidad es la E sobre sí mismo: 40-99 % de velocidad durante 2,5 s (y con W, una segunda E seguida). Botas jonias o Botas de rapidez y Destello.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La doble bomba: dos Q sobre la misma unidad (Q → W → Q) hacen explotar la primera al instante y aturden 1,1-1,5 s en área. Se puede pegar a un súbdito o a un aliado del rival para pillarle sin apuntarle directamente.",
+  "La R resucita: el aliado marcado que muere en 5 s revive a los 3 s con 600-1100 de vida en el mismo sitio. La muerte no llega a contar en el marcador si revive.",
+  "La pasiva regala experiencia a un aliado cada 120 s: el aliado puede subir de nivel de golpe (por ejemplo a 6 antes que su rival) sin haber matado nada.",
+  "La E acelera o ralentiza hasta un 99 % según a quién se lance, y la W la reinicia: puede acelerar a dos aliados o a sí mismo dos veces seguidas.",
+  "Escala con niveles y velocidad de habilidad más que con oro: la W a 6 s y la R a 60 s en la tardía."
+ ],
+ "combos": [
+  "Aturdimiento: E (ralentiza al objetivo) → Q sobre él → W → Q de nuevo: aturdimiento de 1,1-1,5 s en área.",
+  "Aturdimiento a través de súbditos: Q a un súbdito pegado al rival → W → Q al mismo súbdito: la explosión aturde al rival si está a menos de 350 u.",
+  "Persecución o enganche del equipo: E a un aliado (velocidad hasta 99 %) → W → E a otro aliado o a sí mismo.",
+  "Huida: E sobre sí mismo → W → E de nuevo si sigue en peligro; Q hacia atrás para frenar a quien persigue.",
+  "Salvar al carry: R sobre el aliado al que van a matar justo antes de la ráfaga (el marcado dura 5 s), luego E de velocidad sobre él cuando revive para que salga de la pelea."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Trineo del solsticio",
+   "Detracción celestial",
+   "Botas jonias de la lucidez",
+   "Canción de batalla de Shurelya",
+   "Mandato imperial",
+   "Bandlemusa",
+   "Medallón de los Solari de Hierro",
+   "Bendición de Mikael",
+   "Redención",
+   "Promesa de caballero",
+   "Impulso cósmico"
+  ],
+  "runas": "Invocar a Aery (Brujería) con Banda de maná, Trascendencia y Piroláser o Caminar sobre agua en el ~69 % de las partidas (OP.GG 16.23). Secundaria Dominación (~38 %; Golpe bajo y Cazador incesante) o Inspiración (~25 %; Calzado mágico y Perspicacia cósmica). Fragmentos de velocidad de habilidad y fuerza adaptable.",
+  "hechizos": [
+   "Destello",
+   "Curar"
+  ],
+  "nota": "Destello + Curar en el ~68 % de las partidas y Destello + Agotamiento en el ~23 % (contra asesinos o luchadores que entran a su tirador, como Draven, Samira, Nilah o un jungla de zambullida). Inicio: Atlas mundial + 2 Pociones de vida. Mejora del objeto de support: Trineo del solsticio (57 %) o Detracción celestial (20 %, para más enganche). Botas jonias (81 %) o Botas de rapidez (14 %). Ruta más jugada: Canción de batalla de Shurelya → Mandato imperial o Bandlemusa → Medallón de los Solari de Hierro, Bendición de Mikael (contra control duro), Redención o Promesa de caballero."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Nivel 1 con Q para hacer poke pegando la bomba a un súbdito junto al rival o directamente a él. A nivel 2 (W) ya puede hacer Q-W-Q para aturdir si el rival se queda pegado a su oleada; lo normal es usarlo junto a su tirador cuando ese llega a nivel 2 antes.",
+    "tradeos": "Poke con la Q pegada a súbditos o al rival cada 8-10 s y retirada. El intercambio fuerte es E (ralentización) → Q → W → Q cuando el rival está a menos de 550 u; contra supports de enganche (Nautilus, Blitzcrank, Thresh, Leona) guarda la E y la doble bomba para frenarlos en cuanto entren, no las gasta en poke.",
+    "oleadas": "Prefiere que su tirador empuje y él hace poke a quien se acerca a la oleada. Cuida el maná: la Q cuesta 60-80 y la combinación completa más de 200 a nivel bajo. Primera vuelta a base hacia el 3:45 (mediana en OTP) con Botas o Guardián de control.",
+    "con_que_adcs": [
+     "Jinx",
+     "Kog'Maw",
+     "Caitlyn",
+     "Aphelios",
+     "Jhin",
+     "Ezreal",
+     "Lucian",
+     "Varus"
+    ],
+    "sufre_contra": [
+     "Sona",
+     "Nami",
+     "Janna",
+     "Vel'Koz",
+     "Sylas",
+     "Elise",
+     "Blitzcrank"
+    ]
+   },
+   "roameos": "Poco y tarde: en OTP Diamante+ (194 partidas) el 58 % tiene alguna posición por minuto en mid o top entre el 3:00 y el 14:00, la primera hacia el minuto 10 de mediana, y solo un 7 % de sus posiciones por minuto antes del 14 son en mid. Roamea sobre todo a mid tras empujar la oleada de bot, con la E de velocidad sobre sí mismo para llegar rápido y la doble bomba para el pick, o se queda con su tirador si este es débil solo.",
+   "vision": "Moderada: mediana de 31 guardianes por partida en OTP Diamante+ (partidas de ~28 min). Coloca en el río de bot y en el tribrush, y antes de dragón y larvas en la entrada de la jungla rival; cambia a Lente del oráculo tras completar el objeto de support para limpiar visión antes de los objetivos.",
+   "fase_media": "Va pegado al carry que más rinde (tirador o mid) y al siguiente objetivo: poke con Q en el foso del dragón o de las larvas, velocidad con E y Canción de batalla de Shurelya para entrar todos a la vez o salir, y R sobre quien vaya a recibir la ráfaga. Pasado el 14 casi no está solo en una lateral.",
+   "matchups_dificiles": [
+    "Sona",
+    "Nami",
+    "Janna",
+    "Vel'Koz",
+    "Sylas",
+    "Elise",
+    "Blitzcrank",
+    "Pyke"
+   ],
+   "matchups_faciles": [
+    "Shen",
+    "Xerath",
+    "Maokai",
+    "Renata Glasc",
+    "Camille",
+    "Swain",
+    "Alistar",
+    "Leona"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Peeler y potenciador con control en área: protege al carry con la R y la E, frena al que entra con la doble bomba y acelera a su equipo para entrar o salir.",
+  "como_entrar": "No entra: se coloca detrás del frontal, pone la R al aliado que va a recibir la ráfaga, lanza Q-W-Q al grupo que entra (o al que se queda pegado a su frontal) y usa la E para ralentizar al asesino o acelerar a su tirador.",
+  "objetivo": "Quien salta a su carry: asesinos, luchadores y supports de enganche. En una pelea de poke, la doble bomba al grupo rival más compacto.",
+  "posicion": "Retaguardia, al lado de su tirador y a menos de 900 u (alcance de la R). Es muy frágil: si se pone delante, lo matan antes de que pueda usar la R sobre otro."
+ },
+ "macro": {
+  "split_push": "No hace split push. Pasado el 14 va siempre con su equipo o con su carry.",
+  "objetivos": "No hace objetivos solo. Ayuda con visión y poke en dragón, larvas, Heraldo y Barón; su R permite forzar el objetivo aunque el rival entre. La pasiva le da un nivel extra al jungla para ganar el duelo de dragón o de escuttle.",
+  "plan_de_partida": "0-6 min: poke con Q y amenaza de doble bomba en bot, cuidando el maná. 6-14 min: R a nivel 6 para ganar escaramuzas y zambullidas; rotaciones a mid tras empujar bot y visión del dragón. 14-25 min: velocidad de grupo con Canción de batalla de Shurelya, peleas alrededor de objetivos. 25+: R a 60-90 s en cada pelea sobre el carry, doble bomba a quien entra."
+ },
+ "debilidades": [
+  "Muy frágil y lento, sin desplazamientos: si le pillan sin la E (15 s) muere casi seguro.",
+  "La Q tiene 3 s de retraso y se ve venir: los rivales móviles o que se separan de sus súbditos la esquivan.",
+  "Mucho gasto de maná en la línea: la combinación completa cuesta más de 200 de maná antes de los objetos.",
+  "La R se puede esquivar con daño en ráfaga después del revivir o con efectos que impiden la curación; los rivales esperan a que la gaste para entrar.",
+  "Pierde contra supports de alcance que le hacen poke sin acercarse (Sona, Nami, Vel'Koz)."
+ ],
+ "contrarrestado_por": [
+  "Sona",
+  "Nami",
+  "Janna",
+  "Vel'Koz",
+  "Sylas",
+  "Elise",
+  "Blitzcrank"
+ ],
+ "bueno_contra": [
+  "Shen",
+  "Xerath",
+  "Maokai",
+  "Renata Glasc",
+  "Camille",
+  "Swain",
+  "Alistar"
+ ],
+ "sinergias": [
+  "Jinx",
+  "Kog'Maw",
+  "Twitch",
+  "Aphelios",
+  "Caitlyn",
+  "Master Yi",
+  "Kayle",
+  "Hecarim"
+ ],
+ "errores_comunes": [
+  "Gastar la E en poke o para correr en la línea y no tenerla cuando el support rival entra.",
+  "Lanzar la R demasiado pronto (dura 5 s): el aliado sobrevive el combate inicial y la R se pierde para la segunda ráfaga.",
+  "Ponerse delante para pegar la Q al campeón en lugar de pegarla a un súbdito junto a él.",
+  "Olvidarse de la pasiva: no regalar la experiencia al jungla o al tirador cuando está a punto de subir a 6 o a 11.",
+  "Quedarse sin maná a nivel 2-4 por hacer Q en cada oleada.",
+  "Usar la W sin tener la Q o la E en enfriamiento importante (se desperdicia el reinicio)."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de support: nivel 2 hacia el 1:50-2:00, nivel 3 hacia el 3:00, nivel 6 hacia el 9:00 de mediana (OTP Diamante+, 194 partidas); CS de 14 al 10:00 y 20 al 15:00 (solo los últimos golpes del objeto de support).",
+  "Primera vuelta a base hacia el 3:45 de mediana (p25 3:09, p75 4:38) con Botas o Guardián de control. Botas jonias de la lucidez casi siempre como primeras botas.",
+  "La R evita muertes: si un aliado suyo tenía la vida a cero y no aparece la muerte en el timeline (o el rival no consigue la kill que se esperaba), puede haber sido la resurrección de la R (enfriamiento 120/90/60 s).",
+  "La pasiva regala experiencia: un aliado (normalmente su tirador o su jungla) puede subir de nivel de golpe sin haber farmeado, y Zilean sube lo mismo. Cada 120 s como mucho.",
+  "Roameos poco frecuentes y tardíos: un 7 % de sus posiciones por minuto antes del 14 son en mid y un 1 % en top; la primera aparición fuera de bot hacia el minuto 10. Lo habitual es bot, el río de bot y la jungla cercana (visión).",
+  "Sin movilidad propia: no salta muros ni tiene efectos globales; sus apariciones en otras líneas son caminando (con la E de velocidad del 40-99 %).",
+  "Hechizos: Destello + Curar (~68 %) o Destello + Agotamiento (~23 %). Wards: mediana de 31 por partida en Diamante+, con Lente del oráculo tras el objeto de support.",
+  "Partidas con Zilean tienden a ir largas (mediana 28 min en la muestra de OTP): su equipo gana más cuanto más se alarga la partida."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/zilean/build/",
+  "https://www.op.gg/lol/champions/zilean/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Zilean",
+  "https://metabot.gg/en/league/champion/Zilean/tips?build=3",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Zilean support (data/otps/Zilean/SUPPORT: 359 partidas de 20 jugadores; 194 de Diamante+)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 24,
+    "victorias": 0.667,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 3.6,
+     "p75": 4.3
+    },
+    "primer_objeto_min": {
+     "p25": 13.1,
+     "mediana": 14.2,
+     "p75": 15.1
+    },
+    "segundo_objeto_min": {
+     "p25": 19.3,
+     "mediana": 20.5,
+     "p75": 20.8
+    },
+    "primer_objeto": [
+     [
+      "Bastón del arcángel",
+      0.71
+     ],
+     [
+      "Vara de las edades",
+      0.25
+     ],
+     [
+      "Canción de batalla de Shurelya",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWQEQRQEQ",
+      0.96
+     ],
+     [
+      "QEWQQRQEQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 26.0,
+     "mediana": 41.3,
+     "p75": 55.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 10.9,
+     "mediana": 14.1,
+     "p75": 18.2
+    },
+    "vision_por_min": {
+     "p25": 0.56,
+     "mediana": 0.81,
+     "p75": 0.93
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 1.0
+    },
+    "solo_kills_media": 0.25,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 2.2,
+     "mediana": 8.4,
+     "p75": 12.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 24.3,
+     "mediana": 38.5,
+     "p75": 46.3
+    },
+    "cs_10": {
+     "p25": 77.8,
+     "mediana": 81.5,
+     "p75": 93.2
+    },
+    "dif_cs_10": {
+     "p25": -9.5,
+     "mediana": 1.5,
+     "p75": 7.2
+    },
+    "dif_oro_10": {
+     "p25": -691.0,
+     "mediana": -489.0,
+     "p75": 41.0
+    },
+    "placas": {
+     "p25": 4.0,
+     "mediana": 8.5,
+     "p75": 10.2
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.2,
+     "p75": 3.1
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.2,
+     "mediana": 5.7,
+     "p75": 11.3
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 194,
+    "victorias": 0.5,
+    "victorias_por_duracion": [
+     {
+      "minutos": "20-25",
+      "partidas": 44,
+      "victorias": 0.432
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 71,
+      "victorias": 0.549
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 39,
+      "victorias": 0.487
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.2,
+     "p75": 6.2
+    },
+    "primer_objeto_min": {
+     "p25": 11.3,
+     "mediana": 12.9,
+     "p75": 15.0
+    },
+    "segundo_objeto_min": {
+     "p25": 19.9,
+     "mediana": 21.9,
+     "p75": 23.7
+    },
+    "primer_objeto": [
+     [
+      "Canción de batalla de Shurelya",
+      0.5
+     ],
+     [
+      "Medallón de los Solari de Hierro",
+      0.28
+     ],
+     [
+      "Bendición de Mikael",
+      0.09
+     ],
+     [
+      "Jak'Sho el Proteico",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEEEREWE",
+      0.32
+     ],
+     [
+      "QWEEEREQE",
+      0.13
+     ],
+     [
+      "QWEQEREEE",
+      0.1
+     ]
+    ],
+    "maximiza": [
+     [
+      "EWQ",
+      0.43
+     ],
+     [
+      "EQW",
+      0.41
+     ],
+     [
+      "QEW",
+      0.09
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 52.7,
+     "mediana": 62.1,
+     "p75": 70.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 4.6,
+     "mediana": 6.3,
+     "p75": 8.4
+    },
+    "vision_por_min": {
+     "p25": 2.34,
+     "mediana": 2.72,
+     "p75": 3.23
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.17,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.1,
+     "p75": 4.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 30.9,
+     "mediana": 39.8,
+     "p75": 49.2
+    },
+    "cs_10": {
+     "p25": 11.0,
+     "mediana": 13.5,
+     "p75": 17.0
+    },
+    "dif_cs_10": {
+     "p25": -4.0,
+     "mediana": 1.0,
+     "p75": 5.0
+    },
+    "dif_oro_10": {
+     "p25": -420.0,
+     "mediana": -17.0,
+     "p75": 250.0
+    },
+    "placas": {
+     "p25": 1.0,
+     "mediana": 4.0,
+     "p75": 9.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 1.8,
+     "mediana": 5.7,
+     "p75": 10.1
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 13.7,
+     "p75": 18.4
+    },
+    "wards_antes_14": {
+     "p25": 9.0,
+     "mediana": 10.0,
+     "p75": 12.0
+    },
+    "pinks": {
+     "p25": 0.2,
+     "mediana": 5.0,
+     "p75": 10.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.14-16.23"
+   }
+  }
+ }
+}

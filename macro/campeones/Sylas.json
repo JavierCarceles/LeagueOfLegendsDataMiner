@@ -1,0 +1,764 @@
+{
+ "clave": "Sylas",
+ "nombre": "Sylas",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.44,
+   "principal": true
+  },
+  {
+   "rol": "JUNGLE",
+   "parte": 0.4,
+   "principal": false
+  }
+ ],
+ "arquetipo": "mago luchador de corto alcance que entra con las cadenas (E) y se cura con la W; roba la definitiva del rival con la R, así que su fuerza depende de las R enemigas; juega mid o jungla con picos a nivel 3, 6 y con Cintomisil hextech",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 4,
+  "nota": "Niveles 1-2 flojos: alcance de cuerpo a cuerpo (175 u), sin poke y con poco maná; en la jungla despeja lento si no optimiza la pasiva. A nivel 3 tiene E-W-Q y un combo le quita ~60-70 % de vida a un mago. Con R (nivel 6) y Cintomisil hextech (~11-13 min) es de los mejores en escaramuzas, sobre todo si el rival tiene definitivas de pelea en equipo (Malphite, Amumu, Orianna, Sejuani, Kennen) que él puede devolver. En la tardía la R baja a 30 s a nivel 16 y con Zhonya y Rabadon sigue siendo peligroso, pero contra rivales con definitivas flojas o de un solo objetivo pierde gran parte de su valor."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 3 (~2:10 en mid; tras 3 campamentos o el despeje en la jungla)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E (400 u de dash + cadena de 950 u), W (400 u, cura según la vida que le falta) y Q tiene el combo entero: E1-E2 → ataque con pasiva → Q → W. En mid es su primera ventana de all-in; en la jungla es el nivel de su primer gank habitual."
+  },
+  {
+   "cuando": "Nivel 6 (~5:45 en mid, ~6:30-7:00 en la jungla)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Hijack (950 u, 80 s) le da la R del rival: si es una R de control o de daño en área (Malphite, Amumu, Sejuani, Orianna, Annie, Leona, Lissandra) gana cualquier escaramuza 2v2 o la usa para huir; con R globales (Twisted Fate, Shen, Pantheon, Galio, Karthus, Jinx) puede aparecer o matar en otra línea."
+  },
+  {
+   "cuando": "Primer objeto (~11-13 min): Cintomisil hextech",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Cintomisil hextech",
+   "por_que": "El dash de 275 u del cinturón y su ralentización hacen fácil acertar la E2; con Sello oscuro antes (el ~14 % de jungla y ~7 % de mid lo compran primero) acumula daño muy rápido. Desde aquí busca picks en el río y peleas en dragón o larvas."
+  },
+  {
+   "cuando": "Nivel 11 (R a 55 s) y dos objetos (~19-21 min): Creagrietas o Llamasombría",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Creagrietas",
+   "por_que": "Con Creagrietas (vampirismo universal y daño creciente en peleas largas) o Llamasombría (ráfaga contra frágiles) y la R cada 55 s, puede robar una definitiva casi en cada pelea. Es su mejor momento para entrar a la retaguardia."
+  },
+  {
+   "cuando": "Tres objetos con Reloj de arena de Zhonya (~25-27 min)",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Reloj de arena de Zhonya",
+   "por_que": "Zhonya le deja entrar con E-W, usar la R robada y aguantar 2,5 s mientras vuelven sus habilidades. Con R a 30 s a nivel 16 la robará en cada pelea."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Petricite Burst: cada habilidad que lanza le da una carga (hasta 3, 4 s). El siguiente ataque gasta una carga, gana +125 % de velocidad de ataque y hace 130 % del AD (+30 % PH) de daño mágico al objetivo y 40 % AD (+20 % PH) a los de alrededor (115 % a monstruos; remata súbditos secundarios con menos de 25 de vida). Es casi todo su daño en la jungla y en los intercambios cortos: entre habilidades siempre debe meter un ataque.",
+  "Q": "Chain Lash: dos cadenas que se cruzan en un punto a 775 u (10/9/8/7/6 s, 55 de maná): 40-120 (+40 % PH) y ralentización del 15-35 % 1,5 s; 0,6 s después el cruce explota por 60-280 (+80 % PH). Total 100-400 (+120 % PH); a súbditos hace el 40 %. Es su despeje y su poke; centrar la explosión en el objetivo dobla el daño.",
+  "W": "Kingslayer: salto de 400 u a un enemigo (12/10,5/9/7,5/6 s) con 75-215 (+60 % PH) de daño mágico; contra campeones se cura 20-100 (+30 % PH +5 % vida extra) que sube hasta el doble según la vida que le falta. Es el remate y la razón de que gane peleas largas a poca vida. Sin tiempo de lanzamiento.",
+  "E": "Abscond / Abduct: E1 es un dash de hasta 400 u a 1450 de velocidad (13/12/11/10/9 s, 65 de maná). En los 3,5 s siguientes puede lanzar E2: cadena de 950 u (790 en el borde, 120 de ancho) que choca con el primer enemigo, hace 80-280 (+80 % PH), le aturde 0,5 s y le arrastra a él hasta el objetivo, que queda levantado 0,5 s. La E2 la bloquean los súbditos. Es su entrada y su huida: E1 para esquivar o cruzar un muro y E2 para pegarse al objetivo.",
+  "R": "Hijack: cadena de 950 u a un campeón enemigo (80/55/30 s, 75 de maná) que le roba su definitiva y le revela 0,8 s. Puede guardarla hasta 90 s y lanzarla gratis, con el rango de su propia R y su PH. Cada rival tiene un enfriamiento propio antes de que se lo pueda volver a robar. Las R globales o de largo alcance (Twisted Fate, Shen, Pantheon, Galio, Ryze, Karthus, Jinx, Ezreal, Soraka, Senna, Gangplank) funcionan igual en sus manos; contra rivales sin R útiles la usa para la que mejor encaje o la guarda."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "E",
+   "Q"
+  ],
+  "niveles_1_3": [
+   "E",
+   "W",
+   "Q"
+  ],
+  "nota": "En OP.GG 16.23 lo más jugado en ambos roles es maximizar W y luego E (mid: E-W-Q de inicio; jungla: E-Q-W y W en 3, 4 y 5, el 65 % de las partidas). En mid una parte de jugadores maximiza Q-E-W (Lolalytics y Skill Capped lo prefieren contra magos de rango, por el despeje y el poke); la W primero rinde más contra cuerpo a cuerpo y en la jungla. Nivel 1 casi siempre E (en la jungla para acumular la pasiva y despejar con E1-E2 al primer campamento). R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E1: dash de 400 u. E2: cadena de 950 u que le arrastra hasta el campeón o súbdito al que toca (~800-950 u). W: salto de 400 u a un enemigo. Cintomisil hextech: dash de 275 u. Con Destello (400 u) puede recorrer ~2000 u en 2-3 s (E1 + E2 + W + cinturón + Destello). Las R robadas con desplazamiento (Malphite, Hecarim, Vi, Jarvan IV, Rell, Zac…) le dan otro más.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "La E1 (400 u) cruza muros finos de la jungla y del río si el punto de destino está libre; la E2 pasa por encima de cualquier muro si la cadena toca a un enemigo al otro lado y le arrastra hasta él; la W y el cinturón (275 u) solo pasan muros muy finos. Algunas R robadas (Malphite, Zac, Hecarim) también cruzan muros.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "daño",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "Solo si roba una R global o de alcance enorme: Karthus (todo el mapa), Jinx, Ezreal, Senna, Draven, Ashe o Gangplank. Sus kills con ellas ocurren sin que se mueva; en mid contra Karthus o con un tirador de R global en el equipo rival es habitual."
+   },
+   {
+    "habilidad": "R",
+    "tipo": "teletransporte",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "Solo si roba la R de Twisted Fate (5500 u), Shen (global, hacia un aliado), Pantheon (5500 u), Galio (hacia un aliado lejano) o Ryze (portal de ~3000 u para él y aliados). Una aparición en otra línea a mucha distancia de su posición anterior tras un robo así es coherente."
+   },
+   {
+    "habilidad": "R",
+    "tipo": "curacion",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "Solo si roba la R de Soraka (curación a todos sus aliados) o, a menos alcance, la de Taric o Kayle (protección a un aliado)."
+   }
+  ]
+ },
+ "unico": [
+  "La R roba la definitiva del rival: su valor cambia en cada partida según las R enemigas, y los rivales con definitivas de área (Malphite, Amumu, Orianna, Sejuani, Annie, Kennen) son los que más le favorecen; contra R de un solo objetivo o pasivas aporta mucho menos.",
+  "La R robada usa su PH y el nivel de su propia R: con dos objetos de PH una R de mago o de tanque en sus manos suele hacer más daño que la original.",
+  "Cada habilidad carga un ataque potenciado en área (hasta 3 cargas, +125 % de velocidad de ataque): su daño y su despeje dependen de intercalar ataques entre habilidades.",
+  "La W cura más cuanta menos vida le queda (hasta el doble): las peleas a poca vida suele ganarlas él si guarda la W para el final.",
+  "La E2 le lleva hasta el objetivo por encima de muros y oleadas: puede entrar a la retaguardia desde la niebla o huir encadenándose a un súbdito o monstruo lejano."
+ ],
+ "combos": [
+  "Combo básico: E1 (dash) → E2 (cadena) → ataque con pasiva → Q → ataque → W para rematar o curarse.",
+  "Robo y uso: R al rival con la mejor definitiva (950 u) → entrar con E1-E2 → lanzar la R robada → W final.",
+  "Entrada larga con Cintomisil hextech: E2 desde ~900 u → cinturón (275 u) → Q en el cruce → W cuando el objetivo intenta huir.",
+  "Nivel 1 de mid (arriesgado): E1 → ataque → E2 → ataque; solo si el rival se queda sin súbditos delante.",
+  "Huida: E1 por encima de un muro → E2 a un monstruo, súbdito o campeón alejado → W para curarse si le persiguen."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Cintomisil hextech",
+   "Creagrietas",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Sombrero mortal de Rabadon",
+   "Perdición del liche",
+   "Sello oscuro",
+   "Robaalmas de Mejai",
+   "Maldición sanguinolenta",
+   "Bastón del Vacío",
+   "Botas de hechicero",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Mid: Conquistador (Precisión) con Triunfo, Leyenda: Velocidad y Último esfuerzo, secundaria Valor con Segundo aliento/Fuerzas renovadas e Inquebrantable (48 % en OP.GG 16.23); alternativa Electrocutar (Dominación) con Brujería (25 %). Jungla: Conquistador con Inspiración (Calzado mágico y Tónico triple) en el 73 %; Cosecha oscura con Inspiración (11,5 %); Skill Capped propone Ataque intensificado con Derribado para ganks más fuertes.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Mid: Destello + Prender (69 %) o Destello + Teleportar (29 %) contra matchups de presión temprana como LeBlanc o Vex. Jungla: Destello + Castigo (99,9 %), inicio Cachorro de Garrachispa (el Castigo de daño). Inicio de mid: Anillo de Doran + poción (92 %). Núcleo más jugado: Cintomisil hextech → Creagrietas → Reloj de arena de Zhonya (21 % mid, 29 % jungla), o Cintomisil → Llamasombría → Zhonya (13 % mid). Perdición del liche como primer objeto es la variante de ráfaga (Lolalytics la pone como núcleo en mid). Sello oscuro en la primera vuelta y Robaalmas de Mejai cuando va por delante. Botas de hechicero (43-51 %) o Botas jonias (27-28 %); Botas de mercurio contra mucho control o Botas blindadas contra mucho AD. Contra muchos magos: Maldición sanguinolenta o Velo del hada de la muerte."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Niveles 1-2 jugando atrás: es cuerpo a cuerpo y sin poke, así que pierde algún súbdito antes que vida. Con E a nivel 1 solo entra si el rival se queda sin súbditos entre ambos (E1-ataque-E2-ataque). A nivel 3 (~2:10) con E-W-Q busca el primer combo completo: puede quitar un 60-70 % de vida a un mago blando.",
+    "tradeos": "Intercambios cortos con la pasiva: Q → ataque potenciado → retirada; el largo es E1-E2 → ataque → Q → ataque → W cuando el rival ha gastado su habilidad principal (la E2 la bloquean los súbditos). Guarda la W para el final del intercambio, porque cura más a menos vida. Contra rangos largos no fuerza nada antes del 6: farmea con Q y espera.",
+    "oleadas": "Despeja con Q (centrar la explosión en los súbditos de rango) y la pasiva en área. Empuja antes del 6 para llegar a la escuttle con su jungla y después para roamear; contra asesinos prefiere dejar la oleada cerca de su torre. Primera vuelta tras estrellar la oleada (~3:30-4:30) con Sello oscuro o Tomo amplificador.",
+    "all_in": "A nivel 3 si el rival no tiene Destello o está a menos del 60 %; a nivel 6 con R robada si la definitiva rival sirve para el 1v1 (Annie, Veigar, Lissandra, Malzahar, Vex): R → E1-E2 → R robada → Q → W + Prender. Bajo torre solo con la vida de la torre en cuenta y E2 para salir por un súbdito.",
+    "jugar_seguro": "Contra Naafiri, Vex, Vel'Koz, Pantheon, Riven, Taliyah y Yasuo (peores en OP.GG y Lolalytics): Teleportar o Escudo de Doran, no gastar la E para entrar (es su única huida), farmear con Q desde lejos y esperar al jungla o al 6. Contra Vex, su pasiva interrumpe los dashes de la E y la W."
+   },
+   "roameos": "Desde el 6 con la oleada empujada: baja al río para la escuttle o el dragón, o a la lateral cuyo rival tenga una definitiva interesante de robar. Con Teleportar (29 %) va a bot o top en ganks o peleas por objetivos. Con R robada de Twisted Fate, Shen, Pantheon o Galio puede aparecer en otra línea sin pasar por el río. Escaramuza típica: con su jungla en el río del lado de dragón entre el 6:00 y el 10:00.",
+   "fase_media": "Con Cintomisil hextech (~11-13 min) busca picks desde la niebla en los pasillos del río y escaramuzas en dragón, larvas y Heraldo, siempre con la R disponible o ya robada. Tras caer las torres exteriores recoge oleadas laterales solo con visión y vuelve a mid; entra a la pelea por el flanco, roba la R del iniciador rival y la usa contra ellos.",
+   "matchups_dificiles": [
+    "Naafiri",
+    "Vex",
+    "Vel'Koz",
+    "Pantheon",
+    "Riven",
+    "Taliyah",
+    "Yasuo",
+    "Ekko",
+    "Galio"
+   ],
+   "matchups_faciles": [
+    "Malphite",
+    "Irelia",
+    "Ezreal",
+    "Tristana",
+    "Smolder",
+    "Kayle",
+    "Syndra",
+    "Orianna",
+    "Zed"
+   ]
+  },
+  "JUNGLE": {
+   "inicio": "Azul en el ~37 % de las partidas (el campamento inicial más jugado en jungler.gg); rapaces es el que más gana (51 % de victorias). Sube E a nivel 1: en la base lanza la Q para tener una carga de pasiva, usa E1 al acercarse al campamento y E2 al monstruo para empezar con 3 cargas. Pide ayuda en el primer campamento porque se queda con poca vida. Inicio con Cachorro de Garrachispa (Castigo de daño) y poción.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde azul",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Escuttle del lado de la roja (aparece a las 2:55) o gank a la línea de ese lado (bot en el lado azul); vuelta a base hacia las 3:45-4:15 con ~1000 de oro a por Sello oscuro y Botas o Tomo amplificador.",
+     "nivel": 4,
+     "minuto": "3:20",
+     "cuando": "La ruta más jugada y de las más ganadoras en jungler.gg (9,8 % terminando en escuttle con 52,3 % de victorias; 6,4 % terminando en gank a bot). Su despeje es de los lentos: ~3:15-3:30 de media y ~2:55 en el mejor caso (Skill Capped)."
+    },
+    {
+     "nombre": "Despeje completo desde roja",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Escuttle del lado de la azul (top en el lado azul) o gank a esa lateral o a mid; después vuelta a base.",
+     "nivel": 4,
+     "minuto": "3:25",
+     "cuando": "La simétrica, cuando quiere acabar cerca de top o de mid o cuando su bot no puede ayudarle en la azul. Gana menos en jungler.gg (45 % con un 4 % de uso)."
+    },
+    {
+     "nombre": "Tres campamentos y gank de nivel 3",
+     "orden": [
+      "blue",
+      "gromp",
+      "red"
+     ],
+     "despues": "Gank a mid o a la lateral del lado de la roja hacia las 2:15-2:30 con E-W-Q; si no hay gank claro sigue con rapaces y krugs o va a la escuttle. Simétrica: roja-krugs-rapaces o roja-azul-gromp.",
+     "nivel": 3,
+     "minuto": "2:15",
+     "cuando": "Cuando una línea cercana tiene a un rival sin Destello, adelantado o con poca vida y control para asegurar la E2. Su nivel 3 es fuerte (jungler.gg lo marca como el momento del primer gank), y una kill temprana es la forma de compensar su despeje lento."
+    }
+   ],
+   "ganks": "Nivel 3 (E-W-Q, ~2:15-2:30) y nivel 6 (~6:30-7:00) con R: si la línea que gankea tiene una R de control (Malphite, Amumu, Leona, Nautilus, Sejuani), la roba primero. Entra por los arbustos del río o por detrás con E1 por encima del muro y E2 al rival. Prefiere mid y las líneas con control propio (Leona, Nautilus, Rell) que le ayuden a llegar con la E2. Un gank fallido le hunde: pierde campamentos y su despeje ya es lento.",
+   "objetivos": "Dragón (5:00) en grupo o solo desde nivel 6 con algo de vida; Larvas del Vacío (8:00) con prioridad de mid o top. Heraldo (15:00) y Barón en grupo. Sin Castigo de pelea fuerte ni gran daño a monstruos, depende de tener prioridad y no se los juega solo contra junglas que le disputan el foso.",
+   "invasion": "Poca invasión temprana: su despeje lento y su vida baja tras los campamentos le hacen perder duelos de nivel 1-2. Con ventaja tras un gank o con Cintomisil hextech entra a la jungla del lado donde su mid o la lateral tenga prioridad, sobre todo para robar la escuttle o un campamento tras matar al jungla rival.",
+   "contra_jungla": "Contra invasiones tempranas de Lee Sin, Xin Zhao, Kha'Zix o Wukong cede el campamento y va al otro lado; se recupera gankeando al nivel 3 o esperando al 6. Gwen, Elise, Wukong, Zac, Ivern y Sion son sus peores rivales en la jungla.",
+   "plan": "Despeje completo o tres campamentos, gank de nivel 3 si hay ventana y escuttle; segunda vuelta con Sello oscuro. Del 6 al 14 busca escaramuzas en el río con su mid, robando la R más útil del rival antes de cada objetivo. Con Cintomisil y Creagrietas pelea en dragones y larvas entrando por el flanco; en la tardía su trabajo es robar la R del iniciador rival en cada pelea."
+  }
+ },
+ "peleas": {
+  "papel": "Luchador de flanco y ladrón de definitivas: entra a la retaguardia y devuelve la R del rival. Con Zhonya aguanta dentro; con Creagrietas y la W gana peleas largas.",
+  "como_entrar": "Primero roba la R del iniciador rival (Malphite, Amumu, Sejuani, Orianna, Rell) antes de que empiece la pelea, si puede desde fuera de visión. Luego E1 desde la niebla → E2 a un carry → R robada sobre el grupo → Q → W. Si la R del rival es mejor para defender (Janna, Kayle, Taric), la usa sobre su propio tirador.",
+  "objetivo": "Los tiradores y magos de la retaguardia; si no llega, el que tenga la mejor definitiva para robar. Contra tanques con R fuertes, el robo vale más que el daño.",
+  "posicion": "Flanco cubierto por niebla o arbustos, a ~900 u del objetivo para la E2; nunca el primero visible sin la R robada lista."
+ },
+ "macro": {
+  "split_push": "Moderado: puede llevar una lateral contra luchadores flojos gracias a la W y la Q en área, pero su sitio es agruparse con la R robada para las peleas de objetivos. En mid recoge laterales tras caer las torres exteriores y vuelve antes de dragón o Barón.",
+  "objetivos": "Como mid, ayuda en dragón y larvas gracias a la prioridad. Como jungla, dragón solo desde el 6; no tira torres solo con rapidez (no tiene daño a estructuras).",
+  "plan_de_partida": "0-6: aguantar la línea o hacer el despeje y un gank de nivel 3. 6-14: escaramuzas en el río y en objetivos con la R robada; picks con E2 desde la niebla. 14-25: Cintomisil y Creagrietas o Llamasombría, presión en dragones, Heraldo y larvas, robar la R del iniciador antes de pelear. 25+: Zhonya y entrar por el flanco a la retaguardia; con la R a 30 s pelear en cada objetivo."
+ },
+ "debilidades": [
+  "Antes del nivel 3 es cuerpo a cuerpo sin poke ni despeje fuerte: los magos de rango largo (Vel'Koz, Xerath, Taliyah) le quitan oleadas y vida.",
+  "Todo su control y su huida dependen de la E: si la gasta para entrar y falla la E2, se queda 9-13 s sin escapatoria.",
+  "La Q a ras de suelo y la W ganan peleas, pero no tiene alcance para pegar a quien le aleja: el control duro (Vex, Lissandra, Malzahar, Annie) le corta el combo.",
+  "Su valor depende de las R rivales: contra equipos con definitivas de un objetivo o poco útiles su pelea en equipo baja mucho.",
+  "En la jungla su despeje es lento y un gank fallido le deja muy por detrás del jungla rival."
+ ],
+ "contrarrestado_por": [
+  "Naafiri",
+  "Vex",
+  "Vel'Koz",
+  "Pantheon",
+  "Riven",
+  "Taliyah",
+  "Gwen",
+  "Elise",
+  "Wukong",
+  "Ivern"
+ ],
+ "bueno_contra": [
+  "Malphite",
+  "Irelia",
+  "Ezreal",
+  "Tristana",
+  "Smolder",
+  "Shyvana",
+  "Hecarim",
+  "Karthus",
+  "Zed",
+  "Orianna"
+ ],
+ "sinergias": [
+  "Leona",
+  "Nautilus",
+  "Rell",
+  "Jarvan IV",
+  "Vi",
+  "Lee Sin",
+  "Amumu",
+  "Sejuani"
+ ],
+ "errores_comunes": [
+  "Robar la R menos útil o gastarla nada más robarla sin esperar a la pelea: la puede guardar hasta 90 s.",
+  "Entrar con E1-E2 a través de súbditos (la E2 la bloquean) y quedarse en medio de la oleada sin huida.",
+  "Usar la W al principio del intercambio en vez de guardarla para el final, cuando cura el doble.",
+  "No intercalar ataques entre habilidades y perder la mitad del daño de la pasiva, también al despejar la jungla.",
+  "Forzar el all-in a nivel 1-2, cuando todavía no tiene el combo completo.",
+  "En la jungla, gankear una línea sin control propio contra un rival con Destello y perder 2-3 campamentos por un gank fallido."
+ ],
+ "senales_reconstructor": [
+  "Dos roles casi a la par (mid 44 %, jungla 40 % en 16.23): con Castigo y CS de jungla es jungla; con Prender o Teleportar y CS de oleada es mid. Top y support (8 % cada uno) son raros.",
+  "Jungla: despeje completo de 6 campamentos (24 de CS de jungla) hacia las 3:15-3:30, algo más lento que la media; a las 3:00 lo normal es 20 de CS y a las 4:00 unos 28 con la escuttle. La ruta de tres campamentos (12 de CS) acaba con gank de nivel 3 hacia las 2:15-2:30; ver 12-16 de CS a las 3:00 y una kill en una línea es esa ruta.",
+  "Jungla: E a nivel 1 casi siempre y W maximizada (E-Q-W-W-W en el 65 %): un orden E-Q-W con W en 4 y 5 no es raro. Primer campamento: azul ~37 %, rapaces y roja el resto.",
+  "Mid: nivel 2 hacia la 1:35, nivel 3 hacia las 2:10 y nivel 6 hacia las 5:45-6:15 (valores típicos de mid); primera vuelta a base a las 3:30-4:30 con Sello oscuro o Tomo amplificador.",
+  "Primer objeto hacia el 11-13 (Cintomisil hextech en la gran mayoría, Perdición del liche como variante), segundo hacia el 19-21 (Creagrietas o Llamasombría) y Zhonya tercero hacia el 25-27. Sello oscuro antes del primer objeto es su compra normal; Robaalmas de Mejai indica que va muy por delante.",
+  "R robadas: kills de Sylas a distancia enorme de su posición son posibles si el rival tiene Karthus, Jinx, Ezreal, Senna, Draven, Ashe o Gangplank (la R robada hace el daño en otra zona del mapa). En el detalle de daño aparece el nombre de la definitiva robada, no la suya; no inventar un desplazamiento.",
+  "R robadas de traslado: con Twisted Fate, Shen, Pantheon, Galio o Ryze en el equipo rival, un salto de una línea a otra en menos de un minuto puede ser la R robada. Sin esos rivales, su único traslado rápido es Teleportar (29 % en mid).",
+  "Movilidad: E1 400 u + E2 hasta ~950 u + W 400 u + Cintomisil 275 u + Destello 400 u; una kill a ~1500-2000 u de su posición unos segundos antes es normal, y cruza muros con la E. Kills bajo torre rival a nivel 6-11 con R robada de control (Malphite, Amumu, Sejuani) son su juego habitual.",
+  "Muchas muertes rivales llegan a ~400 u de él (la W es un salto de 400 u para rematar) y suele morir dentro de la pelea: su posición de muerte en la retaguardia rival es lo esperable.",
+  "Mid con Teleportar (29 %): kills en bot o en dragón justo tras estar en mid sin pasar por el río suelen ser teletransporte."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/sylas/build/",
+  "https://lolalytics.com/lol/sylas/build/?lane=jungle",
+  "https://www.op.gg/lol/champions/sylas/build/mid",
+  "https://www.op.gg/lol/champions/sylas/build/jungle",
+  "https://jungler.gg/champions/sylas/",
+  "https://www.skill-capped.com/lol/guides/builds/sylas/jungle",
+  "https://www.skill-capped.com/lol/guides/builds/sylas/mid",
+  "https://wiki.leagueoflegends.com/en-us/Sylas",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 86,
+    "victorias": 0.465,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 3.9,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 8.9,
+     "mediana": 10.1,
+     "p75": 11.0
+    },
+    "segundo_objeto_min": {
+     "p25": 15.6,
+     "mediana": 17.1,
+     "p75": 18.9
+    },
+    "primer_objeto": [
+     [
+      "Cintomisil hextech",
+      0.42
+     ],
+     [
+      "Perdición del liche",
+      0.19
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.14
+     ],
+     [
+      "Amanecer y anochecer",
+      0.13
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWWWRWEW",
+      0.52
+     ],
+     [
+      "EQWQQRQWQ",
+      0.12
+     ],
+     [
+      "EQWQQRQEQ",
+      0.09
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.67
+     ],
+     [
+      "QEW",
+      0.14
+     ],
+     [
+      "QWE",
+      0.12
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 45.2,
+     "mediana": 54.8,
+     "p75": 64.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.4,
+     "mediana": 19.6,
+     "p75": 23.5
+    },
+    "vision_por_min": {
+     "p25": 0.72,
+     "mediana": 0.91,
+     "p75": 1.09
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.21,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.9,
+     "p75": 6.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 25.0,
+     "mediana": 33.3,
+     "p75": 39.7
+    },
+    "campamento_inicial": [
+     [
+      "raptors",
+      0.43
+     ],
+     [
+      "red",
+      0.35
+     ],
+     [
+      "blue",
+      0.16
+     ],
+     [
+      "gromp",
+      0.02
+     ],
+     [
+      "krugs",
+      0.02
+     ],
+     [
+      "wolves",
+      0.01
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 18.0,
+     "mediana": 22.0,
+     "p75": 24.9
+    },
+    "cs_jungla_10": {
+     "p25": 56.0,
+     "mediana": 64.0,
+     "p75": 70.0
+    },
+    "primer_gank_min": {
+     "p25": 3.0,
+     "mediana": 4.4,
+     "p75": 6.2
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.47
+     ],
+     [
+      "top",
+      0.29
+     ],
+     [
+      "mid",
+      0.25
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 12.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.2-16.23"
+   },
+   "MID": {
+    "partidas": 89,
+    "victorias": 0.539,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 3.9,
+     "p75": 5.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.0,
+     "mediana": 10.9,
+     "p75": 12.7
+    },
+    "segundo_objeto_min": {
+     "p25": 17.8,
+     "mediana": 19.0,
+     "p75": 20.6
+    },
+    "primer_objeto": [
+     [
+      "Cintomisil hextech",
+      0.72
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.23
+     ],
+     [
+      "Maldición sanguinolenta",
+      0.01
+     ],
+     [
+      "Morellonomicón",
+      0.01
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EWQWWRWEW",
+      0.17
+     ],
+     [
+      "EQWQQRQWQ",
+      0.15
+     ],
+     [
+      "EQWQQRQEQ",
+      0.13
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.4
+     ],
+     [
+      "QEW",
+      0.29
+     ],
+     [
+      "QWE",
+      0.25
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 35.0,
+     "mediana": 44.4,
+     "p75": 56.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.2,
+     "mediana": 24.8,
+     "p75": 29.4
+    },
+    "vision_por_min": {
+     "p25": 0.67,
+     "mediana": 0.86,
+     "p75": 0.99
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 2.04,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 5.6,
+     "mediana": 15.5,
+     "p75": 23.7
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 18.6,
+     "mediana": 27.6,
+     "p75": 36.5
+    },
+    "cs_10": {
+     "p25": 67.5,
+     "mediana": 75.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -10.0,
+     "mediana": 1.5,
+     "p75": 9.0
+    },
+    "dif_oro_10": {
+     "p25": -530.0,
+     "mediana": -12.0,
+     "p75": 695.0
+    },
+    "placas": {
+     "p25": 3.0,
+     "mediana": 6.0,
+     "p75": 12.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 3.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 6.0,
+     "p75": 10.1
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 46,
+    "victorias": 0.348,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 5.2,
+     "p75": 6.6
+    },
+    "primer_objeto_min": {
+     "p25": 11.9,
+     "mediana": 13.4,
+     "p75": 15.5
+    },
+    "segundo_objeto_min": {
+     "p25": 21.7,
+     "mediana": 23.4,
+     "p75": 25.2
+    },
+    "primer_objeto": [
+     [
+      "Cintomisil hextech",
+      0.57
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.37
+     ],
+     [
+      "Amanecer y anochecer",
+      0.02
+     ],
+     [
+      "Filo infinito",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EWQWWRWEW",
+      0.83
+     ],
+     [
+      "QEWWWRWEW",
+      0.02
+     ],
+     [
+      "EWQQQRQWQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.89
+     ],
+     [
+      "WQE",
+      0.07
+     ],
+     [
+      "QWE",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 44.4,
+     "mediana": 51.0,
+     "p75": 60.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 14.2,
+     "mediana": 17.5,
+     "p75": 19.9
+    },
+    "vision_por_min": {
+     "p25": 2.31,
+     "mediana": 2.8,
+     "p75": 3.16
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 4.0,
+     "p75": 5.0
+    },
+    "solo_kills_media": 1.13,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 3.0,
+     "p75": 9.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 20.1,
+     "mediana": 27.0,
+     "p75": 37.2
+    },
+    "cs_10": {
+     "p25": 12.0,
+     "mediana": 16.5,
+     "p75": 21.0
+    },
+    "dif_cs_10": {
+     "p25": -3.0,
+     "mediana": 2.0,
+     "p75": 5.8
+    },
+    "dif_oro_10": {
+     "p25": -215.0,
+     "mediana": 69.0,
+     "p75": 482.0
+    },
+    "placas": {
+     "p25": 0.2,
+     "mediana": 2.5,
+     "p75": 5.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 3.8,
+     "mediana": 7.7,
+     "p75": 13.1
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 10.7,
+     "mediana": 14.9,
+     "p75": 20.0
+    },
+    "wards_antes_14": {
+     "p25": 9.0,
+     "mediana": 10.0,
+     "p75": 12.0
+    },
+    "pinks": {
+     "p25": 6.0,
+     "mediana": 7.0,
+     "p75": 11.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.17-16.23"
+   }
+  }
+ }
+}

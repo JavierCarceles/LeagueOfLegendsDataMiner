@@ -1,0 +1,606 @@
+{
+ "clave": "Zyra",
+ "nombre": "Zyra",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.54,
+   "principal": true
+  },
+  {
+   "rol": "JUNGLE",
+   "parte": 0.41,
+   "principal": false
+  }
+ ],
+ "arquetipo": "maga de control de zona con plantas: enraíza con la E (1100 u), convierte semillas en plantas que pegan por ella y cierra peleas con el levantamiento en área de la R; support de daño en bot y jungla de despeje muy rápido (full clear ~2:55) con picos a nivel 3, nivel 6 y Tormento de Liandry",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 5,
+  "tardia": 3,
+  "nota": "De support gana casi todas las líneas de poke desde el nivel 1 (E o Q sobre semillas) y amenaza kill a nivel 2-3 con E + plantas. De jungla despeja de las más rápidas del juego gracias al daño extra de las plantas a los monstruos (50-106) y gankea con la raíz de 1100 u. Entre el 6 y el minuto 25, con Tormento de Liandry y Cetro de cristal de Rylai, su zona de plantas y la R (levanta 1 s a todos los que estén en 560 u) deciden peleas en los fosos de dragón y Barón. En la tardía, sin desplazamientos y muy frágil, la cazan los asesinos y los iniciadores, y su daño depende de que el rival pelee dentro de su jardín."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1-2 en bot (E o Q con semillas)",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La pasiva le da semillas gratis desde el principio: una E sobre semillas crea un Vine Lasher que ralentiza, una Q crea un Thorn Spitter que pega desde 575 u. Desde nivel 2 (E + Q) cualquier intercambio cerca de sus semillas lo gana."
+  },
+  {
+   "cuando": "Nivel 3 con las tres básicas (bot ~2:50, jungla ~2:00)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con la W (dos semillas propias de 60 s) puede poner semillas justo encima del enraizado: E → W → W → Q son 2-4 plantas pegando al objetivo inmóvil. Es su primera ventana real de kill en bot y de gank en jungla."
+  },
+  {
+   "cuando": "Nivel 6 (~9:00 de support, ~7:00 de jungla en OTP Diamante+)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Stranglethorns: zona de 560 u que hace 200 (+70 % PH) y levanta 1 s a los 2 s, y enfurece a las plantas (dos disparos por ataque, más vida y 10 s de duración). Con E + R gana cualquier 2v2 o escaramuza en un sitio estrecho."
+  },
+  {
+   "cuando": "Primer objeto: Tormento de Liandry (~10:00-12:00 de jungla, ~13:00-15:00 de support)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Tormento de Liandry",
+   "por_que": "Las plantas aplican la quemadura de Liandry, así que cada objetivo en su jardín pierde vida máxima sin parar. Es el objeto que más usan los dos roles y el que le da daño contra los frontales."
+  },
+  {
+   "cuando": "Dos objetos (~18:00-22:00): Cetro de cristal de Rylai o Llamasombría",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Cetro de cristal de Rylai",
+   "por_que": "De support Rylai (las plantas y la Q ralentizan) hace imposible salir de su zona; de jungla Llamasombría sube la ráfaga. Con la R a 100 s y dos objetos es su momento más fuerte para pelear en los fosos."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Garden of Thorns: cada 13,6-8,5 s (según nivel) aparecen 1-2 semillas a su alrededor (hasta 900 u, máximo 8, duran 30 s); en la jungla tienden a salir en las entradas de los campamentos y junto a los muros de los fosos del dragón, el Heraldo y el Barón. Si lanza la Q o la E cerca de una semilla, esta se convierte en planta durante 8 s: las plantas hacen 15-82 (+20 % PH) por ataque y 50-106 de daño extra a monstruos no épicos, y cuentan para Electrocutar y Liandry.",
+  "Q": "Deadly Spines: zona a 800 u que estalla a los 0,625 s y hace 60-220 (+65 % PH). Enfriamiento 7-5 s y 55 de maná. Cada semilla dentro de la zona se convierte en Thorn Spitter (planta de 575 u de alcance que dispara 8 s). Es su despeje de oleadas y campamentos y su poke principal.",
+  "W": "Rampant Growth: coloca una semilla a 850 u que dura 60 s y da visión (un campeón enemigo que la pise la destruye y queda revelado 2 s). Tiene 2 cargas que se recargan en 16/14,5/13/11,5/10 s (desde el 26.21); cada súbdito o monstruo pequeño que muere cerca da un 35 % de carga, y un monstruo grande o un campeón, una carga entera. No se puede aprender a nivel 1 desde el 26.08. Sirve para vigilar arbustos y para poner plantas donde ella quiera.",
+  "E": "Grasping Roots: raíces en línea a 1100 u (atraviesan súbditos y enraízan a todos los enemigos que tocan) que hacen 60-200 (+60 % PH) y enraízan 1/1,25/1,5/1,75/2 s. Enfriamiento fijo de 11 s y 70-90 de maná. Las semillas que toca se convierten en Vine Lasher (planta cuerpo a cuerpo de 400 u que ralentiza un 30 %, acumulable hasta el 60 %).",
+  "R": "Stranglethorns: zona de 560 u de radio a 700 u que hace 200/300/400 (+70 % PH) al crecer y, 2 s después, levanta 1 s a todos los enemigos que sigan dentro. Las plantas que toca (y las que crea en esos 2 s) se enfurecen 10 s: recuperan vida, crecen y disparan dos veces por ataque. Enfriamiento 110/100/90 s y 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "De support, E-Q-W y maximizar E (más duración de raíz) y luego Q; es la que usan Lolalytics, OP.GG y casi todos los OTP. De jungla, Q-W-E (85 % en OP.GG) y maximizar Q y luego E para despejar más rápido: Q a nivel 1 en el primer campamento, W a nivel 2 y E a nivel 3. R en 6, 11 y 16 en los dos roles. La W siempre la última."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno. Solo Destello y botas (Botas de hechicero casi siempre).",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Las semillas de la pasiva salen solas cada 8,5-13,6 s y la W pone dos más donde quiera: lanzar la Q o la E sobre ellas crea plantas que pegan 8 s por ella (Thorn Spitter a 575 u con la Q, Vine Lasher que ralentiza con la E).",
+  "Las plantas hacen 50-106 de daño extra a los monstruos de la jungla y aplican Liandry y Electrocutar: por eso despeja la jungla tan rápido sin objetos y su daño crece contra frontales.",
+  "La R levanta 1 s a los 2 s de lanzarla y enfurece a todas sus plantas (dos disparos por ataque durante 10 s): su pelea ideal es en un sitio estrecho (fosos, pasillos de la jungla).",
+  "La E atraviesa súbditos y enraíza a todos los enemigos que toca en 1100 u: es uno de los controles más largos del juego.",
+  "Las semillas dan visión: la W sirve para comprobar arbustos y vigilar entradas sin gastar guardianes; en el timeline aparecen como cientos de guardianes de tipo UNDEFINED."
+ ],
+ "combos": [
+  "Combo completo: E (raíz) → W → W sobre el enraizado → Q encima (dos o tres plantas) → R si está con su aliado o hay varios rivales juntos.",
+  "Poke de línea: Q sobre el rival cerca de una semilla de la pasiva (Thorn Spitter que sigue disparando) y retirada.",
+  "Pelea en un pasillo: R al grupo → E durante los 2 s antes del levantamiento para que no salgan → Q y W sobre las semillas para enfurecer más plantas.",
+  "Defensa contra quien le entra: W bajo sus pies → E hacia el que llega (raíz + Vine Lasher) → Q encima.",
+  "Gank de jungla: llegar por el río o por detrás, E desde 1100 u por encima de la oleada (la atraviesa) → W → Q → su aliado remata."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Perforaplanos de Zaz'Zak",
+   "Tormento de Liandry",
+   "Cetro de cristal de Rylai",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Morellonomicón",
+   "Antorcha de fuego negro",
+   "Sombrero mortal de Rabadon",
+   "Bastón del Vacío",
+   "Botas de hechicero",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Support: Cometa arcano (Brujería) con Banda de maná, Trascendencia y Piroláser; secundaria Dominación con Sabor a sangre o Cazador incesante (~72 % en OP.GG 16.23); alternativa Electrocutar (~15 %). Jungla: Electrocutar (Dominación) con Golpe bajo, Recuerdo macabro o Sexto sentido y Cazador incesante; secundaria Precisión con Leyenda: Velocidad y Derribado (~74 %); alternativa Cosecha oscura (~22 %).",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Curar",
+   "Castigo"
+  ],
+  "nota": "Support: Destello + Prender (~58 %) o Destello + Curar (~27 %); Agotamiento contra asesinos. Inicio Atlas mundial + 2 Pociones de vida, mejora a Perforaplanos de Zaz'Zak (92 %). Botas de hechicero (76 %) o jonias (15 %). Ruta: Tormento de Liandry → Cetro de cristal de Rylai → Reloj de arena de Zhonya o Morellonomicón (contra curación). Jungla: Destello + Castigo (99,8 %); Cachorro de Garra ígnea (~92 %) o Cría de Caminabrisas. Ruta: Tormento de Liandry → Botas de hechicero (88 %) → Llamasombría → Reloj de arena de Zhonya o Rabadon; Sello oscuro y Robaalmas de Mejai cuando va por delante."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Nivel 1 con E (Lolalytics y casi todos los OTP) para la raíz o el Vine Lasher; nivel 2 con Q (~1:50). Con E + Q sobre semillas gana el primer intercambio a casi cualquier support; si el rival se queda a menos de 1100 u sin súbditos que le cubran, E + Q + ataques de su tirador es kill con Prender.",
+    "tradeos": "Poke continuo: Q sobre el rival cuando está cerca de una semilla (la planta sigue pegando 8 s aunque ella se retire), E cuando el rival se acerca a por un súbdito. Contra supports de enganche (Alistar, Leona, Rakan, Nautilus) se queda más atrás, pone semillas con la W entre ella y el rival y guarda la E para cuando entren: la raíz de 1-2 s corta su combo.",
+    "oleadas": "Su Q y sus plantas empujan mucho: puede ayudar a su tirador a estrellar la oleada contra la torre rival y coger placas, pero así se expone a ganks; con jungla rival cerca, deja la oleada en el centro y vigila el río con semillas. Primera vuelta hacia el 3:30 de mediana (OTP).",
+    "con_que_adcs": [
+     "Draven",
+     "Lucian",
+     "Jhin",
+     "Caitlyn",
+     "Varus",
+     "Miss Fortune",
+     "Ashe",
+     "Ezreal"
+    ],
+    "sufre_contra": [
+     "Taric",
+     "Alistar",
+     "Leona",
+     "Rakan",
+     "Tahm Kench",
+     "Nautilus",
+     "LeBlanc"
+    ]
+   },
+   "roameos": "Poco: en OTP Diamante+ (60 partidas) un 52 % de sus posiciones por minuto entre el 3:00 y el 14:00 son en bot, un 16 % en el río, un 14 % en la jungla, un 6 % en mid y un 1 % en top; el 61 % de las partidas tienen alguna en mid o top, la primera hacia el minuto 11. Sus salidas de bot son sobre todo al río y al dragón con su jungla.",
+   "vision": "Mucha visión gratis: las semillas de la W (dos cargas, 60 s) vigilan arbustos y entradas, y en el timeline aparecen como guardianes de tipo UNDEFINED (~250 por partida en OTP), además de los guardianes normales y los de control. Antes de dragón llena de semillas los arbustos y las entradas del foso.",
+   "fase_media": "Juega en los fosos y pasillos de dragón y larvas: llega antes, siembra la zona y hace poke con la Q hasta que el rival entra; entonces E + R. Va pegada a su tirador y a su mid; no se queda sola en una lateral porque no tiene escape.",
+   "matchups_dificiles": [
+    "Taric",
+    "Alistar",
+    "Leona",
+    "Rakan",
+    "Tahm Kench",
+    "LeBlanc",
+    "Nautilus"
+   ],
+   "matchups_faciles": [
+    "Zoe",
+    "Swain",
+    "Camille",
+    "Xerath",
+    "Hwei",
+    "Soraka",
+    "Yuumi"
+   ]
+  },
+  "JUNGLE": {
+   "inicio": "Empieza sobre todo en el bufo del lado de top de su jungla: azul en el lado azul y roja en el lado rojo (26 de 35 partidas en OTP Diamante+, 74 %), para acabar el despeje al lado de bot. Llega pronto al primer campamento para que la pasiva genere semillas alrededor y lanza la Q sobre todas a la vez. Q a nivel 1, W a nivel 2 y E a nivel 3. Jungler.gg y OP.GG dan la ruta azul-gromp-lobos-rapaces-roja-krugs en lado azul y la inversa en lado rojo.",
+   "rutas": [
+    {
+     "nombre": "Despeje completo desde el bufo de arriba",
+     "orden": [
+      "blue",
+      "gromp",
+      "wolves",
+      "raptors",
+      "red",
+      "krugs"
+     ],
+     "despues": "Escuttle del lado de bot y gank a bot o a mid con nivel 4; si no hay gank, vuelta a base hacia el 3:20-4:35 (mediana 4:12 en OTP) para el primer componente de Tormento de Liandry o Botas.",
+     "nivel": 4,
+     "minuto": "2:55",
+     "cuando": "La más usada en lado azul (jungler.gg y OP.GG). CS de jungla 24 a los 3:00 en los OTP Diamante+ (mediana, p25 20) y 30 a los 4:00 con la escuttle."
+    },
+    {
+     "nombre": "Despeje completo desde la roja (lado rojo)",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "blue",
+      "gromp"
+     ],
+     "despues": "Escuttle del lado de bot o gank a bot o mid; en lado rojo la azul queda junto a bot.",
+     "nivel": 4,
+     "minuto": "2:55",
+     "cuando": "La más usada en lado rojo (15 de 20 partidas en lado rojo de la muestra de OTP). Misma velocidad de despeje: 24 de CS de jungla a los 3:00."
+    },
+    {
+     "nombre": "Despeje inverso hacia top",
+     "orden": [
+      "red",
+      "krugs",
+      "raptors",
+      "wolves",
+      "gromp",
+      "blue"
+     ],
+     "despues": "Escuttle del lado de top, gank a top o mid, o vuelta a base.",
+     "nivel": 4,
+     "minuto": "3:00",
+     "cuando": "Cuando la línea de top o mid tiene un rival fácil de gankear o el dragón no es prioritario; lado azul empezando en roja (unas 4 de cada 15 partidas en lado azul)."
+    }
+   ],
+   "ganks": "Gankea pronto y a menudo: primera kill o asistencia con mediana 3:57 (p25 2:49, p75 7:28) en OTP Diamante+ y 3 de mediana antes del minuto 10. Las primeras: 31 % en bot, 23 % en mid, 17 % en top y 29 % en el río o la jungla (escuttle y escaramuzas). Entra por el río o por detrás de la torre aliada y lanza la E desde 1100 u por encima de la oleada (la atraviesa); ventanas fuertes a nivel 3-4 (tras el despeje) y nivel 6 (R).",
+   "objetivos": "Dragón (5:00) y larvas (8:00) rápido gracias a las plantas, aunque el daño extra de las plantas es solo contra monstruos no épicos; con su support o mid cerca los hace pronto. En los fosos es donde mejor pelea: semillas junto a los muros y R en la entrada. Heraldo y Barón en grupo.",
+   "invasion": "Poco al principio: no tiene duelo 1v1 contra junglas de cuerpo a cuerpo que la alcanzan (Rammus, Volibear, Sejuani, Shyvana, Diana). Cuando su mid y su lateral tienen prioridad, roba campamentos rivales con la Q desde lejos y vuelve.",
+   "contra_jungla": "Contra invasiones de nivel 1-3 cede el campamento y se aleja; las plantas sobre semillas y la E le dan para frenar al que la persigue. Pone semillas con la W en las entradas de su jungla para ver venir al rival.",
+   "plan": "Despeje muy rápido (~2:55) y primer gank o escuttle con nivel 4; tres o más participaciones antes del 10. Con Tormento de Liandry (~11 min) pelea en los fosos de dragón y larvas, donde su jardín y la R ganan las peleas en sitios estrechos. CS de jungla de ~77 a los 10:00 y ~114 a los 15:00 (OTP). En la tardía se queda detrás de su frontal y defiende los objetivos con la R."
+  }
+ },
+ "peleas": {
+  "papel": "Control de zona y daño continuo: siembra el terreno, enraíza al que entra y cierra la pelea con el levantamiento en área de la R.",
+  "como_entrar": "No entra: llega antes a la zona de la pelea (foso o pasillo), pone semillas con la W, hace poke con la Q y cuando el rival entra, E (raíz a todos los que toque) → R sobre el grupo → Q y W sobre las semillas para tener más plantas enfurecidas.",
+  "objetivo": "El primero que entre en su zona: el iniciador o el luchador que viene a por su tirador. La E larga busca al carry rival si queda al descubierto.",
+  "posicion": "Detrás de su frontal y a 800-1100 u, cerca de un muro o un pasillo; nunca en campo abierto sin semillas ni la primera visible. Contra asesinos se queda pegada a su equipo con Zhonya."
+ },
+ "macro": {
+  "split_push": "No: sin escape no puede quedarse sola en una lateral. Sus plantas empujan bien las oleadas, pero solo con el mapa visto.",
+  "objetivos": "Torres: ayuda a empujar con la Q y las plantas (atacan estructuras). Dragón y larvas: de jungla los hace rápido y pronto; de support prepara el foso con semillas. Barón en grupo.",
+  "plan_de_partida": "Support: 0-6 min poke y amenaza de kill en bot, visión con semillas; 6-14 min R para ganar escaramuzas en el río y dragón. Jungla: despeje a ~2:55, ganks tempranos a bot y mid, dragón y larvas. Los dos: 14-25 min con Liandry y Rylai o Llamasombría, peleas en sitios estrechos alrededor de los objetivos. 25+: pelear detrás de su frontal y no dejarse atrapar en campo abierto."
+ },
+ "debilidades": [
+  "Sin ningún desplazamiento: los asesinos, los luchadores con dashes y los iniciadores (Alistar, Leona, Rakan, Rammus) la matan si la alcanzan.",
+  "Muy frágil: se queda sin vida en un solo combo si no lleva Zhonya o no tiene a su frontal delante.",
+  "Si falla la E (11 s), su control queda en la R con retraso de 2 s, que se esquiva saliendo de la zona.",
+  "De jungla no tiene duelo 1v1 temprano contra junglas de cuerpo a cuerpo y depende de las semillas para despejar rápido.",
+  "En campo abierto o si el rival no entra en su jardín, su daño baja mucho."
+ ],
+ "contrarrestado_por": [
+  "Taric",
+  "Alistar",
+  "Leona",
+  "Rakan",
+  "Tahm Kench",
+  "Rammus",
+  "Volibear",
+  "Sejuani"
+ ],
+ "bueno_contra": [
+  "Zoe",
+  "Swain",
+  "Camille",
+  "Xerath",
+  "Ambessa",
+  "Jayce",
+  "Pantheon",
+  "Nidalee"
+ ],
+ "sinergias": [
+  "Draven",
+  "Lucian",
+  "Jhin",
+  "Miss Fortune",
+  "Amumu",
+  "Malphite",
+  "Orianna",
+  "Yasuo"
+ ],
+ "errores_comunes": [
+  "Lanzar la Q o la E sin semillas cerca: pierde la mitad de su daño (las plantas).",
+  "Gastar la E de poke contra supports de enganche y quedarse sin raíz cuando entran.",
+  "Lanzar la R en campo abierto donde el rival sale de la zona antes del levantamiento (2 s).",
+  "Ponerse delante o sola en un pasillo sin visión: sin desplazamientos, un enganche es una muerte.",
+  "De jungla, empezar el campamento tarde y no dejar que la pasiva genere semillas: el despeje se vuelve lento.",
+  "Empujar sin parar en bot sin vigilar el río con semillas y morir al primer gank."
+ ],
+ "senales_reconstructor": [
+  "Guardianes: las semillas de Zyra aparecen en el timeline como guardianes de tipo UNDEFINED, ~260 por partida de support y ~330 de jungla en la muestra de OTP. No son visión de guardianes normales y no hay que contarlas como tal; sus guardianes reales son unas pocas decenas.",
+  "Jungla: despeje completo muy rápido, 12 de CS de jungla a los 2:00, 24 a los 3:00 (en el río, escuttle), 30 a los 4:00, 40 a los 5:00, 77 a los 10:00 y 114 a los 15:00 (medianas de 35 partidas de OTP Diamante+). Nivel 6 hacia el 7:00.",
+  "Jungla: empieza en el bufo del lado de top de su jungla (azul en lado azul, roja en lado rojo) en el ~74 % de las partidas y acaba en la escuttle o en bot; primera kill o asistencia hacia el 3:57 de mediana, con 3 participaciones antes del 10.",
+  "Jungla: primera vuelta a base hacia el 4:12 de mediana (p25 3:18, p75 4:35), tras el despeje y la escuttle o el primer gank.",
+  "Support: nivel 2 hacia el 1:50, nivel 6 hacia el 9:00, CS de 15 al 10:00; primera vuelta hacia el 3:30 (p25 2:48, p75 4:03). Un 52 % de sus posiciones por minuto antes del 14 en bot y solo un 6 % en mid.",
+  "No tiene desplazamientos, saltos ni nada global: cualquier aparición lejos de su última posición es caminando o con Destello.",
+  "Hechizos: support con Destello + Prender (~58 %) o Curar (~27 %); jungla siempre con Castigo. Una Zyra con Castigo es jungla aunque el rol del timeline diga otra cosa.",
+  "Dos roles casi a partes iguales (54 % support y 41 % jungla en Lolalytics 16.23): mirar el CS de jungla y el Castigo para saber cuál juega."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/zyra/build/",
+  "https://lolalytics.com/lol/zyra/build/?lane=jungle",
+  "https://www.op.gg/lol/champions/zyra/build/support",
+  "https://www.op.gg/lol/champions/zyra/build/jungle",
+  "https://jungler.gg/champions/zyra/",
+  "https://wiki.leagueoflegends.com/en-us/Zyra",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Zyra (data/otps/Zyra/JUNGLE: 35 partidas de Diamante+ de 5 jugadores; data/otps/Zyra/SUPPORT: 238 partidas de 21 jugadores, 60 de Diamante+)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "JUNGLE": {
+    "partidas": 35,
+    "victorias": 0.686,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.8,
+     "mediana": 4.5,
+     "p75": 4.9
+    },
+    "primer_objeto_min": {
+     "p25": 9.9,
+     "mediana": 10.9,
+     "p75": 11.9
+    },
+    "segundo_objeto_min": {
+     "p25": 16.8,
+     "mediana": 18.1,
+     "p75": 19.3
+    },
+    "primer_objeto": [
+     [
+      "Tormento de Liandry",
+      0.91
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.06
+     ],
+     [
+      "Malignidad",
+      0.03
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQEQ",
+      0.94
+     ],
+     [
+      "QWEEEREQE",
+      0.03
+     ],
+     [
+      "QWEQQRQWQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.94
+     ],
+     [
+      "EQW",
+      0.03
+     ],
+     [
+      "QWE",
+      0.03
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 47.6,
+     "mediana": 57.7,
+     "p75": 65.1
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.5,
+     "mediana": 24.9,
+     "p75": 28.2
+    },
+    "vision_por_min": {
+     "p25": 1.28,
+     "mediana": 1.48,
+     "p75": 1.77
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.5
+    },
+    "solo_kills_media": 0.57,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.7,
+     "p75": 2.8
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 32.0,
+     "mediana": 40.7,
+     "p75": 44.9
+    },
+    "campamento_inicial": [
+     [
+      "wolves",
+      0.46
+     ],
+     [
+      "raptors",
+      0.46
+     ],
+     [
+      "red",
+      0.06
+     ],
+     [
+      "krugs",
+      0.03
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 24.0,
+     "mediana": 26.5,
+     "p75": 30.0
+    },
+    "cs_jungla_10": {
+     "p25": 72.0,
+     "mediana": 77.0,
+     "p75": 84.0
+    },
+    "primer_gank_min": {
+     "p25": 3.0,
+     "mediana": 5.3,
+     "p75": 6.3
+    },
+    "ganks_antes_10": {
+     "p25": 0.5,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.48
+     ],
+     [
+      "mid",
+      0.33
+     ],
+     [
+      "top",
+      0.2
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 23.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.17-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 60,
+    "victorias": 0.4,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 3.9,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 10.3,
+     "mediana": 12.3,
+     "p75": 13.8
+    },
+    "segundo_objeto_min": {
+     "p25": 23.2,
+     "mediana": 25.6,
+     "p75": 27.3
+    },
+    "primer_objeto": [
+     [
+      "Cetro de cristal de Rylai",
+      0.74
+     ],
+     [
+      "Tormento de Liandry",
+      0.25
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EWQQQRQEQ",
+      0.63
+     ],
+     [
+      "QWEQQRQEQ",
+      0.23
+     ],
+     [
+      "EWQEEREQE",
+      0.06
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.82
+     ],
+     [
+      "QWE",
+      0.1
+     ],
+     [
+      "EQW",
+      0.08
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.5,
+     "mediana": 48.5,
+     "p75": 58.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.5,
+     "mediana": 18.4,
+     "p75": 20.7
+    },
+    "vision_por_min": {
+     "p25": 2.58,
+     "mediana": 2.99,
+     "p75": 3.36
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.33,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 2.2,
+     "p75": 5.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 19.6,
+     "mediana": 25.4,
+     "p75": 39.8
+    },
+    "cs_10": {
+     "p25": 14.0,
+     "mediana": 17.0,
+     "p75": 21.0
+    },
+    "dif_cs_10": {
+     "p25": -2.0,
+     "mediana": 2.0,
+     "p75": 7.2
+    },
+    "dif_oro_10": {
+     "p25": -107.0,
+     "mediana": 212.0,
+     "p75": 594.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.0,
+     "p75": 8.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 2.0,
+     "mediana": 4.5,
+     "p75": 6.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.6,
+     "mediana": 10.7,
+     "p75": 17.5
+    },
+    "wards_antes_14": {
+     "p25": 9.0,
+     "mediana": 11.0,
+     "p75": 12.2
+    },
+    "pinks": {
+     "p25": 6.0,
+     "mediana": 8.5,
+     "p75": 13.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}
