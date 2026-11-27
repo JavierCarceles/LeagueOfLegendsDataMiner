@@ -1,20 +1,3 @@
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Base de datos lenta: escritura · data/repository.py:270 store_match · con el candado cogido — 85 veces, 182.1 s en total, la peor 6.6 s
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Base de datos lenta: lectura · api/system.py:37 _db_counts · SELECT COUNT(*) FROM players — 128 veces, 126.4 s en total, la peor 1.9 s
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Base de datos lenta: lectura · ingest/crawler.py:1880 _lacking_details · SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl. — 39 veces, 123.6 s en total, la peor 9.3 s
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Estado americas: 14 partidas nuevas (—/min ahora) · 5 analizadas · errores 0 · tiempo: cola 11, riot_listas 2, esperando_descarga 48, guardar_partida 14, riot 0, analizar_guardar 16, partidas 84, visitas 86
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Estado europe: 18 partidas nuevas (—/min ahora) · 13 analizadas · errores 0 · tiempo: cola 11, riot_listas 1, esperando_descarga 22, guardar_partida 20, riot 0, analizar_guardar 38, partidas 86, visitas 88
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Estado asia: 20 partidas nuevas (—/min ahora) · 19 analizadas · errores 0 · tiempo: cola 11, riot_listas 2, esperando_descarga 10, guardar_partida 18, riot 0, analizar_guardar 53, partidas 85, visitas 87
-2026-11-27 11:35:41 INFO    crawler-funnel tempu.crawler: Estado sea: 25 partidas nuevas (—/min ahora) · 21 analizadas · errores 0 · tiempo: cola 12, riot_listas 2, esperando_descarga 17, guardar_partida 19, riot 2, analizar_guardar 44, partidas 80, visitas 88
-2026-11-27 11:35:41 INFO    crawler-stop tempu.crawler: Recolector detenido: subiendo a GitHub lo recogido en segundo plano (tras rehacer los resúmenes).
-2026-11-27 11:35:51 INFO    autopush tempu.autopush: Datos subidos a GitHub (77 partidas, 4 jugadores y 0 vídeos nuevos; rama main).
-2026-11-27 11:35:55 INFO    crawler-americas tempu.crawler: Recolector americas por campeones (OTPs) iniciado (NA, BR, LAN, LAS): periodo season.
-2026-11-27 11:35:55 INFO    crawler-europe tempu.crawler: Recolector europe por campeones (OTPs) iniciado (EUW, EUNE, TR, RU, ME): periodo season.
-2026-11-27 11:35:55 INFO    crawler-asia tempu.crawler: Recolector asia por campeones (OTPs) iniciado (KR, JP): periodo season.
-2026-11-27 11:35:55 INFO    crawler-sea tempu.crawler: Recolector sea por campeones (OTPs) iniciado (OCE, SEA, TW, VN): periodo season.
-2026-11-27 11:35:55 INFO    AnyIO worker thread tempu.crawler: Recolector en marcha en 4 regiones en paralelo.
-2026-11-27 11:36:17 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 4.2 s
-2026-11-27 11:36:24 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 3.6 s
-2026-11-27 11:36:27 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 2.2 s
 2026-11-27 11:36:35 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 2.4 s
 2026-11-27 11:36:43 INFO    MainThread tempu.http: Petición lenta: GET /api/crawler/otps/live tardó 47.2 s
 2026-11-27 11:36:47 INFO    MainThread tempu.http: Petición lenta: GET /api/system/status tardó 3.8 s
@@ -3114,3 +3097,44 @@
 2026-11-27 16:45:28 INFO    crawler-funnel tempu.crawler: Estado europe: 73 partidas nuevas (14.6/min ahora) · 119 analizadas · errores 0 · tiempo: cola 5, riot_listas 6, esperando_descarga 121, partidas 210, riot 91, analizar_guardar 108, visitas 323, guardar_partida 22
 2026-11-27 16:45:28 INFO    crawler-funnel tempu.crawler: Estado asia: 111 partidas nuevas (19.2/min ahora) · 110 analizadas · errores 0 · tiempo: cola 14, riot_listas 8, esperando_descarga 205, guardar_partida 31, riot 0, analizar_guardar 96, partidas 336, visitas 216
 2026-11-27 16:45:28 INFO    crawler-funnel tempu.crawler: Estado sea: 122 partidas nuevas (20.8/min ahora) · 121 analizadas · errores 0 · tiempo: cola 8, riot_listas 10, esperando_descarga 189, guardar_partida 35, riot 0, analizar_guardar 107, partidas 336, visitas 332
+2026-11-27 16:45:42 INFO    updater tempu.autopush: Datos subidos a GitHub (443 partidas, 12 jugadores y 1 vídeos nuevos; rama main).
+2026-11-27 16:45:43 INFO    crawler-asia tempu.otp-details: WKluZR2s: 13 partidas pasan a OTP y 5 a otros jugadores por lo que juega.
+2026-11-27 16:45:43 INFO    crawler-asia tempu.crawler: KR · CHALLENGER · jugador: 50 partidas nuevas, 50 analizadas en 2.4 min (historial: 256 revisadas) · fin: tope de la visita · elegido: nuevo, elo más atrasado CHALLENGER.
+2026-11-27 16:45:43 INFO    otp-relocate tempu.otp-details: Jugadores cambiados de carpeta (OTP u otros jugadores): 6.
+2026-11-27 16:45:44 WARNING updater tempu.restart: Reiniciando la app: versión nueva de GitHub (4b97f9d58).
+2026-11-27 16:45:47 INFO    MainThread tempu.app: Apagando…
+2026-11-27 16:45:47 INFO    crawler-asia tempu.crawler: Recolector asia detenido. Guardadas 120 partidas.
+2026-11-27 16:45:47 INFO    crawler-sea tempu.crawler: OCE · SILVER · jugador: 10 partidas nuevas, 10 analizadas en 0.7 min (historial: 30 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado SILVER.
+2026-11-27 16:45:47 INFO    crawler-sea tempu.crawler: Recolector sea detenido. Guardadas 129 partidas.
+2026-11-27 16:45:47 INFO    crawler-europe tempu.crawler: RU · PLATINUM · jugador: 17 partidas nuevas, 17 analizadas en 0.9 min (historial: 16 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado PLATINUM.
+2026-11-27 16:45:47 INFO    crawler-europe tempu.crawler: Recolector europe detenido. Guardadas 79 partidas.
+2026-11-27 16:45:47 INFO    crawler-americas tempu.crawler: BR · BRONZE · jugador: 21 partidas nuevas, 9 analizadas en 1.0 min (historial: 42 revisadas) · fin: detenido · elegido: nuevo, elo más atrasado BRONZE.
+2026-11-27 16:45:47 INFO    crawler-americas tempu.crawler: Recolector americas detenido. Guardadas 140 partidas.
+2026-11-27 16:45:59 INFO    MainThread tempu.app: Cupo de la API: 335 llamadas de los últimos 2 min (arranque anterior) siguen contando.
+2026-11-27 16:45:59 INFO    MainThread tempu.crawler: Reparto por elo: se sigue con las últimas 3000 partidas analizadas de la sesión anterior (IRON 295, BRONZE 295, SILVER 305, GOLD 337, PLATINUM 335, EMERALD 334, DIAMOND 293, MASTER 292, GRANDMASTER 287, CHALLENGER 227).
+2026-11-27 16:45:59 INFO    MainThread tempu.app: Tempu Drafter 2.0.0 arrancando…
+2026-11-27 16:45:59 INFO    startup tempu.ddragon: Data Dragon 16.23.1 cargado (173 campeones).
+2026-11-27 16:46:11 INFO    MainThread tempu.http: Petición lenta: GET /api/crawler/otps/live tardó 5.1 s
+2026-11-27 16:46:21 INFO    game-tracker tempu.progreso: Re-analizadas 58 partidas con la versión 17 del análisis.
+2026-11-27 16:46:44 INFO    startup tempu.updater: Actualizado a la versión 4b97f9d58 de GitHub.
+2026-11-27 16:46:44 INFO    otp-reanalyze tempu.otp-details: Re-analizando 12422 partidas guardadas con la versión 17 del análisis (0 de 12422 hechas)…
+2026-11-27 16:46:44 INFO    crawler-americas tempu.crawler: Recolector americas por campeones (jugadores) iniciado (NA, BR, LAN, LAS): periodo season.
+2026-11-27 16:46:44 INFO    crawler-asia tempu.crawler: Recolector asia por campeones (jugadores) iniciado (KR, JP): periodo season.
+2026-11-27 16:46:44 INFO    crawler-europe tempu.crawler: Recolector europe por campeones (jugadores) iniciado (EUW, EUNE, TR, RU, ME): periodo season.
+2026-11-27 16:46:45 INFO    crawler-sea tempu.crawler: Recolector sea por campeones (jugadores) iniciado (OCE, SEA, TW, VN): periodo season.
+2026-11-27 16:46:45 INFO    startup tempu.crawler: Recolector en marcha en 4 regiones en paralelo.
+2026-11-27 16:46:45 INFO    startup tempu.crawler: Recolector reanudado automáticamente (lo dejaste en marcha).
+2026-11-27 16:46:46 INFO    crawler-me1-otps tempu.crawler: Ranking ME PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
+2026-11-27 16:46:46 INFO    crawler-ru-otps tempu.crawler: Ranking RU PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
+2026-11-27 16:46:49 INFO    game-tracker tempu.progreso: Analizados los jugadores de 40 partidas tuyas (referencias calibradas con tu elo).
+2026-11-27 16:47:01 INFO    game-tracker tempu.progreso: Analizados los jugadores de 18 partidas tuyas (referencias calibradas con tu elo).
+2026-11-27 16:47:02 INFO    videos tempu.videos: Vídeos: recolector en marcha.
+2026-11-27 16:47:03 INFO    videos tempu.videos: Vídeos: sigo con BNAaHGpE600 donde se quedó (metadatos, transcripción).
+2026-11-27 16:47:11 INFO    mis-partidas tempu.mis-partidas: Mis partidas: 58 escritas en C:\Informatica\PROYECTOS\BACKEND\LOL\LeagueOfLegendsDataMiner\data\mis_partidas (58 en total).
+2026-11-27 16:47:30 INFO    tier-calibrator tempu.progreso: Referencias de EMERALD: 6 partidas reales analizadas (6 de 80).
+2026-11-27 16:47:43 INFO    MainThread tempu.http: Petición lenta: GET /api/crawler/otps/live tardó 56.6 s
+2026-11-27 16:47:44 INFO    crawler-tr1-otps tempu.crawler: Ranking TR PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
+2026-11-27 16:47:44 INFO    crawler-oc1-otps tempu.crawler: Ranking OCE PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
+2026-11-27 16:47:44 INFO    crawler-vn2-otps tempu.crawler: Ranking VN PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
+2026-11-27 16:47:44 WARNING crawler-euw1-otps tempu.riot: 429 en euw1 (league-v4.entries, límite server, Riot pide esperar 11 s; cuenta -). Esperando…
+2026-11-27 16:47:56 INFO    crawler-euw1-otps tempu.crawler: Ranking EUW PLATINUM: +205 jugadores por revisar (candidatos: solo cuentan los que cumplan al mirar su maestría).
