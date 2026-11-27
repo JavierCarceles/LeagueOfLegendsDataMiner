@@ -1,0 +1,399 @@
+{
+ "clave": "Karma",
+ "nombre": "Karma",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.96,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support encantadora de poke y velocidad: gana la línea a nivel 1-3 con la Q potenciada por Mantra (disponible desde el nivel 1) y en las peleas da escudo y velocidad a todo el equipo con la E potenciada; sin pico de nivel 6 y con caída de daño en la tardía",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 5,
+  "media": 3,
+  "tardia": 3,
+  "nota": "Es de las supports más fuertes de los niveles 1-3: tiene la R (Mantra) desde el nivel 1, así que su primera Q ya es la potenciada (Soulflare) y quita un tercio de vida al tirador rival si no se esconde tras los súbditos. Su nivel 6 no cambia nada (la R solo sube de rango y baja de 40 a 38 s), por eso las líneas con all-in de nivel 6 la alcanzan. En la media y la tardía deja de matar y pasa a ser utilidad: Mantra-E da escudo y +15-40 % de velocidad a todo el grupo para iniciar o huir, y W enraíza a quien se tire encima. Su valor tardío depende de tener carries a los que proteger y de los objetos de encantadora (Ecos de Helia, Renovación de piedra lunar, Bendición de Mikael)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 con Mantra-Q (desde el 1:05, cuando llegan los súbditos)",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La R está disponible desde el nivel 1 sin gastar punto: R + Q lanza Soulflare (60 de daño de la Q más la explosión retrasada y un campo que ralentiza un 50 %). Una Soulflare limpia al tirador rival que va a por el primer súbdito le quita ~30-40 % de vida antes de que nadie tenga nivel 2."
+  },
+  {
+   "cuando": "Nivel 2-3 con E y W (~1:42 y ~2:39 en OTP Diamante+)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E (escudo + 40 % de velocidad) puede responder a la entrada del rival, y con W (lazo de 2 s que acaba en raíz de 1,6 s) castiga a quien se quede cerca. A nivel 3 su línea gana casi todos los intercambios cortos si la Mantra está lista: Q → W → auto mientras el lazo aguanta."
+  },
+  {
+   "cuando": "Objeto de apoyo completado y primer objeto (~12:20, Ecos de Helia o Renovación de piedra lunar)",
+   "nivel": 8,
+   "objetos": 1,
+   "objeto": "Ecos de Helia",
+   "por_que": "Ecos de Helia convierte el daño de sus Q en curación para aliados; Renovación de piedra lunar cura en peleas largas. Es el momento de empezar a jugar dragones y escaramuzas en el río con Mantra-E para todo el equipo."
+  },
+  {
+   "cuando": "Dos objetos (~21:15) con Bendición de Mikael o Redención",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Bendición de Mikael",
+   "por_que": "Mikael para limpiar el control del tirador y Redención para curar en área desde lejos. Con la R a rango 3 (36 s) usa la Mantra dos o tres veces en una pelea larga gracias a la pasiva."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Gathering Fire: cada campeón enemigo al que golpea con una habilidad de daño le resta 4 s al enfriamiento de la Mantra (Q y Soulflare cuentan por separado: hasta 40 s si dan a 5 campeones con ambas). La W resta al lanzarla y otra vez al acabar el lazo (8 s en total). Por eso, cuanto más acierta, más veces usa la R en una pelea.",
+  "Q": "Inner Flame: bola de energía (950 u, 1700 de velocidad) que estalla al tocar al primer enemigo (los súbditos la bloquean) en un área de 280 u: 60/110/160/210/260 (+70 % PH) de daño mágico y 40 % de ralentización 1,5 s. Enfriamiento 9/8/7/6/5 s, 40-80 de maná. Con Mantra (Soulflare) además deja un círculo que ralentiza un 50 % y estalla 1,5 s después con 80/230/380/530 (+80 % PH) extra; si no toca nada, estalla al final del recorrido. Es su poke de línea y su herramienta de visión barata (comprueba arbustos).",
+  "W": "Focused Resolve: une a un enemigo (675 u para lanzarla, el lazo se rompe a 825 u) durante 2 s, le hace 40-140 (+45 % PH) y lo revela; si el lazo aguanta, vuelve a dañar y lo enraíza 1,6-2 s. Enfriamiento 12 s fijo. Con Mantra (Renewal) la raíz dura 0,5-1,25 s más y Karma se cura un 17 % (+1 % por 100 PH) de su vida perdida al lanzarla y otra vez al acabar. Los campeones con dash o Destello rompen el lazo con facilidad.",
+  "E": "Inspire: escudo a sí misma o a un aliado (800 u) de 80/130/180/230/280 (+60 % PH) durante 2,5 s y +40 % de velocidad 2 s. Enfriamiento 10-8 s, 60-80 de maná desde el 26.08. Con Mantra (Defiance) el objetivo recibe un escudo extra de 45-165 (+45 % PH) y todos los aliados a 700 u reciben 45-165 (+45 % PH) de escudo y +15 % de velocidad: es su botón de iniciar, perseguir o huir en grupo.",
+  "R": "Mantra: potencia la siguiente habilidad básica en los 8 s siguientes (Soulflare, Renewal o Defiance). Disponible desde el nivel 1 sin punto de habilidad; sube de rango a los niveles 6, 11 y 16 (enfriamiento 40/38/36/34 s, sin coste). Se puede activar aunque esté silenciada para dejarla preparada. No tiene alcance propio: su alcance es el de la habilidad potenciada."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W en casi todas las partidas (Q a nivel 1 para la Soulflare). OP.GG 16.23: Q-E-W-Q-Q-R-Q-E-Q-E (62 %, maximiza Q). En OTP Diamante+ la otra mitad sube la Q hasta 3 puntos y luego maximiza E (Q-E-W-Q-Q-R-E-E-E, 28 %), más de encantadora y para escudos en peleas. W siempre la última. La R sube en 6, 11 y 16, aunque ya tiene un rango desde el 1."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno. E: +40 % de velocidad durante 2 s (a sí misma o a un aliado); Mantra-E: +15 % extra a todos los aliados a 700 u. Botas jonias de la lucidez (93 %) y Destello.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Tiene la R (Mantra) desde el nivel 1 sin gastar punto: la primera Q del partido ya puede ser Soulflare, algo que ningún otro support tiene.",
+  "La pasiva reduce la Mantra 4 s por campeón golpeado: en una pelea con varios impactos usa Soulflare o Defiance dos o tres veces, mientras que si falla todo espera 34-40 s.",
+  "Mantra-E (Defiance) da escudo y velocidad en área a todo el grupo: convierte una iniciación lenta en una carrera o salva una retirada entera.",
+  "La W se cura según su vida perdida con Mantra (dos veces): con poca vida, R-W la saca de muchas situaciones que parecen perdidas.",
+  "La Q estalla en el primer súbdito: contra rivales que se esconden detrás de la oleada su poke depende de colocarse en un ángulo lateral."
+ ],
+ "combos": [
+  "Apertura de nivel 1: R → Q (Soulflare) al tirador que va a rematar un súbdito sin súbditos delante; luego auto si está cerca.",
+  "Intercambio corto: Q → W → auto mientras el lazo aguanta; si el rival no rompe el lazo queda enraizado para el tirador.",
+  "Pelea en grupo: R → E (Defiance) sobre el aliado que inicia o sobre el tirador cuando el rival lanza su daño en área.",
+  "Supervivencia: R → W (Renewal) sobre quien la persigue para curarse y enraizarlo más tiempo; E a sí misma para huir.",
+  "Poke a distancia antes de un objetivo: R → Q a la línea enemiga que espera en el pasillo del dragón o del Barón."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Tejesueños",
+   "Perforaplanos de Zaz'Zak",
+   "Ecos de Helia",
+   "Renovación de piedra lunar",
+   "Canción de batalla de Shurelya",
+   "Bendición de Mikael",
+   "Redención",
+   "Incensario ardiente",
+   "Núcleo albar",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Invocar a Aery (Brujería) con Banda de maná, Trascendencia y Piroláser o Se avecina tormenta; secundaria Valor con Fuente de vida y Revitalizar (54 % en OP.GG 16.23). Alternativa: Cometa arcano con Inspiración secundaria (19 %), más de poke. Fragmentos: velocidad de habilidad, fuerza adaptable y vida.",
+  "hechizos": [
+   "Destello",
+   "Curar"
+  ],
+  "nota": "Destello + Curar en el 82 % (98 % en OTP Diamante+); Agotamiento (13 %) contra asesinos o luchadores que se tiran al tirador. Empieza con objeto de apoyo + 2 pociones. Mejora del objeto de apoyo: Tejesueños (66 %) para escudos y curas, o Perforaplanos de Zaz'Zak (21 %) para más daño. Primer objeto: Ecos de Helia (39 %), Renovación de piedra lunar (28 %), Canción de batalla de Shurelya (13 %) o Bendición de Mikael (10 %); después Mikael, Redención, Incensario ardiente (con tiradores de ataque rápido) o Núcleo albar. Malignidad y Eco de Luden solo en partidas de poke o en mid/top."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "El nivel 2 de bot llega hacia la 1:42. Karma no busca el all-in de nivel 2; lo que hace es ganar la línea desde el nivel 1 con Soulflare y, con E a nivel 2, castigar al rival que entre o salvar a su tirador. Si el rival tiene un support de enganche, guarda la E para el escudo de reacción y no gasta la Mantra en poke cuando el rival tiene la entrada lista.",
+    "tradeos": "Poke con Q (y Soulflare cada 30-40 s) cuando el rival va a por un súbdito y no tiene la oleada delante; si acierta, la pasiva le devuelve la Mantra antes. Camina hacia delante para amenazar la W en vez de lanzar y retroceder. Contra enganches (Nautilus, Blitzcrank, Leona) se coloca detrás de los súbditos y responde con E al aliado enganchado o con R-W al que entra.",
+    "oleadas": "Su línea quiere empujar a nivel 1-3 para ganar la prioridad y hacer poke; tras forzar un Destello o una vuelta, estrellan la oleada y ella sale a poner visión en el río (primera vuelta a mediana 3:28 con Botas, Guardián de control o Amuleto de las hadas). Contra líneas de all-in de nivel 6 (Draven, Samira con Rell o Leona) deja que la oleada llegue a su torre.",
+    "con_que_adcs": [
+     "Ezreal",
+     "Caitlyn",
+     "Jhin",
+     "Varus",
+     "Ashe",
+     "Lucian",
+     "Sivir"
+    ],
+    "sufre_contra": [
+     "Blitzcrank",
+     "Nautilus",
+     "Rakan",
+     "Maokai",
+     "Amumu",
+     "Taric",
+     "Galio"
+    ]
+   },
+   "roameos": "Pocos y cortos: en el 47 % de las partidas de OTP Diamante+ tiene una kill o asistencia fuera de bot antes del 14, la primera hacia el 9:15 de mediana (p25 6:20), sobre todo en mid (9 % de sus kills antes del 14) y en la jungla rival con su jungla (10 %). Sus kills antes del 14: 55 % en bot, 16 % en el río, 10 % en la jungla rival, 9 % en mid. Sale de bot tras empujar con poke y vuelve; con E (+40 %) y Botas jonias llega rápido al río para la escuttle o el dragón.",
+   "vision": "Alta: 2,9 de visión por minuto de mediana en OTP Diamante+ (p75 3,35). Coloca en el río de bot y en el tribush antes del dragón; usa la Q como herramienta de visión barata para comprobar arbustos. Compra Guardián de control en casi todas las vueltas y cambia a Lente del oráculo pronto (16 % en la primera vuelta).",
+   "fase_media": "Tras la fase de líneas acompaña al tirador a mid o al objetivo siguiente. Con Ecos de Helia (~12:20) juega el asedio con Soulflare para quitar vida antes del dragón o del Barón y en la pelea guarda Mantra-E para cuando el rival lance su entrada. Pasado el 14 está con su grupo: muy poco tiempo sola en una lateral.",
+   "matchups_dificiles": [
+    "Maokai",
+    "Rakan",
+    "Blitzcrank",
+    "Amumu",
+    "Taric",
+    "Galio",
+    "Nautilus",
+    "Zyra"
+   ],
+   "matchups_faciles": [
+    "Zoe",
+    "Xerath",
+    "Swain",
+    "Hwei",
+    "Ashe",
+    "Yuumi",
+    "Sona",
+    "Vel'Koz"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Encantadora de utilidad y poke: abre con Soulflare desde lejos y en la pelea da escudo y velocidad a todo el grupo con Mantra-E; pela con W al que se tire a su tirador.",
+  "como_entrar": "No entra: antes de la pelea quita vida con R-Q a 950 u; cuando su equipo inicia, R-E sobre el iniciador para que llegue con escudo y velocidad, o espera a que el rival lance su daño y usa Defiance como escudo de área. Si le entran, W al asesino y E a sí misma.",
+  "objetivo": "Con Q, al grupo enemigo en el pasillo (cada campeón golpeado acorta la Mantra 4 s); con W, al luchador o asesino que llega a su retaguardia; con E, a su tirador o a quien inicia.",
+  "posicion": "Detrás del frontal, a 600-800 u de su tirador para que el escudo de la E y el área de Defiance (700 u) lleguen a todos."
+ },
+ "macro": {
+  "split_push": "No. Pasado el 14 está agrupada; solo sale a poner visión con el jungla.",
+  "objetivos": "No hace objetivos sola. Prepara dragón (5:00) y larvas con visión y poke de Soulflare; en el asedio de torres limpia oleadas con Q y quita vida a los defensores.",
+  "plan_de_partida": "0-6 min: ganar la línea a nivel 1-3 con Soulflare, forzar Destellos y dar prioridad para el dragón. 6-14 min: visión en el río, escoltar al jungla en la escuttle y en el dragón, poke en asedios. 14-25 min: Mantra-E para que su equipo inicie o huya, Mikael o Redención para salvar al tirador. 25+: posicionarse tras el frontal, no gastar la Mantra en poke si la pelea va a empezar."
+ },
+ "debilidades": [
+  "Sin pico de nivel 6: líneas con all-in fuerte a nivel 6 (Leona, Rell, Samira, Draven) le dan la vuelta a la línea que ganaba al nivel 3.",
+  "La W se rompe fácil contra campeones con dash o Destello (Ezreal, Lucian, Tristana, Zeri) y su Q la bloquean los súbditos.",
+  "Su daño cae en la tardía: si su equipo no tiene carries a los que proteger, aporta poco.",
+  "Sin desplazamientos: un enganche (Blitzcrank, Nautilus, Thresh) que la pille sin Destello suele ser su muerte.",
+  "Si gasta la Mantra en poke justo antes de la pelea, pierde Defiance durante 34-40 s."
+ ],
+ "contrarrestado_por": [
+  "Maokai",
+  "Rakan",
+  "Blitzcrank",
+  "Amumu",
+  "Taric",
+  "Galio",
+  "Nautilus"
+ ],
+ "bueno_contra": [
+  "Zoe",
+  "Xerath",
+  "Swain",
+  "Hwei",
+  "Ashe",
+  "Yuumi",
+  "Sona"
+ ],
+ "sinergias": [
+  "Ezreal",
+  "Caitlyn",
+  "Jhin",
+  "Varus",
+  "Lucian",
+  "Jarvan IV",
+  "Hecarim"
+ ],
+ "errores_comunes": [
+  "Lanzar la Q con súbditos delante del rival: estalla en el primero y no hace nada.",
+  "Gastar la Mantra en Soulflare justo antes de una pelea y quedarse sin Defiance para su equipo.",
+  "Usar la E de forma ofensiva contra un support de enganche y no tenerla cuando enganchan a su tirador.",
+  "Lanzar la W a rivales con dash o Destello que rompen el lazo sin problemas.",
+  "Jugar la línea igual de agresiva tras el nivel 6 rival, cuando el all-in ya le gana.",
+  "Dejar de poner visión por buscar poke: su valor en la media es la visión y el escudo."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de support (OTP Diamante+, 290 partidas de 32 jugadores, parches 16.10-16.23): nivel 2 a la 1:42, nivel 3 a las 2:39, nivel 6 a las 8:53, nivel 11 a las 22:00 de mediana. CS 13 a los 10 y 19 a los 15: el CS bajo y el nivel 6 tardío son normales.",
+  "Primera vuelta a base hacia las 3:28 (p25 2:50, p75 4:07) con Botas, Guardián de control, Amuleto de las hadas o Tomo amplificador. Primer objeto hacia el 12:20 (p25 10:55, p75 13:40): Ecos de Helia 39 %, Renovación de piedra lunar 28 %, Canción de batalla de Shurelya 13 %, Bendición de Mikael 10 %. Segundo objeto hacia el 21:15. Botas jonias de la lucidez en el 93-97 % de las partidas, hacia el 12:30.",
+  "Destello + Curar en el 98 % de sus partidas de Diamante+: una Karma con Curar no es un error; Agotamiento solo contra asesinos.",
+  "Kills: una de mediana por partida, 15 asistencias y 57 % de participación; casi todo su impacto aparece como asistencias. La mitad de sus kills o asistencias antes del 14 son en bot (55 %), luego el río (16 %), la jungla rival (10 %) y mid (9 %).",
+  "Roameos: en el 47 % de las partidas tiene una kill o asistencia fuera de bot antes del 14, la primera hacia el 9:15 (p25 6:20). Antes del 14 pasa un ~47 % del tiempo en bot, ~15 % en el río y ~10 % en su jungla: es normal verla en el río o con su jungla en las posiciones por minuto.",
+  "Sin movilidad: entre dos posiciones por minuto no recorre más que un campeón normal con Botas jonias y la E (+40 % 2 s). No tiene nada global; kills lejos de su última posición conocida no son posibles.",
+  "Usa la R unas 34 veces por partida de mediana: la Mantra se recarga mucho gracias a la pasiva. Mucha visión (2,9 por minuto de mediana): guardianes y pinks en el río y la jungla rival en cada vuelta.",
+  "Pasado el 14 está sobre todo con su grupo (27 % del tiempo en otras líneas, como mid, y solo un ~6 % en bot): su posición tardía sigue a su tirador."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/karma/build/",
+  "https://www.op.gg/lol/champions/karma/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Karma",
+  "https://www.dodge.gg/lol/news/karma-build-2026",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, champion.json e item.json)",
+  "Partidas de OTPs de Karma support (data/otps/Karma/SUPPORT: 379 partidas de 32 jugadores; 290 de Diamante+)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "SUPPORT": {
+    "partidas": 290,
+    "victorias": 0.528,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 31,
+      "victorias": 0.548
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 69,
+      "victorias": 0.449
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 112,
+      "victorias": 0.562
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 52,
+      "victorias": 0.558
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 4.0,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 10.9,
+     "mediana": 12.4,
+     "p75": 13.7
+    },
+    "segundo_objeto_min": {
+     "p25": 19.5,
+     "mediana": 21.3,
+     "p75": 22.8
+    },
+    "primer_objeto": [
+     [
+      "Ecos de Helia",
+      0.39
+     ],
+     [
+      "Renovación de piedra lunar",
+      0.28
+     ],
+     [
+      "Canción de batalla de Shurelya",
+      0.14
+     ],
+     [
+      "Bendición de Mikael",
+      0.1
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQREEE",
+      0.3
+     ],
+     [
+      "QEWQQRQEQ",
+      0.2
+     ],
+     [
+      "QWEQQREEE",
+      0.11
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.6
+     ],
+     [
+      "QEW",
+      0.36
+     ],
+     [
+      "EWQ",
+      0.03
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 50.0,
+     "mediana": 57.1,
+     "p75": 65.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 7.7,
+     "mediana": 9.6,
+     "p75": 11.8
+    },
+    "vision_por_min": {
+     "p25": 2.45,
+     "mediana": 2.91,
+     "p75": 3.35
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.8
+    },
+    "solo_kills_media": 0.16,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.8,
+     "p75": 3.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 29.9,
+     "mediana": 39.1,
+     "p75": 47.8
+    },
+    "cs_10": {
+     "p25": 9.0,
+     "mediana": 13.0,
+     "p75": 15.0
+    },
+    "dif_cs_10": {
+     "p25": -5.0,
+     "mediana": -1.0,
+     "p75": 3.0
+    },
+    "dif_oro_10": {
+     "p25": -251.0,
+     "mediana": 88.0,
+     "p75": 447.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.0,
+     "p75": 10.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 7.1,
+     "p75": 10.1
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 10.7,
+     "mediana": 14.9,
+     "p75": 20.2
+    },
+    "wards_antes_14": {
+     "p25": 9.0,
+     "mediana": 10.0,
+     "p75": 12.0
+    },
+    "pinks": {
+     "p25": 6.2,
+     "mediana": 10.0,
+     "p75": 14.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.10-16.23"
+   }
+  }
+ }
+}

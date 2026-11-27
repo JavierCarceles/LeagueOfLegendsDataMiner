@@ -1,0 +1,514 @@
+{
+ "clave": "Shen",
+ "nombre": "Shen",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.76,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tanque de top con energía y R global (escudo + teletransporte a un aliado en cualquier punto del mapa), que gana peso desde el nivel 6 decidiendo peleas lejanas mientras aguanta o empuja su línea",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 3,
+  "nota": "En la línea es un tanque sólido con intercambios cortos de Q (daño por % de vida máxima, ralentiza) y sin maná: aguanta casi cualquier matchup cuerpo a cuerpo, pero sufre contra rangos y luchadores de escalado (Kayle, Riven, Illaoi, Heimerdinger). Desde el nivel 6 su R global convierte cada pelea 2v2 de bot o cada gank de mid en un 3v2: es su momento más fuerte, con la R a 180-160 s. En la tardía sigue siendo útil (W que bloquea ataques básicos, provocación de E, R para salvar al carry), pero su daño y su split se quedan cortos frente a luchadores con objetos."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:45-2:20) con Q-E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con E (provocación de 1,5 s) más Q potenciada (3 ataques con 5-7 % de vida máxima y +50 % de velocidad de ataque) y Prender gana intercambios largos contra muchos cuerpo a cuerpo y amenaza kills en cuanto el rival se pasa."
+  },
+  {
+   "cuando": "Nivel 6 (~6:30-7:00) con R",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Stand United: escudo de 120-320 a 192-512 (más fuerte cuanto menos vida tenga el aliado) y teletransporte junto a él tras 3 s. Desde aquí cualquier zambullida o pelea de bot, mid o la jungla puede tener a Shen en 3 s; su línea se congela o se empuja antes para poder usarla."
+  },
+  {
+   "cuando": "Primer objeto (~12-13 min): Hidra titánica o Corazón de acero",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Hidra titánica",
+   "por_que": "Más vida y daño en área con la Q: limpia oleadas rápido para poder irse con la R y aguanta los intercambios. Corazón de acero si la línea es pasiva y quiere escalar vida."
+  },
+  {
+   "cuando": "Nivel 11 y dos objetos (~19-21 min) con Amanecer y anochecer o Malla de espinas",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Amanecer y anochecer",
+   "por_que": "R a 180 s y tanque completo: entra con E a provocar a dos o tres rivales y protege con W al carry. Es su mejor momento de peleas en grupo y de split con R para volver."
+  },
+  {
+   "cuando": "Nivel 16 (R a 160 s)",
+   "nivel": 16,
+   "objetos": null,
+   "objeto": null,
+   "por_que": "El escudo máximo llega a 512 (+24 % vida adicional): salva a un carry en cualquier punto del mapa y sigue contando en peleas de Barón y Alma."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Ki Barrier: tras lanzar una habilidad gana un escudo de 47-129 (+13 % vida adicional) durante 2,5 s, con 11 s de enfriamiento que se reduce 4-8,25 s cada vez que afecta a un campeón con una habilidad. Le da aguante en los intercambios cortos de Q-E.",
+  "Q": "Twilight Assault: llama a su espada espiritual (alcance global: viene desde donde esté) y potencia sus 3 siguientes ataques en 8 s (+75 de alcance) con 2-4 % de vida máxima del objetivo como daño mágico; si la espada golpea a un campeón al volver, pasa a 5-7 % y +50 % de velocidad de ataque. Ralentiza un 25-45 % 2 s a los enemigos que golpea mientras se alejan de él. Enfriamiento 8-5 s, 140-100 de energía. Tope contra monstruos de 120-200.",
+  "W": "Spirit's Refuge: zona de 350 de radio alrededor de la espada que, al activarse (2 s o antes si entra un aliado o él), bloquea durante 1,75 s todos los ataques básicos que no sean de torre (y habilidades que cuentan como ataque) contra Shen y sus aliados dentro. Enfriamiento 16-10 s, 40 de energía. Anula un all-in de tirador o de luchador de ataques básicos.",
+  "E": "Shadow Dash: carga de 300 a 600 u en una dirección (enfriamiento 18-10 s, 150 de energía) que provoca 1,5 s a los campeones y monstruos que atraviesa y hace 60-160 (+11 % vida adicional) de daño físico; recupera 30-50 de energía si golpea. Cruza la mayoría de muros. Es su enganche, su forma de pelar y su escape.",
+  "R": "Stand United: escudo a un aliado en cualquier punto del mapa (alcance global, enfriamiento 200/180/160 s, sin coste) de 120/220/320 a 192/352/512 (+135-216 % PH, +15-24 % vida adicional) según la vida que le falte, que dura 5 s; tras 3 s de canalización Shen aparece a 175 u del aliado en dirección al enemigo más cercano. Se interrumpe si le aturden, enraízan o silencian, o si el aliado muere (y entonces va a enfriamiento completo); el escudo se queda igual."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q a nivel 1 (la W no se puede subir a nivel 1). Q-E-W en el 81 % en OP.GG; Lolalytics muestra también Q-W-E. Maximiza Q (daño y enfriamiento) y luego E (menos enfriamiento de la provocación); W de último. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: carga de 300-600 u con provocación (enfriamiento 18-10 s). R: teletransporte global junto a un aliado tras 3 s. Destello en casi todas las partidas, Teleportar en ~33 %. Combo Destello-E (o E-Destello) para provocar desde ~1000 u.",
+  "salta_muros": "si",
+  "como_salta_muros": "La E (300-600 u) cruza casi todos los muros de la Grieta si el punto final cae al otro lado: entra a la jungla o huye por encima del muro de la línea de top, de los campamentos y del foso de dragón y Barón. Si el muro es más grueso, la carga se queda corta. La R le lleva a cualquier sitio sin importar el terreno.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "teletransporte",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "Stand United: tras 3 s de canalización aparece junto al aliado escudado en cualquier punto del mapa (a 175 u del aliado, hacia el enemigo más cercano). Enfriamiento 200/180/160 s. Se interrumpe con aturdimientos, raíces o silencios, o si el aliado muere. Va desde top a bot, mid o la jungla en peleas y zambullidas; también la usa para volver de una lateral a un objetivo."
+   },
+   {
+    "habilidad": "R",
+    "tipo": "escudo",
+    "desde_nivel": 6,
+    "alcance": "global",
+    "nota": "El escudo (120-320 hasta 192-512 según la vida que le falte al aliado, 5 s) se aplica al instante al lanzar, aunque la canalización se corte: puede dar una asistencia a Shen en una pelea a la que no llega."
+   }
+  ]
+ },
+ "unico": [
+  "R global: el único tanque de top que puede escudar y unirse a un aliado en cualquier punto del mapa desde el nivel 6; cambia el número de una pelea lejana en 3 s.",
+  "Espada espiritual separada de él: la Q la llama desde donde esté y daña y ralentiza lo que atraviesa; la W crea la zona de bloqueo alrededor de la espada, no de Shen. Dejarla bien colocada es parte de su juego.",
+  "W que bloquea todos los ataques básicos 1,75 s: anula la ventana de daño de tiradores, Master Yi, Jax o Tryndamere.",
+  "Usa energía (400 máximo) en lugar de maná: puede intercambiar sin volver a base, y la E le devuelve energía si golpea.",
+  "Provocación en línea (E): obliga a los rivales a ir hacia él, así que también aparta a un asesino de su tirador."
+ ],
+ "combos": [
+  "Intercambio en línea: Q para llamar la espada a través del rival (5-7 % de vida máxima y ralentización) → 3 ataques potenciados → retirada con el escudo de la pasiva.",
+  "All-in de nivel 3: E sobre el rival (provocación 1,5 s) → Q → ataques potenciados → W si responde con ataques básicos → Prender.",
+  "Destello-E: E y Destello durante la carga (o Destello antes) para provocar a varios rivales desde lejos.",
+  "R de zambullida: R al aliado que entra bajo torre o en un 2v2 → al aparecer E sobre el rival más cercano → Q y W para protegerle.",
+  "Pelar: W sobre el carry propio cuando le salta un luchador → E para provocarle y apartarle → Q para ralentizar al que huye."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Hidra titánica",
+   "Corazón de acero",
+   "Amanecer y anochecer",
+   "Malla de espinas",
+   "Presagio de Randuin",
+   "Bandlemusa",
+   "Rookern kaénico",
+   "Coraza del muerto",
+   "Desesperanza eterna",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Garras del inmortal (Valor) en el 97 % con Golpe de escudo, Fuerzas renovadas y Sobrecrecimiento; secundaria Inspiración (60 %) con Entrega de galletas y Velocidad de acercamiento, o Dominación (34 %). Fragmentos: velocidad de ataque, vida por nivel y vida.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender en el 63 % (más presión en la línea y kills a nivel 3) y Destello + Teleportar en el 33 % (más presencia en el mapa junto a la R). Inicio: Escudo de Doran + poción (67 %) o Yelmo de Doran + poción (30 %). Botas blindadas (64 %) contra AD o Botas de mercurio (30 %) contra AP y control. Núcleo con Hidra titánica y Amanecer y anochecer; tercer objeto según el rival: Malla de espinas contra curación, Presagio de Randuin contra críticos, Rookern kaénico contra AP, Bandlemusa si su equipo necesita utilidad."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q: la llama a través del rival cuando se acerca a un súbdito para el 5 % de vida máxima y la ralentización. Nivel 2 (~1:45) con E: ya amenaza provocación + Q. Nivel 3 (~2:20) con W: all-in con Prender si el rival está por debajo del 60 % y sin desplazamiento disponible.",
+    "tradeos": "Intercambios cortos: coloca la espada detrás del rival, Q para que le atraviese al volver, tres ataques y se retira con el escudo de la pasiva. Usa la W cuando el rival responde con ataques básicos. La E solo para el all-in o para castigar un error: con 18 s de enfriamiento a nivel 1, fallarla le deja sin defensa contra el all-in rival.",
+    "oleadas": "Prefiere empujar lento hasta el nivel 6 para tener la oleada en la torre rival cuando quiera usar la R; después, oleada estrellada → R a otra línea → vuelve a top cuando su oleada ya ha llegado a su torre. Contra rivales que escalan (Kayle, Nasus) empuja y busca placas.",
+    "all_in": "A nivel 3 con E-Q-Prender, y desde el 6 con Teleportar o R para que llegue ayuda si el rival también tiene la suya. No busca muchas kills en solitario: su objetivo es salir igualado y aprovechar la R.",
+    "jugar_seguro": "Contra Riven, Kayle, Illaoi, Heimerdinger, Aurora o Zaahen: Escudo de Doran, farmear con la Q desde lejos y guardar la E para escapar o para un gank de su jungla. Botas blindadas pronto contra AD. Aguantar la línea hasta el 6 y ganar la partida con la R en otras líneas."
+   },
+   "roameos": "Desde el nivel 6 roamea sobre todo con la R: a bot en los all-in 2v2 y zambullidas (lo más frecuente), a mid en ganks de su jungla y a la jungla en peleas de escuttle o invasiones. A pie roamea poco antes del 6; con Teleportar baja a bot o al dragón. Usa la R mejor cuando su oleada está empujada a la torre rival.",
+   "fase_media": "Tras el primer objeto alterna presión en top con R a las peleas de dragón y larvas; muchas veces empuja la lateral (split) y, cuando empieza la pelea en el otro lado, R al carry para convertir un 4v5 en 5v5 con ventaja de oleada. Pasado el 20 se agrupa para el Barón y protege al tirador con W y E.",
+   "matchups_dificiles": [
+    "Riven",
+    "Kayle",
+    "Illaoi",
+    "Heimerdinger",
+    "Aurora",
+    "Anivia",
+    "Zaahen",
+    "Singed",
+    "Aatrox",
+    "Kled"
+   ],
+   "matchups_faciles": [
+    "Tahm Kench",
+    "Maokai",
+    "Ambessa",
+    "Ryze",
+    "Jax",
+    "Sylas",
+    "Master Yi",
+    "Udyr",
+    "Galio"
+   ],
+   "uso_de_la_r": "Cuándo lanza la R: (1) zambullidas de su bot o su jungla bajo la torre rival, escudando al que entra primero; (2) all-in 2v2 de bot en cuanto empiezan, no cuando ya están perdidos; (3) ganks de mid para convertirlos en 3v1; (4) defensa: un aliado a punto de morir en un gank rival recibe el escudo aunque Shen no llegue a tiempo; (5) en la fase media, peleas de dragón o Barón desde la lateral de top. Antes de lanzarla empuja su oleada o la deja llegar a su torre, y mira el control rival: un aturdimiento durante los 3 s la corta. Con 200-160 s de enfriamiento suele usarla 1 vez cada 3-4 minutos; un buen Shen la usa 6-10 veces en una partida de 30 min.",
+   "contra_ganks": "Aguanta bien los ganks: escudo de la pasiva, W contra los ataques básicos del jungla y E para provocar al que entra. Antes del 6 juega con la oleada cerca de su torre si el jungla rival está en su lado; con la R en enfriamiento es más fácil de zambullir."
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y peeler: entra con E-Destello provocando a varios rivales o se queda pelando al carry con W y E; con la R entra desde otro punto del mapa.",
+  "como_entrar": "Con la R sobre el aliado más adelantado (o el que va a recibir el foco), o desde el flanco con Destello-E sobre la retaguardia rival. Después coloca la W en el grupo donde estén los tiradores rivales atacando y llama la Q a través de ellos para ralentizar.",
+  "objetivo": "Los carries rivales con la provocación (que se acerquen a su equipo); en defensa, el luchador o asesino que salta a su tirador.",
+  "posicion": "Delante de su equipo a ~600 u del grupo rival, o en la lateral con la R lista para unirse. No debe gastar la R de lejos si la pelea ya está perdida: el aliado muere y la R va a enfriamiento completo."
+ },
+ "macro": {
+  "split_push": "A medias: empuja la lateral de top con la Q y la Hidra titánica y se une a las peleas con la R. No gana muchos 1v1 en la tardía contra luchadores de duelo, pero su R le permite estar lejos sin dejar a su equipo en inferioridad.",
+  "objetivos": "No hace objetivos solo. Larvas (8:00) y Heraldo con su jungla cuando tiene prioridad en top; R o Teleportar a las peleas de dragón; torres laterales con split cuando la R está lista para volver.",
+  "plan_de_partida": "0-6 min: salir igualado en la línea con intercambios de Q y E, nivel 6 con la oleada bien colocada. 6-14 min: R a cada zambullida o 2v2 de bot y a los ganks de mid, larvas y Heraldo con su jungla. 14-25 min: split en top con R para las peleas de dragón y Barón. 25+: proteger al carry con W/E y R para salvarle o para cambiar el lado de la pelea."
+ },
+ "debilidades": [
+  "Poco daño en la tardía: si va por detrás su split es débil y depende de que su equipo gane las peleas con su R.",
+  "Sufre contra rangos y luchadores de escalado en la línea (Kayle, Riven, Illaoi, Heimerdinger): pierde vida y placas sin poder responder.",
+  "La R se interrumpe con cualquier aturdimiento, raíz o silencio durante los 3 s, y si el aliado muere antes va a enfriamiento completo (200-160 s).",
+  "Al irse con la R deja su oleada sola: pierde placas y oro si la usa mal colocada.",
+  "Su W solo bloquea ataques básicos: contra magos y daño de habilidades no le salva."
+ ],
+ "contrarrestado_por": [
+  "Riven",
+  "Kayle",
+  "Illaoi",
+  "Heimerdinger",
+  "Aurora",
+  "Zaahen",
+  "Singed",
+  "Anivia",
+  "Aatrox"
+ ],
+ "bueno_contra": [
+  "Tahm Kench",
+  "Maokai",
+  "Ambessa",
+  "Ryze",
+  "Jax",
+  "Sylas",
+  "Master Yi",
+  "Udyr",
+  "Galio"
+ ],
+ "sinergias": [
+  "Kalista",
+  "Draven",
+  "Kai'Sa",
+  "Lee Sin",
+  "Jarvan IV",
+  "Twisted Fate"
+ ],
+ "errores_comunes": [
+  "Usar la R cuando la pelea ya está perdida o el aliado ya va a morir: llega tarde y queda en enfriamiento completo.",
+  "Irse con la R con la oleada a punto de llegar a su torre: pierde placas y oro.",
+  "Gastar la E en la línea para hacer daño y quedarse sin defensa ante el all-in o el gank.",
+  "Lanzar la R sin mirar el control rival: le aturden al llegar o durante la canalización.",
+  "Olvidar dónde está la espada: la W y la Q dependen de ella.",
+  "No usar la R en toda la partida por jugar solo la línea: su valor está en las otras líneas."
+ ],
+ "senales_reconstructor": [
+  "Teletransporte global desde el nivel 6 (R, cada 200/180/160 s): kills o asistencias de Shen en bot, mid o la jungla con su última posición por minuto en top son normales, y su siguiente posición puede estar al otro lado del mapa sin pasar por el río. Hacia el minuto 6:30-7:00 suele llegar a nivel 6 en top.",
+  "Escudo global: la R da el escudo al instante aunque Shen no llegue (canalización interrumpida o aliado muerto): una asistencia de Shen en una pelea lejana sin que su posición cambie también encaja.",
+  "Teleportar en ~33 % de las partidas: sumado a la R, puede aparecer dos veces en pocos minutos lejos de top; con Prender (63 %), sus primeras kills suelen ser en top a nivel 3.",
+  "Tras usar la R, su oleada de top queda sola: placas perdidas en top a los pocos segundos de una pelea en bot con Shen presente son la consecuencia típica, no un error de otro.",
+  "La E cruza muros: una muerte o un escape de Shen al otro lado de un muro de la jungla de top o del foso del Barón es posible (300-600 u).",
+  "Ritmo de objetos de tanque: primer objeto (Hidra titánica o Corazón de acero) hacia el 12-13 y segundo (Amanecer y anochecer, Malla de espinas o Presagio de Randuin) hacia el 19-21. Escudo de Doran al empezar en dos de cada tres partidas.",
+  "Pocas kills propias: participación en kills alta gracias a la R, pero kills en solitario escasas; muchas asistencias en bot desde el minuto 7 son la firma de un buen Shen.",
+  "En la tardía alterna lateral de top y peleas: posiciones solo en top justo antes de una pelea en dragón o Barón con Shen presente son el patrón de split + R.",
+  "Usos de la R: con 200/180/160 s de enfriamiento suele lanzarla cada 3-4 minutos (6-10 veces en una partida de 30 min). Dos apariciones de Shen en bot o mid con menos de 3 minutos de diferencia sin Teleportar son poco probables salvo que haya ido andando.",
+  "Shen en la jungla (~8 %) o de support (~15 %): no cubiertos aquí; de support usa la R igual (cada pelea de top o mid con Shen presente puede venir de bot) y lleva Atlas mundial.",
+  "Victorias algo mayores en partidas medias (20-30 min), cuando su R decide los primeros objetivos; si va por detrás en top a los 15, su equipo suele tener una lateral en inferioridad."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/shen/build/",
+  "https://www.op.gg/lol/champions/shen/build/top",
+  "https://lolalytics.com/lol/shen/counters/",
+  "https://wiki.leagueoflegends.com/en-us/Shen",
+  "https://dignitas.gg/articles/climbing-the-ladder-shen-the-eye-of-twilight",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 54,
+    "victorias": 0.5,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 4.5,
+     "p75": 5.8
+    },
+    "primer_objeto_min": {
+     "p25": 12.9,
+     "mediana": 14.4,
+     "p75": 16.3
+    },
+    "segundo_objeto_min": {
+     "p25": 19.3,
+     "mediana": 21.6,
+     "p75": 23.1
+    },
+    "primer_objeto": [
+     [
+      "Hidra titánica",
+      0.64
+     ],
+     [
+      "Guantelete de hielo",
+      0.21
+     ],
+     [
+      "Égida de fuego solar",
+      0.09
+     ],
+     [
+      "Corazón de acero",
+      0.06
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.94
+     ],
+     [
+      "QEQEWRQQQ",
+      0.02
+     ],
+     [
+      "QEWQQERQQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 37.7,
+     "mediana": 46.2,
+     "p75": 57.1
+    },
+    "parte_del_dano_pct": {
+     "p25": 14.9,
+     "mediana": 17.8,
+     "p75": 22.1
+    },
+    "vision_por_min": {
+     "p25": 0.68,
+     "mediana": 0.84,
+     "p75": 1.0
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.28,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 27.3,
+     "mediana": 36.2,
+     "p75": 48.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 16.3,
+     "mediana": 24.4,
+     "p75": 29.2
+    },
+    "cs_10": {
+     "p25": 55.2,
+     "mediana": 61.0,
+     "p75": 66.8
+    },
+    "dif_cs_10": {
+     "p25": -25.0,
+     "mediana": -12.5,
+     "p75": -5.2
+    },
+    "dif_oro_10": {
+     "p25": -908.0,
+     "mediana": -320.0,
+     "p75": 166.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 8.0,
+     "p75": 12.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.6,
+     "mediana": 1.5,
+     "p75": 4.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.1,
+     "mediana": 5.4,
+     "p75": 8.8
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.13-16.22"
+   },
+   "SUPPORT": {
+    "partidas": 46,
+    "victorias": 0.522,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.7,
+     "mediana": 4.5,
+     "p75": 7.7
+    },
+    "primer_objeto_min": {
+     "p25": 11.3,
+     "mediana": 12.4,
+     "p75": 14.4
+    },
+    "segundo_objeto_min": {
+     "p25": 19.9,
+     "mediana": 21.5,
+     "p75": 23.4
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.28
+     ],
+     [
+      "Arnés de protoplasma",
+      0.28
+     ],
+     [
+      "Corazón de acero",
+      0.24
+     ],
+     [
+      "Convergencia de Zeke",
+      0.13
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWEEREQE",
+      0.47
+     ],
+     [
+      "EQWQQRQEQ",
+      0.38
+     ],
+     [
+      "QEWQQRQEQ",
+      0.04
+     ]
+    ],
+    "maximiza": [
+     [
+      "EQW",
+      0.57
+     ],
+     [
+      "QEW",
+      0.43
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 53.9,
+     "mediana": 62.1,
+     "p75": 67.8
+    },
+    "parte_del_dano_pct": {
+     "p25": 8.4,
+     "mediana": 11.2,
+     "p75": 13.4
+    },
+    "vision_por_min": {
+     "p25": 2.45,
+     "mediana": 2.95,
+     "p75": 3.58
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.28,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.5,
+     "mediana": 1.7,
+     "p75": 3.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 33.1,
+     "mediana": 38.0,
+     "p75": 48.1
+    },
+    "cs_10": {
+     "p25": 11.2,
+     "mediana": 15.5,
+     "p75": 19.0
+    },
+    "dif_cs_10": {
+     "p25": -2.0,
+     "mediana": 3.0,
+     "p75": 5.0
+    },
+    "dif_oro_10": {
+     "p25": -414.0,
+     "mediana": -72.0,
+     "p75": 344.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.5,
+     "p75": 9.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 1.2,
+     "mediana": 4.5,
+     "p75": 11.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 10.7,
+     "mediana": 16.4,
+     "p75": 20.5
+    },
+    "wards_antes_14": {
+     "p25": 8.0,
+     "mediana": 9.0,
+     "p75": 12.0
+    },
+    "pinks": {
+     "p25": 4.0,
+     "mediana": 10.5,
+     "p75": 16.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.13-16.23"
+   }
+  }
+ }
+}

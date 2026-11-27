@@ -1,0 +1,724 @@
+{
+ "clave": "Poppy",
+ "nombre": "Poppy",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.547,
+   "principal": true
+  },
+  {
+   "rol": "TOP",
+   "parte": 0.323,
+   "principal": false
+  }
+ ],
+ "arquetipo": "tanque anti-desplazamientos de cuerpo a cuerpo: aturde contra los muros con la E, corta dashes con la W y saca del combate a un rival con la R cargada; support de enganche y protección o top tanque con Garras del inmortal",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Muy fuerte en los primeros niveles: la E contra un muro aturde 1,6-2 s y con Q y el broquel de la pasiva gana casi todos los intercambios cortos, y la W anula a los campeones que dependen de dashes (Yone, Irelia, Camille, Kalista, Samira, Alistar). A nivel 6 la R cargada aparta a un rival hasta 3400 u durante una pelea o un objetivo. En la tardía sigue siendo un tanque útil para pelar y separar, pero su daño cae y depende de acertar la E y la R; los equipos de poke a distancia y de curación le quitan valor."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (support ~1:50, top ~1:40) con E y Q",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "E (Embestida heroica) al rival que está cerca de un muro o de la pared de la línea: lo arrastra hasta 400 u y lo aturde 1,6 s; luego Q y ataque con el broquel. En bot da la primera kill con un tirador agresivo; en top gana el intercambio a casi cualquier luchador."
+  },
+  {
+   "cuando": "Nivel 3 con W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Presencia firme: 400 u alrededor que detienen los dashes rivales (derriban 0,5 s y dejan inmovilizado en el suelo 2 s). Desde aquí castiga cualquier entrada con salto (Alistar W, Samira E, Kalista, Yone, Irelia, Jarvan IV, Lee Sin) y sobrevive a ganks."
+  },
+  {
+   "cuando": "Nivel 6 con Veredicto del guardián (top ~6:30, support ~8:30-9:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Lanzada rápida, levanta 1 s en línea (500 u); cargada al menos 0,5 s, manda al rival hasta 3400 u hacia su fuente y lo deja fuera de la pelea varios segundos. Sirve para quitar al jungla del foso del dragón, al tank que inicia o al asesino que va a por su tirador."
+  },
+  {
+   "cuando": "Primer objeto de support (~13:00-14:30): Coraza del muerto o Medallón de los Solari de Hierro",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Coraza del muerto",
+   "por_que": "La velocidad de la Coraza le deja entrar desde lejos para la E contra muro y llegar a los roameos de mid. Con Botas de rapidez es su momento de enganches en el río antes de dragón y larvas."
+  },
+  {
+   "cuando": "Top con Lágrima de la diosa y El gran invierno (~14:00-16:00)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "El gran invierno",
+   "por_que": "En top la build habitual va con Lágrima + El gran invierno: cada habilidad que ralentiza o inmoviliza da un escudo, así que la Q (ralentiza) y la E le hacen muy difícil de matar en duelos y dives."
+  },
+  {
+   "cuando": "Dos-tres objetos (~20:00-25:00): Malla de espinas, Promesa de caballero, Bandlemusa o Firmamento desgarrado",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Malla de espinas",
+   "por_que": "R a 120 s y aguante suficiente para entrar primera o quedarse delante del tirador. Su papel ya no crece con oro: es la que separa la pelea con la R y anula al primer campeón que salta."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Iron Ambassador: cada cierto tiempo (16/12/8/6 s según nivel) su siguiente ataque lanza el broquel con 350 u extra de alcance (unos 475 u) y daño mágico extra (20-199 según nivel). El broquel cae cerca del objetivo y queda 4 s; si lo recoge, gana un escudo del 11-21 % de su vida máxima 3 s. Los rivales lo destruyen pasando por encima. Es su poke de nivel 1 y gran parte de su aguante en la línea.",
+  "Q": "Hammer Shock: martillazo en línea (430-460 u, 8/7/6/5/4 s, 35-55 de maná) que hace daño físico (30-130 +75 % AD adicional + 7-9 % de la vida máxima del objetivo) y deja una zona que ralentiza un 20-32 % y explota de nuevo al cabo de 1 s con el mismo daño. Es el grueso de su daño; contra súbditos y monstruos está limitado (70-210).",
+  "W": "Steadfast Presence: pasiva de +16 % de armadura y resistencia mágica (+32 % por debajo del 40 % de vida). Activa (20/18/16/14/12 s): +40 % de velocidad y un aura de 400 u durante 2 s que detiene los dashes rivales que entran en ella: les hace 70-230 (+70 % PH), los levanta 0,5 s y los inmoviliza en el suelo con un 25 % de ralentización 2 s. No para a unidades inmunes a control, imparables, con escudo de hechizos ni los saltos tipo «embestida» (lunges).",
+  "E": "Heroic Charge: embestida a un enemigo a 475 u (velocidad 1800, 14/13/12/11/10 s, 70 de maná) que lo arrastra hasta 400 u más; si choca contra un muro, repite el daño y lo aturde 1,6-2 s. Daño 40-120 (+60 % AD adicional), el doble con muro. Es su enganche y su escape: puede usarse sobre súbditos o monstruos para moverse, incluso al otro lado de un muro fino.",
+  "R": "Keeper's Verdict: carga hasta 4 s (se ralentiza un 15 %). Lanzada sin cargar: 100/150/200 (+45 % AD adicional) en un alcance corto (500 u) y levanta 1 s. Cargada al menos 0,5 s: alcance 850-1200 u, el doble de daño y manda a los rivales golpeados hasta 3400 u hacia su fuente, revelados e inalcanzables durante el vuelo (se detiene en los límites que no pueden cruzar). Enfriamiento 140/120/100 s; si se cancela o se agota la carga, queda 30 s en enfriamiento."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "E",
+   "Q",
+   "W"
+  ],
+  "nota": "Support: E-Q-W (OP.GG y Lolalytics, 60 % de las partidas y ~64 % de victorias): E a nivel 1 para un enganche contra la pared de la línea o para defender la invasión. Top: Q-E-W (62 %, Q-E-W-Q-Q-R-Q-E-Q-E-R-E-E-W-W) para el poke con Q y el broquel; E primero solo si el rival juega muy cerca de un muro. Siempre maximiza Q, luego E (menos enfriamiento para el aturdimiento contra muro) y W la última. En jungla (12 %) suele empezar Q. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: embestida a una unidad enemiga (campeón, súbdito o monstruo) a 475 u y la arrastra hasta 400 u más, ~875 u de recorrido total si no choca. W: +40 % de velocidad 2 s. Coraza del muerto (support) y Botas de rapidez le dan velocidad para entrar desde lejos. Destello en casi todas las partidas.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la E si hay una unidad enemiga (campeón, súbdito o monstruo de la jungla) al otro lado de un muro fino a menos de 475 u: la embestida la lleva hasta ella por encima del muro. Si lo que hay detrás del objetivo es un muro, el rival queda aturdido contra él. Lo habitual para cruzar es Destello.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "control",
+    "desde_nivel": 6,
+    "alcance": "hasta 3400 unidades",
+    "nota": "No la mueve a ella: la R cargada (0,5 s o más) manda a los rivales golpeados hasta 3400 u hacia su fuente, revelados e inalcanzables durante el vuelo. Un rival que aparece de repente miles de unidades más cerca de su base durante una pelea o un objetivo es el efecto de esta R, no un teletransporte."
+   }
+  ]
+ },
+ "unico": [
+  "W anti-desplazamientos: el aura de 400 u detiene cualquier dash que entra en ella (salvo imparables o inmunes) y deja al rival en el suelo 2 s. Es lo que la hace counter de Alistar, Samira, Kalista, Yone, Irelia, Lee Sin o Jarvan IV.",
+  "E que aturde contra el terreno: la misma embestida es un desplazamiento corto o un aturdimiento de 1,6-2 s según haya muro detrás del objetivo; la posición en el mapa (muros de la línea, de la jungla y del río) decide su daño.",
+  "R con dos usos: rápida para levantar 1 s en línea corta, o cargada para mandar a uno o varios rivales hasta 3400 u hacia su base y sacarlos del objetivo (se usa mucho en dragón y Barón para quitar al jungla con Castigo).",
+  "Pasiva del broquel: ataque a distancia (~475 u) cada 6-16 s que, si recoge el broquel, le da un escudo del 11-21 % de su vida; el rival puede destruirlo pisándolo.",
+  "Resistencias de la W que se doblan por debajo del 40 % de vida: es más difícil de rematar de lo que parece cuando está baja."
+ ],
+ "combos": [
+  "Aturdimiento contra muro: acercarse para que el rival quede entre Poppy y un muro → E para estamparlo (1,6-2 s) → Q → ataque con broquel → Q de nuevo si ha vuelto.",
+  "Destello-E (insec de Poppy): Destello por el lado contrario al muro y E inmediata para arrastrar al rival contra la pared o hacia su equipo y su torre.",
+  "Anti-enganche: W en cuanto el rival va a saltar sobre ella o sobre su tirador (Alistar W, Samira E, Leona E, Jarvan IV E-Q) → E contra muro al que queda en el suelo.",
+  "R de objetivo: cargar la R mientras el jungla rival se acerca al foso del dragón o del Barón y soltarla para mandarlo a 3400 u antes de que use Castigo.",
+  "R corta de enganche: E → R sin cargar al instante (levanta 1 s) → Q para mantener el control cuando no hay muro cerca.",
+  "Escape: E a un súbdito o monstruo al otro lado de un muro fino, W para la velocidad y cortar los dashes de persecución."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Detracción celestial",
+   "Tonada sanguina",
+   "Botas de rapidez",
+   "Coraza del muerto",
+   "Medallón de los Solari de Hierro",
+   "Malla de espinas",
+   "Promesa de caballero",
+   "Bandlemusa",
+   "Fuerza de la naturaleza",
+   "Escudo de Doran",
+   "Lágrima de la diosa",
+   "El gran invierno",
+   "Firmamento desgarrado",
+   "Botas blindadas"
+  ],
+  "runas": "Support: Reverberacción (Valor, 55 % en OP.GG Esmeralda+) con Golpe de escudo, Revestimiento de huesos e Inquebrantable, secundaria Inspiración con Destello hextech y Perspicacia cósmica; alternativa Mejora glacial (Inspiración, la mejor tasa de victorias en Lolalytics). Top: Garras del inmortal (96 %) con Golpe de escudo, Fuerzas renovadas o Sobrecrecimiento; secundaria Precisión con Claridad mental o Inspiración.",
+  "hechizos": [
+   "Destello",
+   "Prender",
+   "Curar",
+   "Teleportar"
+  ],
+  "nota": "Support: Destello + Prender (62 %) o Destello + Curar (24 %); inicio Atlas mundial + pociones, mejora a Detracción celestial (48 %) o Tonada sanguina (33 %), Botas de rapidez (64 %) y Coraza del muerto + Medallón de los Solari de Hierro; de tercero Malla de espinas contra curación, Bandlemusa, Promesa de caballero o Fuerza de la naturaleza contra magos. Top: Destello + Teleportar (67 %) o Destello + Prender (31 %); inicio Escudo de Doran (60 %) o Yelmo de Doran (29 %); Lágrima de la diosa y El gran invierno en casi todas las builds, con Firmamento desgarrado, Malla de espinas, Égida de fuego solar o Rostro espiritual; Botas blindadas (66 %) o Botas de mercurio contra mucho control mágico."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Con E a nivel 1 y Q a nivel 2, en cuanto llega a nivel 2 (~1:50) busca la E contra la pared de la línea de bot (la de su lado o la del río) sobre el tirador rival si está pegado al muro; con Prender suele ser kill o Destello. Si el rival tiene un enganche de nivel 2 (Alistar, Leona, Nautilus, Rell), espera con la W de nivel 3 en lugar de entrar ella.",
+    "tradeos": "Intercambia con el broquel (ataque a ~475 u) y la Q cuando el rival se acerca a rematar; recoge el broquel para el escudo antes de que se lo pisen. Contra supports de enganche deja que ellos entren y responde con W (los deja en el suelo) y E contra muro. Contra encantadores de rango (Sona, Soraka, Zilean, Zoe) no puede intercambiar: juega atrás y busca el enganche con su jungla.",
+    "oleadas": "Prefiere una oleada cerca de su torre o en el centro, donde los muros de la línea están cerca para la E. Tras una kill o un Destello rival, empuja y vuelve a base (~3:30-4:00) con Botas o Guardián de control; luego roamea a mid con la oleada en la torre rival.",
+    "con_que_adcs": [
+     "Samira",
+     "Draven",
+     "Kalista",
+     "Lucian",
+     "Caitlyn",
+     "Jhin"
+    ],
+    "sufre_contra": [
+     "Soraka",
+     "Sona",
+     "Zilean",
+     "Zoe",
+     "Taric",
+     "Galio",
+     "Senna"
+    ]
+   },
+   "roameos": "Roamea a mid y a la jungla rival con su jungla: tras empujar la oleada de bot y con la E lista, entra por el río con Botas de rapidez o Coraza del muerto para estampar al mid rival contra los muros de la entrada de mid o del río. Desde nivel 6 acompaña a su jungla al dragón y a las larvas con la R cargada para sacar al jungla rival.",
+   "vision": "Visión de support estándar: guardianes en el río y en los arbustos de la jungla rival antes de dragón (5:00) y larvas (8:00), Guardián de control en el arbusto del río de bot y cambio de trinket a Lente del oráculo tras la primera mejora del Atlas para limpiar la visión antes de un enganche.",
+   "fase_media": "Agrupada con su equipo alrededor de los objetivos: pone visión, busca picks con la E contra los muros de la jungla y del río, y en las peleas protege a su tirador con la W (corta los saltos de asesinos y luchadores) y separa la pelea con la R cargada sobre el que entra primero.",
+   "matchups_dificiles": [
+    "Zoe",
+    "Soraka",
+    "Sona",
+    "Taric",
+    "Galio",
+    "Zilean"
+   ],
+   "matchups_faciles": [
+    "Sylas",
+    "LeBlanc",
+    "Hwei",
+    "Camille",
+    "Shaco",
+    "Pantheon",
+    "Pyke",
+    "Alistar",
+    "Rell"
+   ]
+  },
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 Q y ataques con broquel (~475 u) para poke cada vez que el rival remata; nivel 2 E (~1:40) para estampar al rival contra la pared de la línea (la línea de top tiene muros a los dos lados cerca de las torres exteriores); nivel 3 W. A nivel 3 con Garras del inmortal y Prender gana el all-in a la mayoría de luchadores si acierta la E contra muro.",
+    "tradeos": "Ataque con broquel → Q → Garras del inmortal y retirada a recoger el broquel para el escudo. El intercambio largo solo con la E contra muro. Contra campeones de dash (Yone, Irelia, Camille, Fiora, Jax, Riven) guarda la W para cuando entran: los deja en el suelo 2 s y gana el intercambio.",
+    "oleadas": "Puede congelar con facilidad (tanque, aguante con Garras y el escudo del broquel) y le gusta jugar cerca de su torre exterior, donde los muros de la línea están más cerca. Empuja para tener prioridad a nivel 6 y para usar Teleportar en bot. Placas: tiene buen empuje lento con Q en las torres.",
+    "all_in": "Desde nivel 2-3 con E contra muro + Q + Prender si el rival tiene menos del 60 % de vida; desde nivel 6 añade la R corta (levanta 1 s) cuando no hay muro. Contra junglas que llegan a ayudar al rival, la R cargada saca a uno de los dos.",
+    "jugar_seguro": "Contra Kayle, Kennen, Darius, Illaoi y Olaf (sus peores líneas): Kayle y Kennen la castigan a distancia sin entrar en su W; Darius, Illaoi y Olaf le ganan el intercambio largo. Farmear con la Q y el broquel, no buscar la E lejos de un muro y esperar a su jungla o a Teleportar."
+   },
+   "roameos": "Poco roameo a pie: su impacto fuera de top es Teleportar (67 %) a bot o al dragón para separar con la R cargada, y dives de top con su jungla desde nivel 6.",
+   "fase_media": "Tanque de primera línea con poco split push: va a los objetivos (Heraldo, larvas, dragón) con Teleportar y en las peleas protege a su tirador con la W o separa al iniciador rival con la R. Con El gran invierno y Firmamento desgarrado aguanta duelos en lateral contra luchadores, pero su sitio es con el grupo.",
+   "matchups_dificiles": [
+    "Kayle",
+    "Kennen",
+    "Darius",
+    "Illaoi",
+    "Olaf"
+   ],
+   "matchups_faciles": [
+    "Anivia",
+    "Maokai",
+    "Fiora",
+    "Gragas",
+    "Quinn",
+    "Yone",
+    "Irelia"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Peeler y separadora: corta los saltos rivales con la W, estampa contra los muros con la E y saca del combate al iniciador o al asesino con la R cargada; inicia con E contra muro en espacios estrechos.",
+  "como_entrar": "Mejor en la jungla y el río, donde hay muros para la E. Entra con Coraza del muerto o Botas de rapidez sobre el carry que está cerca de un muro, o espera a que el rival salte (W) y luego E. La R cargada al tank o al asesino que entra primero lo deja fuera de la pelea varios segundos.",
+  "objetivo": "El tirador o mago rival si está junto a un muro; en defensa, el asesino o luchador que va a por su carry. En objetivos, el jungla rival (R cargada antes del Castigo).",
+  "posicion": "Delante o junto a su tirador, con la W preparada para cortar dashes. En las peleas de objetivo, en la entrada del foso con la R cargada."
+ },
+ "macro": {
+  "split_push": "Poco. En top puede llevar una lateral en la fase media con El gran invierno, pero su papel habitual es agruparse; de support nunca.",
+  "objetivos": "No hace objetivos sola salvo larvas en top con prioridad (lento). En dragón (5:00), larvas (8:00), Heraldo (15:00) y Barón (20:00) protege el foso con la W (corta los saltos para robar) y la R cargada para sacar al jungla rival antes de que use Castigo.",
+  "plan_de_partida": "Support: 0-4 min ganar el nivel 2 y buscar la E contra la pared de la línea, primera vuelta con Botas; 4-14 min roameos a mid y visión, R para los dragones; después agrupada para pelar. Top: 0-6 min intercambiar con Q y broquel y castigar los dashes con W, Teleportar a bot si hay dragón; 6-14 min dives con su jungla y Heraldo; después primera línea con el grupo."
+ },
+ "debilidades": [
+  "Depende del terreno: lejos de los muros su E solo es un desplazamiento corto y pierde casi todo su control.",
+  "Campeones de poke a distancia sin dashes (Soraka, Sona, Zilean, Kayle, Kennen) no le dan objetivos para la W y la desgastan sin que pueda acercarse.",
+  "Su daño cae en la tardía: con 3+ objetos de tanque es un control, no una amenaza.",
+  "La R cargada tarda en salir y se ve (ralentiza un 15 %): un rival atento la esquiva, y si la cancela queda 30 s en enfriamiento.",
+  "La R cargada puede salvar a un rival a punto de morir mandándolo hacia su base."
+ ],
+ "contrarrestado_por": [
+  "Kayle",
+  "Kennen",
+  "Darius",
+  "Soraka",
+  "Sona",
+  "Zilean",
+  "Zoe"
+ ],
+ "bueno_contra": [
+  "Alistar",
+  "Samira",
+  "Kalista",
+  "Yone",
+  "Irelia",
+  "Fiora",
+  "Sylas",
+  "Pyke"
+ ],
+ "sinergias": [
+  "Samira",
+  "Draven",
+  "Kalista",
+  "Lucian",
+  "Jarvan IV",
+  "Orianna"
+ ],
+ "errores_comunes": [
+  "Buscar la E lejos de cualquier muro: no aturde y la deja delante de los rivales sin control.",
+  "Gastar la W solo para correr cuando el rival aún tiene su dash: es su mejor herramienta contra los saltos.",
+  "Mandar con la R cargada a un rival que estaba a punto de morir: lo salva.",
+  "Cargar la R a la vista y esperar demasiado: el rival se aparta y queda 30 s en enfriamiento si se cancela.",
+  "En top, buscar el intercambio largo contra Darius, Illaoi u Olaf, que la superan a la larga.",
+  "Dejar que el rival pise el broquel en lugar de recogerlo: pierde el escudo del 11-21 % de vida."
+ ],
+ "senales_reconstructor": [
+  "Rol: el 55 % de sus partidas son de support y el 32 % de top (12 % de jungla, sin bloque propio). Distinguir por el objeto inicial (Atlas mundial = support; Escudo o Yelmo de Doran = top; Cachorro de mascota de jungla = jungla) y por el hechizo (Teleportar en top, Prender o Curar en support).",
+  "Support: nivel 2 ~1:50 y nivel 6 ~8:30-9:00, CS ~10-20 a los 10:00; primera kill de bot posible justo tras el nivel 2 con la E contra la pared de la línea. Primera vuelta ~3:30-4:30 con Botas y Guardián de control; Coraza del muerto o Medallón hacia el 13:00-14:30.",
+  "Top: nivel 2 ~1:40, nivel 6 ~6:30; CS ~65-75 a los 10:00; primera vuelta ~4:00-5:30 con Lágrima de la diosa (señal clara de la build de top con El gran invierno, que llega hacia el 14:00-16:00).",
+  "R cargada: los rivales golpeados vuelan hasta 3400 u hacia su fuente. Un rival que estaba en el foso del dragón o del Barón y en la posición siguiente aparece miles de unidades más cerca de su base, sin muerte ni retirada, es el efecto de la R. También explica objetivos robados o asegurados sin pelea por el Castigo.",
+  "Muertes cerca de muros: sus kills (y las de su equipo con ella en asistencias) se concentran junto a las paredes de las líneas, del río y de la jungla, porque la E aturde 1,6-2 s contra el terreno.",
+  "Contra campeones de dash (Alistar, Samira, Kalista, Yone, Irelia, Lee Sin, Jarvan IV) sus asistencias tempranas suelen ser respuestas a una entrada rival cortada por la W, no enganches propios.",
+  "En support roamea a mid tras empujar bot y aparece en el río con su jungla antes de los dragones; en top, sus apariciones en bot antes del 14 suelen ser Teleportar (67 % lo lleva).",
+  "Pasado el 14 va agrupada; un split push largo solo es normal en la Poppy de top con El gran invierno y Firmamento desgarrado."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/poppy/build/",
+  "https://www.op.gg/lol/champions/poppy/build/support",
+  "https://www.op.gg/lol/champions/poppy/build/top",
+  "https://wiki.leagueoflegends.com/en-us/Poppy",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 85,
+    "victorias": 0.506,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 34,
+      "victorias": 0.412
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.1,
+     "p75": 5.2
+    },
+    "primer_objeto_min": {
+     "p25": 12.1,
+     "mediana": 13.9,
+     "p75": 15.7
+    },
+    "segundo_objeto_min": {
+     "p25": 18.9,
+     "mediana": 20.9,
+     "p75": 22.4
+    },
+    "primer_objeto": [
+     [
+      "Égida de fuego solar",
+      0.48
+     ],
+     [
+      "Firmamento desgarrado",
+      0.33
+     ],
+     [
+      "Fulgor vano",
+      0.06
+     ],
+     [
+      "Eclipse",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWQEQRQEQ",
+      0.27
+     ],
+     [
+      "QEWQQRQEQ",
+      0.26
+     ],
+     [
+      "QWEQQRQEQ",
+      0.24
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.94
+     ],
+     [
+      "QWE",
+      0.06
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 24.1,
+     "mediana": 34.3,
+     "p75": 45.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.2,
+     "mediana": 20.8,
+     "p75": 25.0
+    },
+    "vision_por_min": {
+     "p25": 0.7,
+     "mediana": 0.82,
+     "p75": 0.92
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.94,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 24.2,
+     "mediana": 39.3,
+     "p75": 50.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.1,
+     "mediana": 23.1,
+     "p75": 30.9
+    },
+    "cs_10": {
+     "p25": 57.0,
+     "mediana": 65.0,
+     "p75": 75.0
+    },
+    "dif_cs_10": {
+     "p25": -19.0,
+     "mediana": -9.0,
+     "p75": 1.0
+    },
+    "dif_oro_10": {
+     "p25": -620.0,
+     "mediana": -186.0,
+     "p75": 410.0
+    },
+    "placas": {
+     "p25": 4.0,
+     "mediana": 8.0,
+     "p75": 14.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 0.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 5.4,
+     "p75": 8.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 46,
+    "victorias": 0.348,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 4.7,
+     "p75": 5.4
+    },
+    "primer_objeto_min": {
+     "p25": 10.1,
+     "mediana": 11.8,
+     "p75": 13.6
+    },
+    "segundo_objeto_min": {
+     "p25": 20.3,
+     "mediana": 21.6,
+     "p75": 23.0
+    },
+    "primer_objeto": [
+     [
+      "Eclipse",
+      1.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.37
+     ],
+     [
+      "QEQWQRQEQ",
+      0.35
+     ],
+     [
+      "EQWQQRQEQ",
+      0.16
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.93
+     ],
+     [
+      "QWE",
+      0.07
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 36.5,
+     "mediana": 45.5,
+     "p75": 56.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 12.0,
+     "mediana": 14.3,
+     "p75": 16.3
+    },
+    "vision_por_min": {
+     "p25": 0.97,
+     "mediana": 1.17,
+     "p75": 1.34
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.39,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 2.1,
+     "p75": 7.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.5,
+     "mediana": 24.0,
+     "p75": 34.2
+    },
+    "campamento_inicial": [
+     [
+      "red",
+      0.26
+     ],
+     [
+      "raptors",
+      0.22
+     ],
+     [
+      "krugs",
+      0.17
+     ],
+     [
+      "blue",
+      0.15
+     ],
+     [
+      "wolves",
+      0.11
+     ],
+     [
+      "gromp",
+      0.09
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 10.2,
+     "mediana": 13.0,
+     "p75": 18.0
+    },
+    "cs_jungla_10": {
+     "p25": 40.0,
+     "mediana": 48.0,
+     "p75": 56.0
+    },
+    "primer_gank_min": {
+     "p25": 1.6,
+     "mediana": 1.9,
+     "p75": 4.6
+    },
+    "ganks_antes_10": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.76
+     ],
+     [
+      "mid",
+      0.14
+     ],
+     [
+      "top",
+      0.1
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 4.0,
+     "mediana": 13.0,
+     "p75": 20.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 1.8
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.22"
+   },
+   "SUPPORT": {
+    "partidas": 66,
+    "victorias": 0.667,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.4,
+     "mediana": 4.0,
+     "p75": 6.1
+    },
+    "primer_objeto_min": {
+     "p25": 12.6,
+     "mediana": 14.2,
+     "p75": 15.6
+    },
+    "segundo_objeto_min": {
+     "p25": 21.4,
+     "mediana": 22.6,
+     "p75": 25.3
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.54
+     ],
+     [
+      "Promesa de caballero",
+      0.14
+     ],
+     [
+      "Coraza del muerto",
+      0.1
+     ],
+     [
+      "Convergencia de Zeke",
+      0.08
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "EQWQQRQEQ",
+      0.66
+     ],
+     [
+      "QEWQQRQWQ",
+      0.05
+     ],
+     [
+      "EWQQQRQEQ",
+      0.05
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.74
+     ],
+     [
+      "QWE",
+      0.14
+     ],
+     [
+      "WQE",
+      0.08
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 47.2,
+     "mediana": 56.2,
+     "p75": 64.1
+    },
+    "parte_del_dano_pct": {
+     "p25": 9.7,
+     "mediana": 11.1,
+     "p75": 12.5
+    },
+    "vision_por_min": {
+     "p25": 3.08,
+     "mediana": 3.6,
+     "p75": 4.02
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.5,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.44,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.3,
+     "p75": 3.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 28.1,
+     "mediana": 37.3,
+     "p75": 43.2
+    },
+    "cs_10": {
+     "p25": 11.0,
+     "mediana": 13.0,
+     "p75": 17.0
+    },
+    "dif_cs_10": {
+     "p25": -2.0,
+     "mediana": 2.0,
+     "p75": 5.0
+    },
+    "dif_oro_10": {
+     "p25": -318.0,
+     "mediana": 6.0,
+     "p75": 532.0
+    },
+    "placas": {
+     "p25": 1.0,
+     "mediana": 5.0,
+     "p75": 9.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 7.1,
+     "mediana": 10.7,
+     "p75": 14.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 11.3,
+     "mediana": 14.9,
+     "p75": 20.2
+    },
+    "wards_antes_14": {
+     "p25": 12.0,
+     "mediana": 13.0,
+     "p75": 15.0
+    },
+    "pinks": {
+     "p25": 8.0,
+     "mediana": 10.0,
+     "p75": 12.8
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

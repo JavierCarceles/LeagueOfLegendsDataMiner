@@ -1,0 +1,497 @@
+{
+ "clave": "Ziggs",
+ "nombre": "Ziggs",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "ADC",
+   "parte": 0.74,
+   "principal": true
+  }
+ ],
+ "arquetipo": "mago de artillería jugado como tirador en bot (APC): poke de largo alcance con la Q, empuje y derribo de torres más rápido del juego (pasiva + W que ejecuta torres) y una R de 5000 u para rematar o abrir peleas desde lejos",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 4,
+  "nota": "En la fase de líneas despeja y hace poke muy bien con la Q (850 u, 4-6 s), pero va justo de maná antes del Eco de Luden y no tiene escape salvo la W (20 s a rango 1). Su mejor momento es de la primera torre (~10-14 min) al minuto 25: con Luden y Llamasombría tira torres en segundos con la pasiva y la W y castiga a cualquiera que defienda con poke. En la tardía sigue teniendo mucho daño de área y la R a 70 s, pero sin daño sostenido le cuesta contra frontales gruesos y depende de que nadie le salte encima."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:50 y ~2:40 en bot)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Q-E-W (o Q-W-E) ya puede hacer poke a la vez a la oleada y al tirador rival con la Q y zonificar con las minas. No es un pico de all-in: es el momento de empujar la oleada contra la torre rival y empezar a pegar a las placas con la pasiva."
+  },
+  {
+   "cuando": "Nivel 6 (~6:30-7:00 en bot)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Mega Inferno Bomb: 300 de daño en el centro (+100 % PH) a 5000 u, 120 s de enfriamiento. Le sirve para rematar al tirador rival que huye a media vida, ayudar a mid o a top a cerrar una kill y despejar oleadas lejanas."
+  },
+  {
+   "cuando": "Primer objeto (~11:00-12:30): Eco de Luden con Botas de hechicero",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Eco de Luden",
+   "por_que": "Arregla el maná y le da la primera ráfaga real: Q + E + pasiva quita medio tirador. Con la torre exterior de bot ya bajada o al 50 %, empieza a rotar a mid para tirar la siguiente torre con la W."
+  },
+  {
+   "cuando": "Dos objetos (~18:00-19:00): Llamasombría",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "Con R a 95 s y dos objetos, cada Q hace un cuarto de vida a un tirador o mago y la R en el centro casi mata. Es su ventana más fuerte de asedio: obliga al rival a pelear bajo sus torres o a perderlas."
+  },
+  {
+   "cuando": "Tres objetos (~25:00): Sombrero mortal de Rabadon",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Sombrero mortal de Rabadon",
+   "por_que": "Luden + Llamasombría + Rabadon (la ruta más jugada y que más gana en OP.GG) es su pico de daño: la R a 70 s abre peleas quitando un 40-50 % a toda la retaguardia. Después Bastón del Vacío contra resistencias mágicas o Reloj de arena de Zhonya contra asesinos."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Short Fuse: cada 12 s su siguiente ataque básico hace 20-184 (+50 % PH) de daño mágico extra, y un 75 % más (35-322 +87,5 % PH) contra estructuras. Cada habilidad que lanza le quita 4/5/6 s al enfriamiento (según nivel), así que entre Q y Q tiene casi siempre el ataque potenciado: es lo que le hace tirar placas y torres tan rápido.",
+  "Q": "Bouncing Bomb: bomba que bota hasta dos veces hacia delante (850 u al primer bote, hasta ~1400 u con los rebotes); 80-280 (+60-80 % PH) de daño mágico en área. Enfriamiento 6/5,5/5/4,5/4 s y 50-70 de maná. Explota en el bote en que cae sobre un enemigo (súbdito o campeón); si no, sigue botando: se lanza para que el primer bote pase por encima de la oleada y la explosión caiga sobre el campeón o entre los dos. Es su despeje y su poke principal.",
+  "W": "Satchel Charge: carga explosiva a 1000 u que estalla a los 4 s o al reactivarla. Hace 70-210 (+50 % PH) y empuja a los enemigos hasta 500 u desde el centro (no a través de muros); si le pilla a él mismo, sale despedido hasta 825 u sin recibir daño. Ejecuta torres enemigas por debajo del 25/27,5/30/32,5/35 % de su vida máxima. Enfriamiento 20/18/16/14/12 s y 80 de maná: es su único escape y su herramienta de asedio.",
+  "E": "Hexplosive Minefield: lanza 11 minas (3 dentro y 8 alrededor) a 900 u que duran 10 s; cada una hace 30-190 (+25-45 % PH) y ralentiza un 10-50 % durante 1,5 s, con daño reducido al 40 % desde la segunda mina en el mismo objetivo. Enfriamiento fijo de 16 s y 70-110 de maná. Sirve para cortar el paso a los que le entran, preparar la Q y la R y despejar la oleada.",
+  "R": "Mega Inferno Bomb: bomba a 5000 u (unos 1,6 s de vuelo hasta 2700 u y 2,6 s a alcance máximo) que hace 300/500/700 (+100 % PH) en el centro (250 u) y un 65 % en el borde (525 u), y da visión de la zona 4 s. Enfriamiento 120/95/70 s y 100 de maná. Remata a gente que huye, abre peleas y despeja oleadas desde otra línea."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W en el ~59 % de las partidas de bot en OP.GG (Esmeralda+); la otra variante habitual es Q-W-E (la que marca Lolalytics) para tener el escape de la W a nivel 2 contra líneas que entran fuerte (Draven, Lucian con Nami, Leona). Siempre maximiza Q, luego E y W la última; R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "W: si la carga estalla pegada a él, sale despedido hasta 825 u en la dirección contraria al centro de la explosión (no le hace daño). Es su único desplazamiento y tiene 20-12 s de enfriamiento. Con Destello suma otros 400 u.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Lanzando la W pegada a su lado contrario al muro y detonándola: el empujón de hasta 825 u le hace cruzar muros de la jungla y del río de grosor medio (los de los campamentos, el muro entre la línea de bot y el tribrush, etc.). Si la carga no está pegada, recorre menos distancia y puede no cruzar. Sin W, solo cruza con Destello.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "daño",
+    "desde_nivel": 6,
+    "alcance": "5000 unidades",
+    "nota": "Bomba de área a 5000 u (casi media diagonal del mapa) que tarda 1,6-2,6 s en caer y da 4 s de visión de la zona; remata a gente con poca vida en otra línea o en el río y despeja oleadas lejanas. No le mueve: kills con la R lejos de su posición son normales."
+   }
+  ]
+ },
+ "unico": [
+  "Derriba torres más rápido que nadie: la pasiva hace un 75 % más a estructuras y se recarga con cada habilidad, y la W ejecuta la torre por debajo del 25-35 % de su vida máxima.",
+  "La W le sirve para huir y saltar muros (empujón de 825 u sobre sí mismo) y para separar a quien le entra; también para tirar al rival contra su equipo con Destello + W detrás de él.",
+  "La Q bota hasta dos veces: el primer bote llega a 850 u y la explosión final hasta ~1400 u, así que pega desde fuera de la pantalla del rival y por encima de la oleada.",
+  "La R alcanza 5000 u con daño doble en el centro: se usa en peleas de otras líneas, en el dragón o para rematar a quien vuelve a base.",
+  "Juega bot como mago: no tiene daño sostenido de ataques, su daño es por habilidades y sus picos dependen de objetos de PH (Luden, Llamasombría, Rabadon)."
+ ],
+ "combos": [
+  "Poke de línea: Q por encima de la oleada al tirador rival → ataque potenciado de la pasiva a un súbdito o a la torre → Q de nuevo cuando vuelva (4-6 s).",
+  "Ráfaga: E bajo el objetivo (ralentiza hasta un 50 %) → Q sobre el lento → R al centro si puede morir.",
+  "Defensa contra quien le salta: W entre él y el rival y detonarla (separa a los dos) → E en el camino de vuelta → Q.",
+  "Asedio: Q a los defensores → ataques potenciados a la torre entre habilidad y habilidad → W sobre la torre cuando baje del 25-35 % para ejecutarla.",
+  "Jugada de Destello: Destello detrás del rival → W y detonar para mandarlo hacia su equipo → E + Q."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Eco de Luden",
+   "Botas de hechicero",
+   "Llamasombría",
+   "Sombrero mortal de Rabadon",
+   "Bastón del Vacío",
+   "Reloj de arena de Zhonya",
+   "Antorcha de fuego negro",
+   "Precisión infalible",
+   "Tormento de Liandry",
+   "Sobrecarga tormentosa"
+  ],
+  "runas": "Cometa arcano (Brujería) con Banda de maná, Trascendencia y Piroláser en el ~90 % de las partidas de bot (OP.GG 16.23). Secundaria Precisión (~53 %; Claridad mental o Leyenda: Presteza y Golpe de gracia) o Inspiración (~37 %; Calzado mágico y Entrega de galletas). Alternativas poco usadas: Mejora glacial o Primer golpe (Inspiración).",
+  "hechizos": [
+   "Destello",
+   "Teleportar"
+  ],
+  "nota": "Destello + Teleportar en el ~93 % de las partidas de bot en OP.GG (para volver a la línea a por las placas o ir a top y mid); Destello + Barrera (~5 %) contra líneas que le entran fuerte (Draven, Samira, Nilah, Leona). Inicio: Anillo de Doran + 2 Pociones de vida (95 %) o Lágrima de la diosa (3 %). Primer objeto Eco de Luden (o Antorcha de fuego negro, ~6 %), Botas de hechicero (91 %), segundo Llamasombría y tercero Rabadon; Zhonya contra asesinos o luchadores que le saltan, Bastón del Vacío contra resistencias mágicas, Precisión infalible para jugar todo a poke a larga distancia."
+ },
+ "por_rol": {
+  "ADC": {
+   "linea_2v2": {
+    "nivel_2": "Llega a nivel 2 con la primera oleada y media (~1:50); con Q y E zonifica al tirador rival de la oleada, pero no busca el all-in salvo con un support de enganche (Leona, Nautilus) que ya haya entrado. Si el rival tiene support de enganche y llega antes a nivel 2, se queda atrás de sus súbditos.",
+    "tradeos": "Cada 4-6 s una Q que pille a la vez a la oleada y al tirador rival; entre Q y Q, ataque potenciado de la pasiva a un súbdito o a la torre. No intercambia ataques básicos con tiradores de daño sostenido: pega con habilidades y se retira. Guarda la W para cuando le entren (Draven, Samira, Nilah, enganches).",
+    "oleadas": "Empuja casi siempre: despeja la oleada con Q + E y la manda contra la torre rival para pegar a las placas con la pasiva (es uno de los que más placas coge). Cuida el maná: sin Luden, gastar Q en cada oleada le obliga a volver a base hacia el 4:00 con Tomo amplificador o Cristal de zafiro. Con la torre rival a menos del 35 % y W a mano, la ejecuta.",
+    "con_que_supports": [
+     "Lux",
+     "Brand",
+     "Xerath",
+     "Vel'Koz",
+     "Janna",
+     "Lulu",
+     "Leona",
+     "Morgana"
+    ],
+    "sufre_contra": [
+     "Vel'Koz",
+     "Nilah",
+     "Xerath",
+     "Kalista",
+     "Zeri",
+     "Vayne",
+     "Kai'Sa",
+     "Blitzcrank",
+     "Nautilus"
+    ]
+   },
+   "fase_media": "En cuanto cae la torre exterior de bot (a menudo antes del 13:00 con placas), rota a mid con su support para tirar la torre de mid con la W y luego asedia la siguiente; con Teleportar puede volver a bot o ir a top a por una torre con la oleada empujada. En el dragón y el Heraldo hace poke a quien se acerque al foso desde fuera de su alcance. Coge oleadas laterales solo con visión y suele despejarlas desde lejos con Q + E; si hay que irse, la R despeja otra oleada a 5000 u.",
+   "matchups_dificiles": [
+    "Vel'Koz",
+    "Nilah",
+    "Xerath",
+    "Kalista",
+    "Zeri",
+    "Vayne",
+    "Kai'Sa",
+    "Yasuo",
+    "Hwei"
+   ],
+   "matchups_faciles": [
+    "Caitlyn",
+    "Ashe",
+    "Aphelios",
+    "Yunara",
+    "Ezreal",
+    "Miss Fortune",
+    "Varus",
+    "Mel"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Poke y asedio: abre la pelea con la R y Q desde máxima distancia, controla el terreno con las minas y se protege con la W.",
+  "como_entrar": "No entra: R al centro del grupo rival (o sobre el que esté ralentizado o controlado por su equipo) → E en el camino por donde le van a entrar → Q continuas desde 850-1400 u. Si alguien le salta, W entre los dos y detonarla para separarse.",
+  "objetivo": "El que esté más cerca y a tiro de la Q, sobre todo los carries de la retaguardia rival; la R al grupo más compacto o para rematar a quien huye con poca vida.",
+  "posicion": "Retaguardia, detrás de su frontal y a máxima distancia de la Q; nunca el primero en un pasillo sin visión, porque cualquier asesino o enganche lo mata si tiene la W en enfriamiento."
+ },
+ "macro": {
+  "split_push": "Asedia más que hace split push: con la pasiva y la W tira torres muy rápido, así que suele ir a la lateral donde no esté el rival para tirar una torre y volver, o coger la oleada desde lejos con la Q. No se queda solo en una lateral mucho tiempo porque no tiene escape fiable.",
+  "objetivos": "Torres: es su punto fuerte (muchas placas en bot y primera torre pronto). Dragón y Heraldo: ayuda con daño y poke a los que se acercan, pero no los hace solo. Barón: lo hace rápido con su equipo y defiende el foso con la R y las minas.",
+  "plan_de_partida": "0-14 min: empujar bot, poke con Q y pegar a las placas; volver con Luden lo antes posible. 14-25 min: tirar torres con la W una tras otra, rotar a mid y a la torre que quede sin defender; R a peleas de otras líneas. 25+: asediar con su equipo agrupado, abrir las peleas con la R y no ponerse nunca delante."
+ },
+ "debilidades": [
+  "Solo tiene la W como escape (20 s a rango 1): sin ella, cualquier asesino, enganche o tirador de dashes (Vayne, Kalista, Zeri, Nilah) le mata.",
+  "Todas sus habilidades son de área con retraso y se esquivan; contra rivales muy móviles su daño baja mucho.",
+  "Muy justo de maná antes del Eco de Luden: si hace poke en cada oleada, tiene que volver a base pronto.",
+  "Sin daño sostenido de ataques: contra frontales gruesos con mucha vida y resistencia mágica le cuesta matar en la tardía.",
+  "Muro de viento de Yasuo y de Samira bloquean su Q y su R."
+ ],
+ "contrarrestado_por": [
+  "Vel'Koz",
+  "Nilah",
+  "Xerath",
+  "Kalista",
+  "Zeri",
+  "Vayne",
+  "Yasuo",
+  "Kai'Sa"
+ ],
+ "bueno_contra": [
+  "Caitlyn",
+  "Ashe",
+  "Aphelios",
+  "Yunara",
+  "Ezreal",
+  "Miss Fortune",
+  "Varus",
+  "Viktor"
+ ],
+ "sinergias": [
+  "Lux",
+  "Brand",
+  "Xerath",
+  "Janna",
+  "Lulu",
+  "Leona",
+  "Morgana",
+  "Amumu"
+ ],
+ "errores_comunes": [
+  "Gastar la W para atacar o para pegar a una torre que aún no está por debajo del 25-35 % y quedarse sin escape cuando le entran.",
+  "Hacer Q en cada oleada sin mirar el maná y tener que volver a base sin haber cogido las placas.",
+  "Ponerse delante en las peleas o en los pasillos sin visión: con 0 desplazamientos extra, un enganche es una muerte.",
+  "Lanzar la R al tanque o a un grupo que se va a dispersar en vez de rematar o abrir sobre un objetivo ralentizado o controlado.",
+  "No aprovechar su asedio: quedarse en bot farmeando cuando con la torre exterior caída podría tirar mid con la W.",
+  "Tirar la E delante de él al empezar la pelea en lugar de guardarla para el camino por donde le entran."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de línea de un tirador de bot normal: nivel 2 hacia el 1:50, nivel 3 hacia el 2:40, nivel 6 hacia el 6:30-7:00; CS de ~60-75 al 10:00 según el elo (OTP de Oro con 37 partidas: 33 al 5:00, 69 al 10:00, 104 al 15:00).",
+  "Primera vuelta a base hacia el 3:30-4:30 (mediana 4:00 en la muestra de OTP), a menudo por falta de maná, comprando Tomo amplificador, Cristal de zafiro o Botas. Eco de Luden hacia el 11:00-12:30 y Llamasombría hacia el 18:00-19:00.",
+  "Muchas placas y torres: es normal que tenga 3-5 placas en bot antes del 14 y que sea quien da el último golpe a la torre (la W ejecuta por debajo del 25-35 % de vida). Una torre que cae justo cuando él está en la zona, aunque la vida de la torre fuese alta segundos antes, es la W.",
+  "La R tiene 5000 u de alcance: kills o asistencias en mid, en el río o en el dragón con su posición del minuto en bot son normales desde el nivel 6 (120 s de enfriamiento, 95 s a nivel 11 y 70 s a nivel 16).",
+  "Lleva Teleportar en el ~93 % de las partidas de bot (OP.GG): apariciones repentinas en top o mid tras volver a base, o vueltas rápidas a bot, son teletransportes a torres aliadas.",
+  "Saltos de muro con la W (hasta 825 u): puede aparecer al otro lado de un muro de la jungla tras huir, sin Destello gastado.",
+  "Un ~22 % de sus partidas son en mid (Lolalytics 16.23): si aparece como mid, su ritmo de CS es de mago de mid y sigue empujando y tirando torres igual; no roamea mucho, su presencia en otras líneas es la R.",
+  "Tras caer la torre exterior de bot suele aparecer en mid con su support (asedio de la torre de mid hacia el 14:00-18:00), no en la jungla rival."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/ziggs/build/",
+  "https://www.op.gg/lol/champions/ziggs/build/adc",
+  "https://www.op.gg/lol/champions/ziggs/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Ziggs",
+  "https://www.dodge.gg/lol/news/ziggs-build-2026",
+  "https://turbosmurfs.gg/article/ziggs-counters",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Ziggs bot, parches 16.21-16.23 (data/otps/Ziggs/ADC: 37 partidas de 1 jugador de Oro)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 39,
+    "victorias": 0.462,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.0,
+     "mediana": 4.9,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 10.6,
+     "mediana": 12.4,
+     "p75": 15.6
+    },
+    "segundo_objeto_min": {
+     "p25": 19.6,
+     "mediana": 21.0,
+     "p75": 24.2
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      0.66
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.16
+     ],
+     [
+      "Sombrero mortal de Rabadon",
+      0.11
+     ],
+     [
+      "Llamasombría",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.79
+     ],
+     [
+      "QWQEQRQEQ",
+      0.08
+     ],
+     [
+      "QEQEQRWQQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.97
+     ],
+     [
+      "QWE",
+      0.03
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.7,
+     "mediana": 40.4,
+     "p75": 51.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 20.0,
+     "mediana": 23.7,
+     "p75": 31.7
+    },
+    "vision_por_min": {
+     "p25": 0.45,
+     "mediana": 0.58,
+     "p75": 0.76
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 1.46,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.6,
+     "mediana": 5.8,
+     "p75": 11.0
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 19.2,
+     "mediana": 27.0,
+     "p75": 35.1
+    },
+    "cs_10": {
+     "p25": 57.2,
+     "mediana": 71.0,
+     "p75": 81.0
+    },
+    "dif_cs_10": {
+     "p25": -13.0,
+     "mediana": 1.5,
+     "p75": 12.2
+    },
+    "dif_oro_10": {
+     "p25": -658.0,
+     "mediana": 14.0,
+     "p75": 345.0
+    },
+    "placas": {
+     "p25": 4.5,
+     "mediana": 9.0,
+     "p75": 14.5
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.2,
+     "p75": 2.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.5,
+     "mediana": 6.0,
+     "p75": 10.4
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.4-16.23"
+   },
+   "ADC": {
+    "partidas": 37,
+    "victorias": 0.595,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.1,
+     "mediana": 4.8,
+     "p75": 6.0
+    },
+    "primer_objeto_min": {
+     "p25": 9.4,
+     "mediana": 10.1,
+     "p75": 11.0
+    },
+    "segundo_objeto_min": {
+     "p25": 16.5,
+     "mediana": 18.2,
+     "p75": 19.6
+    },
+    "primer_objeto": [
+     [
+      "Eco de Luden",
+      1.0
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.95
+     ],
+     [
+      "QWQEQRQWQ",
+      0.03
+     ],
+     [
+      "QWEQQRQEQ",
+      0.03
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      1.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 50.0,
+     "mediana": 54.8,
+     "p75": 64.3
+    },
+    "parte_del_dano_pct": {
+     "p25": 28.3,
+     "mediana": 30.2,
+     "p75": 33.3
+    },
+    "vision_por_min": {
+     "p25": 0.26,
+     "mediana": 0.41,
+     "p75": 0.51
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.78,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 2.5,
+     "mediana": 7.5,
+     "p75": 15.4
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 24.5,
+     "mediana": 32.4,
+     "p75": 40.0
+    },
+    "cs_10": {
+     "p25": 65.0,
+     "mediana": 69.0,
+     "p75": 76.0
+    },
+    "dif_cs_10": {
+     "p25": -2.0,
+     "mediana": 11.0,
+     "p75": 20.0
+    },
+    "dif_oro_10": {
+     "p25": 83.0,
+     "mediana": 440.0,
+     "p75": 818.0
+    },
+    "placas": {
+     "p25": 7.0,
+     "mediana": 13.0,
+     "p75": 19.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 1.2
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.0,
+     "mediana": 4.8,
+     "p75": 8.3
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.11-16.23"
+   }
+  }
+ }
+}

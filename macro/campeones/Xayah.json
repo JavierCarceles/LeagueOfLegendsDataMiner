@@ -1,0 +1,408 @@
+{
+ "clave": "Xayah",
+ "nombre": "Xayah",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "ADC",
+   "parte": 0.995,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tiradora de crítico autosuficiente basada en plumas: cada habilidad deja plumas en el suelo que recoge con la E para hacer daño en línea y enraizar 1,25 s (3+ plumas); R de 1,5 s de intangibilidad que esquiva casi todo; picos en nivel 2-3, nivel 6 y 2-3 objetos de crítico (17-24 min)",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 4,
+  "tardia": 4,
+  "nota": "La línea es pareja (metabot: +41 de oro a los 15, por delante en el 51 %): gana a tiradores de corto alcance y all-in (Nilah +1121, Samira, Kalista, Kai'Sa) y sufre contra Draven y los magos de bot (Swain, Vel'Koz, Mel, Xerath, Viktor). Desde el nivel 6 su R le deja ganar casi cualquier all-in esquivando la ráfaga rival. Escala con crítico: Flechas de los Yun Tal (~11:00), Filofugaz de Navori (~17:20) y Filo infinito (~23:40); su mejor duración es ~25 min (53,6 %), pero sigue siendo fuerte tarde (percentil 97 en farmeo)."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:45) con Q-E",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con la E a nivel 2 ya puede enraizar: Q (2 plumas) + 1-3 ataques potenciados (cada uno deja una pluma) y E para atraer 3 o más plumas a través del rival = enraizamiento de 1,25 s. Con un support de engage, el nivel 2 suele ser una kill o un Destello."
+  },
+  {
+   "cuando": "Nivel 3 (~2:40) con la W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Plumaje letal (W): +35 % de velocidad de ataque 4 s y una pluma extra por ataque; con la W los ataques potenciados dejan muchas más plumas y el E enraíza casi seguro."
+  },
+  {
+   "cuando": "Nivel 6 (~6:30-7:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Tormenta de plumas (R): 1,5 s intangible (no se la puede seleccionar, esquiva ganchos, R de Vi, ejecuciones y casi toda la ráfaga) moviéndose libremente, y al final lanza 5 plumas en abanico (1000 u) que hacen 200-400 (+100 % DA adicional). R + E enraíza a todo el que quede en el abanico."
+  },
+  {
+   "cuando": "Primer objeto: Flechas de los Yun Tal (~11:00 de mediana)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Flechas de los Yun Tal",
+   "por_que": "Crítico y velocidad de ataque con un activo de daño; Segador de esencia es la alternativa (11 %) si quiere maná y reducción de enfriamientos. Con Grebas de berserker sus intercambios con W duplican el daño."
+  },
+  {
+   "cuando": "Dos objetos (~17:20): Yun Tal + Filofugaz de Navori",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Filofugaz de Navori",
+   "por_que": "Navori reduce los enfriamientos con cada crítico: más Q, W, E y plumas por pelea, y la R vuelve antes. Con la E al máximo en el nivel 9 (8 s) es su primer gran salto en peleas de dragón y Heraldo."
+  },
+  {
+   "cuando": "Tres objetos (~23:40): + Filo infinito",
+   "nivel": null,
+   "objetos": 3,
+   "objeto": "Filo infinito",
+   "por_que": "Núcleo Yun Tal → Navori → Filo infinito (42 % de las partidas, 58 % de victorias en OP.GG): sus E con crítico hacen hasta +50 % de daño y el pase de ataques atraviesa a todos los que hay en línea. Recuerdos de lord Dominik o Recordatorio letal como 4.º."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Cortes limpios: cada habilidad que lanza le da 3 cargas (máximo 5, duran 8 s). Cada ataque con carga atraviesa a todos los enemigos en línea (los secundarios reciben un 35-55 % del DA, puede hacer crítico) y deja una pluma al final del recorrido. Las plumas duran 6 s en el suelo. No funciona contra estructuras ni guardianes.",
+  "Q": "Dagas dobles (Double Daggers): lanza dos dagas en línea a 1100 u que hacen 45-105 (+50 % DA adicional) cada una (los objetivos detrás del primero reciben la mitad) y dejan 2 plumas al final. Tiempo de lanzamiento de 0,25-0,1 s según velocidad de ataque. Enfriamiento 10/9,5/9/8,5/8 s; coste 35 de maná.",
+  "W": "Plumaje letal (Deadly Plumage): 4 s con +35-55 % de velocidad de ataque y una segunda pluma pequeña por ataque (25 % de daño, aplica efectos al golpear); golpear a un campeón le da +30 % de velocidad de movimiento 1,5 s. Si Rakan está cerca también recibe el efecto. Enfriamiento 18/17/16/15/14 s; coste 60-40.",
+  "E": "Llamada de las cuchillas (Bladecaller): recoge todas sus plumas del suelo hacia ella (sin límite de distancia mientras haya plumas plantadas). Cada pluma hace 50-110 (+40 % DA adicional), con hasta +50 % según la probabilidad de crítico; cada pluma siguiente sobre el mismo enemigo hace un 10 % menos. Si 3 o más plumas atraviesan a un enemigo, lo enraízan 1,25 s. Enfriamiento 12/11/10/9/8 s; coste 20. No se puede subir a nivel 1.",
+  "R": "Tormenta de plumas (Featherstorm): salta en el aire y queda intangible e inseleccionable 1,5 s; puede moverse (fantasmal) pero no atacar ni lanzar. Al segundo lanza un abanico de 5 plumas (cono de 30°, ~1000-1060 u) que hace 200/300/400 (+100 % DA adicional) y las deja en el suelo para la E. Enfriamiento 140/120/100 s; coste 100. Si muere durante la R, se interrumpe."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "E",
+   "W",
+   "Q"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q a nivel 1, E a nivel 2 (para tener el enraizamiento en el nivel 2) y W a nivel 3; E al máximo en el nivel 9, después W y Q la última (OP.GG: Q-E-W-E-E-R-E-W-E-W, 56 % de las partidas, 62 % de victorias). Lolalytics también registra W a nivel 1 (W-Q-E) en líneas de pelea temprana con supports de engage. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno: no tiene dash. La W da +30 % de velocidad 1,5 s al golpear a un campeón y durante la R (1,5 s) se mueve libre e intangible, lo que le sirve como escape o para reposicionarse unos 400-500 u. Destello en todas las partidas; Grebas de berserker (67 %) o Grebas codiciosas (29 %). Velocidad base 330.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Plumas: cada Q deja 2, cada ataque potenciado de la pasiva 1 (y la W otra más), y la R 5; todas duran 6 s y la E las recoge a la vez. Colocarse para que el rival quede entre ella y sus plumas es la clave del campeón.",
+  "Enraizamiento por acumulación: 3 o más plumas sobre el mismo enemigo lo enraízan 1,25 s, así que su control depende de cuántas plumas haya dejado antes.",
+  "R de intangibilidad (1,5 s): esquiva ganchos, ejecuciones, ráfagas, la R de Vi o la de Malphite; es su escape y su herramienta para ganar all-ins.",
+  "Pareja con Rakan: la W también potencia a Rakan cercano, y ambos pueden volver a base juntos (si uno canaliza el Regreso, el otro se une y llegan a la vez).",
+  "Los ataques con carga de la pasiva atraviesan a todos en línea: limpia la oleada y pega al rival que está detrás de los súbditos."
+ ],
+ "combos": [
+  "Intercambio de nivel 2: Q (2 plumas) → 2-3 ataques potenciados (más plumas) → E con el rival entre ella y las plumas (enraíza) → ataques.",
+  "All-in de nivel 6: W → Q → ataques potenciados → E (enraíza) → si el rival responde con ráfaga o engage, R para esquivar → E de nuevo con las 5 plumas de la R.",
+  "Desenganche: R al recibir el engage (gancho, salto) → moverse hacia atrás → E para enraizar a quien la siguió.",
+  "Pelea de grupo: dejar plumas detrás de la línea enemiga con ataques y Q, pegar desde lejos y E cuando el frontal o el buceador la alcanza; R guardada para el buceo rival.",
+  "Limpieza de oleada: Q o W para las cargas, ataques potenciados atravesando la oleada y E para rematar a los súbditos."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Flechas de los Yun Tal",
+   "Segador de esencia",
+   "Filofugaz de Navori",
+   "Filo infinito",
+   "Recuerdos de lord Dominik",
+   "Recordatorio letal",
+   "Ángel de la guarda",
+   "Sanguinaria",
+   "Cimitarra mercurial",
+   "Fauces de Malmortius",
+   "Grebas de berserker"
+  ],
+  "runas": "Compás letal en el 68 % (OP.GG) o Conquistador (30 %) con Claridad mental + Leyenda: Linaje + Golpe de gracia (Derribado contra frontales, 40 %) y secundaria Inspiración: Calzado mágico, Reembolso, Entrega de galletas o Perspicacia cósmica. Fragmentos: velocidad de ataque, fuerza adaptable y vida escalable o vida.",
+  "hechizos": [
+   "Destello",
+   "Barrera"
+  ],
+  "nota": "Destello + Barrera en el 64 % y Destello + Agotamiento el 26 % (contra asesinos y tiradores de all-in como Draven, Samira o Kalista). Empieza con Arco de Doran y 2 pociones (86 %) o Espada de Doran y poción (11 %). Núcleo Flechas de los Yun Tal → Filofugaz de Navori → Filo infinito (42 %, 58 % de victorias); Segador de esencia en lugar de Yun Tal (11 %) si quiere maná. Grebas de berserker (67 %) o Grebas codiciosas (29 %, 55 % de victorias). 4.º Recuerdos de lord Dominik contra frontales o Recordatorio letal contra curaciones; Ángel de la guarda, Sanguinaria o Cimitarra mercurial (contra control) para cerrar. Fauces de Malmortius contra AP."
+ },
+ "por_rol": {
+  "ADC": {
+   "linea_2v2": {
+    "nivel_2": "El nivel 2 de bot llega hacia el 1:45 (primera oleada y 3 súbditos de la segunda). Con Q-E ya tiene el enraizamiento: con un support de engage (Rakan, Leona, Nautilus, Rell, Alistar) el nivel 2 es su mejor momento para una kill; con un support de protección juega la oleada y espera al nivel 3 para la W.",
+    "tradeos": "Q sobre el rival cuando remata para dejar 2 plumas detrás de él, ataques potenciados que atraviesan la oleada, y E cuando el rival queda entre ella y las plumas. Gana los intercambios cortos contra tiradores de corto alcance (Samira, Nilah, Kalista, Lucian) y contra los que tienen que acercarse; contra los de largo alcance (Caitlyn, Ashe, Varus) farmea y busca el E cuando entran. Guarda la R desde el 6 para el engage rival.",
+    "oleadas": "Los ataques potenciados atraviesan la oleada y la E la remata: empuja rápido para coger placas y prioridad del dragón (5:00). Contra jungla rival agresiva, congela cerca de su torre: sin dash, los ganks le cuestan la vida si no guarda la R. Primera vuelta con 1.300 de oro para Espada larga + Vara/Daga o los componentes de Yun Tal.",
+    "con_que_supports": [
+     "Rakan",
+     "Nautilus",
+     "Leona",
+     "Rell",
+     "Alistar",
+     "Thresh",
+     "Braum",
+     "Lulu"
+    ],
+    "sufre_contra": [
+     "Swain",
+     "Vel'Koz",
+     "Mel",
+     "Xerath",
+     "Viktor",
+     "Brand",
+     "Zyra",
+     "Karma"
+    ]
+   },
+   "fase_media": "Tras la primera torre exterior (~14-15 min) va a mid con su support y empuja con la pasiva para preparar dragón o larvas. Con Navori (~17 min) es su ventana de peleas: pega desde detrás de su frontal, deja plumas detrás del rival y guarda la R para el buceador. Recoge oleadas laterales solo con visión y cerca del grupo (percentil 97 en farmeo: su oro sale de las oleadas). Con 3 objetos (~24 min) es la principal fuente de daño de su equipo y la que más torres derriba.",
+   "matchups_dificiles": [
+    "Draven",
+    "Kog'Maw",
+    "Swain",
+    "Vel'Koz",
+    "Mel",
+    "Xerath",
+    "Viktor",
+    "Caitlyn",
+    "Ashe"
+   ],
+   "matchups_faciles": [
+    "Nilah",
+    "Samira",
+    "Kalista",
+    "Kai'Sa",
+    "Ezreal",
+    "Tristana",
+    "Lucian",
+    "Vayne",
+    "Smolder"
+   ],
+   "uso_de_la_r": "Defensiva primero: esquivar el gancho, la R de Vi, la de Malphite o una ejecución, y después E con las plumas de la R. Ofensiva solo si la R + E remata o enraíza a varios en un pasillo estrecho. Gastarla para atacar y recibir el engage después suele ser su muerte."
+  }
+ },
+ "peleas": {
+  "papel": "Tiradora de daño sostenido con control de zona (enraizamiento en línea) y autodefensa con la R.",
+  "como_entrar": "No entra: pega al más cercano desde detrás de su frontal, llena el suelo de plumas detrás de la línea rival y usa la E cuando varios rivales quedan entre ella y sus plumas o cuando un buceador la alcanza; la R esquiva el buceo y deja 5 plumas más.",
+  "objetivo": "El enemigo más cercano que pueda pegar sin adelantarse (frontales incluidos); si un asesino o luchador salta sobre ella, R y E sobre él.",
+  "posicion": "Detrás de su frontal, a 525 u del más cercano, en pasillos o junto a muros donde las plumas se acumulan en línea; nunca adelantada en la niebla sin la R."
+ },
+ "macro": {
+  "split_push": "No: su sitio es el grupo. Recoge oleadas laterales con visión porque limpia muy rápido con la pasiva, y vuelve.",
+  "objetivos": "Empuja torres muy rápido (percentil 78 en daño a estructuras) y pelea dragón, Heraldo y Barón detrás de su frontal; el dragón a nivel 4-6 con su jungla y su support si tiene prioridad de bot.",
+  "plan_de_partida": "Fase 1 (0-14): línea con nivel 2 agresivo junto a un support de engage, placas y dragones. Fase 2 (14-24): Yun Tal + Navori, rotación a mid, peleas en objetivos con la R guardada. Fase 3 (24+): carry principal con Filo infinito: posicionarse bien, esquivar el buceo con la R y tirar torres tras cada pelea ganada."
+ },
+ "debilidades": [
+  "Sin desplazamientos: fuera de la R (140-100 s) cualquier gank o enganche la mata.",
+  "Magos de bot y de mid con mucho poke y alcance (Swain, Vel'Koz, Xerath, Mel, Viktor) la superan en la línea.",
+  "Depende de las plumas: si el rival no se coloca entre ella y las plumas o se aleja, el enraizamiento no sale.",
+  "Corto alcance (525) frente a Caitlyn, Ashe, Kog'Maw o Draven: pierde intercambios y oleadas.",
+  "Gastar la R para atacar la deja sin defensa contra el engage o el buceo siguiente."
+ ],
+ "contrarrestado_por": [
+  "Draven",
+  "Kog'Maw",
+  "Swain",
+  "Vel'Koz",
+  "Mel",
+  "Xerath",
+  "Viktor",
+  "Caitlyn",
+  "Ashe"
+ ],
+ "bueno_contra": [
+  "Nilah",
+  "Samira",
+  "Kalista",
+  "Kai'Sa",
+  "Ezreal",
+  "Tristana",
+  "Lucian",
+  "Vayne",
+  "Smolder"
+ ],
+ "sinergias": [
+  "Rakan",
+  "Nautilus",
+  "Leona",
+  "Rell",
+  "Alistar",
+  "Thresh",
+  "Braum",
+  "Lulu"
+ ],
+ "errores_comunes": [
+  "Lanzar la E sin que el rival esté entre ella y al menos 3 plumas (no enraíza).",
+  "Dejar caducar las plumas (6 s) por no recogerlas a tiempo.",
+  "Usar la R para hacer daño y quedarse sin defensa ante el engage rival.",
+  "Subir la Q antes que la E y perder el enraizamiento de nivel 2.",
+  "Empujar sin visión del río: sin dash, cada gank es una muerte.",
+  "Atacar sin cargas de la pasiva en intercambios (pierde el daño en línea y las plumas)."
+ ],
+ "senales_reconstructor": [
+  "Con Rakan de support: los dos vuelven a base a la vez con frecuencia (el Regreso conjunto), así que sus compras y posiciones de base suelen coincidir en el mismo minuto.",
+  "Hechizos: Destello + Barrera (64 %) o Destello + Agotamiento (26 %); Arco de Doran inicial en el 86 %.",
+  "Orden de subidas: Q a nivel 1 y E a nivel 2 (ver la E a nivel 2 es lo normal), E al máximo en el nivel 9.",
+  "Ritmo de objetos: Flechas de los Yun Tal hacia el 11:00, Filofugaz de Navori hacia el 17:20 y Filo infinito hacia el 23:40 (medianas de metabot).",
+  "Farmeo alto: ~222 de CS de media en Esmeralda+ (7.º de los tiradores en lolalytics) y algo de CS de jungla (9 de media, 3.º de su rol): recoge campamentos cercanos en la fase media.",
+  "Muertes: sin escape, sus muertes tempranas suelen ser por gank en bot con la R en enfriamiento; desde el 6 sobrevive a muchos ganks gracias a la R.",
+  "Kills propias tras un engage de su support: kills de Xayah con asistencia del support en bot a nivel 2-3 son su patrón con supports de engage.",
+  "Daño a estructuras alto (percentil 78): tras cada pelea ganada en la fase media, placas y torres caen pronto en su lado."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/xayah/build/",
+  "https://www.op.gg/lol/champions/xayah/build/adc",
+  "https://www.op.gg/lol/champions/xayah/counters/adc",
+  "https://wiki.leagueoflegends.com/en-us/Xayah",
+  "https://metabot.gg/en/league/champion/Xayah/tips",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "ADC": {
+    "partidas": 312,
+    "victorias": 0.622,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 33,
+      "victorias": 0.727
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 71,
+      "victorias": 0.577
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 112,
+      "victorias": 0.607
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 70,
+      "victorias": 0.643
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.5,
+     "mediana": 4.8,
+     "p75": 6.9
+    },
+    "primer_objeto_min": {
+     "p25": 9.1,
+     "mediana": 10.7,
+     "p75": 12.1
+    },
+    "segundo_objeto_min": {
+     "p25": 14.8,
+     "mediana": 16.7,
+     "p75": 18.4
+    },
+    "primer_objeto": [
+     [
+      "Flechas de los Yun Tal",
+      0.43
+     ],
+     [
+      "Navaja de asalto",
+      0.31
+     ],
+     [
+      "Recaudadora",
+      0.15
+     ],
+     [
+      "Filo fantasmal de Youmuu",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWEEREWE",
+      0.79
+     ],
+     [
+      "WQEEEREWE",
+      0.09
+     ],
+     [
+      "WEQEEREWE",
+      0.07
+     ]
+    ],
+    "maximiza": [
+     [
+      "EWQ",
+      0.99
+     ],
+     [
+      "EQW",
+      0.01
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 39.5,
+     "mediana": 50.0,
+     "p75": 59.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 22.5,
+     "mediana": 27.4,
+     "p75": 33.0
+    },
+    "vision_por_min": {
+     "p25": 0.56,
+     "mediana": 0.71,
+     "p75": 0.89
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.25,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 1.5,
+     "mediana": 6.9,
+     "p75": 15.1
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 25.2,
+     "mediana": 33.8,
+     "p75": 42.2
+    },
+    "cs_10": {
+     "p25": 71.0,
+     "mediana": 79.0,
+     "p75": 87.0
+    },
+    "dif_cs_10": {
+     "p25": -5.0,
+     "mediana": 7.0,
+     "p75": 18.8
+    },
+    "dif_oro_10": {
+     "p25": -374.0,
+     "mediana": 406.0,
+     "p75": 1103.0
+    },
+    "placas": {
+     "p25": 6.0,
+     "mediana": 11.0,
+     "p75": 15.2
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 2.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 1.8,
+     "mediana": 3.9,
+     "p75": 7.2
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

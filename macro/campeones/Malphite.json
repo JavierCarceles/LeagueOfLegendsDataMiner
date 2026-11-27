@@ -1,0 +1,799 @@
+{
+ "clave": "Malphite",
+ "nombre": "Malphite",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.802,
+   "principal": true
+  }
+ ],
+ "arquetipo": "tanque iniciador de top (o mago de explosión con build AP) cuya R de 1000 u imparable decide las peleas de equipo; en línea hostiga con la Q y aguanta a los luchadores de ataque, y es más fuerte en la fase media y tardía que al principio",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 4,
+  "tardia": 4,
+  "nota": "De nivel 1 a 5 solo hostiga con la Q (625 u, roba velocidad) y aguanta con el escudo de la pasiva; no gana intercambios largos contra luchadores ni contra magos de top y depende del maná. Desde nivel 6 la R (1000 u, derribo de 1,5 s) le da kills con su jungla y teletransportes decisivos a bot. Con 2-3 objetos de armadura (Égida de fuego solar, Malla de espinas, Corazón de hielo) es casi inmune a los equipos de daño físico y cada R en grupo puede ganar la partida; en la tardía sigue siendo útil, pero contra mucho daño mágico o porcentual (Vayne, Gwen, Bel'Veth) pierde valor."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:45-2:15) con Q y E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Cometa arcano + Anillo de Doran (lo más jugado en Esmeralda+) la Q a 625 u quita un buen trozo de vida a los rangos y a los luchadores que se acercan a farmear; la E (400 de radio, -30 % de velocidad de ataque) gana los pequeños intercambios contra campeones de ataque básico como Jax, Fiora, Tryndamere o Yasuo."
+  },
+  {
+   "cuando": "Nivel 6 (~5:15)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Unstoppable Force: dash imparable de 1000 u (1400 con Destello) que levanta 1,5 s en 325 de radio. Con su jungla al lado es casi una kill asegurada en top, y con Teleportar (77 % de las partidas) cambia la primera pelea de dragón o una zambullida en bot. El enfriamiento es largo (130 s a nivel 6)."
+  },
+  {
+   "cuando": "Primer objeto (~12:30): Égida de fuego solar (tanque) o Malignidad (AP)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Égida de fuego solar",
+   "por_que": "La Égida de fuego solar (en ~50 % de partidas) le da quemado en área para empujar y aguantar; con Botas blindadas ya no pierde la línea contra casi ningún campeón de daño físico. La versión AP (Malignidad, 29 %) reduce el enfriamiento de la R y convierte R + E + Q en una explosión que mata a un carry blando."
+  },
+  {
+   "cuando": "R a nivel 11 y 2 objetos de armadura (~20 min)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Malla de espinas",
+   "por_que": "R a 115 s (100 s a nivel 16) y Malla de espinas o Corazón de hielo: la pasiva de la W triplica la armadura extra mientras dura el escudo y la E escala con la armadura, así que inicia, aguanta el contraataque y sigue haciendo daño. Es su mejor tramo de peleas de equipo en dragón, Heraldo y Barón."
+  },
+  {
+   "cuando": "3 objetos (~27 min): Corazón de hielo, Rookern kaénico o Jak'Sho el Proteico",
+   "nivel": 14,
+   "objetos": 3,
+   "objeto": "Corazón de hielo",
+   "por_que": "Con tres objetos de tanque (o Malignidad + Sobrecarga tormentosa + Llamasombría en AP) cada R sobre dos o tres rivales es una pelea ganada; el plan de partida ya es esperar a que los rivales se agrupen y entrar desde la niebla."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Granite Shield: escudo del 10 % de su vida máxima que se recarga si no recibe daño durante 8/7/6 s (según nivel). El daño absorbido por otros escudos no reinicia el contador. Mientras está activo, la pasiva de la W triplica su armadura extra; romperle el escudo con poke antes del intercambio es la forma de ganarle en línea.",
+  "Q": "Seismic Shard: proyectil dirigido de 625 u (8 s de enfriamiento, 70-90 de maná) que hace 70-270 (+60 % PH) de daño mágico y ralentiza un 20-40 % durante 3 s; Malphite gana esa misma velocidad. Es su hostigamiento de línea, su forma de rematar súbditos a distancia y su herramienta para perseguir o huir. Es su habilidad de maximizar con Cometa arcano.",
+  "W": "Thunderclap: pasiva de +10-30 % de armadura extra (el triple, 30-90 %, con el escudo de la pasiva activo). Activa (10-8 s): su siguiente ataque gana 50 de alcance, reinicia el ataque y hace 30-70 (+20 % PH, +15 % armadura) de daño físico extra, y durante 5 s sus ataques lanzan un cono de réplica de 15-55 (+30 % PH, +15 % armadura). Hace el 180 % a monstruos (útil para despejar la oleada y para el dragón con su jungla).",
+  "E": "Ground Slam: golpe en área de 400 de radio (7 s, 50-70 de maná) que hace 60-200 (+60 % PH, +40 % armadura) de daño mágico y reduce un 30-50 % la velocidad de ataque de los enemigos 3 s. Es lo que le hace ganar contra luchadores y tiradores de ataque básico y la segunda parte de todos sus combos tras la R; el retardo es de solo 0,24 s y se lanza desde donde esté al terminar.",
+  "R": "Unstoppable Force: dash imparable de 1000 u (sin alcance mínimo) a velocidad 1500 + su velocidad de movimiento, que al llegar hace 200/300/400 (+90 % PH) de daño mágico y levanta 1,5 s a todos los enemigos en 325 de radio. Ningún control lo detiene (solo morir). Atraviesa muros: si apunta al otro lado de un muro llega igual y el dash incluso va más rápido. Enfriamiento 130/115/100 s desde el 26.02 (antes bajaba a 80 s), 100 de maná."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W y Q al máximo (48 % de las partidas en OP.GG Esmeralda+ 16.23, con 54 % de victorias) para hostigar con Cometa arcano; E en segundo para el daño escalado con armadura. Contra luchadores de ataque básico en build de tanque con Garras del inmortal se ve también W en segundo (Lolalytics: Q>W>E) para empujar con la réplica. Contra cuerpo a cuerpo muy agresivos algunos empiezan E a nivel 1. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "R: dash imparable de 1000 u (1400 con Destello, en cualquier orden) a 1500+ de velocidad, que llega antes de que el rival pueda reaccionar. Q: roba un 20-40 % de velocidad de movimiento durante 3 s. No tiene más saltos; antes del 6 solo escapa con Destello y la Q.",
+  "salta_muros": "si",
+  "como_salta_muros": "Solo con la R: el dash atraviesa cualquier muro (fino o grueso) siempre que el destino quede dentro de las 1000 u; apuntando al centro del muro para caer al otro lado gana velocidad. Lo usa para entrar en el foso del dragón o del Barón y para iniciar desde la jungla sobre el grupo rival.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "La armadura es su estadística de daño: la E escala un 40 % con armadura y la W un 15 %, y la pasiva de la W triplica la armadura extra mientras dura el escudo de la pasiva. Con 3 objetos de armadura pega más fuerte que algunos luchadores.",
+  "R imparable de 1000 u: ningún control la interrumpe, atraviesa muros y su derribo de 1,5 s en área (325 de radio) es de las mejores iniciaciones de equipo del juego. Destello después de la R no sirve; Destello antes de la R o durante la carga sí alarga el alcance a 1400.",
+  "Escudo de piedra del 10 % de la vida que vuelve tras 8-6 s sin recibir daño: en línea es como una barra de vida extra contra el poke si espera entre intercambios.",
+  "Dos builds muy distintas con la misma R: tanque de armadura (Égida de fuego solar, Malla de espinas, Corazón de hielo; la habitual) o mago AP de un solo combo (Malignidad, Sobrecarga tormentosa, Llamasombría; ~4-8 % en Esmeralda+) que mata a un carry con R-E-Q.",
+  "La Q roba velocidad: la diferencia de velocidad que le quita al rival la gana él durante 3 s, lo que le permite perseguir a rangos tras la R o escapar de luchadores lentos."
+ ],
+ "combos": [
+  "Hostigamiento de línea: Q al rival cuando se acerca a por un súbdito (Cometa arcano sale casi seguro por la ralentización) → retirarse antes de que contraataque.",
+  "Intercambio corto contra luchador: dejar que entre → E (reduce un 30-50 % su velocidad de ataque) → W con el ataque potenciado y la réplica → retirarse con el escudo de piedra todavía en pie.",
+  "Combo completo: R sobre el objetivo (o sobre el grupo) → E al aterrizar mientras siguen en el aire → W y ataques → Q al que intente huir.",
+  "Destello-R: Destello primero para colocar la R a 1400 u o lanzar la R y el Destello inmediatamente a la vez para cambiar el destino; útil para pillar a la retaguardia detrás del frontal.",
+  "AP de un solo golpe: R → E → Q → Prender; con Malignidad, Sobrecarga tormentosa y Llamasombría un tirador sin escudos muere antes de aterrizar.",
+  "Teleportar + R: teleportarse a un guardián o súbdito detrás de la pelea de bot o del dragón y lanzar la R en cuanto llega por el flanco."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Anillo de Doran",
+   "Escudo de Doran",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Égida de fuego solar",
+   "Malla de espinas",
+   "Corazón de hielo",
+   "Rookern kaénico",
+   "Jak'Sho el Proteico",
+   "Presagio de Randuin",
+   "Desesperanza eterna",
+   "Malignidad",
+   "Sobrecarga tormentosa",
+   "Llamasombría"
+  ],
+  "runas": "Cometa arcano (56 % en OP.GG Esmeralda+ 16.23) con Banda de maná, Trascendencia y Piroláser; secundaria Valor con Revestimiento de huesos o Condicionamiento y Sobrecrecimiento. Alternativa: Garras del inmortal (23 %; la de más victorias en Lolalytics) con Golpe de escudo o Demoler, Condicionamiento y Sobrecrecimiento y secundaria Brujería (Banda de maná y Trascendencia), para la build de tanque contra cuerpo a cuerpo. Reverberacción en partidas de iniciador puro. Fragmentos: velocidad de ataque, fuerza adaptable y vida escalable.",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Destello + Teleportar en el 77 % (OP.GG) y Destello + Prender en el 21 % para líneas de kill contra rangos débiles. Inicio Anillo de Doran + 2 pociones (73 %) por el maná de la Q; Escudo de Doran (14 %) o Yelmo de Doran contra cuerpo a cuerpo agresivos. Botas blindadas contra daño físico (63 %), Botas de mercurio contra control o daño mágico (25 %), Botas de hechicero en AP. Primer objeto Égida de fuego solar en la mitad de las partidas; luego Malla de espinas contra curación o ataques básicos y Corazón de hielo contra tiradores, Rookern kaénico o Jak'Sho el Proteico si el rival tiene mucho daño mágico. La build AP (Malignidad → Sobrecarga tormentosa → Llamasombría) solo cuando el equipo rival es frágil y ya hay otro frontal."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q: la oleada llega hacia el 1:00 y Malphite remata a distancia con la Q y hostiga con Cometa arcano cada vez que el rival se acerca. Nivel 2 (~1:45) con E para castigar al cuerpo a cuerpo que entra; nivel 3 (~2:15) con W. No busca el all-in temprano: su objetivo es salir de la línea sin perder CS y con maná para la Q.",
+    "tradeos": "Q cuando el rival va a rematar un súbdito; contra luchadores de ataque básico espera a que entren para responder con E (reduce su velocidad de ataque) y W, siempre con el escudo de piedra lleno. Si el rival le rompe el escudo con poke, retrocede 6-8 s para recargarlo antes de volver a intercambiar.",
+    "oleadas": "Gestiona la oleada con calma: contra rangos y cuerpo a cuerpo fuertes congela cerca de su torre y farmea con la Q; contra tanques empuja lento y busca placas con la réplica de la W. Vuelve a base tras estrellar una oleada o con poco maná (~4:00 con Anillo de Doran) a por Botas o Armadura de tela/Chaleco de zarzas.",
+    "all_in": "Antes del 6 casi nunca. Desde el 6, R + E + W + Q + Prender si el rival está por debajo del 50-60 % o si su jungla llega; la R imparable le permite atravesar la oleada y cualquier control. Zambulle la torre solo con su jungla, porque no tiene escape después de la R.",
+    "jugar_seguro": "Contra Dr. Mundo, Sylas, Tahm Kench, Cho'Gath, Maokai, Kayle o magos de top: no gastar maná en Q que no acierten, farmear bajo torre con Q y ataques, comprar pronto Botas de mercurio o Capa negatrón contra AP y guardar el Teleportar para llegar a las peleas de bot o del dragón."
+   },
+   "roameos": "Roamea poco a pie: su presión fuera de top llega con Teleportar desde el nivel 6 (R + Teleportar a bot o al dragón, a menudo por un guardián detrás de los rivales). Antes del 14 también ayuda con R en las larvas (8:00) y en la escuttle de top si su jungla pelea allí. Con Prender se queda casi siempre en su línea.",
+   "fase_media": "Con el primer objeto (~12:30) y la R lista agrupa para dragón, larvas y Heraldo, buscando una R sobre dos o tres rivales desde la niebla o el flanco del foso. Pasado el 20 juega con el equipo como iniciador: no le conviene quedarse solo en una lateral porque empuja lento, y su R vale mucho más en grupo. Si el rival se agrupa sin él, Teleportar al flanco y R.",
+   "matchups_dificiles": [
+    "Dr. Mundo",
+    "Sylas",
+    "Tahm Kench",
+    "Maokai",
+    "Ryze",
+    "Cho'Gath",
+    "Kayle",
+    "Gwen"
+   ],
+   "matchups_faciles": [
+    "Vayne",
+    "Jayce",
+    "Gnar",
+    "Tryndamere",
+    "Fiora",
+    "Quinn",
+    "Yasuo",
+    "Jax"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador (enganche en área con la R) y frontal de armadura; en build AP, asesino de una sola entrada.",
+  "como_entrar": "Desde la niebla o el flanco, nunca de frente si el rival tiene visión: espera a que tres rivales queden a 325 u entre sí (en un pasillo, el foso o el arbusto) y lanza la R, con Destello antes si necesita 1400 u. Al aterrizar, E inmediata para que la réplica de velocidad de ataque frene a los tiradores.",
+  "objetivo": "El grupo más compacto para levantar a varios; si no hay grupo, el tirador o el mago principal. Con build AP, el carry más frágil.",
+  "posicion": "Delante del equipo o en el flanco con visión, a 1000-1400 u del grupo rival y con la R lista; después de la R queda en medio y absorbe daño con la armadura triplicada y Malla de espinas."
+ },
+ "macro": {
+  "split_push": "Bajo: con la réplica de la W y la Égida empuja una lateral sin riesgo cuando no hay objetivo cerca, pero no destruye torres rápido ni gana duelos a los luchadores de duelo. Su valor está en la R en peleas, así que se agrupa antes de cada objetivo.",
+  "objetivos": "No hace objetivos solo. Ayuda en larvas (8:00) y Heraldo (15:00) desde top y llega a los dragones con Teleportar. En Barón y en el Alma del dragón su R en el foso es el momento decisivo; con la W (180 % a monstruos) acelera el objetivo.",
+  "plan_de_partida": "0-6 min: farmear con Q sin perder la línea. 6-14 min: R con su jungla en top y Teleportar a bot o al dragón. 14-25 min: 1-2 objetos de tanque, agrupar para objetivos y buscar R en grupo. 25+: iniciador del equipo; ganar la pelea de Barón o del Alma con una R múltiple."
+ },
+ "debilidades": [
+  "Muy flojo en el 1v1 temprano contra campeones de vida y daño mágico o porcentual (Dr. Mundo, Sylas, Gwen): su daño escala con armadura y su escudo no frena el daño mágico.",
+  "Depende de la R (130 s de enfriamiento a nivel 6): si la falla o la gasta en un solo rival, pasa dos minutos sin iniciar.",
+  "Problemas de maná: sin Anillo de Doran o Banda de maná, gastar la Q en poke lo deja sin recursos para el combo.",
+  "Muy predecible si el rival tiene visión: cualquier campeón con escape (Destello, dashes) evita la R si lo ve venir desde 1000 u.",
+  "Contra equipos de daño mágico o de vida máxima su armadura vale poco y pierde frontal."
+ ],
+ "contrarrestado_por": [
+  "Dr. Mundo",
+  "Sylas",
+  "Tahm Kench",
+  "Maokai",
+  "Ryze",
+  "Cho'Gath",
+  "Gwen",
+  "Kayle"
+ ],
+ "bueno_contra": [
+  "Vayne",
+  "Jayce",
+  "Gnar",
+  "Tryndamere",
+  "Fiora",
+  "Quinn",
+  "Yasuo",
+  "Yone"
+ ],
+ "sinergias": [
+  "Yasuo",
+  "Yone",
+  "Orianna",
+  "Miss Fortune",
+  "Kennen",
+  "Amumu",
+  "Jarvan IV"
+ ],
+ "errores_comunes": [
+  "Lanzar la R a un solo rival en la fase media cuando una pelea de objetivo está a punto de empezar: la iniciación del grupo se pierde durante 100-130 s.",
+  "Iniciar con la R desde la vista del rival (en línea recta y con visión): el rival usa el Destello o el dash y Malphite queda en medio sin nada.",
+  "Gastar todo el maná en la Q de poke a nivel 1-4 y quedarse sin maná para defenderse cuando entra el jungla rival.",
+  "Intercambiar con el escudo de piedra roto: pierde la armadura triplicada de la W y el 10 % de vida extra.",
+  "Elegir la build AP con un equipo sin otro frontal o contra varios tanques: hace explosión pero muere al aterrizar y no aguanta la pelea.",
+  "Usar el Teleportar solo para volver a la línea en lugar de guardarlo para el dragón o una zambullida en bot desde el 6."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de línea esperado (top): nivel 2 hacia la 1:45, nivel 3 hacia las 2:15 y nivel 6 hacia las 5:15; ~70-75 de CS al 10:00. La misión de rol de top puede subirle el nivel máximo por encima de 18 (19-20): no es un error.",
+  "Destello + Teleportar en el 77 % de las partidas: kills o asistencias suyas en bot o en el dragón antes del 14 con su última posición en top suelen ser teletransportes, sobre todo desde el nivel 6. La misión de top da además un Teleportar extra a mitad de partida aunque lleve Prender.",
+  "La R recorre 1000 u imparable (1400 con Destello) en menos de un segundo y atraviesa muros: una kill o un derribo a ~1000-1400 u de su última posición conocida un segundo antes es normal, también al otro lado de un muro de la jungla o dentro del foso del dragón/Barón.",
+  "Picos de kills con varios rivales a la vez: su R levanta a todos en 325 de radio, así que 2-4 muertes rivales en pocos segundos en el mismo punto tras su entrada son la firma de una R múltiple.",
+  "Enfriamiento de la R: 130 s a nivel 6, 115 s a nivel 11 y 100 s a nivel 16 (más con velocidad de habilidades o Malignidad). Dos iniciaciones suyas con menos de ~90 s de diferencia antes del 11 serían raras sin mucha velocidad de habilidades.",
+  "Primera vuelta a base hacia el 3:30-4:30 con ~800-1000 de oro (Botas, Armadura de tela, Chaleco de zarzas o Tomo amplificador si va AP); primer objeto hacia el 12-13 (Égida de fuego solar ~50 %, Malignidad ~29 %), botas completas antes.",
+  "Dos builds: si compra Malignidad, Sobrecarga tormentosa o Llamasombría espera muertes rivales muy rápidas tras la R (explosión); si compra Égida, Malla de espinas y Corazón de hielo espera que sobreviva a peleas en desventaja numérica y que las kills las hagan sus aliados (asistencias altas, pocas kills).",
+  "Poco split push: pasado el 14 suele estar agrupado o en la lateral más cercana al siguiente objetivo; una posición suya sola y lejos del equipo al aparecer un objetivo grande suele terminar con Teleportar al flanco.",
+  "Juego en línea fijo antes del 14: casi todo el tiempo en top; muertes suyas en top antes del 6 suelen ser ganks del jungla rival (no tiene escape sin Destello)."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/malphite/build/",
+  "https://www.op.gg/lol/champions/malphite/build/top",
+  "https://www.op.gg/lol/champions/malphite/items/top",
+  "https://wiki.leagueoflegends.com/en-us/Malphite",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 53,
+    "victorias": 0.585,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 3.7,
+     "p75": 5.0
+    },
+    "primer_objeto_min": {
+     "p25": 11.4,
+     "mediana": 12.9,
+     "p75": 14.1
+    },
+    "segundo_objeto_min": {
+     "p25": 18.4,
+     "mediana": 19.7,
+     "p75": 21.5
+    },
+    "primer_objeto": [
+     [
+      "Égida de fuego solar",
+      0.55
+     ],
+     [
+      "Fulgor vano",
+      0.26
+     ],
+     [
+      "Rookern kaénico",
+      0.06
+     ],
+     [
+      "Malignidad",
+      0.06
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.26
+     ],
+     [
+      "EQWQQRQEQ",
+      0.15
+     ],
+     [
+      "QWEQQRQEQ",
+      0.11
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.55
+     ],
+     [
+      "QWE",
+      0.36
+     ],
+     [
+      "WEQ",
+      0.06
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 28.6,
+     "mediana": 38.1,
+     "p75": 45.7
+    },
+    "parte_del_dano_pct": {
+     "p25": 16.1,
+     "mediana": 20.9,
+     "p75": 23.7
+    },
+    "vision_por_min": {
+     "p25": 0.82,
+     "mediana": 0.93,
+     "p75": 1.08
+    },
+    "muertes_antes_14": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 1.32,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 28.6,
+     "mediana": 35.5,
+     "p75": 42.2
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 14.5,
+     "mediana": 22.7,
+     "p75": 27.6
+    },
+    "cs_10": {
+     "p25": 66.0,
+     "mediana": 74.0,
+     "p75": 80.0
+    },
+    "dif_cs_10": {
+     "p25": -20.0,
+     "mediana": -9.0,
+     "p75": 7.0
+    },
+    "dif_oro_10": {
+     "p25": -966.0,
+     "mediana": -303.0,
+     "p75": 284.0
+    },
+    "placas": {
+     "p25": 5.0,
+     "mediana": 10.0,
+     "p75": 15.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 2.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 4.2,
+     "p75": 7.9
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   },
+   "JUNGLE": {
+    "partidas": 80,
+    "victorias": 0.438,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 4.0,
+     "mediana": 4.8,
+     "p75": 6.3
+    },
+    "primer_objeto_min": {
+     "p25": 10.1,
+     "mediana": 11.0,
+     "p75": 12.1
+    },
+    "segundo_objeto_min": {
+     "p25": 16.9,
+     "mediana": 18.8,
+     "p75": 21.1
+    },
+    "primer_objeto": [
+     [
+      "Malignidad",
+      0.42
+     ],
+     [
+      "Égida de fuego solar",
+      0.36
+     ],
+     [
+      "Amanecer y anochecer",
+      0.06
+     ],
+     [
+      "Convergencia de Zeke",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WEWQWRWEW",
+      0.2
+     ],
+     [
+      "WEQQWRWWW",
+      0.1
+     ],
+     [
+      "WEQWWRWEW",
+      0.09
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.55
+     ],
+     [
+      "WQE",
+      0.17
+     ],
+     [
+      "QWE",
+      0.14
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.7,
+     "mediana": 45.4,
+     "p75": 52.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 11.6,
+     "mediana": 14.6,
+     "p75": 18.7
+    },
+    "vision_por_min": {
+     "p25": 0.74,
+     "mediana": 0.92,
+     "p75": 1.16
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 1.21,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.6,
+     "mediana": 2.4,
+     "p75": 4.7
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 20.2,
+     "mediana": 29.4,
+     "p75": 36.5
+    },
+    "campamento_inicial": [
+     [
+      "blue",
+      0.61
+     ],
+     [
+      "raptors",
+      0.21
+     ],
+     [
+      "red",
+      0.14
+     ],
+     [
+      "wolves",
+      0.04
+     ]
+    ],
+    "cs_jungla_3_30": {
+     "p25": 20.0,
+     "mediana": 24.0,
+     "p75": 24.0
+    },
+    "cs_jungla_10": {
+     "p25": 55.0,
+     "mediana": 60.0,
+     "p75": 66.0
+    },
+    "primer_gank_min": {
+     "p25": 5.4,
+     "mediana": 8.3,
+     "p75": 10.9
+    },
+    "ganks_antes_10": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 1.2
+    },
+    "ganks_antes_10_por_zona": [
+     [
+      "bot",
+      0.37
+     ],
+     [
+      "mid",
+      0.35
+     ],
+     [
+      "top",
+      0.28
+     ]
+    ],
+    "cs_robado_antes_10": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 8.0
+    },
+    "escuttles_antes_10": {
+     "p25": 1.0,
+     "mediana": 1.0,
+     "p75": 2.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "15.24-16.23"
+   },
+   "MID": {
+    "partidas": 39,
+    "victorias": 0.385,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.8,
+     "mediana": 4.7,
+     "p75": 5.5
+    },
+    "primer_objeto_min": {
+     "p25": 10.2,
+     "mediana": 11.9,
+     "p75": 13.7
+    },
+    "segundo_objeto_min": {
+     "p25": 18.3,
+     "mediana": 19.8,
+     "p75": 21.3
+    },
+    "primer_objeto": [
+     [
+      "Malignidad",
+      0.66
+     ],
+     [
+      "Égida de fuego solar",
+      0.16
+     ],
+     [
+      "Fulgor vano",
+      0.05
+     ],
+     [
+      "Rookern kaénico",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.26
+     ],
+     [
+      "QWEQQRQEQ",
+      0.21
+     ],
+     [
+      "QWEWWRWQW",
+      0.13
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.67
+     ],
+     [
+      "WQE",
+      0.21
+     ],
+     [
+      "QWE",
+      0.1
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 31.8,
+     "mediana": 40.0,
+     "p75": 52.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.8,
+     "mediana": 22.0,
+     "p75": 26.1
+    },
+    "vision_por_min": {
+     "p25": 0.41,
+     "mediana": 0.6,
+     "p75": 0.82
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 2.0
+    },
+    "solo_kills_media": 1.92,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 7.2,
+     "mediana": 16.1,
+     "p75": 20.8
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 14.4,
+     "mediana": 22.7,
+     "p75": 32.8
+    },
+    "cs_10": {
+     "p25": 57.5,
+     "mediana": 69.0,
+     "p75": 77.5
+    },
+    "dif_cs_10": {
+     "p25": -15.5,
+     "mediana": -4.0,
+     "p75": 12.0
+    },
+    "dif_oro_10": {
+     "p25": -836.0,
+     "mediana": -181.0,
+     "p75": 188.0
+    },
+    "placas": {
+     "p25": 3.0,
+     "mediana": 5.0,
+     "p75": 15.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.0,
+     "p75": 3.0
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 2.7,
+     "mediana": 5.4,
+     "p75": 9.2
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "no OTP (no hay bastantes OTPs)",
+    "parches": "16.5-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 35,
+    "victorias": 0.514,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.2,
+     "mediana": 3.8,
+     "p75": 4.8
+    },
+    "primer_objeto_min": {
+     "p25": 13.3,
+     "mediana": 15.8,
+     "p75": 16.8
+    },
+    "segundo_objeto_min": {
+     "p25": 19.2,
+     "mediana": 24.0,
+     "p75": 26.6
+    },
+    "primer_objeto": [
+     [
+      "Malignidad",
+      0.76
+     ],
+     [
+      "Malla de espinas",
+      0.15
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.03
+     ],
+     [
+      "Sobrecarga tormentosa",
+      0.03
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEQWQRQEQ",
+      0.35
+     ],
+     [
+      "QWEQWRWWW",
+      0.09
+     ],
+     [
+      "QEWQQRQEQ",
+      0.06
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.46
+     ],
+     [
+      "QWE",
+      0.34
+     ],
+     [
+      "WQE",
+      0.17
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 34.1,
+     "mediana": 46.7,
+     "p75": 56.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 13.6,
+     "mediana": 16.1,
+     "p75": 20.0
+    },
+    "vision_por_min": {
+     "p25": 1.65,
+     "mediana": 2.04,
+     "p75": 2.52
+    },
+    "muertes_antes_14": {
+     "p25": 1.5,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.17,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.7,
+     "mediana": 5.9,
+     "p75": 14.8
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 17.4,
+     "mediana": 24.5,
+     "p75": 33.5
+    },
+    "cs_10": {
+     "p25": 14.0,
+     "mediana": 16.0,
+     "p75": 19.5
+    },
+    "dif_cs_10": {
+     "p25": -4.0,
+     "mediana": 2.0,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -327.0,
+     "mediana": 113.0,
+     "p75": 518.0
+    },
+    "placas": {
+     "p25": 2.5,
+     "mediana": 8.0,
+     "p75": 12.5
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 2.4,
+     "p75": 3.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.4,
+     "mediana": 10.7,
+     "p75": 16.2
+    },
+    "wards_antes_14": {
+     "p25": 7.0,
+     "mediana": 8.0,
+     "p75": 11.0
+    },
+    "pinks": {
+     "p25": 0.0,
+     "mediana": 3.0,
+     "p75": 5.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.23"
+   }
+  }
+ }
+}

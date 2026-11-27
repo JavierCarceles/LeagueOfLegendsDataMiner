@@ -1,0 +1,526 @@
+{
+ "clave": "Velkoz",
+ "nombre": "Vel'Koz",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.58,
+   "principal": true
+  }
+ ],
+ "arquetipo": "mago de artillería de rango muy largo (Q y W a ~1100 u, R a 1555 u) que juega de support de daño: abusa de la línea con poke desde el nivel 2, mete daño verdadero con su pasiva y su R, y es de los supports que más daño hacen por partida, pero no tiene ningún desplazamiento",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 4,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Desde el nivel 2-3 castiga cada último golpe del rival con W (1105 u, 2 cargas) y Q (1100 u): metabot le da +367 de oro sobre su rival de línea a los 15 min y va por delante en el 66 % de las partidas; gana 6,8 puntos más en partidas cortas que en largas y su mejor duración es ~25 min (56 % de victorias). El nivel 6 (R de hasta 950 de daño, verdadero sobre objetivos «investigados») y Eco de Luden (~13 min) son su mejor ventana. En la tardía sigue haciendo mucho daño pero es muy frágil (percentil 3 en mitigación de daño) y depende de que su equipo le proteja del enganche."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:45) con Q-W",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Q (ralentiza un 70 %) y W (2 cargas, 75-275 de daño en dos tiempos) aplica las 3 marcas de la pasiva en un solo intercambio: Q + W + W ya detona el daño verdadero (35-205 + 65 % AP). Contra supports cuerpo a cuerpo que no llegan, cada oleada le cuesta al rival un cuarto de vida."
+  },
+  {
+   "cuando": "Nivel 3 (~2:30) con la E",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "La E (800 u, aturde 0,75 s en el aire) le da el único control duro que tiene: E → Q → W asegura las 3 marcas y es su respuesta al engage de Leona, Nautilus o Rell (si les pilla al entrar, los empuja un poco hacia atrás)."
+  },
+  {
+   "cuando": "Perforaplanos de Zaz'Zak mejorado (~6-8 min, misión de support)",
+   "nivel": null,
+   "objetos": 0,
+   "objeto": "Perforaplanos de Zaz'Zak",
+   "por_que": "Lo lleva el 86 % (Detracción celestial el 9,5 %): cada habilidad que golpea a un campeón suelta una explosión extra de daño; con dos cargas de W y la Q, su poke escala muy pronto y le deja más oro para Eco de Luden."
+  },
+  {
+   "cuando": "Nivel 6 (~6:30-7:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Rayo de desintegración (R): canaliza 2,6 s un rayo de 1555 u que hace hasta 450/700/950 (+125 % AP) y ralentiza un 20 %; si el objetivo está «investigado» (3 marcas de pasiva) el daño es verdadero. Tras un E que aturde o un engage de su tirador, mata a un tirador a media vida desde fuera de su alcance."
+  },
+  {
+   "cuando": "Primer objeto: Eco de Luden (~13:20 de mediana)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Eco de Luden",
+   "por_que": "Ráfaga y velocidad de habilidades: Q + W ya quitan medio tirador. Es la compra del 75-85 % de los Vel'Koz; Antorcha de fuego negro es la alternativa (~5 % de los núcleos)."
+  },
+  {
+   "cuando": "Dos objetos (~24 min): Eco de Luden + Llamasombría",
+   "nivel": null,
+   "objetos": 2,
+   "objeto": "Llamasombría",
+   "por_que": "Llamasombría (penetración y críticos mágicos contra objetivos a poca vida) completa el núcleo del 60 % de sus partidas: con nivel 11 (R a rango 2) un rayo entero borra a cualquier carry. Zhonya (~31 min) es el tercero más habitual."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Deconstrucción orgánica: cada golpe de habilidad aplica una marca durante 7 s (los ataques básicos la refrescan, no la suman). A la 3.ª marca estalla en 35-205 (+65 % AP) de daño verdadero. El rayo de la R aplica una marca cada 0,7 s y los campeones con la pasiva detonada quedan «investigados»: el rayo les hace daño verdadero en lugar de mágico.",
+  "Q": "Fisión de plasma (Plasma Fission): proyectil de 1100 u (ancho 100, velocidad 1300) que hace 80-240 (+90 % AP) y ralentiza un 70 % durante 1-2,6 s (decreciente). Se divide en dos rayos perpendiculares al chocar con un enemigo o al reactivarla (desde 0,25 s de vuelo); lanzado en diagonal llega hasta ~1595 u, así que golpea a rivales escondidos detrás de súbditos. Choca con el primer súbdito. Enfriamiento 7 s; coste 40-60 de maná, devuelve 20-30 de maná al matar con ella.",
+  "W": "Fisura del Vacío (Void Rift): abre una grieta en línea recta de 1105 u (ancho 175) que hace 30-110 (+20 % AP) al instante y otros 45-165 (+25 % AP) al cerrarse 0,75 s después: 75-275 (+45 % AP) en total. No choca con súbditos y cada mitad cuenta como un golpe para la pasiva. 2 cargas con recarga de 19-15 s (1,5 s entre usos); coste 50-70. Es su forma de limpiar oleadas y de aplicar marcas.",
+  "E": "Disrupción tectónica (Tectonic Disruption): explosión de 225 u de radio a hasta 800 u que tarda 0,25-0,55 s en caer (según la distancia) y lanza por los aires 0,75 s; los enemigos muy cercanos a él son empujados hacia atrás. Hace 70-190 (+30 % AP). Enfriamiento 12-10 s (bajado en el 25.18). Su único control duro: va primero en el combo para asegurar Q y W.",
+  "R": "Rayo de desintegración de formas de vida (Life Form Disintegration Ray): canaliza hasta 2,6 s un rayo de 1555 u (ancho 175) que sigue al cursor, hace 45/70/95 (+12,5 % AP) cada 0,25 s (máximo 450/700/950 +125 % AP en el 16.23) y ralentiza un 20 %. Sobre campeones «investigados» el daño es verdadero. Se puede cortar a partir de 1 s. Cualquier aturdimiento, silencio o desplazamiento lo interrumpe; le revela si pasa cerca de un campeón. Enfriamiento 100/90/80 s."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E y Q al máximo en el nivel 9 (OP.GG: Q-W-E-Q-Q-R-Q-W-Q-W, 54,5 % de los supports, 56,9 % de victorias); W al máximo en el 13 y E la última. Lolalytics registra también E a nivel 2 (Q-E-W) en líneas contra supports de engage para tener el aturdimiento antes. Algunos maximizan W primero contra supports de rango corto para limpiar oleadas y empujar. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Ninguno: ni dash ni salto. Su movilidad es Destello y botas (Botas de hechicero 61 %, Botas jonias 22 %). Velocidad base 340. La E empuja a los enemigos que tiene pegados, lo que le gana algo de distancia.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Daño verdadero de pasiva: 3 golpes de habilidad (Q, cada mitad de la W, E o ticks de R) detonan 35-205 (+65 % AP) verdadero; dos W seguidas ya cuentan casi 3 marcas, así que su poke atraviesa la RM.",
+  "La Q se divide en ángulo recto: lanzada en diagonal y reactivada, golpea a quien se esconde detrás de los súbditos y llega a ~1595 u, más que su alcance escrito.",
+  "La R convierte su daño en verdadero sobre objetivos «investigados»: contra tanques con mucha RM sigue haciendo el mismo daño, por eso escala bien contra frontales.",
+  "La W tiene 2 cargas y no choca con súbditos: limpia la oleada y hace poke a la vez, y es el motivo de que haga más daño total que casi cualquier support (3.º en daño total de lolalytics entre supports).",
+  "Sin escape: es el support más castigado por los ganchos (Blitzcrank 46 % de victorias contra él) y depende de Destello."
+ ],
+ "combos": [
+  "Combo completo: E (aturde) → Q mientras cae la E → W → W → R: las marcas detonan antes del rayo, que ya hace daño verdadero.",
+  "Poke en línea: W a través de la oleada cuando el rival va a por un súbdito → Q en diagonal reactivada para golpear detrás de los súbditos.",
+  "Desenganche: E a los pies del que le entra (le empuja hacia atrás y lo aturde) → Q para ralentizar → alejarse y W.",
+  "Remate a distancia: R a 1555 u sobre el que huye con poca vida, girando el rayo para seguirle; se corta tras 1 s si muere.",
+  "Respuesta al engage del support rival: esperar el gancho o el salto de Leona/Nautilus y meter E + Q sobre él cuando cae encima de su tirador."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Perforaplanos de Zaz'Zak",
+   "Eco de Luden",
+   "Llamasombría",
+   "Reloj de arena de Zhonya",
+   "Tormento de Liandry",
+   "Sombrero mortal de Rabadon",
+   "Morellonomicón",
+   "Velo del hada de la muerte",
+   "Precisión infalible",
+   "Bastón del Vacío",
+   "Botas de hechicero"
+  ],
+  "runas": "Cometa arcano en el 83 % (OP.GG), con Banda de maná + Trascendencia + Piroláser (Se avecina tormenta el 11 %) y secundaria Dominación (Golpe bajo + Cazador definitivo, 45 %) o Precisión (Claridad mental/Leyenda: Velocidad + Derribado, 21 %). Fragmentos: fuerza adaptable x2 y vida escalable. Toque de muerte ígnea o Invocar a Aery son marginales (<2 %).",
+  "hechizos": [
+   "Destello",
+   "Curar"
+  ],
+  "nota": "Destello + Curar en el 77 %, Destello + Agotamiento el 14 % (contra asesinos o tiradores de all-in como Draven o Samira). Empieza con Atlas mundial y 2 pociones; el objeto de support pasa a Perforaplanos de Zaz'Zak (86 %) o Detracción celestial (9,5 %) si quiere más utilidad. Núcleo más jugado: Eco de Luden → Llamasombría → Reloj de arena de Zhonya (11 % de las partidas); Tormento de Liandry contra equipos de tanques y Morellonomicón contra curaciones. Botas de hechicero (61 %) o Botas jonias (22 %). Contra mucho enganche compra Velo del hada de la muerte."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "No busca el nivel 2 para entrar (no tiene engage), sino para castigar: con Q y W a nivel 2 (~1:45) cada súbdito que el rival intenta rematar le cuesta un W + Q. Contra supports de engage (Leona, Nautilus, Rell, Blitzcrank) puede coger E a nivel 2 y se queda detrás de su oleada para que el gancho choque con súbditos.",
+    "tradeos": "Intercambios a distancia: W en línea sobre el rival cuando va a por un súbdito (no choca con súbditos), y Q en diagonal reactivada. Con 3 marcas detona el daño verdadero, así que busca W + W + Q en el mismo intercambio. Nunca se acerca a menos de ~600 u de un support de enganche sin la E disponible. El maná es el límite antes de la Banda de maná cargada: no gastar las dos W solo en súbditos.",
+    "oleadas": "Ayuda a empujar con W cuando su tirador quiere placas o prioridad para el dragón (5:00), pero evita limpiar oleadas que su tirador no necesita: la W sobre súbditos atrae el maná y le deja sin poke. Con la oleada empujada, poke a la torre rival; si le ganan la prioridad, se coloca detrás de los súbditos.",
+    "con_que_adcs": [
+     "Ashe",
+     "Varus",
+     "Caitlyn",
+     "Ezreal",
+     "Jhin",
+     "Miss Fortune",
+     "Xayah",
+     "Jinx"
+    ],
+    "sufre_contra": [
+     "Blitzcrank",
+     "Nautilus",
+     "Thresh",
+     "Pyke",
+     "Rell",
+     "Sona",
+     "Nami",
+     "Taric",
+     "Elise"
+    ]
+   },
+   "roameos": "Roamea poco: sin desplazamientos es presa fácil fuera de bot. El roameo típico es a mid después de empujar bot y tras la primera vuelta (~6-8 min), con la R disponible para rematar en mid desde 1555 u, o para acompañar a su jungla a la escuttle y al dragón. Tras caer la torre de bot (~13-15 min) rota con su tirador a mid para tirar la torre exterior.",
+   "vision": "Visión alta para su clase (percentil 83 de guardianes en metabot): coloca en el río de bot y en el pasillo del dragón antes de cada aparición, y compra guardianes de control. Por su fragilidad no debe ir solo a poner guardianes profundos en la jungla rival: mejor con su jungla o mid cerca, o con Lente del oráculo tras la primera mejora.",
+   "fase_media": "Se queda con el grupo como segunda fuente de daño: poke con W y Q antes de dragón, larvas, Heraldo o Barón para dejar al rival por debajo de la mitad, y R cuando un aliado inicia o el rival queda aturdido. Evita ir delante en la niebla; su sitio es detrás de su frontal y del tirador, a 900-1100 u de la pelea.",
+   "matchups_dificiles": [
+    "Blitzcrank",
+    "Taric",
+    "Shen",
+    "Sona",
+    "Elise",
+    "Nami",
+    "Pyke",
+    "Nautilus"
+   ],
+   "matchups_faciles": [
+    "Zoe",
+    "Shaco",
+    "Brand",
+    "Poppy",
+    "Ashe",
+    "Swain",
+    "Milio",
+    "Alistar",
+    "Soraka"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Poke y artillería de daño (control de zona con W y E, rayo de daño verdadero).",
+  "como_entrar": "No entra: abre con poke de W y Q desde 1100 u, guarda la E para el que salte sobre él o para encadenar el control de un aliado, y lanza la R cuando el rival está ocupado o aturdido, girándola sobre el grupo.",
+  "objetivo": "Lo que tenga a tiro con la Q: tiradores y magos rivales, o el frontal si es el único al alcance (el daño verdadero de la R también le sirve contra tanques).",
+  "posicion": "Detrás de su frontal y de su tirador, a 900-1100 u, con Destello listo; la R exige que nadie pueda llegar hasta él durante los 2,6 s de canalización."
+ },
+ "macro": {
+  "split_push": "No: nunca va solo a una lateral; como mucho empuja una oleada con W cerca del grupo.",
+  "objetivos": "Ayuda en dragón y Heraldo con poke (su W y su R también dañan al monstruo) y zonas con E. Con la torre de bot caída, rota a mid con su tirador; en asedio, poke a quien defiende bajo la torre.",
+  "plan_de_partida": "Fase 1 (0-14): ganar la línea con poke, castigar cada último golpe y llevarse placas y el primer dragón; Zaz'Zak mejorado hacia el 7. Fase 2 (14-25): Eco de Luden + Llamasombría, asedio en mid y peleas de poke antes de los objetivos. Fase 3 (25+): sigue haciendo mucho daño pero cualquier enganche le mata; jugar detrás con Zhonya y esperar a que el rival use sus controles antes de lanzar la R."
+ },
+ "debilidades": [
+  "Sin desplazamientos: ganchos (Blitzcrank, Thresh, Nautilus, Pyke) y asesinos le matan si falla la E.",
+  "La R se interrumpe con cualquier control y le deja quieto 2,6 s: contra equipos con mucho control apenas puede lanzarla.",
+  "Muy frágil (percentil 3 en mitigación de daño): una sola entrada mal parada le cuesta la vida.",
+  "Habilidades lentas y lineales: la Q choca con súbditos y la E tarda en caer; contra rivales con mucha movilidad falla mucho.",
+  "Depende de ir por delante: gana un 36 % cuando va por detrás a los 15 min (metabot)."
+ ],
+ "contrarrestado_por": [
+  "Blitzcrank",
+  "Nautilus",
+  "Thresh",
+  "Pyke",
+  "Sona",
+  "Nami",
+  "Taric",
+  "Fizz",
+  "Zoe"
+ ],
+ "bueno_contra": [
+  "Brand",
+  "Poppy",
+  "Swain",
+  "Shaco",
+  "Milio",
+  "Alistar",
+  "Soraka",
+  "Braum"
+ ],
+ "sinergias": [
+  "Ashe",
+  "Varus",
+  "Caitlyn",
+  "Jhin",
+  "Amumu",
+  "Jarvan IV",
+  "Sejuani",
+  "Malphite"
+ ],
+ "errores_comunes": [
+  "Gastar las dos cargas de W solo en súbditos y quedarse sin maná ni poke.",
+  "Lanzar la R sin control previo o a rango de un enganche rival: le interrumpen y muere quieto.",
+  "Lanzar la Q en línea recta a un rival detrás de súbditos en lugar de en diagonal reactivada.",
+  "Ir solo a poner guardianes en la jungla rival o adelantarse en la niebla.",
+  "Usar la E para hacer daño en lugar de guardarla para el que le salta encima.",
+  "Comprar objetos de support de utilidad cuando el equipo necesita su daño."
+ ],
+ "senales_reconstructor": [
+  "Es un support de daño: un daño total muy alto para un support (~24.800 de media en lolalytics, 3.º de su rol) y kills propias (4,8 de media) son lo normal, no un error del tirador.",
+  "Muertes de rivales con su kill en el último golpe desde lejos (hasta 1555 u con R, ~1595 u con la Q en diagonal): una víctima a 1500 u de su posición no es rara.",
+  "Hechizos Destello + Curar en el 77 % de las partidas (Agotamiento el 14 %); Atlas mundial al empezar y Perforaplanos de Zaz'Zak como objeto de support en el 86 %.",
+  "Ritmo de objetos: Eco de Luden hacia el 13:20, Llamasombría hacia el 24:00 y Reloj de arena de Zhonya hacia el 31:30 (medianas de metabot).",
+  "Orden de subidas: Q-W-E a nivel 1-3 y Q al máximo en el nivel 9 (54 %); ver E a nivel 2 indica una línea contra engage.",
+  "Línea: suele ir por delante a los 15 min (+367 de oro de media, 66 % de partidas); si el rival es Blitzcrank, Nautilus o Pyke, muertes tempranas de Vel'Koz en bot son lo esperable.",
+  "Roameos escasos: casi siempre en bot hasta que cae la torre exterior (~13-15 min), luego en mid con su tirador; apariciones solas en top o en la jungla rival son raras.",
+  "Muertes: sin escape, sus muertes suelen ser por enganche al inicio de pelea, cerca del río o del dragón; morir el primero en una pelea es su patrón típico."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/velkoz/build/",
+  "https://www.op.gg/lol/champions/velkoz/build/support",
+  "https://www.op.gg/lol/champions/velkoz/build/mid",
+  "https://wiki.leagueoflegends.com/en-us/Vel%27Koz",
+  "https://metabot.gg/en/league/champion/Velkoz/tips",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 60,
+    "victorias": 0.6,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.1,
+     "mediana": 4.0,
+     "p75": 4.8
+    },
+    "primer_objeto_min": {
+     "p25": 10.6,
+     "mediana": 11.8,
+     "p75": 13.1
+    },
+    "segundo_objeto_min": {
+     "p25": 19.0,
+     "mediana": 20.7,
+     "p75": 22.2
+    },
+    "primer_objeto": [
+     [
+      "Antorcha de fuego negro",
+      0.63
+     ],
+     [
+      "Eco de Luden",
+      0.37
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEWWRQQQ",
+      0.47
+     ],
+     [
+      "QWEQQRQWQ",
+      0.4
+     ],
+     [
+      "QWEQQRWQQ",
+      0.02
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.98
+     ],
+     [
+      "WQE",
+      0.02
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 33.1,
+     "mediana": 40.5,
+     "p75": 50.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 20.9,
+     "mediana": 25.1,
+     "p75": 29.0
+    },
+    "vision_por_min": {
+     "p25": 0.89,
+     "mediana": 1.06,
+     "p75": 1.28
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 1.9,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 9.4,
+     "mediana": 17.0,
+     "p75": 28.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 18.1,
+     "mediana": 26.9,
+     "p75": 34.7
+    },
+    "cs_10": {
+     "p25": 72.8,
+     "mediana": 80.0,
+     "p75": 88.0
+    },
+    "dif_cs_10": {
+     "p25": -10.0,
+     "mediana": -0.5,
+     "p75": 14.2
+    },
+    "dif_oro_10": {
+     "p25": -444.0,
+     "mediana": 90.0,
+     "p75": 493.0
+    },
+    "placas": {
+     "p25": 4.8,
+     "mediana": 8.0,
+     "p75": 13.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.2,
+     "p75": 3.8
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 5.4,
+     "mediana": 10.7,
+     "p75": 15.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.17-16.23"
+   },
+   "SUPPORT": {
+    "partidas": 150,
+    "victorias": 0.487,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 46,
+      "victorias": 0.457
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 34,
+      "victorias": 0.5
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 3.8,
+     "p75": 5.7
+    },
+    "primer_objeto_min": {
+     "p25": 12.4,
+     "mediana": 14.1,
+     "p75": 15.9
+    },
+    "segundo_objeto_min": {
+     "p25": 21.2,
+     "mediana": 23.4,
+     "p75": 25.8
+    },
+    "primer_objeto": [
+     [
+      "Canción de batalla de Shurelya",
+      0.33
+     ],
+     [
+      "Precisión infalible",
+      0.26
+     ],
+     [
+      "Eco de Luden",
+      0.18
+     ],
+     [
+      "Antorcha de fuego negro",
+      0.14
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.5
+     ],
+     [
+      "QEWQQRQWQ",
+      0.46
+     ],
+     [
+      "QWEWQRQQQ",
+      0.01
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.99
+     ],
+     [
+      "WQE",
+      0.01
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 43.7,
+     "mediana": 54.3,
+     "p75": 62.1
+    },
+    "parte_del_dano_pct": {
+     "p25": 17.3,
+     "mediana": 20.4,
+     "p75": 24.4
+    },
+    "vision_por_min": {
+     "p25": 2.64,
+     "mediana": 3.1,
+     "p75": 3.42
+    },
+    "muertes_antes_14": {
+     "p25": 2.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.66,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.7,
+     "p75": 4.3
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 22.9,
+     "mediana": 33.1,
+     "p75": 40.6
+    },
+    "cs_10": {
+     "p25": 12.0,
+     "mediana": 15.0,
+     "p75": 19.0
+    },
+    "dif_cs_10": {
+     "p25": -3.0,
+     "mediana": 1.0,
+     "p75": 5.8
+    },
+    "dif_oro_10": {
+     "p25": -178.0,
+     "mediana": 149.0,
+     "p75": 568.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 4.5,
+     "p75": 8.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 1.8,
+     "mediana": 5.1,
+     "p75": 9.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 8.3,
+     "mediana": 13.1,
+     "p75": 17.9
+    },
+    "wards_antes_14": {
+     "p25": 11.0,
+     "mediana": 12.0,
+     "p75": 15.0
+    },
+    "pinks": {
+     "p25": 7.0,
+     "mediana": 10.5,
+     "p75": 13.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.2-16.23"
+   }
+  }
+ }
+}

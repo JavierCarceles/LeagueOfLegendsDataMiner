@@ -1,0 +1,382 @@
+{
+ "clave": "Olaf",
+ "nombre": "Olaf",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "TOP",
+   "parte": 0.872,
+   "principal": true
+  }
+ ],
+ "arquetipo": "luchador cuerpo a cuerpo de top de all-in y daño verdadero, más fuerte cuanta menos vida tiene (pasiva), con un hacha que ralentiza (Q, hasta 1000 u) y una R que limpia y da inmunidad a controles mientras siga pegando; fuerte de nivel 1 al primer objeto, flojo en la tardía",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 5,
+  "media": 4,
+  "tardia": 2,
+  "nota": "De los tops más fuertes de nivel 1 a 6: el hacha ralentiza un 30-50 % y quita un 20 % de armadura, la E hace daño verdadero y la pasiva le da hasta un 108 % de velocidad de ataque y un 28 % de robo de vida a poca vida, así que gana casi todo all-in largo contra cuerpo a cuerpo. Con Cortasendas o Hidra voraz (~12-14 min) sigue siendo un duelista que se mete en el equipo rival con la R sin que le paren los controles. Pasados los 25-30 minutos los tiradores con 3 objetos y los equipos de mucho kite (ralentizaciones, desenganche) le alejan: debe cerrar la partida antes."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 1 con Q (~1:00, en cuanto llega la oleada)",
+   "nivel": 1,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Hacha (70 de daño, 30 % de ralentización y −20 % de armadura) + ataques con Espada de Doran: gana el nivel 1 a casi todos los tops; recoger el hacha la deja casi lista otra vez."
+  },
+  {
+   "cuando": "Nivel 2-3 (~1:45 y ~2:20) con E y W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Reckless Swing (daño verdadero, cada ataque le quita 1 s de enfriamiento) y Tough It Out (40 % de velocidad de ataque y escudo que crece con la vida que le falta): Q → ataques → E → W cuando baja de vida para el all-in completo."
+  },
+  {
+   "cuando": "Nivel 6 (~6:00-7:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Ragnarok (100 s): limpia todos los controles y le hace inmune mientras siga pegando (3 s + hasta 2,5 s por ataque o E a campeones), +10 de DA (+25 % DA) y velocidad hacia campeones en el primer segundo. Con R y Prender o Fantasmal no hay forma de pararle: busca la zambullida bajo torre."
+  },
+  {
+   "cuando": "Primer objeto (~12:00-14:00): Cortasendas o Hidra voraz",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Cortasendas",
+   "por_que": "Cortasendas (salto con ralentización en área) le da la forma de pegarse que le falta; Hidra voraz da limpieza de oleadas y curación. Con Botas blindadas es su mejor tramo para duelos y escaramuzas en el río, larvas y Heraldo."
+  },
+  {
+   "cuando": "Dos objetos (~19-21 min) con Experimento de hexarmadura o Baile de la muerte",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Experimento de hexarmadura",
+   "por_que": "Experimento de hexarmadura (velocidad tras la R) o Baile de la muerte (aguantar ráfagas): R a 90 s y E a 8 s. Es su última ventana fuerte para pelear 5v5 y ganar en objetivos; a partir de aquí escala peor que el resto."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Berserker Rage: gana velocidad de ataque y robo de vida según la vida que le falta, hasta un 50-108 % de velocidad de ataque y un 8-28 % de robo de vida (según nivel) cuando está casi muerto. Por eso gana los all-in largos a poca vida: cuanto más le pegan, más pega y más se cura.",
+  "Q": "Undertow: lanza el hacha a un punto a 425-1000 u (9 s; 180 de ancho) que hace 70-270 (+100 % DA adicional), ralentiza un 30-50 % durante 1-3 s (más cuanto más lejos) y quita un 20 % de armadura 4 s. Daño extra a monstruos. Si recoge el hacha, el enfriamiento baja a 2,5 s menos el tiempo que llevaba en el suelo: lanzándola cerca puede encadenar hachas cada ~2-3 s. Es su forma de pegarse al rival.",
+  "W": "Tough It Out: +40-80 % de velocidad de ataque 5 s y escudo de 10-130 (+17,5 % de la vida que le falta) 2,5 s; reinicia el ataque básico. Enfriamiento 16-12 s. Se usa a poca vida, cuando el escudo es mayor.",
+  "E": "Reckless Swing: golpe a un enemigo a 325 u que hace 70-250 (+50 % DA) de daño verdadero y le cuesta un 40 % de ese daño en vida (se le devuelve si el objetivo muere). Enfriamiento 11-7 s, que baja 1 s con cada ataque (2 s contra monstruos): en un all-in la lanza cada pocos segundos. Remata súbditos y monstruos sin perder vida.",
+  "R": "Ragnarok: pasiva, +10/15/20 de armadura y resistencia mágica. Activa (100/90/80 s): se limpia de controles y es inmune a ellos durante 3 s, que se alargan hasta 2,5 s por cada ataque o E a un campeón; +10/20/30 (+25 % DA) de DA y +20/45/70 % de velocidad hacia campeones enemigos visibles durante el primer segundo. Mientras pegue no hay control que le pare; solo se le frena con daño, distancia y ralentizaciones que le impidan llegar a pegar."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q-E-W y Q > E > W en el 64 % de partidas (OP.GG). Lolalytics registra también maximizar E antes (Q a nivel 1 y luego E en 2, 4, 5, 7 y 9) en partidas de muchas victorias: más daño verdadero y menos enfriamiento de E en duelos. W siempre la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "No tiene dashes propios. La R da +20-70 % de velocidad hacia campeones en el primer segundo y el hacha ralentiza un 30-50 %. Fantasmal (60 % de partidas con Destello), Cortasendas (salto corto con ralentización) y Experimento de hexarmadura (velocidad tras la R) le dan persecución.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Más fuerte cuanta menos vida tiene: la pasiva sube hasta +108 % de velocidad de ataque y 28 % de robo de vida, y el escudo de la W crece con la vida que falta. Un Olaf a media vida es más peligroso que uno a vida llena.",
+  "Recoger el hacha reduce el enfriamiento de la Q a 2,5 s menos el tiempo que llevaba en el suelo: lanzándola a corta distancia (425 u mínimo) encadena hachas casi seguidas en un all-in o en la jungla.",
+  "R que limpia y da inmunidad a controles mientras siga pegando a campeones (cada ataque o E la alarga): es de los pocos campeones que entran al grupo rival sin miedo a aturdimientos, levantamientos o atracciones.",
+  "Daño verdadero con la E, cuyo enfriamiento baja con cada ataque: contra tanques y luchadores con armadura su daño no cae.",
+  "La E cuesta vida (40 % del daño hecho), lo que a su vez potencia la pasiva; si mata con ella recupera esa vida."
+ ],
+ "combos": [
+  "Intercambio de nivel 1: Q al rival cuando va a por un súbdito (ralentización y −20 % de armadura) → ataques → recoger el hacha para tenerla lista de nuevo.",
+  "All-in de nivel 3: Q → ataques → E (daño verdadero) → más ataques (cada uno baja la E 1 s) → W al bajar de la mitad de vida → E otra vez.",
+  "All-in de nivel 6: Q para ralentizar → R cuando el rival use su control (o antes si va a gastarlo) → Fantasmal → ataques y E sin parar para alargar la R → Prender o Agotamiento.",
+  "Zambullida bajo torre: R (inmune a controles) → Q a corta distancia → E y ataques; con Cortasendas se pega al rival que huye.",
+  "Pelea de equipo: esperar a que el rival gaste parte de sus controles → R + Fantasmal hacia el carry → Q para ralentizarlo → E y W a poca vida."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Espada de Doran",
+   "Escudo de Doran",
+   "Cortasendas",
+   "Hidra voraz",
+   "Experimento de hexarmadura",
+   "Baile de la muerte",
+   "Botas blindadas",
+   "Botas de mercurio",
+   "Dardos rastreademonios",
+   "Recuerdos de lord Dominik",
+   "Calibrador de Sterak",
+   "Fauces de Malmortius",
+   "Sangría del soberano",
+   "Ángel de la guarda"
+  ],
+  "runas": "Conquistador (90 % en OP.GG) con Triunfo, Leyenda: Presteza y Último esfuerzo; secundaria Inspiración con Velocidad de acercamiento y Entrega de galletas (o Valor con Fuerzas renovadas e Inquebrantable, 14 %). Fragmentos de fuerza adaptable, velocidad de ataque y vida.",
+  "hechizos": [
+   "Destello",
+   "Fantasmal",
+   "Agotamiento",
+   "Prender"
+  ],
+  "nota": "Destello + Fantasmal (60 %) para pegarse en los all-in; Destello + Agotamiento (21 %) contra duelistas o tops que le kitean; Prender en líneas de all-in temprano. Inicio Espada de Doran + poción (77 %) o Escudo de Doran (13 %) contra rangos. Botas blindadas casi siempre (73 %), de mercurio contra mucho control o AP. Primer objeto Cortasendas (el más común) o Hidra voraz; luego Experimento de hexarmadura y Baile de la muerte; Recuerdos de lord Dominik contra tanques, Calibrador de Sterak o Fauces de Malmortius contra ráfaga, Sangría del soberano o Ángel de la guarda de cierre."
+ },
+ "por_rol": {
+  "TOP": {
+   "linea": {
+    "niveles_1_3": "Q a nivel 1 y agresivo desde la primera oleada (~1:00): hacha al rival cuando se acerca a los súbditos y ataques mientras está ralentizado. E a nivel 2 (~1:45) y W a nivel 3 (~2:20): con las tres busca el all-in largo contra cuerpo a cuerpo, sobre todo si el rival ya ha gastado su escape. Recoger el hacha es clave para tener la siguiente lista.",
+    "tradeos": "Intercambios largos, no cortos: cuanto más dura la pelea más le favorece la pasiva. Hacha → ataques → E; si el rival responde, W a poca vida para el escudo y la velocidad de ataque. Contra rangos (Kayle, Vayne, Teemo, Quinn) solo entra si el hacha acierta y el rival no tiene escape.",
+    "oleadas": "Empuja con el hacha y la E (remata sin perder vida) para ganar prioridad y placas; puede congelar cerca de su torre contra campeones que necesitan acercarse. Vuelve a base tras estrellar la oleada (~3:30-4:30) con Espada larga o botas. Con prioridad roamea al río para la escuttle o las larvas con su jungla.",
+    "all_in": "Desde nivel 2-3 contra casi cualquier cuerpo a cuerpo si acierta el hacha; desde nivel 6 con R contra luchadores con control (Sett, Darius, Renekton o tanques) porque le limpia y le hace inmune. Con Fantasmal y Prender busca la zambullida bajo torre.",
+    "jugar_seguro": "Contra Kled, Vladimir, Akali, Camille, Sett o Kayle: Escudo de Doran o Segundo aliento, no entrar sin el hacha acertada y esperar al 6 o al jungla. Contra rangos que le kitean (Kayle, Vayne, Quinn), farmear con la Q y la E y no perseguir sin Fantasmal."
+   },
+   "roameos": "Roamea poco a otras líneas, pero mucho al río: escaramuzas en la escuttle y en las larvas (8:00) con su jungla, y en el Heraldo (15:00). Tras matar o estrellar la oleada puede bajar a mid con Fantasmal y R para un gank conjunto. Con Teleportar (poco común) bajaría a bot.",
+   "fase_media": "Con el primer objeto (~12-14 min) busca las escaramuzas tempranas: larvas, Heraldo, invasiones con su jungla y zambullidas en la torre de top. Tras la torre exterior presiona la lateral o se agrupa para el dragón con R lista. Debe forzar peleas antes del 25: entrar con R + Fantasmal al carry y que los controles rivales no le paren.",
+   "matchups_dificiles": [
+    "Kled",
+    "Vladimir",
+    "Akali",
+    "Camille",
+    "Sett",
+    "Kayle",
+    "Vayne",
+    "Quinn"
+   ],
+   "matchups_faciles": [
+    "Malzahar",
+    "Sylas",
+    "Ryze",
+    "Yasuo",
+    "Poppy",
+    "Teemo",
+    "Jayce"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Luchador de zambullida: entra a la retaguardia inmune a controles y obliga al rival a responder con daño o kite.",
+  "como_entrar": "Espera a que gasten parte del control, luego R (limpieza e inmunidad) + Fantasmal hacia el carry, hacha para ralentizar y ataques con E. Cada ataque a campeones alarga la R, así que no debe parar de pegar. W cuando baja de vida.",
+  "objetivo": "El tirador o mago rival; si el frontal rival le bloquea el paso, el campeón más cercano con menos armadura.",
+  "posicion": "Por el flanco o justo detrás del tanque aliado, listo para correr ~1000 u hasta el carry con Fantasmal y R."
+ },
+ "macro": {
+  "split_push": "Moderado: presiona la lateral de top con Hidra voraz o Cortasendas y gana duelos a casi todos antes del 25, pero no derriba torres tan rápido como un split pusher puro y le cuesta defenderse contra 2v1. Mejor agruparse para objetivos con R lista.",
+  "objetivos": "Larvas (8:00) con su jungla, a menudo con prioridad de línea; Heraldo (15:00) con su jungla; dragones y Barón en grupo. Con el hacha y la E (daño extra a monstruos) los derriba rápido.",
+  "plan_de_partida": "0-6 min: ganar la línea con hachas y all-in largos, placas. 6-14 min: R para zambullidas, escaramuzas en larvas y escuttle con su jungla. 14-25 min: primer y segundo objeto, Heraldo y dragones, entrar a las peleas con R. 25+: cerrar la partida antes de que los carries rivales escalen; si va por detrás, esperar a peleas cortas y flanquear."
+ },
+ "debilidades": [
+  "Escala mal: pasado el 25-30, contra tiradores con 3 objetos y equipos de mucho kite, su daño y su aguante no bastan.",
+  "Sin dashes: le kitean con ralentizaciones, desenganche y rango (la R le protege de controles, no de las ralentizaciones ni de la distancia).",
+  "La reducción de curación (Llamada del verdugo, Malla de espinas) corta el robo de vida de su pasiva.",
+  "Si falla el hacha no puede pegarse al rival hasta que vuelve (9 s).",
+  "Su R dura poco si no puede pegar: entrar fuera del alcance de un campeón la desperdicia."
+ ],
+ "contrarrestado_por": [
+  "Kled",
+  "Vladimir",
+  "Akali",
+  "Camille",
+  "Sett",
+  "Kayle",
+  "Vayne",
+  "Quinn"
+ ],
+ "bueno_contra": [
+  "Malzahar",
+  "Sylas",
+  "Ryze",
+  "Yasuo",
+  "Poppy",
+  "Teemo",
+  "Jayce"
+ ],
+ "sinergias": [
+  "Lulu",
+  "Yuumi",
+  "Janna",
+  "Taric",
+  "Jarvan IV",
+  "Rell"
+ ],
+ "errores_comunes": [
+  "Lanzar el hacha al límite del alcance y no recogerla: queda 9 s sin forma de pegarse.",
+  "Usar la R al empezar la pelea, antes de que el rival gaste sus controles, o lejos de los campeones: se acaba en 3 s sin pegar.",
+  "Huir a media vida en lugar de seguir pegando: la pasiva le hace más fuerte cuanto más bajo está.",
+  "Usar la W a vida llena: el escudo es mucho menor.",
+  "Pelear contra rangos que le kitean sin Fantasmal o sin acertar el hacha.",
+  "Alargar la partida en lugar de convertir la ventaja temprana en torres y objetivos antes del 25."
+ ],
+ "senales_reconstructor": [
+  "Línea agresiva: kills o muertes en top en los primeros 3-6 minutos con Olaf son normales (all-in de nivel 1-3); ver primera sangre de Olaf antes del 5:00 es coherente con su plan.",
+  "Subidas de habilidad: Q a nivel 1 siempre, E a nivel 2 y W a nivel 3; maximiza Q (64 %) o E (alternativa de Lolalytics). La W suele quedarse a nivel 1 hasta el 14.",
+  "Hechizos: Destello + Fantasmal en el 60 % y Agotamiento en el 21 %; apenas lleva Teleportar, así que una aparición en bot antes del 14 suele ser andando por el río (con Fantasmal).",
+  "Ventaja temprana en CS, oro y placas a los 10 frente a la mayoría de tops cuerpo a cuerpo; contra rangos (Kayle, Vayne, Quinn) puede ir por detrás.",
+  "Objetos: Espada de Doran al empezar; Botas blindadas muy pronto (73 %); primer objeto (Cortasendas o Hidra voraz) hacia el 12-14 y segundo (Experimento de hexarmadura o Baile de la muerte) hacia el 19-21.",
+  "Escaramuzas en el río del Barón (escuttle, larvas a las 8:00 y Heraldo a las 15:00) con su jungla: posiciones de minuto en el río de top y kills allí antes del 14 son su forma de roamear.",
+  "En las peleas entra primero y a menudo muere con mucho daño hecho: varias muertes por partida con alta participación son su patrón. Una muerte rival por un control encadenado no le afecta si tenía la R activa.",
+  "Más victorias en partidas cortas: un Olaf que va por delante debería cerrar antes del 25-30; en partidas largas su impacto cae."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/olaf/build/",
+  "https://www.op.gg/lol/champions/olaf/build/top",
+  "https://wiki.leagueoflegends.com/en-us/Olaf",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "TOP": {
+    "partidas": 212,
+    "victorias": 0.509,
+    "victorias_por_duracion": [
+     {
+      "minutos": "20-25",
+      "partidas": 41,
+      "victorias": 0.488
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 63,
+      "victorias": 0.54
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 52,
+      "victorias": 0.462
+     },
+     {
+      "minutos": "35+",
+      "partidas": 32,
+      "victorias": 0.469
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 2.9,
+     "mediana": 4.2,
+     "p75": 6.2
+    },
+    "primer_objeto_min": {
+     "p25": 10.3,
+     "mediana": 11.8,
+     "p75": 13.3
+    },
+    "segundo_objeto_min": {
+     "p25": 17.0,
+     "mediana": 18.9,
+     "p75": 21.4
+    },
+    "primer_objeto": [
+     [
+      "Cortasendas",
+      0.43
+     ],
+     [
+      "Hidra voraz",
+      0.4
+     ],
+     [
+      "Experimento de hexarmadura",
+      0.14
+     ],
+     [
+      "Fauces de Malmortius",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWQQRQEQ",
+      0.57
+     ],
+     [
+      "QWEQQRQEQ",
+      0.22
+     ],
+     [
+      "QEWQQREEE",
+      0.09
+     ]
+    ],
+    "maximiza": [
+     [
+      "QEW",
+      0.84
+     ],
+     [
+      "EQW",
+      0.16
+     ],
+     [
+      "QWE",
+      0.0
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 27.5,
+     "mediana": 37.5,
+     "p75": 51.4
+    },
+    "parte_del_dano_pct": {
+     "p25": 19.3,
+     "mediana": 23.9,
+     "p75": 30.2
+    },
+    "vision_por_min": {
+     "p25": 0.67,
+     "mediana": 0.83,
+     "p75": 0.98
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 3.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 3.7,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 22.2,
+     "mediana": 31.4,
+     "p75": 44.7
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.8,
+     "mediana": 19.8,
+     "p75": 27.9
+    },
+    "cs_10": {
+     "p25": 64.0,
+     "mediana": 73.0,
+     "p75": 83.0
+    },
+    "dif_cs_10": {
+     "p25": -8.0,
+     "mediana": 4.0,
+     "p75": 19.0
+    },
+    "dif_oro_10": {
+     "p25": -638.0,
+     "mediana": 256.0,
+     "p75": 1078.0
+    },
+    "placas": {
+     "p25": 6.0,
+     "mediana": 12.0,
+     "p75": 17.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 0.6,
+     "p75": 2.4
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 3.6,
+     "mediana": 6.5,
+     "p75": 9.5
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.20-16.23"
+   }
+  }
+ }
+}

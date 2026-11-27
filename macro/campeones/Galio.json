@@ -1,0 +1,519 @@
+{
+ "clave": "Galio",
+ "nombre": "Galio",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "MID",
+   "parte": 0.742,
+   "principal": true
+  }
+ ],
+ "arquetipo": "mago tanque de control para mid que gana la línea a los magos con el escudo mágico de la W, empuja con la Q y desde nivel 6 se une a cualquier pelea del mapa con la R (aterrizaje sobre un aliado a 4000-5500 u); su fuerza es el mapa y el enfrentamiento en grupo, no el duelo",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 3,
+  "media": 5,
+  "tardia": 3,
+  "nota": "Antes del 6 empuja bien con la Q y aguanta a los magos con el escudo pasivo de la W (8-20 % de su vida en daño mágico desde el 16.23), pero le cuesta contra tiradores de mid y asesinos físicos, y sin R tiene poca amenaza de kill. De nivel 6 al segundo objeto (~6:00-22:00) es de los mid con más impacto: Teleportar (73 % de partidas) + R le dejan aparecer en top, bot, dragón o larvas antes que nadie. En la tardía sigue iniciando (E-W y R desde lejos), pero su daño baja y los carries con 3 objetos lo atraviesan; vale por su control, no por las kills."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2-3 (~1:50 y ~2:35)",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Q-W-E ya tiene el combo de control (E con derribo de 0,75 s → W con provocación de hasta 1,5 s → ataque con pasiva). Contra un mago sin desplazamiento que haya gastado su habilidad principal puede ganar el intercambio corto; contra tiradores de mid no."
+  },
+  {
+   "cuando": "Nivel 6 (~6:00)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Hero's Entrance (R, 180 s, 4000 u): marca a un aliado, le da su escudo mágico y aterriza 2,75 s después levantando a los enemigos en 650 u. Es el momento de empujar la oleada de mid con la Q y mirar el minimapa: cualquier gank o pelea 2v2 de bot o top pasa a ser 3v2."
+  },
+  {
+   "cuando": "Primer objeto (~11:30; p25 9:54, p75 12:48 para Sobrecarga tormentosa)",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Cintomisil hextech",
+   "por_que": "Cintomisil hextech (36 % de primeros objetos, ~11:36) le da un dash extra de 275 u para enganchar E-W a distancia; Sobrecarga tormentosa (~11:18) o Fulgor vano son las alternativas de daño o de aguante. Con él gana las escaramuzas de larvas, dragón y Heraldo."
+  },
+  {
+   "cuando": "R a nivel 11 y 2 objetos (~20:00-22:00)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Mandato imperial",
+   "por_que": "La R baja a 160 s y llega a 4750 u; con Mandato imperial (el objeto más comprado, 54 %) o Reloj de arena de Zhonya (~21:54 tras Cintomisil) puede iniciar, aguantar el castigo y marcar objetivos para su equipo. Es su ventana de peleas de Barón y de segundo dragón."
+  },
+  {
+   "cuando": "R a nivel 16 (~30 min)",
+   "nivel": 16,
+   "objetos": 3,
+   "objeto": "Reloj de arena de Zhonya",
+   "por_que": "140 s de enfriamiento y 5500 u de alcance: desde el centro del mapa llega a casi cualquier punto del río y de las dos junglas. En la tardía su valor es iniciar con la R sobre un aliado que ya está dentro o salvarlo con el escudo."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Colossal Smash: cada 5 s (fijo, no le afecta la velocidad de habilidades) su siguiente ataque gana un 40 % de velocidad de ataque, no se puede cancelar y hace 15-115 (+100 % DA, +40 % PM, +60 % RM adicional) de daño mágico en área alrededor del objetivo. Cada habilidad que golpea a un campeón o monstruo épico le quita 3 s al enfriamiento (una vez por lanzamiento): Q → ataque → E → ataque es su forma de sacarle partido. Con la resistencia mágica adicional de sus objetos de tanque hace bastante daño.",
+  "Q": "Winds of War: dos ráfagas a 825 u (11/10/9/8/7 s, 60-80 de maná) que hacen 70-210 (+70 % PM) y, si llegan las dos al punto, forman un tornado de 2 s que hace un 8 % (+4 % por cada 100 PM) de la vida máxima en total (tope de 600 a monstruos). Es su daño principal, su despeje de oleada y su forma de pinchar a los magos antes del 6. El escudo de hechizos bloquea las ráfagas pero no el tornado.",
+  "W": "Shield of Durand: pasiva, escudo contra daño mágico del 8/11/14/17/20 % de su vida máxima que vuelve tras 12/10/8 s sin recibir daño (según nivel de campeón). Activa (18-14 s): carga hasta 2 s moviéndose un 15 % más lento y recibiendo un 25-45 % menos de daño mágico y un 12,5-22,5 % menos de físico (suben con PM, RM adicional y vida adicional). Al soltarla provoca a los enemigos cercanos; durante el primer 1,25 s de carga crece el radio (175-350 u), el daño (20-60 a 60-180, +30-90 % PM) y la provocación (0,5-1,5 s). Tras soltarla no puede atacar ni lanzar habilidades durante 0,4 s.",
+  "E": "Justice Punch: retrocede un paso (0,4 s de lanzamiento) y carga hasta 650 u (mínimo 100 u; 11-7 s, 50 de maná) atravesando súbditos; se detiene contra el primer campeón o contra el terreno y levanta 0,75 s a los enemigos que golpea, con 100-240 (+100 % PM) de daño mágico. Es su enganche y su único desplazamiento; si no acierta, se queda en medio del equipo rival sin escape. El paso atrás se ve venir: los campeones con dash la esquivan.",
+  "R": "Hero's Entrance: elige la posición de un campeón aliado a 4000/4750/5500 u (180/160/140 s, 100 de maná) en el momento de lanzarla, da a los aliados en esa zona su escudo mágico de la W durante 5 s y, tras 2,75 s de canalización, aterriza en ese punto haciendo 150-350 (+70 % PM, +100 % RM adicional) de daño mágico y levantando/empujando a los enemigos en 650 u (0,75 s). Solo se puede interrumpir con control durante el primer 1,25 s; después es inmune al control e imposible de seleccionar. El punto de caída no sigue al aliado si este se mueve. No se puede lanzar sin un aliado en el alcance."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E y maximizar Q > W > E en el 88 % de las partidas (Metabot 16.23; OP.GG la da en el 56 % con Q-W-E). Q > E > W (10 %) para un Galio de más daño que busca enganches cortos con la E. Lolalytics marca E a nivel 1 en partidas de invasión de nivel 1. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: carga de hasta 650 u (100 u mínimo) tras un paso atrás de 0,4 s; se para en el primer campeón o en el terreno. R: salto de largo alcance hacia un aliado (4000/4750/5500 u) tras 2,75 s de canalización; los últimos 1,5 s es inmune al control y no seleccionable. Con Cintomisil hextech suma un dash de 275 u. Sin otros saltos.",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la R: el salto a la posición del aliado ignora el terreno (cruza cualquier muro, río o jungla). La E se detiene al chocar con el terreno y no cruza muros; para eso usa Destello o el dash de Cintomisil hextech.",
+  "invisibilidad": null,
+  "global": [
+   {
+    "habilidad": "R",
+    "tipo": "teletransporte",
+    "desde_nivel": 6,
+    "alcance": "4000 unidades (4750 a nivel 11 y 5500 a nivel 16)",
+    "nota": "Salta a la posición que tenía un aliado al lanzarla, tras 2,75 s de canalización; los aliados en 650 u reciben el escudo mágico de su W durante 5 s. El daño y el derribo los hace al aterrizar, así que cualquier kill con la R se produce donde cae Galio. Desde el centro de mid, 4000 u llegan al río, al dragón, al Barón y a las dos junglas, pero no a las peleas de las líneas laterales: para llegar a bot o top primero camina hacia el río o la jungla de ese lado."
+   }
+  ]
+ },
+ "unico": [
+  "Escudo pasivo contra daño mágico (8-20 % de su vida máxima, se recarga tras 12/10/8 s sin recibir daño): por eso gana la línea a muchos magos de pinchazo (Ahri o Syndra en intercambios cortos, Ryze, Mel, Akali, Katarina) y les quita el combo, pero no le sirve contra daño físico.",
+  "R que convierte su línea en todo el mapa: con 4000-5500 u de alcance llega a casi cualquier pelea del río o de las junglas, y combinada con Teleportar (73 % de las partidas) puede estar en bot y en top en el mismo minuto. El aliado marcado recibe su escudo antes de que llegue.",
+  "La pasiva se recarga con sus habilidades: cada habilidad que golpea a un campeón quita 3 s a su ataque potenciado (5 s fijos), así que alternar Q-ataque-E-ataque duplica su daño en los intercambios.",
+  "W con provocación en área que crece con el tiempo de carga (175-350 u, 0,5-1,5 s): es uno de los pocos controles de grupo que obligan a los rivales a pegarle a él en lugar de a sus carries, y durante la carga reduce mucho el daño recibido.",
+  "Escala con resistencia mágica: la pasiva (+60 % RM adicional) y la R (+100 % RM adicional) suben su daño cuando compra objetos de tanque mágico como Rookern kaénico o Fulgor vano."
+ ],
+ "combos": [
+  "Intercambio en línea: Q sobre el rival cuando va a por un súbdito → caminar hacia él con la pasiva lista → ataque potenciado → retirarse. Con el escudo de la W activo, aguantar el contragolpe del mago.",
+  "Enganche básico (nivel 3+): E → ataque con pasiva durante el derribo → cargar W (menos de 1 s si el rival tiene dash; completa si no puede escapar) → Q al sitio donde quedará provocado.",
+  "Destello-E: lanzar la E y, durante la carga, Destello para corregir el ángulo o alargar el alcance sobre un grupo; seguir con W completa para provocar a varios.",
+  "R de iniciación: R sobre el aliado que va a entrar (o el que ya engancha) → mientras cae, cargar la W para soltarla justo tras aterrizar → E al carry que intenta huir.",
+  "R defensiva: R sobre el aliado al que zambullen; el escudo mágico le llega al instante y el aterrizaje derriba a los que lo persiguen. Después, W para provocarlos y que no lo rematen.",
+  "Contra zambullidas en su propio equipo: esperar a que el asesino entre, W completa para provocarlo sobre Galio y E para echarlo; no gastar la E primero."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Cintomisil hextech",
+   "Mandato imperial",
+   "Reloj de arena de Zhonya",
+   "Fulgor vano",
+   "Sobrecarga tormentosa",
+   "Llamasombría",
+   "Rookern kaénico",
+   "Malla de espinas",
+   "Sombrero mortal de Rabadon",
+   "Robaalmas de Mejai",
+   "Botas de mercurio",
+   "Botas blindadas"
+  ],
+  "runas": "Tensión del saqueador de tormentas + Banda de maná + Trascendencia + Piroláser, secundaria Valor con Fuerzas renovadas e Inquebrantable (o Revestimiento de huesos y Sobrecrecimiento): ~60 % de las partidas en OP.GG y Metabot 16.23. Alternativas: Reverberacción con Golpe de escudo, Condicionamiento e Inquebrantable (~23 %, Galio tanque de iniciación) y Electrocutar con Prender (Lolalytics la marca como la de más victorias para el Galio de daño).",
+  "hechizos": [
+   "Destello",
+   "Teleportar",
+   "Prender"
+  ],
+  "nota": "Destello + Teleportar en el 73 % de partidas (para unirse a peleas de bot y top antes y después del 6) y Destello + Prender en el ~21-23 % (más victorias, línea agresiva contra magos). Inicio: Anillo de Doran y dos pociones (~85 %), a veces Yelmo de Doran contra asesinos físicos. Primer objeto Cintomisil hextech (iniciación), Sobrecarga tormentosa (daño, ~11:18) o Fulgor vano (tanque contra magos); después Mandato imperial y Reloj de arena de Zhonya. Contra equipos muy mágicos compra Rookern kaénico; contra físicos, Malla de espinas o Botas blindadas. Las botas suelen ser de mercurio (50 %); la misión de rol de mid las mejora a nivel 3 (Trituradoras encadenadas, Avance blindado o Botas del lanzahechizos)."
+ },
+ "por_rol": {
+  "MID": {
+   "linea": {
+    "niveles_1_3": "Nivel 1 con Q: los súbditos llegan a mid hacia los 0:55 (salen a las 0:30). Empuja la primera oleada con la Q y ataques con pasiva; a nivel 2 (~1:50) coge la W para tener el escudo activo contra el pinchazo y a nivel 3 la E. Contra magos de poco alcance puede intercambiar con Q + pasiva; contra tiradores de mid (Corki, Ezreal, Tristana) se limita a despejar con la Q.",
+    "tradeos": "Intercambios cortos: Q a la vez que el rival toca un súbdito y ataque con la pasiva si se acerca. Sus mejores ventanas son cuando el mago rival acaba de gastar su habilidad principal sobre el escudo de la W. No debe gastar la E para entrar a un intercambio en línea si el rival tiene desplazamiento: sin ella no tiene escape ni control durante 11 s.",
+    "oleadas": "Empuja casi siempre: la Q (825 u) despeja la oleada de magos en dos lanzamientos con un ataque y le da la prioridad para moverse a escuttle (3:30) y a las escaramuzas de su jungla. Desde el 6, empujar, ver dónde está la pelea y caminar hacia el río de ese lado antes de lanzar la R. Vuelve a base hacia los 4:00-5:00 tras estrellar la oleada.",
+    "all_in": "Antes del 6 casi nunca mata solo; con Prender y nivel 6 puede buscar E-W-Q + R propia en un mago sin Destello que esté por debajo del 50 %, pero su R vale más usada en otra línea. El all-in de verdad lo hace con su jungla: el jungla entra, Galio E-W para encadenar el control.",
+    "jugar_seguro": "Contra Ahri, Veigar, Ziggs, Vel'Koz, Twisted Fate, Zed, Lissandra o Kayle (sus peores enfrentamientos): despejar desde lejos con la Q, comprar Yelmo de Doran o Botas blindadas contra físicos, no usar la E sin visión y guardar la W para soltarla sobre el asesino que salte. Su objetivo es llegar al 6 sin perder mucho oro y convertir cada pelea del mapa en una ventaja."
+   },
+   "roameos": "Es de los mid que más se mueven. Antes del 6 va a la escuttle (3:30) y a escaramuzas del río con su jungla, y usa Teleportar para bajar a bot o subir a top cuando hay un gank (Destello + Teleportar en el 73 % de las partidas). Desde el 6 (~6:00), con la oleada de mid empujada, camina hacia el río del lado de la pelea y lanza la R sobre el aliado que pelea: suele aparecer en bot (dragón) más que en top. Con la R a nivel 11 (160 s, 4750 u) llega desde mid al río sin moverse mucho. Si no tiene R, roamea andando a la escuttle o con su jungla para pelear en el río.",
+   "fase_media": "Agrupa con su jungla y su support para dragón, larvas y Heraldo: su E-W en los fosos (dragón, Barón) pilla a varios porque no tienen dónde abrirse. Con la R lista se coloca en el centro del mapa para poder caer en la pelea de cualquier lateral; si la R está en enfriamiento, lleva la oleada lateral más segura con la Q. Su equipo debe saber que si Galio está en una lateral puede llegar con la R a una pelea en el otro lado del río.",
+   "matchups_dificiles": [
+    "Ahri",
+    "Veigar",
+    "Ziggs",
+    "Vel'Koz",
+    "Twisted Fate",
+    "Zed",
+    "Lissandra",
+    "Kayle",
+    "Tristana"
+   ],
+   "matchups_faciles": [
+    "Ezreal",
+    "Ryze",
+    "Akali",
+    "Mel",
+    "Locke",
+    "Viktor",
+    "Diana",
+    "LeBlanc",
+    "Katarina",
+    "Fizz"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciador y peeler de primera línea: inicia con E-W o R sobre el aliado que entra, y protege a su carry provocando a quien lo salte.",
+  "como_entrar": "Lo ideal es entrar el segundo: el aliado engancha y Galio cae encima con la R (escudo para él y derribo para los rivales) y suelta la W completa al aterrizar. Sin R, E por el flanco o Destello-E al grupo y W a continuación. Guarda el Reloj de arena de Zhonya para cuando se lance todo el equipo rival sobre él.",
+  "objetivo": "Los que estén juntos: sus controles valen más cuantos más rivales pillan. En escaramuzas, el carry al que pueda llegar con E. Como peeler, el asesino o luchador que salta a su tirador.",
+  "posicion": "Delante o al lado de su equipo, a 650 u de la primera línea rival para amenazar la E; con la R lista, cerca del aliado que inicia para poder caer encima. En fosos y pasillos de jungla es donde mejor funciona."
+ },
+ "macro": {
+  "split_push": "Poco: empuja bien con la Q, pero no derriba torres rápido ni gana duelos tardíos. Puede llevar una lateral con la R lista para caer en la pelea del otro lado, que es su forma de presionar.",
+  "objetivos": "Ayuda en dragón, larvas, Heraldo y Barón con control y con la R para reforzar a su equipo en el foso. No hace objetivos solo; su Q con daño por % de vida (tope de 600 a monstruos) ayuda poco.",
+  "plan_de_partida": "0-6 min: empujar con la Q, sobrevivir a la línea con el escudo de la W y moverse a la escuttle con su jungla; Teleportar a bot o top si hay pelea. 6-20 min: cada vez que haya una pelea a menos de 4000 u, empujar y R; agrupar para dragones y larvas. 20+: iniciar o pelar según la composición, con la R sobre el aliado que entra en las peleas de Barón y dragón."
+ },
+ "debilidades": [
+  "Su escudo solo para daño mágico: contra mid físicos (Zed, Tristana, Corki, Talon, Yasuo) pierde la línea y no aguanta.",
+  "La E y la W son lentas (0,4 s de paso atrás y hasta 2 s de carga) y se esquivan o se interrumpen con desplazamientos: contra campeones móviles le cuesta enganchar.",
+  "La R necesita un aliado en la zona y deja su línea vacía: si la usa sin plan, pierde oleadas y placas de mid.",
+  "Poco daño en la tardía: si no consigue controlar a varios rivales, no hace nada en las peleas contra equipos con 3 objetos.",
+  "Pocos medios para escapar: sin la E ni Destello es fácil de atrapar."
+ ],
+ "contrarrestado_por": [
+  "Ahri",
+  "Veigar",
+  "Ziggs",
+  "Vel'Koz",
+  "Twisted Fate",
+  "Zed",
+  "Lissandra",
+  "Kayle",
+  "Tristana",
+  "Vayne"
+ ],
+ "bueno_contra": [
+  "Ezreal",
+  "Ryze",
+  "Akali",
+  "Mel",
+  "Locke",
+  "Viktor",
+  "Diana",
+  "LeBlanc",
+  "Katarina",
+  "Fizz"
+ ],
+ "sinergias": [
+  "Irelia",
+  "Darius",
+  "Viego",
+  "Thresh",
+  "Nami",
+  "Jarvan IV",
+  "Vi",
+  "Camille",
+  "Yasuo"
+ ],
+ "errores_comunes": [
+  "Lanzar la R sobre un aliado que ya está muerto o que se va a ir: tras 2,75 s Galio cae solo entre los rivales.",
+  "Usar la E para entrar sin que nadie le siga: se queda sin escape ni control durante 7-11 s en medio del equipo rival.",
+  "Cargar la W hasta el final contra rivales con desplazamiento: se salen del radio; contra ellos hay que soltarla pronto.",
+  "No empujar la oleada antes de lanzar la R y perder dos oleadas y placas en mid cada vez que se mueve.",
+  "Pelear en línea contra mid físicos como si su escudo le protegiera.",
+  "Esperar a que la R vuelva para ayudar al equipo y no caminar al río para estar a menos de 4000 u de la pelea."
+ ],
+ "senales_reconstructor": [
+  "La R es un salto de hasta 4000 u (4750 a nivel 11 y 5500 a nivel 16) tras 2,75 s de canalización. Una kill o asistencia suya en bot o top con su última posición por minuto en el río o en la jungla de ese lado es normal desde el nivel 6 (~6:00). Desde el centro de mid no llega a las peleas de las líneas laterales: si su posición anterior es en mid y la siguiente kill es en la línea de bot o top, lo más probable es que primero caminara al río (o que usara Teleportar).",
+  "Lleva Teleportar en el 73 % de las partidas: antes del 6 puede aparecer en bot o top de un minuto a otro. Con Teleportar + R puede estar en dos peleas distintas en menos de un minuto.",
+  "Mucho movimiento fuera de mid: tras empujar la oleada va a la escuttle (3:30), a dragón (5:00) y a larvas (8:00) con su jungla. Ver a Galio en el río o en la jungla entre los minutos 3 y 14 es su juego normal, no un error.",
+  "El daño de la R se hace al aterrizar: una kill con la R implica que Galio estaba en ese punto; las asistencias por el escudo pueden aparecer en aliados a miles de unidades de su posición del minuto anterior.",
+  "Primer objeto hacia el 11:30 (Cintomisil hextech ~11:36, Sobrecarga tormentosa ~11:18; p25 9:54, p75 12:48) y segundo hacia el 20:30-22:00 (Mandato imperial, Reloj de arena de Zhonya o Llamasombría). Primera vuelta a base hacia el 4:00-5:00 tras estrellar la oleada.",
+  "Pocas kills propias y muchas asistencias: su papel es el control, así que una participación en kills alta con pocas kills es lo normal. Si compra Robaalmas de Mejai (~4 %) es que va muy por delante.",
+  "La misión de rol de mid le mejora las botas a nivel 3 (Trituradoras encadenadas, Avance blindado o Botas del lanzahechizos) y le da una vuelta a base más rápida: vueltas a base más cortas a mitad de partida son normales.",
+  "En el 19 % de sus partidas juega de support (Lolalytics): en ese caso su posición en los primeros minutos es bot y roamea a mid con la R; la ficha cubre solo el rol de mid."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/galio/build/",
+  "https://www.op.gg/lol/champions/galio/build/mid",
+  "https://metabot.gg/en/league/champion/Galio/build?role=MIDDLE",
+  "https://wiki.leagueoflegends.com/en-us/Galio",
+  "https://www.dodge.gg/lol/news/galio-build-2026",
+  "https://www.strafe.com/news/read/league-of-legends-role-quests-rewards-for-every-role/",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "MID": {
+    "partidas": 33,
+    "victorias": 0.576,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 2.9,
+     "mediana": 4.0,
+     "p75": 5.4
+    },
+    "primer_objeto_min": {
+     "p25": 12.2,
+     "mediana": 12.9,
+     "p75": 14.3
+    },
+    "segundo_objeto_min": {
+     "p25": 17.9,
+     "mediana": 19.7,
+     "p75": 20.9
+    },
+    "primer_objeto": [
+     [
+      "Sobrecarga tormentosa",
+      0.39
+     ],
+     [
+      "Cintomisil hextech",
+      0.33
+     ],
+     [
+      "Rookern kaénico",
+      0.12
+     ],
+     [
+      "Llamasombría",
+      0.12
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRQWQ",
+      0.24
+     ],
+     [
+      "QEWQQRQWQ",
+      0.21
+     ],
+     [
+      "QEWQQRQEQ",
+      0.21
+     ]
+    ],
+    "maximiza": [
+     [
+      "QWE",
+      0.64
+     ],
+     [
+      "QEW",
+      0.36
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 41.2,
+     "mediana": 48.6,
+     "p75": 54.5
+    },
+    "parte_del_dano_pct": {
+     "p25": 15.5,
+     "mediana": 21.2,
+     "p75": 25.8
+    },
+    "vision_por_min": {
+     "p25": 0.53,
+     "mediana": 0.72,
+     "p75": 0.8
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 1.79,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 17.1,
+     "mediana": 29.4,
+     "p75": 33.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 12.6,
+     "mediana": 19.7,
+     "p75": 30.3
+    },
+    "cs_10": {
+     "p25": 70.0,
+     "mediana": 76.0,
+     "p75": 84.0
+    },
+    "dif_cs_10": {
+     "p25": -12.0,
+     "mediana": -3.0,
+     "p75": 8.0
+    },
+    "dif_oro_10": {
+     "p25": -446.0,
+     "mediana": -75.0,
+     "p75": 340.0
+    },
+    "placas": {
+     "p25": 4.0,
+     "mediana": 9.0,
+     "p75": 13.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 0.0,
+     "mediana": 1.8,
+     "p75": 6.5
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 4.2,
+     "mediana": 8.3,
+     "p75": 10.1
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.1-16.18"
+   },
+   "SUPPORT": {
+    "partidas": 52,
+    "victorias": 0.558,
+    "victorias_por_duracion": [],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 3.6,
+     "p75": 4.9
+    },
+    "primer_objeto_min": {
+     "p25": 11.4,
+     "mediana": 12.1,
+     "p75": 13.9
+    },
+    "segundo_objeto_min": {
+     "p25": 20.2,
+     "mediana": 22.0,
+     "p75": 23.0
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.75
+     ],
+     [
+      "Mandato imperial",
+      0.04
+     ],
+     [
+      "Bandlemusa",
+      0.04
+     ],
+     [
+      "Corazón de acero",
+      0.04
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "WEQWWRWEW",
+      0.26
+     ],
+     [
+      "EWQWWRWEW",
+      0.14
+     ],
+     [
+      "WQEWWRWEW",
+      0.07
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.79
+     ],
+     [
+      "WQE",
+      0.13
+     ],
+     [
+      "QWE",
+      0.06
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 47.8,
+     "mediana": 56.3,
+     "p75": 63.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 8.5,
+     "mediana": 10.1,
+     "p75": 11.9
+    },
+    "vision_por_min": {
+     "p25": 2.1,
+     "mediana": 2.63,
+     "p75": 2.91
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 3.0
+    },
+    "solo_kills_media": 0.15,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.9,
+     "p75": 4.5
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 28.6,
+     "mediana": 39.7,
+     "p75": 43.8
+    },
+    "cs_10": {
+     "p25": 12.0,
+     "mediana": 15.0,
+     "p75": 18.5
+    },
+    "dif_cs_10": {
+     "p25": -1.5,
+     "mediana": 2.0,
+     "p75": 6.5
+    },
+    "dif_oro_10": {
+     "p25": -203.0,
+     "mediana": 159.0,
+     "p75": 440.0
+    },
+    "placas": {
+     "p25": 1.0,
+     "mediana": 4.0,
+     "p75": 8.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 5.4,
+     "p75": 11.6
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.7,
+     "mediana": 14.3,
+     "p75": 19.6
+    },
+    "wards_antes_14": {
+     "p25": 8.0,
+     "mediana": 11.0,
+     "p75": 12.0
+    },
+    "pinks": {
+     "p25": 5.0,
+     "mediana": 7.0,
+     "p75": 10.0
+    },
+    "elo": "todos los elos (pocas de Diamante+)",
+    "jugadores": "OTPs",
+    "parches": "16.2-16.23"
+   }
+  }
+ }
+}

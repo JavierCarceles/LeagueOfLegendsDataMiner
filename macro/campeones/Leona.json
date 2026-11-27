@@ -1,0 +1,395 @@
+{
+ "clave": "Leona",
+ "nombre": "Leona",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.997,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support tanque de enganche y all-in: entra con la E (salto al campeón) y encadena aturdimiento de Q y R; manda en la línea desde el nivel 2 y abre las peleas",
+ "alcance": "cuerpo_a_cuerpo",
+ "fuerza_por_fase": {
+  "temprana": 5,
+  "media": 4,
+  "tardia": 3,
+  "nota": "Su nivel 2 (E + Q: raíz, salto y aturdimiento de 1 s) es de los más peligrosos de bot, y con Prender y Réplica gana los all-in de la línea. En la fase media, con Medallón de los Solari de Hierro y la R (aturdimiento en área a 1200 u), abre todas las escaramuzas de su equipo. En la tardía sigue siendo útil para iniciar, pero los equipos con desenganche, Purificar y mucho alcance la frenan, y si entra sola sin seguimiento muere sin conseguir nada."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:45)",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "E (875 u) → salto al tirador rival → Q (aturdimiento de 1 s) → ataques con Réplica activa. Si llega antes al nivel 2 que el rival (su tirador empuja la primera oleada) suele forzar Destello o conseguir la primera sangre."
+  },
+  {
+   "cuando": "Nivel 3 (~2:45) con la W",
+   "nivel": 3,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Con Eclipse (reducción de daño, armadura y resistencia, explosión que alarga el efecto) aguanta el contraataque de los dos rivales mientras su tirador remata; es cuando más all-ins gana."
+  },
+  {
+   "cuando": "Nivel 6 (~8:45)",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Solar Flare: aturdimiento de 1,75 s en el centro y 80 % de ralentización en el borde a 1200 u, con 90 s de enfriamiento. Le da enganches desde fuera del alcance de la E, inmersiones de torre y roameos a mid con un control enorme."
+  },
+  {
+   "cuando": "Primer objeto: Medallón de los Solari de Hierro (~13:00; p25 11:55, p75 15:30)",
+   "nivel": 9,
+   "objetos": 1,
+   "objeto": "Medallón de los Solari de Hierro",
+   "por_que": "Escudo para todo el equipo al entrar: convierte sus inicios en peleas ganadas para los cinco. Alternativas: Arnés de protoplasma (15 %) o Promesa de caballero (11 %)."
+  },
+  {
+   "cuando": "Dos objetos (~22:20): Promesa de caballero",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Promesa de caballero",
+   "por_que": "Con la R a nivel 11 (75 s) y dos objetos de tanque aguanta en medio del equipo rival el tiempo justo para que su tirador pegue; Promesa de caballero protege al carry mientras ella sigue en la pelea."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Sunlight: sus habilidades que dañan marcan a los enemigos 2,5 s; si un aliado les hace daño, consume la marca y hace 32-151 de daño mágico extra (según el nivel de Leona). Por eso sus all-ins con un tirador de ataques rápidos hacen tanto daño.",
+  "Q": "Shield of Daybreak: su siguiente ataque (6 s para usarlo; +50 u de alcance) hace 10-110 (+30 % PH) de daño mágico extra y aturde 1 s. Enfriamiento de 5 s y 30-50 de maná; reinicia el ataque básico. Es la segunda parte de todos sus combos.",
+  "W": "Eclipse: durante 3 s gana reducción fija del daño (8-24 por golpe, máximo 50 %) y 20-50 de armadura y resistencia mágica (+20 % de las adicionales); al acabar explota en 450 u con 55-175 (+40 % PH) y, si golpea a alguien, el efecto dura otros 3 s. 14-10 s de enfriamiento: es su defensa al entrar.",
+  "E": "Zenith Blade: espada en línea de 875 u (Data Dragon; 900 según la wiki), 12-6 s de enfriamiento, que atraviesa a todos los enemigos (no la paran los súbditos) y les hace 50-210 (+40 % PH); si toca a un campeón, Leona salta hasta el último campeón golpeado y lo enraíza 0,5 s. El salto cruza muros. Un escudo de hechizo bloquea el salto.",
+  "R": "Solar Flare: rayo de sol a un punto a 1200 u que cae a los 0,625 s: 150-300 (+80 % PH), 80 % de ralentización 1,75 s en el área (~325 u) y aturdimiento 1,75 s en el centro (~175 u). Da visión de la zona 3 s. Enfriamiento 90/75/60 s."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "W",
+   "E",
+   "Q"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "E",
+   "W"
+  ],
+  "nota": "Q a nivel 1 (o E, 14 % en OTP, si quiere enganchar o ir a la invasión) y E a nivel 2 para el all-in; W a nivel 3. Maximiza W (83 % en OTP; W-E-Q) para aguantar en medio de la pelea; E-W o W-Q (17 %) si busca más enganches o más daño. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "E: si la espada (875 u) toca a un campeón, salta hasta él. No tiene otros desplazamientos; en la práctica alcanza a 875-900 u de distancia, más 400 u con Destello (Destello-E o E-Destello).",
+  "salta_muros": "con_condiciones",
+  "como_salta_muros": "Solo con la E: la espada pasa por encima del terreno y, si toca a un campeón al otro lado de un muro, Leona salta hasta él cruzando el muro. Sin un campeón al que golpear no puede cruzar nada salvo con Destello.",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Su E es un enganche que la lleva al rival (no lo trae): cruza muros y no la bloquean los súbditos, pero la deja en medio de los rivales.",
+  "Encadena tres controles: raíz de la E (0,5 s), aturdimiento de la Q (1 s) y aturdimiento de la R (1,75 s), con suficiente tiempo para que su tirador mate.",
+  "La pasiva premia a su tirador: cada golpe aliado sobre un objetivo marcado hace 32-151 de daño mágico extra, por lo que con tiradores de ataques rápidos el all-in hace muchísimo daño.",
+  "La W se alarga 3 s si su explosión golpea a alguien: en una pelea, es una tanque de 6 s con reducción de daño fija.",
+  "La R da visión del área antes de caer y 3 s después: sirve para mirar arbustos o el foso del dragón."
+ ],
+ "combos": [
+  "All-in de nivel 2-3: E al tirador rival → Q (aturdimiento) → W al llegar → ataques; su tirador consume la marca de Sunlight.",
+  "Enganche largo: R al grupo o al tirador desde 1200 u → E al aturdido → Q → W.",
+  "Destello-Q: si el rival está a menos de 400 u, Destello y ataque con Q para un aturdimiento sin aviso; o E y Destello durante el vuelo de la espada para ajustar el salto.",
+  "Inmersión de torre: E → Q al objetivo bajo torre → W para aguantar la torre mientras su tirador y su jungla rematan.",
+  "Peel: Q o R al asesino o luchador que salta a su tirador; la E hacia un rival detrás de él para volver a la pelea."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Detracción celestial",
+   "Trineo del solsticio",
+   "Medallón de los Solari de Hierro",
+   "Promesa de caballero",
+   "Arnés de protoplasma",
+   "Bandlemusa",
+   "Malla de espinas",
+   "Rookern kaénico",
+   "Botas blindadas",
+   "Botas de mercurio"
+  ],
+  "runas": "Réplica (Valor) con Fuente de vida, Inquebrantable o Placas óseas y Sobrecrecimiento; secundaria Inspiración (Perspicacia cósmica, Entrega de galletas) o Precisión (45 % y 41 % en OP.GG 16.23; Réplica en el 90-98 % de las partidas). Fragmentos: velocidad de habilidad, vida escalable y vida.",
+  "hechizos": [
+   "Destello",
+   "Prender"
+  ],
+  "nota": "Destello + Prender (63 % en OP.GG) para matar en el all-in; Destello + Agotamiento (19 %) contra asesinos o tiradores de ráfaga; Destello + Curar (55 % en OTP Diamante+) cuando su tirador lleva Barrera o Limpiar. Inicio: Atlas mundial + pociones; mejora a Detracción celestial (54 %) o Trineo del solsticio (29 %). Primera vuelta con Guardián de control, Botas y Cristal de rubí. Primer objeto Medallón de los Solari de Hierro (63 % en OTP), segundo Promesa de caballero; después Bandlemusa, Arnés de protoplasma, Malla de espinas contra curación o Rookern kaénico contra magos. Botas blindadas (57 %), de mercurio contra control mágico (30 %) o de rapidez para roamear (20 % en OTP)."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "Es su momento: llega al nivel 2 hacia la 1:45 y, si llega antes que el rival (su tirador empuja la primera oleada), busca E-Q sobre el tirador rival que esté a menos de 875 u. Si el rival tiene Destello, fuerza el gasto; si no, es kill con Prender. Contra supports de desenganche (Janna, Taric, Braum) se espera a que gasten sus herramientas.",
+    "tradeos": "No hace intercambios cortos: amenaza la E desde el arbusto o la oleada y obliga al rival a jugar atrás. Cuando entra, va hasta el final (E-Q-W y ataques) y con la W aguanta el contraataque. Puede lanzar la E a través de los súbditos: la espada no se detiene en ellos. Contra pokes (Lux, Xerath, Vel'Koz) busca los arbustos para acortar distancias.",
+    "oleadas": "Prefiere que su tirador empuje para llegar antes a nivel 2 y luego estrellar la oleada para roamear o poner visión. Tras forzar Destello o conseguir una kill, empujar y volver a base (~3:05 de mediana en OTP, con ~475 de oro) para Guardián de control y Botas. Una oleada congelada cerca de su torre le viene bien: es donde mejor engancha al rival que se acerca.",
+    "con_que_adcs": [
+     "Samira",
+     "Kalista",
+     "Draven",
+     "Lucian",
+     "Nilah",
+     "Miss Fortune",
+     "Caitlyn",
+     "Jhin"
+    ],
+    "sufre_contra": [
+     "Taric",
+     "Braum",
+     "Zilean",
+     "Morgana",
+     "Janna",
+     "Soraka",
+     "Shen",
+     "Galio"
+    ]
+   },
+   "roameos": "Roamea mucho a mid y al río: en OTP Diamante+ (87 partidas) el 47 % de las partidas tienen una kill o asistencia suya fuera de bot antes del 14, la primera hacia el 9:30 de mediana (p25 7:10), y pasa un 16 % del tiempo antes del 14 en el río y solo un 45 % en bot. Momento típico: tras empujar la oleada de bot o con la línea rival en base, entra por el río (a menudo con Botas de rapidez) para una E o R al mid rival, o acompaña al jungla a la escuttle y las larvas.",
+   "vision": "Mucha: mediana de 1,34 guardianes por minuto, 12 antes del minuto 14 y 13 guardianes de control comprados por partida (puntuación de visión ~3,2 por minuto en OTP Diamante+). Coloca en el río y en la jungla rival antes de dragón y larvas, y cambia pronto a Lente del oráculo (muchos la compran en la primera vuelta) para limpiar la visión rival antes de sus enganches.",
+   "fase_media": "Va con el siguiente objetivo: visión del dragón o de las larvas, enganches en el río con su jungla y su mid, y zambullidas de torre con la R. Pasado el 14 está agrupada con su equipo (42 % del tiempo con al menos dos aliados cerca y ~1 % sola en una lateral, OTP). En las peleas inicia con R o E-Q sobre el carry, o pela con Q y R al que salte a su tirador.",
+   "matchups_dificiles": [
+    "Taric",
+    "Zilean",
+    "Braum",
+    "Morgana",
+    "Shen",
+    "Galio",
+    "Rell",
+    "Soraka",
+    "Fiddlesticks"
+   ],
+   "matchups_faciles": [
+    "Sylas",
+    "Yuumi",
+    "Camille",
+    "Ashe",
+    "Elise",
+    "Malphite",
+    "Heimerdinger",
+    "Sett"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Iniciadora y tanque: abre las peleas con la R o la E sobre el carry rival y aguanta el contraataque con la W; también pela con la Q y la R.",
+  "como_entrar": "R desde 1200 u al grupo o al carry → E al aturdido → Q → W en medio; o Destello-Q si el objetivo está cerca. Entra cuando su equipo puede seguirla: sin seguimiento, muere sin conseguir nada.",
+  "objetivo": "El tirador o mago rival; en escaramuzas, el que no tenga Destello o esté fuera de posición. En peleas defensivas, el asesino o luchador que entra a su tirador.",
+  "posicion": "Por delante de su equipo, en la niebla o en un arbusto a ~900-1200 u del objetivo, lista para la R o la E."
+ },
+ "macro": {
+  "split_push": "No: es una support de grupo. Pasado el 14 está ~1 % del tiempo sola en una lateral (OTP); solo sale a poner visión con su equipo cerca.",
+  "objetivos": "No hace objetivos sola; los facilita con visión, limpieza de guardianes y enganches antes del dragón, las larvas, el Heraldo y el Barón. Con la R puede dar visión del foso.",
+  "plan_de_partida": "0-6 min: ganar el nivel 2, forzar Destellos y kills en bot. 6-14 min: roameos a mid y al río con su jungla, visión del dragón y zambullidas de torre con la R desde el 6. 14-25 min: agrupar en mid, enganches antes de cada objetivo y visión profunda. 25+: abrir la pelea con R sobre el carry y W para aguantar; no entrar sola sin que su equipo esté listo."
+ },
+ "debilidades": [
+  "Si la E falla o la esquivan, se queda sin forma de entrar durante 12-6 s y su línea pierde toda la amenaza.",
+  "Los desenganches (Janna, Braum, Taric, Zilean) y los escudos de hechizo (Morgana, Sivir) cancelan sus combos.",
+  "Contra supports de poke de largo alcance (Lux, Xerath, Vel'Koz) sufre si no hay arbustos ni oleada a su favor.",
+  "Necesita seguimiento: entra la primera y, si su equipo no la acompaña, muere en el acto.",
+  "Poco daño propio: en la tardía depende de que sus aliados tengan daño."
+ ],
+ "contrarrestado_por": [
+  "Taric",
+  "Zilean",
+  "Braum",
+  "Morgana",
+  "Shen",
+  "Galio",
+  "Janna"
+ ],
+ "bueno_contra": [
+  "Sylas",
+  "Yuumi",
+  "Camille",
+  "Ashe",
+  "Elise",
+  "Malphite",
+  "Sett"
+ ],
+ "sinergias": [
+  "Samira",
+  "Kalista",
+  "Miss Fortune",
+  "Draven",
+  "Lucian",
+  "Yasuo",
+  "Orianna",
+  "Jarvan IV"
+ ],
+ "errores_comunes": [
+  "Entrar con la E cuando su tirador no puede seguirla (sin maná, lejos o rematando súbditos).",
+  "Lanzar la E contra un rival con escudo de hechizo (Morgana, Sivir) o con desenganche disponible.",
+  "Usar la R para un solo objetivo en la línea cuando el dragón aparece en 30 s.",
+  "Gastar la W antes de entrar: es su defensa en medio del rival.",
+  "Quedarse en bot todo el tiempo sin roamear ni poner visión del río cuando el tirador ya está seguro.",
+  "No comprar Guardianes de control ni cambiar a Lente del oráculo, y entrar sin saber dónde está el jungla rival."
+ ],
+ "senales_reconstructor": [
+  "Ritmo en OTP Diamante+ (87 partidas de 13 jugadores, parches 16.19-16.23): nivel 2 a la 1:44, nivel 3 a las 2:47, nivel 6 a las 8:47 y nivel 11 a las 22:17 de mediana; CS 3 al 3:00, 16 al 10:00 y 23 al 15:00 (support).",
+  "Primera vuelta a base muy pronto: mediana 3:04 (p25 2:36, p75 3:53) con ~475 de oro, comprando Guardián de control, Botas, Cristal de rubí o Lente del oráculo; un 20 % tras morir. Unas 7 vueltas a base por partida.",
+  "Objetos: Medallón de los Solari de Hierro (63 %), Arnés de protoplasma (15 %) o Promesa de caballero (11 %) hacia el 13:00; segundo (Promesa de caballero 40 %) hacia el 22:20. Botas hacia el 12:25 (blindadas 40 %, de mercurio 28 %, de rapidez 20 %; las de rapidez indican que roamea).",
+  "Roameos: en el 47 % de las partidas tiene una kill o asistencia fuera de bot antes del 14, la primera hacia el 9:30; sus kills antes del 14 son un 55 % en bot, 19 % en el río, 11 % en mid, 11 % en la jungla y 4 % en top. Antes del 14 pasa solo ~45 % del tiempo en bot y ~16 % en el río.",
+  "Movilidad: solo la E (salta hasta el campeón que toca a 875-900 u, cruzando muros) y Destello. Un salto de ~1300 u de una posición a otra en un instante es E-Destello; no tiene nada global.",
+  "Visión: mediana de 1,34 guardianes por minuto, 12 antes del 14 y 13 guardianes de control por partida; puntuación de visión ~3,2 por minuto.",
+  "La R da visión del área (800 u) antes de caer y 3 s después: puede revelar a rivales en arbustos o en el foso sin que haya guardianes.",
+  "Muy alta participación en kills (mediana 58 %) y primera kill o asistencia hacia el 3:20 (sus all-ins de nivel 2-3). Muertes antes del 14: mediana 2 (62 % en bot y 18 % en el río).",
+  "Pasado el 14, mediana del 42 % del tiempo agrupada y ~1 % sola en una lateral: casi siempre está con su equipo.",
+  "Hechizos: Prender (63 % en OP.GG, 33 % en OTP), Curar (55 % en OTP) o Agotamiento: con Prender, las kills de bot a nivel 2-3 suelen ser suyas."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/leona/build/",
+  "https://lolalytics.com/lol/leona/counters/",
+  "https://www.op.gg/lol/champions/leona/build/support",
+  "https://wiki.leagueoflegends.com/en-us/Leona",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json)",
+  "Partidas de OTPs de Leona support, parches 16.19-16.23 (data/otps/Leona/SUPPORT: 254 partidas; 87 de Diamante+ de 13 jugadores)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "SUPPORT": {
+    "partidas": 109,
+    "victorias": 0.56,
+    "victorias_por_duracion": [
+     {
+      "minutos": "25-30",
+      "partidas": 39,
+      "victorias": 0.513
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.0,
+     "mediana": 4.2,
+     "p75": 6.5
+    },
+    "primer_objeto_min": {
+     "p25": 11.8,
+     "mediana": 12.9,
+     "p75": 15.0
+    },
+    "segundo_objeto_min": {
+     "p25": 20.6,
+     "mediana": 22.5,
+     "p75": 24.3
+    },
+    "primer_objeto": [
+     [
+      "Medallón de los Solari de Hierro",
+      0.67
+     ],
+     [
+      "Promesa de caballero",
+      0.13
+     ],
+     [
+      "Arnés de protoplasma",
+      0.12
+     ],
+     [
+      "Convergencia de Zeke",
+      0.05
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QEWWWRWEW",
+      0.47
+     ],
+     [
+      "QEWWWRWQW",
+      0.15
+     ],
+     [
+      "EQWWWRWEW",
+      0.13
+     ]
+    ],
+    "maximiza": [
+     [
+      "WEQ",
+      0.72
+     ],
+     [
+      "WQE",
+      0.28
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 48.3,
+     "mediana": 57.9,
+     "p75": 67.6
+    },
+    "parte_del_dano_pct": {
+     "p25": 7.7,
+     "mediana": 9.4,
+     "p75": 10.9
+    },
+    "vision_por_min": {
+     "p25": 2.79,
+     "mediana": 3.23,
+     "p75": 3.85
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.12,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 0.9,
+     "p75": 2.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 31.9,
+     "mediana": 41.2,
+     "p75": 49.2
+    },
+    "cs_10": {
+     "p25": 13.0,
+     "mediana": 16.0,
+     "p75": 18.0
+    },
+    "dif_cs_10": {
+     "p25": -2.0,
+     "mediana": 2.0,
+     "p75": 5.0
+    },
+    "dif_oro_10": {
+     "p25": -288.0,
+     "mediana": 37.0,
+     "p75": 355.0
+    },
+    "placas": {
+     "p25": 1.0,
+     "mediana": 5.0,
+     "p75": 10.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 2.4,
+     "mediana": 4.8,
+     "p75": 8.9
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 11.3,
+     "mediana": 15.5,
+     "p75": 19.6
+    },
+    "wards_antes_14": {
+     "p25": 10.0,
+     "mediana": 12.0,
+     "p75": 14.0
+    },
+    "pinks": {
+     "p25": 10.0,
+     "mediana": 14.0,
+     "p75": 20.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.8-16.23"
+   }
+  }
+ }
+}

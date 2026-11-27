@@ -19,7 +19,7 @@ def test_borra_lo_recogido_una_vez_y_deja_lo_tuyo(keyed_svc):
         conn.execute("INSERT INTO my_games (match_id, puuid, status, fetched_at) VALUES ('EUW1_2', 'yo', 'ready', 0)")
     db.meta_set("otp.reanalysis", "{}")
 
-    assert not reinicio.maybe_reset(svc)  # apagado por defecto: no borra nada
+    assert not reinicio.maybe_reset(svc, "")  # sin identificador: no borra nada
     assert db.scalar("SELECT COUNT(*) FROM ranking_games") == 1
 
     assert reinicio.maybe_reset(svc, "prueba")

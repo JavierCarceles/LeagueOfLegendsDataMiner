@@ -1,0 +1,421 @@
+{
+ "clave": "Sona",
+ "nombre": "Sona",
+ "parche": "16.23",
+ "revisado": "2026-11-27",
+ "roles": [
+  {
+   "rol": "SUPPORT",
+   "parte": 0.994,
+   "principal": true
+  }
+ ],
+ "arquetipo": "support encantadora de poke y curación que escala con objetos y niveles, con auras para su equipo y una R de aturdimiento en línea (Crescendo) que gira peleas; frágil al principio y fortísima en la tardía",
+ "alcance": "distancia",
+ "fuerza_por_fase": {
+  "temprana": 2,
+  "media": 4,
+  "tardia": 5,
+  "nota": "En los primeros niveles tiene poca vida, poco alcance real (Q de 825 u contra los dos enemigos más cercanos) y ningún escape aparte de la E: los supports de enganche (Leona, Nautilus, Blitzcrank, Pyke) la castigan. Gana pequeños intercambios con la Q y el Power Chord, y su W cura cada 10 s. Desde nivel 6 su R (aturdimiento en línea de 1,5 s) y con dos objetos (Lágrima ya cargada, Ecos de Helia o Diadema melodiosa) su equipo cura, pega y se mueve más que el rival en cada pelea; en la tardía, con 60 de celeridad de la pasiva y Bastón de aguas fluidas o Incensario ardiente, es de las mejores supports del juego."
+ },
+ "picos_de_poder": [
+  {
+   "cuando": "Nivel 2 (~1:55) con Q y W",
+   "nivel": 2,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Q + ataque con Power Chord (cada 3 habilidades) hace un intercambio corto ganador contra supports sin poke, y la W cura a su tirador; no es un nivel 2 de all-in como el de un enganchador."
+  },
+  {
+   "cuando": "Nivel 6 (~8:30-9:00) con R",
+   "nivel": 6,
+   "objetos": 0,
+   "objeto": null,
+   "por_que": "Crescendo: aturdimiento de 1,5 s a todos los campeones en una línea de 1000 u y 280 de ancho. Con su tirador cerca convierte un 2v2 en kill segura, y en peleas grandes puede aturdir a tres o cuatro rivales a la vez."
+  },
+  {
+   "cuando": "Primer objeto (~12-14 min): Ecos de Helia o Diadema melodiosa, con la Lágrima de la diosa empezada",
+   "nivel": null,
+   "objetos": 1,
+   "objeto": "Ecos de Helia",
+   "por_que": "Más daño y curación por habilidad; con la mejora de Tonada sanguina o Tejesueños completada sus intercambios de Q y W empiezan a ganar las peleas largas de bot y del dragón."
+  },
+  {
+   "cuando": "Pasiva cargada (Accelerando al máximo, ~20-25 min)",
+   "nivel": 11,
+   "objetos": 2,
+   "objeto": "Renovación de piedra lunar",
+   "por_que": "Al acumular 120 cargas de Accelerando (golpes de Q a campeones y curaciones o escudos útiles de W) tiene 60 de celeridad extra en Q, W y E, y desde ahí cada acierto reduce 1,5 s el enfriamiento de la R: aura casi constante y R cada ~60-70 s."
+  },
+  {
+   "cuando": "Tres-cuatro objetos (~25-30 min): Bastón de aguas fluidas, Incensario ardiente o Núcleo albar",
+   "nivel": 13,
+   "objetos": 3,
+   "objeto": "Bastón de aguas fluidas",
+   "por_que": "Cada curación da poder y velocidad de ataque a su equipo; con R a enfriamiento corto, sus peleas de Barón y Alma de dragón son de las más fuertes que puede ofrecer un support."
+  }
+ ],
+ "habilidades": {
+  "pasiva": "Accelerando y Power Chord: Accelerando da una carga por cada campeón enemigo golpeado con la Q y por cada curación o escudo útil de la W (hasta 120 cargas): +0,5 de celeridad para Q, W y E por carga (máximo 60). Con el máximo, cada nueva carga reduce 1,5 s el enfriamiento restante de la R. Power Chord: cada 3 habilidades básicas su siguiente ataque hace 20-270 (+20 % PH) de daño mágico extra y un efecto según la última habilidad: Q más daño, W reduce un 25 % el daño del objetivo 3 s y E ralentiza un 50 % 2 s.",
+  "Q": "Hymn of Valor: lanza dos rayos de sonido a los dos enemigos más cercanos dentro de 825 u (prioriza campeones y monstruos) con 50-190 (+40 % PH) de daño mágico. Enfriamiento 8 s, 50-70 de maná. Su aura (3 s) da a los aliados que toca un golpe extra de 10-30 (+10 % PH). Es su poke principal y su forma de cargar Accelerando.",
+  "W": "Aria of Perseverance: cura a Sona y al aliado herido más cercano dentro de 1000 u (30-90 +30 % PH) y su aura (3 s) da un escudo de 25-105 (+25 % PH) 1,5 s a los aliados que toca. Enfriamiento 10 s, 80-100 de maná. Su sostenimiento en la línea depende de ella.",
+  "E": "Song of Celerity: Sona gana un 10-18 % de velocidad de movimiento 7 s (se corta al recibir daño a partir de 3 s) y su aura da velocidad a los aliados que toca durante 3 s. Enfriamiento 14 s, 65 de maná. Su único escape y su forma de llevar al equipo a un objetivo o fuera de una pelea; con Power Chord ralentiza un 50 % 2 s.",
+  "R": "Crescendo: acorde en línea recta de 1000 u (280 de ancho, 0,25 s de lanzamiento) que aturde 1,5 s a todos los campeones enemigos tocados y les hace 150/250/350 (+50 % PH) de daño mágico. Enfriamiento 140/120/100 s, que la pasiva acorta una vez cargada. Es su iniciación, su defensa contra un all-in y la habilidad que más cambia las peleas."
+ },
+ "orden_habilidades": {
+  "maximizar": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "niveles_1_3": [
+   "Q",
+   "W",
+   "E"
+  ],
+  "nota": "Q-W-E en Lolalytics y OP.GG. Lolalytics da Q > W > E como orden de maximizar; OP.GG registra mucho W primero (W > Q > E, 38 % de las partidas con 66 % de victorias en partidas largas) contra líneas de mucho poke o para curar más. E siempre la última. R en 6, 11 y 16."
+ },
+ "movilidad": {
+  "desplazamientos": "Sin saltos ni dashes. Solo velocidad de movimiento: E (10-18 % propio 7 s y aura para aliados 3 s), Botas de rapidez o Botas jonias de la lucidez. Escapa con E + Destello + Curar.",
+  "salta_muros": "no",
+  "invisibilidad": null,
+  "global": []
+ },
+ "unico": [
+  "Auras de 3 s: cada habilidad básica deja un aura que potencia a los aliados que toca (golpe extra con Q, escudo con W, velocidad con E); su valor crece con el número de aliados cerca.",
+  "Accelerando: es de las pocas campeonas que escalan celeridad por acertar habilidades; con la pasiva al máximo el enfriamiento de su R baja con cada Q y W.",
+  "Power Chord: cada 3 habilidades, su ataque potenciado cambia según la última habilidad usada (más daño con Q, menos daño del rival con W, ralentización del 50 % con E).",
+  "R en línea recta de 1000 u que aturde a todos los campeones que toca: una sola R bien lanzada en un pasillo de la jungla o en el foso decide la pelea.",
+  "Q que busca sola a los dos enemigos más cercanos: no hay que apuntar, pero puede gastar el golpe en súbditos o monstruos si no hay campeones dentro."
+ ],
+ "combos": [
+  "Poke en línea: Q cuando el support rival se acerca → ataque con Power Chord de Q (más daño) → retirada.",
+  "Defensa contra enganche: R en línea sobre los dos rivales que entran → E para apartar a su tirador → W para curarle.",
+  "All-in con su tirador: Q → W → E (prepara Power Chord) → R sobre ambos → ataque con ralentización de E y Prender o Agotamiento.",
+  "Persecución: E para ganar velocidad → ataque con Power Chord de E (50 % de ralentización) → Q para rematar.",
+  "Pelea en foso: R desde el flanco por el pasillo de entrada del foso → W y Q continuas para curar y pegar con las auras."
+ ],
+ "build": {
+  "objetos_clave": [
+   "Atlas mundial",
+   "Tonada sanguina",
+   "Tejesueños",
+   "Lágrima de la diosa",
+   "Ecos de Helia",
+   "Diadema melodiosa",
+   "Renovación de piedra lunar",
+   "Bastón de aguas fluidas",
+   "Bastón del arcángel",
+   "Incensario ardiente",
+   "Núcleo albar",
+   "Botas de rapidez",
+   "Botas jonias de la lucidez"
+  ],
+  "runas": "Invocar a Aery (Brujería) en el 93 % con Banda de maná, Trascendencia y Se avecina tormenta; secundaria Valor (53 %) con Revitalizar y Condicionamiento o Revestimiento de huesos, o Precisión (23 %). Cometa arcano en ~4 % para un poke más agresivo. Fragmentos: fuerza adaptable, celeridad o velocidad de movimiento.",
+  "hechizos": [
+   "Destello",
+   "Curar"
+  ],
+  "nota": "Destello + Curar en el 84 %; Destello + Agotamiento (12 %) contra asesinos o supports de enganche. Inicio con Atlas mundial y 2 pociones; la mejora del objeto de support es Tonada sanguina (49 %, más agresiva) o Tejesueños (36 %, más curación). Lágrima de la diosa en la primera vuelta casi siempre. Núcleo: Ecos de Helia o Diadema melodiosa → Renovación de piedra lunar o Bastón de aguas fluidas; cuarto objeto Incensario ardiente con tiradores de velocidad de ataque o Núcleo albar. Botas de rapidez (~46 %) o Botas jonias de la lucidez (~49 %)."
+ },
+ "por_rol": {
+  "SUPPORT": {
+   "linea_2v2": {
+    "nivel_2": "No busca el all-in de nivel 2: Q a nivel 1 para pegar al support rival cuando se acerca a por los súbditos y W a nivel 2 para curar tras el intercambio. Si el rival es un enganchador (Leona, Nautilus, Blitzcrank), se coloca detrás de su tirador y fuera de la línea de súbditos cuando el rival está a punto de subir a nivel 2.",
+    "tradeos": "Cada Q (8 s) que solo toca al rival es una ganancia: Q + ataque con Power Chord y retirada; W para curar cuando su tirador pierde vida. No entra en peleas largas antes del 6 contra supports tanque; contra encantadoras pasivas (Soraka, Janna, Milio) intercambia constantemente con la Q.",
+    "oleadas": "Prefiere una oleada empujando lento hacia la torre rival para pegar desde la distancia; si el rival tiene enganche, quiere la oleada cerca de su torre para no morir. Vuelve a base pronto (~4:00-5:00) para comprar la Lágrima de la diosa y pociones.",
+    "con_que_adcs": [
+     "Ezreal",
+     "Caitlyn",
+     "Lucian",
+     "Miss Fortune",
+     "Jhin",
+     "Kog'Maw",
+     "Jinx"
+    ],
+    "sufre_contra": [
+     "Blitzcrank",
+     "Nautilus",
+     "Leona",
+     "Pyke",
+     "Senna",
+     "Tahm Kench",
+     "Elise"
+    ],
+    "contra_enganche": "Contra Blitzcrank, Thresh, Nautilus o Leona se queda detrás de su tirador y fuera de la línea de súbditos, guarda la R para el momento en que el enganchador entra (aturde al enganchador y al tirador que le sigue) y usa la E para apartar a su tirador. Con Agotamiento en lugar de Curar contra Pyke o Leona.",
+    "nivel_6": "Desde el nivel 6 la R cambia la línea: con su tirador cerca, Q-W-E para cargar Power Chord y R sobre los dos rivales es kill casi segura si el rival no tiene Purificar o Destello. Antes del 6 debe evitar el all-in."
+   },
+   "roameos": "Roamea poco: es lenta y frágil hasta tener objetos. Va a mid con E cuando su oleada está empujada y su tirador está en base, sobre todo a partir del nivel 6 (R para un gank de su jungla). La mayoría de sus kills y asistencias antes del 14 son en bot y en el río del dragón.",
+   "vision": "Moderada: guardianes en el río y en el tri-arbusto de bot para evitar enganches y ganks; Guardián de control en el arbusto de la línea o del río. Suele mantener el trinket amarillo para poner más guardianes y cambiarlo a Lente del oráculo más tarde que un tanque.",
+   "fase_media": "Tras la fase de líneas sigue a su tirador o se agrupa en mid. Busca peleas en los objetivos donde su R pueda aturdir a varios en un pasillo; pone visión en grupo, nunca sola en la jungla rival. Desde los 2-3 objetos su equipo gana las peleas largas gracias a las auras y a la curación.",
+   "matchups_dificiles": [
+    "Blitzcrank",
+    "Nautilus",
+    "Leona",
+    "Pyke",
+    "Senna",
+    "Taric",
+    "Soraka",
+    "Tahm Kench",
+    "Elise",
+    "Fiddlesticks",
+    "Nami",
+    "Rell"
+   ],
+   "matchups_faciles": [
+    "Alistar",
+    "Poppy",
+    "Camille",
+    "Xerath",
+    "Zoe",
+    "Shaco",
+    "Ashe",
+    "Veigar",
+    "Mel",
+    "Twisted Fate",
+    "Anivia"
+   ]
+  }
+ },
+ "peleas": {
+  "papel": "Encantadora de utilidad y control: cura, pega con auras y abre o defiende la pelea con la R en línea.",
+  "como_entrar": "No entra: se coloca detrás del frente, busca el ángulo en que la R toque a varios (pasillos de la jungla, entrada del foso, rivales en fila) y la lanza al empezar la pelea o cuando el rival se lanza. Después, Q y W continuas, E para reposicionar al equipo.",
+  "objetivo": "Con la R, el mayor número de rivales posible (idealmente su retaguardia); con la Q pega a los dos más cercanos, así que su posición decide a quién golpea.",
+  "posicion": "Detrás de su tirador, a ~800-1000 u del frente rival: lo bastante cerca para que su W y sus auras toquen a su equipo y lejos de los enganches. Es el primer objetivo de los asesinos rivales."
+ },
+ "macro": {
+  "split_push": "No. Siempre con el grupo o con su tirador.",
+  "objetivos": "No hace objetivos sola. Pone visión de dragón (5:00), larvas y Heraldo con su equipo y defiende el foso con la R en el pasillo de entrada.",
+  "plan_de_partida": "0-6 min: sobrevivir a los enganches y ganar pequeños intercambios con Q; Lágrima en la primera vuelta. 6-14 min: R en las peleas de bot y del dragón, visión con su tirador. 14-25 min: agruparse en mid y alrededor de los objetivos; cargar la pasiva acertando Q y W. 25+: es su fase más fuerte: peleas largas en Barón y Alma de dragón con R casi cada minuto."
+ },
+ "debilidades": [
+  "Muy frágil y sin escape real (solo E y Destello): un enganche o un asesino la matan si está fuera de posición.",
+  "Débil en los primeros niveles contra supports de enganche y contra poke de más alcance que su Q de 825 u (Senna, Lux, Vel'Koz): pierde vida y maná antes de poder intercambiar.",
+  "Su Q golpea a los dos enemigos más cercanos: si hay súbditos o monstruos más cerca, pierde el poke sobre los campeones.",
+  "Depende de cargar Accelerando y de comprar objetos: si muere mucho o va por detrás, sus auras y su curación pesan poco.",
+  "Las heridas graves (Llamada del verdugo, Morellonomicón, Malla de espinas) reducen mucho su curación."
+ ],
+ "contrarrestado_por": [
+  "Blitzcrank",
+  "Nautilus",
+  "Leona",
+  "Pyke",
+  "Senna",
+  "Taric",
+  "Soraka",
+  "Elise",
+  "Nami",
+  "Rell"
+ ],
+ "bueno_contra": [
+  "Alistar",
+  "Poppy",
+  "Camille",
+  "Zoe",
+  "Shaco",
+  "Ashe",
+  "Veigar",
+  "Mel",
+  "Xerath"
+ ],
+ "sinergias": [
+  "Ezreal",
+  "Caitlyn",
+  "Lucian",
+  "Miss Fortune",
+  "Jhin",
+  "Kog'Maw",
+  "Taric"
+ ],
+ "errores_comunes": [
+  "Ponerse en la línea de súbditos o delante de su tirador contra un enganchador antes del 6.",
+  "Gastar la R sobre un solo rival en la línea en vez de guardarla para un enganche o una pelea grande.",
+  "Lanzar la Q cuando hay súbditos más cerca que el campeón rival: el golpe va a los súbditos y no carga Accelerando.",
+  "Olvidar el Power Chord: no rematar con el ataque potenciado tras 3 habilidades.",
+  "Ir sola a poner visión a la jungla rival en la fase media.",
+  "No comprar la Lágrima de la diosa pronto: sin maná deja de usar la W en la línea."
+ ],
+ "senales_reconstructor": [
+  "Ritmo de support: nivel 2 hacia la 1:55, nivel 6 hacia el 8:30-9:00 y nivel 11 hacia el 21-22; CS ~10-15 a los 10 min (solo súbditos sueltos). No tiene nada global: su R es una línea de 1000 u.",
+  "Pocas kills propias y muchas asistencias: participación en kills alta (curaciones y auras cuentan como asistencia), daño moderado y curación a aliados muy alta (puede superar los 8000-10000 en partidas largas).",
+  "Mejor en partidas largas: su fuerza crece con la duración; un equipo con Sona que pierde la fase de líneas y gana después del 30 es su curva normal, no una sorpresa.",
+  "Primera vuelta hacia el 4:00-5:00 con Lágrima de la diosa (casi siempre) y pociones o Guardián de control; primer objeto (Ecos de Helia o Diadema melodiosa) hacia el 12-14, segundo (Renovación de piedra lunar o Bastón de aguas fluidas) hacia el 20-22.",
+  "Muertes tempranas frecuentes contra enganchadores (Blitzcrank, Nautilus, Leona, Pyke): una o dos muertes en bot antes del 8 son habituales y no indican necesariamente un mal posicionamiento extremo.",
+  "Roameos escasos: la mayoría de sus kills y asistencias antes del 14 son en bot y en el río del dragón; una Sona en mid antes del 6 es rara (suele ser con su tirador en base).",
+  "Destello + Curar en el 84 %: asistencias sin estar en el punto de la muerte, dentro de los 1000 u de su W o 850 de Curar, son normales.",
+  "R de 1000 u: muertes rivales en fila en pasillos de la jungla o en la entrada del foso tras una pelea son la firma de una buena Crescendo; en las peleas tardías su R vuelve en ~60-70 s gracias a la pasiva.",
+  "Poca muerte en la tardía si el equipo protege: su número de muertes suele concentrarse antes del 15; en partidas largas su participación en kills puede superar el 65-70 % por las auras y la W.",
+  "Velocidad de grupo: con la E (aura de 3 s) y las Botas de rapidez su equipo rota más rápido; peleas en objetivos donde los aliados de Sona llegan antes que el rival son coherentes con ella.",
+  "Visión media: alrededor de 1-1,5 guardianes por minuto; menos que un tanque de enganche, porque no puede adentrarse en la jungla rival sola."
+ ],
+ "fuentes": [
+  "https://lolalytics.com/lol/sona/build/",
+  "https://www.op.gg/lol/champions/sona/build/support",
+  "https://lolalytics.com/lol/sona/counters/",
+  "https://wiki.leagueoflegends.com/en-us/Sona",
+  "Data Dragon 16.23.1 (data/ddragon/16.23.1/championFull.json, item.json y runesReforged.json)"
+ ],
+ "datos_otp": {
+  "fuente": "partidas guardadas por el programa (data/otps; si no hay bastantes OTPs, data/partidas_campeon): de Diamante en adelante y de los parches más recientes que dan bastantes partidas (cada rol lo dice)",
+  "actualizado": "2026-11-27",
+  "por_rol": {
+   "SUPPORT": {
+    "partidas": 277,
+    "victorias": 0.505,
+    "victorias_por_duracion": [
+     {
+      "minutos": "0-20",
+      "partidas": 40,
+      "victorias": 0.525
+     },
+     {
+      "minutos": "20-25",
+      "partidas": 64,
+      "victorias": 0.5
+     },
+     {
+      "minutos": "25-30",
+      "partidas": 97,
+      "victorias": 0.536
+     },
+     {
+      "minutos": "30-35",
+      "partidas": 59,
+      "victorias": 0.475
+     }
+    ],
+    "primera_vuelta_min": {
+     "p25": 3.3,
+     "mediana": 4.1,
+     "p75": 5.9
+    },
+    "primer_objeto_min": {
+     "p25": 10.6,
+     "mediana": 12.2,
+     "p75": 13.7
+    },
+    "segundo_objeto_min": {
+     "p25": 18.9,
+     "mediana": 20.7,
+     "p75": 22.4
+    },
+    "primer_objeto": [
+     [
+      "Ecos de Helia",
+      0.71
+     ],
+     [
+      "Renovación de piedra lunar",
+      0.2
+     ],
+     [
+      "Bastón del arcángel",
+      0.06
+     ],
+     [
+      "Bastón de aguas fluidas",
+      0.02
+     ]
+    ],
+    "orden_9_primeras_subidas": [
+     [
+      "QWEQQRWWW",
+      0.38
+     ],
+     [
+      "QWEQQRQWQ",
+      0.14
+     ],
+     [
+      "QWEWWRWQW",
+      0.11
+     ]
+    ],
+    "maximiza": [
+     [
+      "WQE",
+      0.74
+     ],
+     [
+      "QWE",
+      0.26
+     ]
+    ],
+    "participacion_kills_pct": {
+     "p25": 56.0,
+     "mediana": 64.0,
+     "p75": 75.0
+    },
+    "parte_del_dano_pct": {
+     "p25": 9.5,
+     "mediana": 11.9,
+     "p75": 13.8
+    },
+    "vision_por_min": {
+     "p25": 2.51,
+     "mediana": 2.95,
+     "p75": 3.41
+    },
+    "muertes_antes_14": {
+     "p25": 1.0,
+     "mediana": 2.0,
+     "p75": 4.0
+    },
+    "solo_kills_media": 0.16,
+    "tiempo_solo_en_lateral_tarde_pct": {
+     "p25": 0.0,
+     "mediana": 1.0,
+     "p75": 3.9
+    },
+    "tiempo_agrupado_tarde_pct": {
+     "p25": 30.2,
+     "mediana": 40.9,
+     "p75": 49.6
+    },
+    "cs_10": {
+     "p25": 9.0,
+     "mediana": 11.0,
+     "p75": 14.0
+    },
+    "dif_cs_10": {
+     "p25": -6.0,
+     "mediana": -2.0,
+     "p75": 1.0
+    },
+    "dif_oro_10": {
+     "p25": -398.0,
+     "mediana": 23.0,
+     "p75": 296.0
+    },
+    "placas": {
+     "p25": 2.0,
+     "mediana": 5.0,
+     "p75": 11.0
+    },
+    "tiempo_en_otra_linea_antes_14_pct": {
+     "p25": 3.5,
+     "mediana": 7.7,
+     "p75": 11.9
+    },
+    "tiempo_en_rio_antes_14_pct": {
+     "p25": 7.1,
+     "mediana": 10.7,
+     "p75": 15.7
+    },
+    "wards_antes_14": {
+     "p25": 10.0,
+     "mediana": 12.0,
+     "p75": 14.0
+    },
+    "pinks": {
+     "p25": 4.0,
+     "mediana": 8.0,
+     "p75": 13.0
+    },
+    "elo": "Diamante+",
+    "jugadores": "OTPs",
+    "parches": "16.16-16.23"
+   }
+  }
+ }
+}
