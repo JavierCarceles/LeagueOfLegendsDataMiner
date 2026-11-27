@@ -119,6 +119,14 @@ class Services:
             log.exception("Fallo en las tareas de arranque")
         finally:
             self.startup_done.set()
+        # Empezar de cero con una versión nueva del análisis (``app/reinicio.py``; apagado salvo que se active): antes de
+        # recolectar y de re-analizar nada.
+        try:
+            from app import reinicio
+
+            reinicio.maybe_reset(self)
+        except Exception:
+            log.exception("No se pudieron borrar las partidas recogidas para empezar de cero")
         # El registro de escrituras de SQLite se vuelca al fichero principal en segundo plano (no dentro de cada escritura).
         self.db.start_checkpointer(getattr(self, "shutdown_event", None))
         # Muestreo de dónde está cada hilo (por qué va lento: en el embudo y el registro que se suben a GitHub).
