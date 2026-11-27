@@ -1,23 +1,22 @@
 {
- "at": 1795793018,
+ "at": 1795793185,
  "diagnostico": {
   "videos-frames": {
-   "muestras": 9342,
+   "muestras": 8772,
    "en": {
-    "otro": 71,
-    "parado esperando trabajo": 29
+    "otro": 100
    },
    "lineas": {
-    "videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run": 37,
-    "videos/collector.py:442 _should_stop_frames → threading.py:wait": 29,
-    "videos/frames.py:142 every": 9,
-    "thread.py _worker": 8,
-    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 3,
-    "videos/frames.py:143 every": 2
+    "thread.py _worker": 51,
+    "videos/hud.py:268 _texts → onnxruntime_inference_collection.py:run": 36,
+    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 4,
+    "videos/frames.py:142 every": 3,
+    "videos/frames.py:535 read": 1,
+    "videos/frames.py:143 every": 1
    }
   },
   "fetch": {
-   "muestras": 4152,
+   "muestras": 4048,
    "en": {
     "otro": 100
    },
@@ -25,72 +24,26 @@
     "thread.py _worker": 100
    }
   },
-  "crawler-dl-asia": {
-   "muestras": 1221,
+  "warm-opgg-web": {
+   "muestras": 1012,
    "en": {
-    "otro": 57,
-    "esperando turno de la key de Riot": 30,
-    "esperando a la red (Riot, OP.GG, GitHub)": 14
+    "esperando a la red (Riot, OP.GG, GitHub)": 70,
+    "parado esperando trabajo": 16,
+    "otro": 11,
+    "esperando un candado (base de datos, ficheros)": 2,
+    "consultando o escribiendo la base de datos": 1
    },
    "lineas": {
-    "thread.py _worker": 56,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 30,
-    "riot/client.py:72 request → ssl.py:read": 7,
-    "riot/client.py:72 request → response.py:decompress": 4,
-    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
-   }
-  },
-  "crawler-dl-sea": {
-   "muestras": 1215,
-   "en": {
-    "otro": 75,
-    "esperando turno de la key de Riot": 15,
-    "esperando a la red (Riot, OP.GG, GitHub)": 10
-   },
-   "lineas": {
-    "thread.py _worker": 75,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 15,
-    "riot/client.py:72 request → ssl.py:read": 7,
-    "riot/client.py:72 request → response.py:decompress": 2,
-    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 0,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
-   }
-  },
-  "crawler-dl-europe": {
-   "muestras": 1215,
-   "en": {
-    "otro": 53,
-    "esperando turno de la key de Riot": 38,
-    "esperando a la red (Riot, OP.GG, GitHub)": 9
-   },
-   "lineas": {
-    "thread.py _worker": 53,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 38,
-    "riot/client.py:72 request → ssl.py:read": 4,
-    "riot/client.py:72 request → response.py:decompress": 3,
-    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 1,
-    "riot/client.py:72 request → ssl.py:send": 0
-   }
-  },
-  "crawler-dl-americas": {
-   "muestras": 1215,
-   "en": {
-    "otro": 79,
-    "esperando turno de la key de Riot": 14,
-    "esperando a la red (Riot, OP.GG, GitHub)": 6
-   },
-   "lineas": {
-    "thread.py _worker": 79,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 14,
-    "riot/client.py:72 request → ssl.py:read": 3,
-    "riot/client.py:72 request → response.py:decompress": 2,
-    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 0,
-    "riot/client.py:72 request → utils.py:get_netrc_auth": 0
+    "external/opgg.py:345 _page → ssl.py:read": 69,
+    "warmer.py:201 _work → threading.py:wait": 14,
+    "external/base.py:112 wait": 11,
+    "external/base.py:170 _cache_put → db.py:write": 3,
+    "warmer.py:178 _work → threading.py:wait": 2,
+    "external/base.py:155 peek → db.py:one": 0
    }
   },
   "Thread-20 (": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "otro": 100
    },
@@ -99,7 +52,7 @@
    }
   },
   "Thread-19 (": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "otro": 100
    },
@@ -107,202 +60,199 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "db-checkpoint": {
-   "muestras": 519,
+  "grabacion": {
+   "muestras": 506,
    "en": {
-    "esperando un candado (base de datos, ficheros)": 99,
-    "consultando o escribiendo la base de datos": 1
+    "otro": 100
    },
    "lineas": {
-    "data/db.py:516 run → threading.py:wait": 99,
-    "data/db.py:486 _run_checkpoint": 1
+    "videos/frames.py:551 _scan": 100
+   }
+  },
+  "db-checkpoint": {
+   "muestras": 506,
+   "en": {
+    "esperando un candado (base de datos, ficheros)": 98,
+    "consultando o escribiendo la base de datos": 2
+   },
+   "lineas": {
+    "data/db.py:516 run → threading.py:wait": 98,
+    "data/db.py:484 _run_checkpoint": 2
    }
   },
   "MainThread": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "windows_events.py _poll": 97,
-    "windows_events.py recv": 1,
-    "windows_events.py recv_into": 1,
-    "windows_events.py send": 0,
+    "windows_events.py _poll": 99,
+    "windows_events.py _cancel_overlapped": 0,
+    "windows_events.py accept": 0,
+    "socket.py __init__": 0,
     "windows_events.py _register_with_iocp": 0,
-    "budget.py:105 send_wrapper → windows_events.py:send": 0
-   }
-  },
-  "grabacion": {
-   "muestras": 519,
-   "en": {
-    "otro": 75,
-    "parado esperando trabajo": 25
-   },
-   "lineas": {
-    "videos/frames.py:551 _scan": 56,
-    "recorder.py:144 _loop → threading.py:wait": 24,
-    "videos/frames.py:356 _digit_peaks": 7,
-    "videos/frames.py:426 read → onnxruntime_inference_collection.py:run": 3,
-    "videos/frames.py:197 _search_corner": 2,
-    "videos/frames.py:356 _digit_peaks → shape_base.py:stack": 1
-   }
-  },
-  "crawler-sea": {
-   "muestras": 405,
-   "en": {
-    "parado esperando trabajo": 36,
-    "esperando un candado (base de datos, ficheros)": 16,
-    "esperando a la red (Riot, OP.GG, GitHub)": 13,
-    "analizando partidas": 13,
-    "consultando o escribiendo la base de datos": 9,
-    "comprimiendo o escribiendo ficheros": 7,
-    "esperando turno de la key de Riot": 5,
-    "otro": 1
-   },
-   "lineas": {
-    "ingest/crawler.py:1350 _otp_step → threading.py:wait": 29,
-    "ingest/otp_details.py:658 save → db.py:write": 9,
-    "riot/client.py:72 request → ssl.py:read": 8,
-    "ingest/otp_details.py:1921 append": 7,
-    "ingest/crawler.py:1118 take → threading.py:wait": 7,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 5
-   }
-  },
-  "crawler-americas": {
-   "muestras": 405,
-   "en": {
-    "parado esperando trabajo": 39,
-    "esperando un candado (base de datos, ficheros)": 18,
-    "analizando partidas": 11,
-    "consultando o escribiendo la base de datos": 10,
-    "esperando a la red (Riot, OP.GG, GitHub)": 10,
-    "esperando turno de la key de Riot": 6,
-    "comprimiendo o escribiendo ficheros": 4,
-    "otro": 2
-   },
-   "lineas": {
-    "ingest/crawler.py:1350 _otp_step → threading.py:wait": 30,
-    "ingest/crawler.py:1118 take → threading.py:wait": 9,
-    "ingest/otp_details.py:1921 append": 8,
-    "ingest/otp_details.py:658 save → db.py:write": 7,
-    "riot/ratelimit.py:215 acquire → threading.py:wait": 6,
-    "riot/client.py:72 request → ssl.py:read": 5
-   }
-  },
-  "crawler-asia": {
-   "muestras": 407,
-   "en": {
-    "parado esperando trabajo": 46,
-    "esperando un candado (base de datos, ficheros)": 18,
-    "consultando o escribiendo la base de datos": 15,
-    "analizando partidas": 13,
-    "comprimiendo o escribiendo ficheros": 6,
-    "otro": 1,
-    "esperando a la red (Riot, OP.GG, GitHub)": 1
-   },
-   "lineas": {
-    "ingest/crawler.py:1350 _otp_step → threading.py:wait": 30,
-    "ingest/crawler.py:1118 take → threading.py:wait": 15,
-    "ingest/otp_details.py:1921 append": 8,
-    "data/repository.py:270 store_match → db.py:write": 6,
-    "ingest/otp_details.py:658 save → db.py:write": 4,
-    "data/repository.py:106 upsert_match_players": 3
-   }
-  },
-  "warm-opgg-web": {
-   "muestras": 1038,
-   "en": {
-    "parado esperando trabajo": 80,
-    "esperando a la red (Riot, OP.GG, GitHub)": 18,
-    "otro": 1
-   },
-   "lineas": {
-    "warmer.py:178 _work → threading.py:wait": 44,
-    "warmer.py:175 _work → threading.py:wait": 23,
-    "external/opgg.py:345 _page → ssl.py:read": 18,
-    "warmer.py:201 _work → threading.py:wait": 14,
-    "external/base.py:112 wait": 1,
-    "external/base.py:155 peek → db.py:one": 0
-   }
-  },
-  "crawler-europe": {
-   "muestras": 405,
-   "en": {
-    "parado esperando trabajo": 56,
-    "esperando un candado (base de datos, ficheros)": 18,
-    "consultando o escribiendo la base de datos": 11,
-    "analizando partidas": 9,
-    "comprimiendo o escribiendo ficheros": 5,
-    "otro": 1
-   },
-   "lineas": {
-    "ingest/crawler.py:1350 _otp_step → threading.py:wait": 29,
-    "ingest/crawler.py:1118 take → threading.py:wait": 27,
-    "ingest/otp_details.py:1921 append": 7,
-    "data/repository.py:270 store_match → db.py:write": 6,
-    "ingest/otp_details.py:658 save → db.py:write": 4,
-    "data/repository.py:106 upsert_match_players": 2
+    "windows_events.py recv": 0
    }
   },
   "warm-lolalytics": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
-    "parado esperando trabajo": 76,
-    "otro": 17,
-    "esperando a la red (Riot, OP.GG, GitHub)": 4,
-    "esperando un candado (base de datos, ficheros)": 3,
-    "consultando o escribiendo la base de datos": 1
+    "otro": 73,
+    "parado esperando trabajo": 15,
+    "esperando a la red (Riot, OP.GG, GitHub)": 9,
+    "esperando un candado (base de datos, ficheros)": 3
    },
    "lineas": {
-    "warmer.py:201 _work → threading.py:wait": 54,
-    "warmer.py:175 _work → threading.py:wait": 22,
-    "external/base.py:112 wait": 17,
+    "external/base.py:112 wait": 73,
+    "warmer.py:201 _work → threading.py:wait": 15,
+    "external/lolalytics.py:107 _get → ssl.py:read": 8,
     "external/base.py:170 _cache_put → db.py:write": 3,
-    "external/lolalytics.py:107 _get → ssl.py:read": 2,
+    "external/base.py:155 peek → db.py:one": 0,
     "external/lolalytics.py:107 _get → utils.py:get_netrc_auth": 0
    }
   },
-  "grabacion-ffmpeg": {
-   "muestras": 116,
+  "crawler-dl-asia": {
+   "muestras": 207,
+   "en": {
+    "esperando turno de la key de Riot": 51,
+    "otro": 25,
+    "esperando a la red (Riot, OP.GG, GitHub)": 24
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 51,
+    "thread.py _worker": 24,
+    "riot/client.py:72 request → ssl.py:read": 12,
+    "riot/client.py:72 request → response.py:decompress": 8,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1
+   }
+  },
+  "crawler-dl-sea": {
+   "muestras": 201,
    "en": {
     "otro": 100
    },
    "lineas": {
-    "recorder.py:221 _drain": 100
+    "thread.py _worker": 100
    }
   },
-  "otp-summaries": {
-   "muestras": 108,
+  "crawler-dl-europe": {
+   "muestras": 201,
    "en": {
-    "otro": 41,
-    "esperando un candado (base de datos, ficheros)": 33,
-    "consultando o escribiendo la base de datos": 19,
-    "comprimiendo o escribiendo ficheros": 6
+    "esperando turno de la key de Riot": 53,
+    "otro": 27,
+    "esperando a la red (Riot, OP.GG, GitHub)": 20
    },
    "lineas": {
-    "ingest/otp_details.py:2001 write_summary": 33,
-    "coach/store.py:25 unpack": 24,
-    "ingest/otp_details.py:1987 write_summary → db.py:query": 17,
-    "ingest/otp_details.py:1979 _summary_batch": 6,
-    "ingest/otp_details.py:1987 write_summary → db.py:conn": 3,
-    "coach/store.py:25 unpack → decoder.py:raw_decode": 3
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 53,
+    "thread.py _worker": 26,
+    "riot/client.py:72 request → response.py:decompress": 7,
+    "riot/client.py:72 request → ssl.py:read": 6,
+    "riot/client.py:72 request → utils.py:proxy_bypass_registry": 2,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 1
+   }
+  },
+  "crawler-dl-americas": {
+   "muestras": 201,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "thread.py _worker": 100
    }
   },
   "web": {
-   "muestras": 1239,
+   "muestras": 1171,
    "en": {
-    "parado esperando trabajo": 93,
-    "otro": 4,
-    "consultando o escribiendo la base de datos": 2,
-    "comprimiendo o escribiendo ficheros": 2
+    "parado esperando trabajo": 92,
+    "consultando o escribiendo la base de datos": 5,
+    "otro": 2,
+    "comprimiendo o escribiendo ficheros": 1,
+    "esperando un candado (base de datos, ficheros)": 1
    },
    "lineas": {
-    "threading.py wait": 93,
-    "config.py:23 _env_values → main.py:_get_stream": 2,
-    "config.py:22 _env_values → __init__.py:exists": 1,
-    "config.py:23 _env_values → parser.py:__init__": 1,
-    "proactor_events.py _write_to_self": 1,
-    "api/system.py:61 _count_db → db.py:one": 0
+    "threading.py wait": 92,
+    "analytics/aggregates.py:223 all_synergies → db.py:query": 2,
+    "analytics/aggregates.py:216 all_pairs → db.py:query": 1,
+    "config.py:23 _env_values → main.py:_get_stream": 1,
+    "analytics/aggregates.py:93 run → db.py:query": 1,
+    "api/system.py:61 _count_db → db.py:one": 1
+   }
+  },
+  "crawler-sea": {
+   "muestras": 67,
+   "en": {
+    "esperando a la red (Riot, OP.GG, GitHub)": 37,
+    "analizando partidas": 21,
+    "comprimiendo o escribiendo ficheros": 13,
+    "esperando turno de la key de Riot": 13,
+    "esperando un candado (base de datos, ficheros)": 7,
+    "consultando o escribiendo la base de datos": 4,
+    "otro": 3
+   },
+   "lineas": {
+    "riot/client.py:72 request → ssl.py:read": 19,
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 13,
+    "riot/client.py:72 request → response.py:decompress": 12,
+    "ingest/otp_details.py:658 save → db.py:write": 7,
+    "coach/navgrid.py:345 _expand": 4,
+    "coach/navgrid.py:349 _expand": 4
+   }
+  },
+  "crawler-americas": {
+   "muestras": 67,
+   "en": {
+    "esperando a la red (Riot, OP.GG, GitHub)": 40,
+    "esperando turno de la key de Riot": 21,
+    "analizando partidas": 18,
+    "comprimiendo o escribiendo ficheros": 7,
+    "consultando o escribiendo la base de datos": 6,
+    "esperando un candado (base de datos, ficheros)": 6,
+    "otro": 1
+   },
+   "lineas": {
+    "riot/ratelimit.py:215 acquire → threading.py:wait": 21,
+    "riot/client.py:72 request → ssl.py:read": 19,
+    "riot/client.py:72 request → response.py:decompress": 13,
+    "riot/client.py:72 request → utils.py:get_netrc_auth": 4,
+    "ingest/otp_details.py:658 save → db.py:write": 4,
+    "ingest/otp_details.py:434 player_info → db.py:one": 3
+   }
+  },
+  "otp-summaries": {
+   "muestras": 56,
+   "en": {
+    "otro": 64,
+    "consultando o escribiendo la base de datos": 20,
+    "comprimiendo o escribiendo ficheros": 12,
+    "esperando un candado (base de datos, ficheros)": 4
+   },
+   "lineas": {
+    "coach/store.py:25 unpack": 32,
+    "ingest/otp_details.py:1987 write_summary → db.py:query": 18,
+    "ingest/otp_details.py:1979 _summary_batch": 12,
+    "coach/store.py:25 unpack → decoder.py:raw_decode": 5,
+    "ingest/otp_details.py:2001 write_summary": 4,
+    "ingest/otp_details.py:1366 _stats": 4
+   }
+  },
+  "crawler-asia": {
+   "muestras": 69,
+   "en": {
+    "consultando o escribiendo la base de datos": 26,
+    "parado esperando trabajo": 25,
+    "comprimiendo o escribiendo ficheros": 20,
+    "analizando partidas": 20,
+    "esperando un candado (base de datos, ficheros)": 7,
+    "otro": 1
+   },
+   "lineas": {
+    "ingest/crawler.py:1118 take → threading.py:wait": 25,
+    "ingest/otp_details.py:703 save_raw → gzip.py:_write_raw": 7,
+    "data/repository.py:106 upsert_match_players": 4,
+    "data/repository.py:319 _aggregate": 4,
+    "data/repository.py:320 _aggregate": 4,
+    "ingest/otp_details.py:1921 append": 4
    }
   },
   "Thread-211 (": {
@@ -323,133 +273,98 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "autopush": {
-   "muestras": 191,
+  "crawler-europe": {
+   "muestras": 67,
    "en": {
-    "parado esperando trabajo": 77,
-    "otro": 21,
-    "subiendo a GitHub": 1,
-    "comprimiendo o escribiendo ficheros": 1
-   },
-   "lineas": {
-    "autopush.py:91 _git → threading.py:join": 51,
-    "ingest/otp_details.py:2122 wait_summaries → threading.py:join": 17,
-    "autopush.py:132 _read_progress": 13,
-    "autopush.py:533 _fresh_funnel → threading.py:join": 6,
-    "autopush.py:567 _write_log → linecache.py:checkcache": 4,
-    "autopush.py:91 _git → threading.py:wait": 3
-   }
-  },
-  "warm-planner": {
-   "muestras": 519,
-   "en": {
-    "parado esperando trabajo": 92,
-    "esperando a la red (Riot, OP.GG, GitHub)": 8
-   },
-   "lineas": {
-    "warmer.py:310 _plan_loop → threading.py:wait": 59,
-    "warmer.py:322 _plan_loop → threading.py:wait": 33,
-    "external/opgg.py:345 _page → ssl.py:read": 6,
-    "external/opgg.py:345 _page → response.py:decompress": 1,
-    "external/base.py:155 peek → db.py:one": 0,
-    "external/opgg.py:345 _page → connection.py:request": 0
-   }
-  },
-  "draft-live": {
-   "muestras": 519,
-   "en": {
-    "parado esperando trabajo": 93,
-    "esperando a la red (Riot, OP.GG, GitHub)": 5,
-    "consultando o escribiendo la base de datos": 1,
-    "otro": 1,
-    "comprimiendo o escribiendo ficheros": 1
-   },
-   "lineas": {
-    "draft_live.py:448 _run → threading.py:wait": 93,
-    "draft_live.py:89 get_prefs → db.py:one": 1,
-    "lcu.py:127 _request → connection.py:create_connection": 1,
-    "lcu.py:127 _request → ssl.py:_load_windows_store_certs": 1,
-    "lcu.py:127 _request → ssl.py:read": 1,
-    "lcu.py:127 _request → ssl.py:do_handshake": 1
-   }
-  },
-  "lol-client-watch": {
-   "muestras": 519,
-   "en": {
-    "parado esperando trabajo": 94,
-    "esperando a la red (Riot, OP.GG, GitHub)": 4,
-    "comprimiendo o escribiendo ficheros": 1,
+    "parado esperando trabajo": 34,
+    "consultando o escribiendo la base de datos": 30,
+    "analizando partidas": 15,
+    "esperando un candado (base de datos, ficheros)": 12,
+    "comprimiendo o escribiendo ficheros": 7,
     "otro": 1
    },
    "lineas": {
-    "coach/tracker.py:496 _watch_loop → threading.py:wait": 94,
-    "lcu.py:127 _request → ssl.py:do_handshake": 1,
-    "lcu.py:93 _lockfile → __init__.py:open": 1,
-    "lcu.py:127 _request → ssl.py:_create": 1,
-    "lcu.py:127 _request → ssl.py:read": 1,
-    "lcu.py:127 _request → ssl.py:send": 1
+    "ingest/crawler.py:1118 take → threading.py:wait": 34,
+    "ingest/otp_details.py:658 save → db.py:write": 12,
+    "ingest/otp_details.py:504 _by_mastery → db.py:one": 6,
+    "data/repository.py:320 _aggregate": 4,
+    "coach/navgrid.py:151 _line_clear": 4,
+    "data/repository.py:124 upsert_match_players": 3
    }
   },
-  "crawler-rows": {
-   "muestras": 23,
+  "autopush": {
+   "muestras": 129,
    "en": {
-    "consultando o escribiendo la base de datos": 96,
-    "otro": 4
+    "parado esperando trabajo": 84,
+    "otro": 14,
+    "subiendo a GitHub": 2
    },
    "lineas": {
-    "ingest/crawler.py:846 unvisited_rows → db.py:query": 91,
-    "ingest/crawler.py:828 _known_rows → db.py:query": 4,
-    "ingest/crawler.py:417 targets": 4
+    "autopush.py:91 _git → threading.py:join": 58,
+    "ingest/otp_details.py:2122 wait_summaries → threading.py:join": 26,
+    "autopush.py:132 _read_progress": 13,
+    "autopush.py:91 _git → subprocess.py:_execute_child": 2,
+    "autopush.py:567 _write_log → linecache.py:checkcache": 1,
+    "autopush.py:91 _git → threading.py:wait": 1
+   }
+  },
+  "draft-live": {
+   "muestras": 506,
+   "en": {
+    "parado esperando trabajo": 96,
+    "esperando a la red (Riot, OP.GG, GitHub)": 3,
+    "consultando o escribiendo la base de datos": 1,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "draft_live.py:448 _run → threading.py:wait": 96,
+    "draft_live.py:89 get_prefs → db.py:one": 1,
+    "lcu.py:93 _lockfile → __init__.py:open": 1,
+    "lcu.py:127 _request → ssl.py:_load_windows_store_certs": 1,
+    "lcu.py:127 _request → connection.py:create_connection": 0,
+    "lcu.py:127 _request → ssl.py:_create": 0
+   }
+  },
+  "lol-client-watch": {
+   "muestras": 506,
+   "en": {
+    "parado esperando trabajo": 97,
+    "esperando a la red (Riot, OP.GG, GitHub)": 2,
+    "comprimiendo o escribiendo ficheros": 1
+   },
+   "lineas": {
+    "coach/tracker.py:496 _watch_loop → threading.py:wait": 97,
+    "lcu.py:127 _request → ssl.py:do_handshake": 1,
+    "lcu.py:93 _lockfile → __init__.py:open": 1,
+    "lcu.py:127 _request → ssl.py:read": 0,
+    "lcu.py:127 _request → connection.py:create_connection": 0,
+    "lcu.py:127 _request → ssl.py:_create": 0
    }
   },
   "warm-opgg-mcp": {
-   "muestras": 1038,
+   "muestras": 1012,
    "en": {
-    "parado esperando trabajo": 98,
+    "parado esperando trabajo": 99,
     "esperando a la red (Riot, OP.GG, GitHub)": 1
    },
    "lineas": {
-    "warmer.py:178 _work → threading.py:wait": 56,
-    "warmer.py:175 _work → threading.py:wait": 23,
-    "warmer.py:201 _work → threading.py:wait": 20,
-    "external/opgg.py:465 _mcp_post → ssl.py:read": 1,
+    "warmer.py:178 _work → threading.py:wait": 85,
+    "warmer.py:201 _work → threading.py:wait": 14,
     "external/base.py:155 peek → db.py:one": 0,
+    "external/opgg.py:465 _mcp_post → ssl.py:read": 0,
     "external/opgg.py:465 _mcp_post → response.py:decompress": 0
    }
   },
-  "crawler-funnel": {
-   "muestras": 15,
+  "warm-planner": {
+   "muestras": 506,
    "en": {
-    "esperando un candado (base de datos, ficheros)": 53,
-    "otro": 27,
-    "comprimiendo o escribiendo ficheros": 13,
-    "consultando o escribiendo la base de datos": 7
+    "parado esperando trabajo": 98,
+    "esperando a la red (Riot, OP.GG, GitHub)": 2
    },
    "lineas": {
-    "ingest/crawler.py:2951 _save_recent → db.py:write": 53,
-    "config.py:23 _env_values → main.py:_get_stream": 13,
-    "ingest/crawler.py:2951 _save_recent → db.py:conn": 7,
-    "ingest/crawler.py:3410 _funnel_diagnostics → __init__.py:emit": 7,
-    "ingest/crawler.py:3304 _write_funnel → __init__.py:write_text": 7,
-    "ingest/crawler.py:3408 _funnel_diagnostics → __init__.py:emit": 7
-   }
-  },
-  "Thread-160 (": {
-   "muestras": 10,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-159 (": {
-   "muestras": 9,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
+    "warmer.py:322 _plan_loop → threading.py:wait": 98,
+    "external/opgg.py:345 _page → ssl.py:read": 1,
+    "external/opgg.py:345 _page → response.py:decompress": 0
    }
   },
   "otp-relocate": {
@@ -468,24 +383,6 @@
     "ingest/otp_details.py:1246 relocate → db.py:query": 12
    }
   },
-  "Thread-154 (": {
-   "muestras": 7,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-153 (": {
-   "muestras": 7,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
   "crawler-stop": {
    "muestras": 8,
    "en": {
@@ -501,44 +398,16 @@
     "coach/ranking_stats.py:146 load → __init__.py:open": 12
    }
   },
-  "Thread-140 (": {
-   "muestras": 5,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "game-tracker": {
-   "muestras": 519,
-   "en": {
-    "parado esperando trabajo": 99
-   },
-   "lineas": {
-    "coach/tracker.py:400 _sleep → threading.py:wait": 99,
-    "riot/client.py:72 request → ssl.py:read": 0,
-    "coach/navgrid.py:349 _expand": 0,
-    "coach/analyzer.py:1002 interpolate": 0,
-    "coach/store.py:52 get_profile → db.py:one": 0
-   }
-  },
-  "Thread-170 (": {
+  "crawler-funnel": {
    "muestras": 4,
    "en": {
-    "otro": 100
+    "otro": 75,
+    "comprimiendo o escribiendo ficheros": 25
    },
    "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-169 (": {
-   "muestras": 4,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
+    "config.py:23 _env_values → main.py:_get_stream": 50,
+    "ingest/crawler.py:3408 _funnel_diagnostics → __init__.py:emit": 25,
+    "ingest/crawler.py:3305 _write_funnel → __init__.py:replace": 25
    }
   },
   "Thread-221 (": {
@@ -586,98 +455,70 @@
     "subprocess.py _readerthread": 100
    }
   },
+  "Thread-236 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-235 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-250 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-249 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-265 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-278 (": {
+   "muestras": 3,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
   "warm-riot-web": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "warmer.py:178 _work → threading.py:wait": 73,
-    "warmer.py:175 _work → threading.py:wait": 23,
-    "warmer.py:201 _work → threading.py:wait": 3,
+    "warmer.py:178 _work → threading.py:wait": 96,
+    "warmer.py:201 _work → threading.py:wait": 4,
     "external/patchnotes.py:271 _page → connection.py:create_connection": 0,
     "external/patchnotes.py:271 _page → ssl.py:read": 0
-   }
-  },
-  "Thread-139 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-138 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-152 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-151 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-156 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-155 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-164 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-163 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-182 (": {
-   "muestras": 2,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
    }
   },
   "Thread-191 (": {
@@ -707,176 +548,68 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "mis-partidas": {
-   "muestras": 519,
+  "Thread-246 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-245 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-266 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-279 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-287 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-286 (": {
+   "muestras": 2,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "game-tracker": {
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "coach/files.py:107 _run → threading.py:wait": 100,
-    "coach/files.py:132 sync → db.py:query": 0
-   }
-  },
-  "Thread-142 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-141 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-144 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-143 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-148 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-147 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-150 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-149 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-158 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-157 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-162 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-161 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-172 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-171 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-173 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-177 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-176 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
-   }
-  },
-  "Thread-183 (": {
-   "muestras": 1,
-   "en": {
-    "otro": 100
-   },
-   "lineas": {
-    "subprocess.py _readerthread": 100
+    "coach/tracker.py:400 _sleep → threading.py:wait": 100,
+    "coach/store.py:52 get_profile → db.py:one": 0
    }
   },
   "Thread-187 (": {
@@ -969,7 +702,7 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "Thread-236 (": {
+  "Thread-244 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -978,7 +711,61 @@
     "subprocess.py _readerthread": 100
    }
   },
-  "Thread-235 (": {
+  "Thread-243 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-256 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-255 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-258 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-257 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-268 (": {
+   "muestras": 1,
+   "en": {
+    "otro": 100
+   },
+   "lineas": {
+    "subprocess.py _readerthread": 100
+   }
+  },
+  "Thread-267 (": {
    "muestras": 1,
    "en": {
     "otro": 100
@@ -988,17 +775,16 @@
    }
   },
   "busquedas": {
-   "muestras": 6030,
+   "muestras": 960,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "ingest/crawler.py:2831 _search_step → threading.py:wait": 71,
-    "ingest/crawler.py:2851 _wait_if_paused → threading.py:wait": 29
+    "ingest/crawler.py:2831 _search_step → threading.py:wait": 100
    }
   },
   "track-check": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1007,16 +793,18 @@
    }
   },
   "videos": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
    "lineas": {
-    "videos/frames.py:776 sample_pass → threading.py:wait": 100
+    "videos/frames.py:776 sample_pass → threading.py:wait": 96,
+    "videos/collector.py:238 _sleep → threading.py:wait": 4,
+    "videos/frames.py:775 sample_pass → threading.py:join": 0
    }
   },
   "updater": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1027,7 +815,7 @@
    }
   },
   "rofl": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1035,8 +823,17 @@
     "replays_local.py:301 _run → threading.py:wait": 100
    }
   },
+  "mis-partidas": {
+   "muestras": 506,
+   "en": {
+    "parado esperando trabajo": 100
+   },
+   "lineas": {
+    "coach/files.py:107 _run → threading.py:wait": 100
+   }
+  },
   "tier-calibrator": {
-   "muestras": 519,
+   "muestras": 506,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1045,7 +842,7 @@
    }
   },
   "warm-demand": {
-   "muestras": 1557,
+   "muestras": 1518,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -1054,7 +851,7 @@
    }
   },
   "Thread": {
-   "muestras": 24,
+   "muestras": 17,
    "en": {
     "parado esperando trabajo": 100
    },
@@ -2839,21 +2636,49 @@
    "source": "autopush",
    "message": "Subida a GitHub: había otra en cola; subo también lo nuevo.",
    "hora": "16:23:38"
+  },
+  {
+   "id": 223,
+   "ts": 1795793029.2624655,
+   "kind": "info",
+   "source": "autopush",
+   "message": "Datos subidos a GitHub (0 partidas, 0 jugadores y 0 vídeos nuevos; rama main).",
+   "hora": "16:23:49"
+  },
+  {
+   "id": 224,
+   "ts": 1795793060.6111393,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/system/status tardó 2.8 s",
+   "hora": "16:24:20"
+  },
+  {
+   "id": 225,
+   "ts": 1795793060.6161098,
+   "kind": "info",
+   "source": "http",
+   "message": "Petición lenta: GET /api/system/status tardó 23.6 s",
+   "hora": "16:24:20"
+  },
+  {
+   "id": 226,
+   "ts": 1795793176.2088563,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: recogido «Velja discovers NattyNatt is on his team» (transcripción: yt-dlp json3, partida 1550 s con Twitch).",
+   "hora": "16:26:16"
+  },
+  {
+   "id": 227,
+   "ts": 1795793185.2370987,
+   "kind": "info",
+   "source": "videos",
+   "message": "Vídeos: subiendo a GitHub los 1 vídeos recogidos.",
+   "hora": "16:26:25"
   }
  ],
  "hilos": {
-  "Thread-236 (_readerthread)": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
-  ],
-  "Thread-235 (_readerthread)": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1614, in _readerthread |     buffer.append(fh.read())"
-  ],
   "autopush": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 507, in _loop |     self._run(wait_summaries)",
@@ -2868,139 +2693,6 @@
    "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
    "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
    "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
-  ],
-  "AnyIO worker thread #25680": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py\", line 1113, in run |     item = self.queue.get()",
-   "File \"C:\\Python314\\Lib\\queue.py\", line 199, in get |     self.not_empty.wait()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
-  ],
-  "videos-frames_17": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_16": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_15": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_14": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_13": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_12": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_11": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_10": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_9": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_8": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_7": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_6": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_5": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_4": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_3": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_2": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
-  ],
-  "videos-frames_1": [
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 118, in __call__ |     det_res, cls_res, rec_res, cropped_img_list = self.run_ocr_steps(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 162, in run_ocr_steps |     cropped_img_list, det_res = self.detect_and_crop(img, op_record)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\main.py\", line 341, in detect_and_crop |     det_res = det_model(img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\ch_ppocr_det\\main.py\", line 61, in __call__ |     preds = self.session(prepro_img)",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\rapidocr\\inference_engine\\onnxruntime\\main.py\", line 98, in __call__ |     return self.session.run(self.get_output_names(), input_dict)[0]",
-   "File \"C:\\Users\\User\\AppData\\Local\\TempuDrafter\\venv-py314\\Lib\\site-packages\\onnxruntime\\capi\\onnxruntime_inference_collection.py\", line 406, in run |     return self._sess.run(output_names, input_feed, run_options)"
-  ],
-  "videos-frames_0": [
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\thread.py\", line 116, in _worker |     work_item = work_queue.get(block=True)"
   ],
   "fetch_7": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3071,20 +2763,20 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1133, in join |     self._os_thread_handle.join(timeout)"
   ],
   "videos": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 740, in analyze_file |     collected = vf.sample_pass(str(path), box, cam, tools, duration, stop, lambda p: progress(label, p), workers,",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\frames.py\", line 776, in sample_pass |     parts = list(pool.map(run, enumerate(spans)))",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 645, in result_iterator |     yield _result_or_cancel(fs.pop())",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 312, in _result_or_cancel |     return fut.result(timeout)",
-   "File \"C:\\Python314\\Lib\\concurrent\\futures\\_base.py\", line 449, in result |     self._condition.wait(timeout)",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 369, in wait |     waiter.acquire()"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 217, in _loop |     self._sleep(IDLE_S)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\videos\\collector.py\", line 238, in _sleep |     self.wake.wait(seconds)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "updater": [
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 76, in _git |     return git(repo, *args, check=False, timeout=timeout)",
-   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\autopush.py\", line 91, in _git |     proc = subprocess.run(",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 557, in run |     stdout, stderr = process.communicate(input, timeout=timeout)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1221, in communicate |     stdout, stderr = self._communicate(input, endtime, timeout)",
-   "File \"C:\\Python314\\Lib\\subprocess.py\", line 1662, in _communicate |     self.stdout_thread.join(self._remaining_time(endtime))",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 1133, in join |     self._os_thread_handle.join(timeout)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\updater.py\", line 137, in _loop |     self.wake.wait(CHECK_EVERY_S)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "rofl": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3183,12 +2875,12 @@
    "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
   ],
   "warm-opgg-web-0": [
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 1478, in getresponse |     response.begin()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 343, in begin |     version, status, reason = self._read_status()",
-   "File \"C:\\Python314\\Lib\\http\\client.py\", line 304, in _read_status |     line = str(self.fp.readline(_MAXLINE + 1), \"iso-8859-1\")",
-   "File \"C:\\Python314\\Lib\\socket.py\", line 729, in readinto |     return self._sock.recv_into(b)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1304, in recv_into |     return self.read(nbytes, buffer)",
-   "File \"C:\\Python314\\Lib\\ssl.py\", line 1138, in read |     return self._sslobj.read(len, buffer)"
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 220, in _cached |     return self._fetch(kind, key, fetch, None)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 252, in _fetch |     self._lead(kind, key, fetch, flight)",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 267, in _lead |     value = fetch()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\opgg.py\", line 428, in fetch |     payload = self._page(",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\opgg.py\", line 343, in _page |     self._web_throttle.wait()",
+   "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\external\\base.py\", line 112, in wait |     time.sleep(delay)"
   ],
   "draft-live": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3227,8 +2919,8 @@
    "File \"C:\\Python314\\Lib\\threading.py\", line 1082, in _bootstrap_inner |     self._context.run(self.run)",
    "File \"C:\\Python314\\Lib\\threading.py\", line 1024, in run |     self._target(*self._args, **self._kwargs)",
    "File \"C:\\Informatica\\PROYECTOS\\BACKEND\\LOL\\LeagueOfLegendsDataMiner\\app\\diag.py\", line 195, in run |     while not (stop.wait(SAMPLE_S) if stop is not None else time.sleep(SAMPLE_S)):",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 667, in wait |     with self._cond:",
-   "File \"C:\\Python314\\Lib\\threading.py\", line 381, in wait |     self._waiters.remove(waiter)"
+   "File \"C:\\Python314\\Lib\\threading.py\", line 670, in wait |     signaled = self._cond.wait(timeout)",
+   "File \"C:\\Python314\\Lib\\threading.py\", line 373, in wait |     gotit = waiter.acquire(True, timeout)"
   ],
   "db-checkpoint": [
    "File \"C:\\Python314\\Lib\\threading.py\", line 1044, in _bootstrap |     self._bootstrap_inner()",
@@ -3242,9 +2934,9 @@
    "File \"C:\\Python314\\Lib\\asyncio\\runners.py\", line 128, in run |     return self._loop.run_until_complete(task)",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 707, in run_until_complete |     self.run_forever()",
    "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 678, in run_forever |     self._run_once()",
-   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2058, in _run_once |     handle = None  # Needed to break cycles when an exception occurs.",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 453, in select |     tmp = None",
-   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 820, in _poll |     self._unregistered.clear()"
+   "File \"C:\\Python314\\Lib\\asyncio\\base_events.py\", line 2019, in _run_once |     event_list = self._selector.select(timeout)",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 446, in select |     self._poll(timeout)",
+   "File \"C:\\Python314\\Lib\\asyncio\\windows_events.py\", line 778, in _poll |     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)"
   ]
  }
 }
