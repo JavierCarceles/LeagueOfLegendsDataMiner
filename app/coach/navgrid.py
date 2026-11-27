@@ -408,8 +408,13 @@ def route_track(anchors: list[list], champ: int | None = None, rift: tuple[str, 
 
 
 def route_replay(replay: dict, champs: dict[str, int]) -> dict:
-    """La repetición con rutas que rodean muros (para la vista 2D)."""
+    """La repetición con rutas que rodean muros (para la vista 2D), con el mapa del alma del dragón desde que cambia
+    (``replay["rift"]``: [elemento, segundo]). Si ya venía con rutas hechas sin el alma, se rehacen: fuera los puntos de
+    ruta (tipo 7) y otra vez con portales, muros y corrientes."""
+    rift = replay.get("rift")
+    rift = (rift[0], float(rift[1])) if rift and len(rift) == 2 else None
     tracks = {}
     for pid, tr in (replay.get("tracks") or {}).items():
-        tracks[pid] = {**tr, "a": route_track(tr.get("a") or [], champs.get(pid))}
+        anchors = [a for a in tr.get("a") or [] if a[3] != ANCHOR_ROUTE] if replay.get("routed") else tr.get("a") or []
+        tracks[pid] = {**tr, "a": route_track(anchors, champs.get(pid), rift)}
     return {**replay, "tracks": tracks, "routed": True}

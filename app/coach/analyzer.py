@@ -4941,6 +4941,16 @@ def _team_gold_diff(g: _Game, i: int) -> int:
     return diff
 
 
+def rift_of(timeline: dict | None) -> list | None:
+    """[elemento, segundo desde el que cambia el mapa] del alma del dragón según el timeline (``None`` sin alma): el
+    primer DRAGON_SOUL_GIVEN, como ``_Game._on_soul``. Para repeticiones guardadas antes de que el análisis lo apuntara."""
+    for frame in ((timeline or {}).get("info") or {}).get("frames") or []:
+        for e in frame.get("events") or []:
+            if e.get("type") == "DRAGON_SOUL_GIVEN" and isinstance(e.get("name"), str) and e["name"]:
+                return [e["name"], round((_num(e.get("timestamp")) + RIFT_DELAY_MS) / 1000, 1)]
+    return None
+
+
 def _replay(g: _Game) -> dict:
     """Datos compactos para la «repetición» 2D del frontend (tiempos en segundos)."""
     tracks = {}
@@ -4961,6 +4971,8 @@ def _replay(g: _Game) -> dict:
     return {
         "tracks": tracks,
         "routed": g.route_all,  # ya rodean los muros (``_walk``): la vista 2D no tiene que calcularlas
+        # Alma del dragón: elemento y segundo desde el que el mapa cambia (portales, muros, corrientes); None sin alma.
+        "rift": [g.rift[0], round(g.rift[1] / 1000, 1)] if g.rift else None,
         "frames": frames,
         "kills": [[round(k["t"] / 1000, 1), k["killer"], k["victim"], *(k["pos"] or (None, None)), k["assists"]] for k in g.kills],
         "objectives": [[round(o["t"] / 1000, 1), o["kind"], o["team"], int(o["pos"][0]), int(o["pos"][1])] for o in g.objectives],

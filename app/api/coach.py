@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app import lcu
 from app.api.deps import role_param, svc_from
 from app.coach import champ_checks, insights, learn, navgrid, otp_compare, store
+from app.coach.analyzer import rift_of
 from app.coach.elo_profile import EloProfile
 from app.coach.benchmarks import METRICS, TARGET_TIERS, References, next_target, normalize_tier, public_metrics
 from app.coach.tracker import ProfileNotFound, build_digest, refresh_digests, resolve_account, skill_times
@@ -446,11 +447,20 @@ def _keep_valid_moments(analysis: dict) -> None:
             m["detail"] = ((m.get("detail") or "") + " Cambio igualado: no cuenta como error.").strip()
 
 
-def _route_replay(analysis: dict, match_id: str) -> None:
+def _route_replay(analysis: dict, match_id: str, svc=None) -> None:
     """Rutas que rodean los muros (navgrid): sin ellas la vista 2D los atravesaba en línea recta (11 % del tiempo dentro
     de un muro; con rutas, 1 %). Se calcula al abrir la partida (~0,2 s): no hace falta re-analizar nada."""
-    if not analysis.get("replay") or analysis["replay"].get("routed"):
+    replay = analysis.get("replay")
+    if not replay:
         return
+    old = "rift" not in replay  # guardada antes de que el análisis apuntara el alma del dragón
+    if old:
+        try:
+            replay["rift"] = rift_of(store.raw_game(svc.db, match_id)[1]) if svc is not None else None
+        except Exception:  # noqa: BLE001
+            replay["rift"] = None
+    if replay.get("routed") and not (old and replay["rift"]):
+        return  # ya con rutas (las del análisis llevan el mapa del alma)
     try:
         champs = {str(p.get("pid")): p.get("champ") for p in analysis.get("players") or []}
         analysis["replay"] = navgrid.route_replay(analysis["replay"], champs)
@@ -524,7 +534,7 @@ def game_detail(match_id: str, svc=Depends(svc_from)):
     ref = _safe_build(svc, analysis["champ"], analysis["role"]) if with_build else None
     analysis["build_compare"] = insights.compare_build(build_digest(analysis.get("build")), ref)
     _keep_valid_moments(analysis)
-    _route_replay(analysis, match_id)
+    _route_replay(analysis, match_id, svc)
     prof = _elo_profile(svc)
     _add_otp_moments(svc, analysis, prof)
     _add_elo_frequency(analysis, prof)
