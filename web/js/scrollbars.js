@@ -1,28 +1,32 @@
 /** Barras de scroll propias (27-11-2026: en Windows salía la gris del sistema, también en el menú con el zoom al 100 %).
  *
- *  La vista y el menú, las que se ven siempre, llevan un núcleo hextech dibujado encima (``HexBar``):
- *  · el pulgar es un cristal tallado con marco de oro, energía turquesa que fluye por dentro, reflejo de cristal y un
- *    sello hextech en el centro; con velocidad se calienta (turquesa → oro → fuego) y se estira un poco;
- *  · el raíl es un canal hundido con cantos de oro y gemas en los extremos; las secciones de la página son runas que
- *    se encienden al pasar el pulgar por encima (y saltan chispas si pasas desplazándote);
- *  · al desplazarte suelta chispas y deja una estela de energía por el canal (más cuanto más rápido); al chocar arriba
- *    o abajo, onda de choque; pinchar el raíl hace Flash (desaparece con un destello y aparece donde pinchas);
- *  · al pasar el ratón por la barra, motas de energía suben por el canal; el rótulo dice en qué sección estás.
- *  Los efectos se pintan en un lienzo que solo trabaja mientras hay algo que animar. El desplazamiento sigue siendo el
- *  nativo (rueda, teclado, táctil): esta barra solo se dibuja y se maneja con el ratón.
- *  El resto de cajas (tablas, listas, ventanas) usan ``::-webkit-scrollbar`` con el mismo oro (styles.css). Al
- *  desplazar cualquier cosa, su barra se enciende un momento (``.is-scrolling``). */
+ *  La vista y el menú, las que se ven siempre, llevan un núcleo hextech pintado en un lienzo encima de su caja
+ *  (``HexBar``). El pulgar es una joya:
+ *  · gema tallada con marco de oro biselado, garras de oro y una gema en cada punta;
+ *  · dentro, plasma vivo (calculado punto a punto) que fluye y se arremolina; con velocidad se calienta (turquesa →
+ *    oro → fuego) y el pulgar se estira un poco;
+ *  · en el centro, un medallón hextech que gira con un orbe que late; al desplazarte saltan rayos del orbe a las
+ *    puntas (más cuanto más rápido) y, con el ratón encima, chisporrotea de vez en cuando.
+ *  Alrededor: canal hundido con cantos de oro y gemas en los extremos; las secciones de la página son runas que se
+ *  encienden al pasar el pulgar (con chispas si pasas desplazándote); estela de energía y chispas al moverse, onda de
+ *  choque al llegar arriba o abajo y Flash al pinchar el raíl (desaparece con un destello y aparece donde pinchas). El
+ *  rótulo dice en qué sección estás. El lienzo solo trabaja mientras hay algo que animar; en reposo, un fotograma.
+ *  El desplazamiento sigue siendo el nativo (rueda, teclado, táctil): esta barra solo se dibuja y se maneja con el
+ *  ratón. El resto de cajas (tablas, listas, ventanas) usan ``::-webkit-scrollbar`` en oro (styles.css). Al desplazar
+ *  cualquier cosa, su barra se enciende un momento (``.is-scrolling``). */
 
 const LIVE_MS = 900; // cuánto sigue encendida tras el último desplazamiento
-const MIN_THUMB = 56; // alto mínimo del pulgar (px)
-const PAD = 11; // hueco arriba y abajo del canal para sus gemas (px)
-const BAR_W = 18; // ancho de la barra (como .hx-bar en styles.css)
-const FX_LEFT = 64; // el lienzo de efectos sobresale a la izquierda (las chispas vuelan hacia la página)
-const FX_V = 18; // y por arriba y por abajo (ondas de choque)
+const MIN_THUMB = 64; // alto mínimo del pulgar (px)
+const PAD = 13; // hueco arriba y abajo del canal para sus gemas y las garras del pulgar (px)
+const BAR_W = 22; // ancho de la barra (como .hx-bar en styles.css)
+const FX_LEFT = 70; // el lienzo sobresale a la izquierda (las chispas vuelan hacia la página)
+const FX_V = 22; // y por arriba y por abajo (ondas de choque, garras)
+const WIDTH = { rest: 12, awake: 14, hover: 17 }; // ancho del pulgar según el estado
 const MARKS_EVERY_MS = 400; // las secciones se vuelven a medir como mucho cada tanto
 const MAX_MARKS = 30;
-const MAX_PARTICLES = 160;
+const MAX_PARTICLES = 170;
 const TRAIL_MS = 420;
+const PLASMA_W = 10; // resolución del plasma (se escala con suavizado: queda orgánico)
 
 const RGB = {
   teal: [10, 200, 185],
@@ -33,6 +37,9 @@ const RGB = {
   flash: [255, 236, 120],
   white: [255, 255, 255],
 };
+// Paletas del plasma (valor 0 → 1): energía hextech y, con calor, fuego.
+const COOL = [[0, [1, 9, 16]], [0.38, [3, 58, 78]], [0.66, [10, 196, 182]], [0.86, [160, 250, 240]], [1, [255, 255, 255]]];
+const HOT = [[0, [22, 6, 2]], [0.38, [120, 32, 10]], [0.66, [255, 128, 36]], [0.86, [255, 214, 120]], [1, [255, 252, 230]]];
 
 const timers = new WeakMap();
 const bars = new Map(); // caja → su HexBar
@@ -80,6 +87,21 @@ function node(tag, className, parent) {
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const rgba = ([r, g, b], a) => `rgba(${r | 0},${g | 0},${b | 0},${a.toFixed(3)})`;
+const mixRgb = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+
+/** Color de una paleta en ``v`` (0 → 1). */
+function paletteAt(stops, v) {
+  for (let i = 1; i < stops.length; i++) {
+    if (v <= stops[i][0]) {
+      const [v0, c0] = stops[i - 1];
+      const [v1, c1] = stops[i];
+      return mixRgb(c0, c1, (v - v0) / (v1 - v0 || 1));
+    }
+  }
+  return stops[stops.length - 1][1];
+}
 
 /** Un punto de luz difuminado por color, pintado una vez y reutilizado (mucho más barato que ``shadowBlur``). */
 const sprites = {};
@@ -89,24 +111,16 @@ function sprite(name) {
   const c = document.createElement("canvas");
   c.width = c.height = size;
   const g = c.getContext("2d");
-  const [r, gr, b] = RGB[name];
   const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   grad.addColorStop(0, "rgba(255,255,255,1)");
-  grad.addColorStop(0.18, `rgba(${r},${gr},${b},1)`);
-  grad.addColorStop(0.45, `rgba(${r},${gr},${b},0.35)`);
-  grad.addColorStop(1, `rgba(${r},${gr},${b},0)`);
+  grad.addColorStop(0.18, rgba(RGB[name], 1));
+  grad.addColorStop(0.45, rgba(RGB[name], 0.35));
+  grad.addColorStop(1, rgba(RGB[name], 0));
   g.fillStyle = grad;
   g.fillRect(0, 0, size, size);
   sprites[name] = c;
   return c;
 }
-
-/** El sello del centro del pulgar: hexágono hextech con su gema. */
-const SIGIL =
-  '<svg class="hx-sigil" viewBox="0 0 12 14" aria-hidden="true">' +
-  '<path class="hx-sigil-frame" d="M6 .8 11.2 3.8v6.4L6 13.2.8 10.2V3.8Z"/>' +
-  '<path class="hx-sigil-gem" d="M6 3.6 8.6 7 6 10.4 3.4 7Z"/>' +
-  '<path class="hx-sigil-ray" d="M6 .8V3.6M6 10.4v2.8"/></svg>';
 
 class HexBar {
   constructor(host, markSelector) {
@@ -123,38 +137,41 @@ class HexBar {
     this.trackH = 0;
     this.barH = 0;
     this.dpr = 1;
-    this.over = { host: false, bar: false };
+    this.over = { host: false, bar: false, thumb: false };
     this.peek = null; // runa bajo el ratón
     this.lit = new Set(); // runas encendidas (bajo el pulgar)
-    // Efectos
+    // Dibujo y efectos
+    this.w = WIDTH.rest; // ancho actual del pulgar (se acerca al de su estado)
+    this.stretch = 1;
+    this.t = Math.random() * 100; // tiempo del plasma
+    this.spin = 0; // giro del medallón
+    this.flashAt = -1e9;
     this.particles = [];
     this.trail = [];
     this.rings = [];
+    this.bolts = [];
+    this.boltAt = 0;
     this.velocity = 0; // px de barra por ms (con signo)
     this.heat = 0;
     this.last = null; // {y, t} última posición del pulgar
     this.fxRaf = 0;
     this.fxAt = 0;
     this.moteAt = 0;
+    this.plasmaAt = 0;
     this.edgeHit = 0; // -1 arriba, 1 abajo (para no repetir la onda mientras sigues empujando)
+    this.plasma = document.createElement("canvas");
+    this.plasmaCtx = this.plasma.getContext("2d");
 
     host.classList.add("hx-host");
     this.bar = node("div", "hx-bar off");
     this.bar.setAttribute("aria-hidden", "true");
-    this.canvas = node("canvas", "hx-fx", this.bar);
-    this.ctx = this.canvas.getContext("2d");
     const channel = node("div", "hx-channel", this.bar);
     node("span", "hx-cap top", channel);
     node("span", "hx-cap bottom", channel);
+    this.canvas = node("canvas", "hx-fx", this.bar);
+    this.ctx = this.canvas.getContext("2d");
     this.ticks = node("div", "hx-ticks", this.bar);
-    this.thumb = node("div", "hx-thumb", this.bar);
-    const gem = node("div", "hx-gem", this.thumb);
-    const glass = node("div", "hx-glass", gem);
-    node("div", "hx-flow", glass);
-    node("div", "hx-flow fast", glass);
-    node("div", "hx-flow hot", glass);
-    node("div", "hx-sheen", glass);
-    gem.insertAdjacentHTML("beforeend", SIGIL);
+    this.thumb = node("div", "hx-thumb", this.bar); // solo para cogerlo: se pinta en el lienzo
     this.label = node("div", "hx-label", this.bar);
     document.body.appendChild(this.bar);
 
@@ -169,17 +186,19 @@ class HexBar {
 
   // ------------------------------------------------------------------ eventos
 
-  /** Despierta (más ancha, canal y runas a la vista) con el ratón encima de la caja o de la propia barra. */
+  /** Despierta (más ancha, canal y runas a la vista, plasma en marcha) con el ratón encima de la caja o de la barra. */
   bindHover() {
     const set = (key, value) => {
       this.over[key] = value;
       this.bar.classList.toggle("awake", this.over.host || this.over.bar);
-      if (key === "bar" && value) this.wakeFx();
+      this.wakeFx();
     };
     this.host.addEventListener("pointerenter", () => set("host", true));
     this.host.addEventListener("pointerleave", () => set("host", false));
     this.bar.addEventListener("pointerenter", () => set("bar", true));
     this.bar.addEventListener("pointerleave", () => set("bar", false));
+    this.thumb.addEventListener("pointerenter", () => set("thumb", true));
+    this.thumb.addEventListener("pointerleave", () => set("thumb", false));
     // La barra está fuera de la caja: la rueda encima de ella desplaza la caja.
     this.bar.addEventListener(
       "wheel",
@@ -203,7 +222,8 @@ class HexBar {
       this.host.style.scrollBehavior = "auto"; // la vista tiene desplazamiento suave: al arrastrar, al instante
       this.bar.classList.add("dragging");
       this.setLive(true);
-      this.burst(this.thumbY + this.thumbH / 2, 10, ["cyan", "teal"], 0.09);
+      this.burst(this.thumbY + this.thumbH / 2, 12, ["cyan", "teal", "white"], 0.1);
+      this.ring(this.thumbY + this.thumbH / 2, "cyan", 14, 360);
     });
     thumb.addEventListener("pointermove", (event) => {
       if (!this.drag) return;
@@ -217,6 +237,7 @@ class HexBar {
       this.host.style.scrollBehavior = "";
       this.bar.classList.remove("dragging");
       this.setLive(this.host.classList.contains("is-scrolling"));
+      this.wakeFx();
     };
     thumb.addEventListener("pointerup", end);
     thumb.addEventListener("pointercancel", end);
@@ -234,8 +255,8 @@ class HexBar {
       if (rune) {
         const mark = this.marks[Number(rune.dataset.i)];
         if (!mark) return;
-        this.ring(mark.y, "teal", 16, 520);
-        this.burst(mark.y, 12, ["teal", "cyan"], 0.07);
+        this.ring(mark.y, "teal", 18, 560);
+        this.burst(mark.y, 14, ["teal", "cyan"], 0.08);
         host.scrollTo({ top: clamp(mark.top - 12, 0, max), behavior: "smooth" });
         return;
       }
@@ -261,7 +282,7 @@ class HexBar {
     if (live === this.bar.classList.contains("live")) return;
     this.bar.classList.toggle("live", live);
     this.paintLabel();
-    if (live) this.wakeFx();
+    this.wakeFx();
   }
 
   // ------------------------------------------------------------------ medidas y posición
@@ -308,6 +329,7 @@ class HexBar {
     }
     this.lightRunes();
     this.paintLabel();
+    this.wakeFx();
   }
 
   /** Coloca el pulgar y saca de ahí la velocidad (estela, chispas, calor y ondas al chocar con un extremo). */
@@ -316,24 +338,19 @@ class HexBar {
     const prev = this.last;
     this.thumbY = y;
     this.last = { y, t: now };
-    let stretch = 1;
     if (prev && now > prev.t) {
       const dt = Math.min(64, now - prev.t);
       const v = (y - prev.y) / dt;
       this.velocity = this.velocity * 0.5 + v * 0.5;
-      stretch = 1 + Math.min(0.09, Math.abs(this.velocity) * 0.06);
-      if (y !== prev.y) {
-        this.trail.push({ y: y + this.thumbH / 2, t: now, heat: this.heat });
-        this.wakeFx();
-      }
+      if (y !== prev.y) this.trail.push({ y: y + this.thumbH / 2, t: now, heat: this.heat });
       const edge = ratio <= 0 ? -1 : ratio >= 1 ? 1 : 0;
       if (edge && edge !== this.edgeHit && Math.abs(v) > 0.05) this.shock(edge);
       this.edgeHit = edge;
     }
-    this.thumb.style.transform = `translate3d(0, ${y}px, 0) scaleY(${stretch.toFixed(3)})`;
+    this.thumb.style.transform = `translate3d(0, ${y}px, 0)`;
   }
 
-  /** La barra encima del borde derecho de la caja (por dentro de su borde), con el lienzo de efectos alrededor. */
+  /** La barra encima del borde derecho de la caja (por dentro de su borde), con el lienzo alrededor. */
   place() {
     const host = this.host;
     const rect = host.getBoundingClientRect();
@@ -377,7 +394,7 @@ class HexBar {
       mark.y = PAD + this.trackH * clamp(mark.top / total, 0, 1);
       rune.dataset.i = String(i);
       rune.style.transform = `translate3d(0, ${mark.y}px, 0)`;
-      rune.hidden = mark.y - last < 9; // dos casi juntas: solo la primera
+      rune.hidden = mark.y - last < 10; // dos casi juntas: solo la primera
       if (!rune.hidden) last = mark.y;
     });
     this.marks = marks;
@@ -398,7 +415,7 @@ class HexBar {
       rune.classList.toggle("lit", on);
       if (on) {
         this.lit.add(i);
-        if (live) this.burst(mark.y, 7, ["teal", "cyan", "gold"], 0.06);
+        if (live) this.burst(mark.y, 8, ["teal", "cyan", "gold"], 0.07);
       } else this.lit.delete(i);
     });
   }
@@ -442,7 +459,7 @@ class HexBar {
         vy: Math.sin(angle) * s,
         life: 0,
         max: rand(380, 820),
-        size: rand(5, 11),
+        size: rand(5, 12),
         sprite: colors[Math.floor(Math.random() * colors.length)],
       });
     }
@@ -459,52 +476,101 @@ class HexBar {
   shock(edge) {
     const y = edge < 0 ? PAD - 4 : PAD + this.trackH + 4;
     const hot = this.heat > 0.5;
-    this.ring(y, hot ? "fire" : "gold", 22, 520);
-    this.ring(y, "cyan", 12, 360);
-    this.burst(y, 16, hot ? ["fire", "gold", "ember"] : ["gold", "cyan", "teal"], 0.12);
+    this.ring(y, hot ? "fire" : "gold", 26, 560);
+    this.ring(y, "cyan", 14, 380);
+    this.burst(y, 20, hot ? ["fire", "gold", "ember"] : ["gold", "cyan", "teal"], 0.13);
   }
 
   /** Flash: destello donde estaba el pulgar y donde aparece. */
   flash(from, to) {
-    this.burst(from, 18, ["flash", "white", "gold"], 0.14);
-    this.ring(from, "flash", 18, 380);
-    this.burst(to, 22, ["flash", "white", "gold"], 0.16);
-    this.ring(to, "flash", 24, 480);
-    this.bar.classList.remove("flashed");
-    void this.bar.offsetWidth; // vuelve a lanzar la animación
-    this.bar.classList.add("flashed");
+    this.burst(from, 20, ["flash", "white", "gold"], 0.15);
+    this.ring(from, "flash", 20, 380);
+    this.burst(to, 26, ["flash", "white", "gold"], 0.17);
+    this.ring(to, "flash", 28, 500);
+    this.flashAt = performance.now();
+  }
+
+  /** Un rayo quebrado entre dos puntos (coordenadas del lienzo). */
+  bolt(x0, y0, x1, y1, color, life) {
+    const points = [[x0, y0]];
+    const steps = 5 + Math.floor(Math.random() * 4);
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const nx = -(y1 - y0) / len;
+    const ny = (x1 - x0) / len;
+    for (let i = 1; i < steps; i++) {
+      const k = i / steps;
+      const jitter = rand(-1, 1) * Math.min(5, len * 0.12) * Math.sin(Math.PI * k);
+      points.push([lerp(x0, x1, k) + nx * jitter, lerp(y0, y1, k) + ny * jitter]);
+    }
+    points.push([x1, y1]);
+    this.bolts.push({ points, color, life: 0, max: life });
+  }
+
+  /** Rayos del orbe a las puntas o a los lados del cristal (y, con mucho calor, hasta el canal). */
+  sparkBolts(count) {
+    const cx = FX_LEFT + BAR_W / 2;
+    const cy = FX_V + this.thumbY + this.thumbH / 2;
+    const half = (this.thumbH * this.stretch) / 2;
+    const color = this.heat > 0.55 ? "fire" : this.heat > 0.25 ? "gold" : "cyan";
+    for (let i = 0; i < count; i++) {
+      const up = Math.random() < 0.5 ? -1 : 1;
+      const roll = Math.random();
+      let x1;
+      let y1;
+      if (roll < 0.45) {
+        x1 = cx;
+        y1 = cy + up * (half - 2); // a una punta
+      } else if (roll < 0.85 || this.heat < 0.5) {
+        x1 = cx + (Math.random() < 0.5 ? -1 : 1) * (this.w / 2 - 2);
+        y1 = cy + up * rand(8, Math.max(10, half - 8)); // a un lado del cristal
+      } else {
+        x1 = cx + rand(-2, 2);
+        y1 = cy + up * (half + rand(10, 40)); // se sale por el canal
+      }
+      this.bolt(cx, cy, x1, y1, color, rand(80, 170));
+    }
   }
 
   wakeFx() {
-    if (this.fxRaf || calm?.matches) return;
+    if (this.fxRaf) return;
     this.fxAt = performance.now();
     this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
   }
 
   fxFrame(now) {
     this.fxRaf = 0;
+    if (this.bar.classList.contains("off")) return;
     const dt = clamp(now - this.fxAt, 1, 48);
     this.fxAt = now;
+    const still = !!calm?.matches;
     const live = this.bar.classList.contains("live");
+    const awake = this.over.host || this.over.bar;
     // Calor: sube con la velocidad y baja solo.
     const target = live ? clamp(Math.abs(this.velocity) / 1.1, 0, 1) : 0;
     this.heat += (target - this.heat) * (target > this.heat ? 0.25 : 0.06);
     if (!live) this.velocity *= 0.8;
-    this.bar.style.setProperty("--hx-heat", this.heat.toFixed(3));
-    this.emit(dt, live, now);
-    this.draw(now, dt);
-    const busy = this.particles.length || this.rings.length || this.trail.length || this.heat > 0.01 || this.over.bar || live;
-    if (busy && !this.bar.classList.contains("off")) this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
-    else {
-      this.heat = 0;
-      this.bar.style.setProperty("--hx-heat", "0");
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // Ancho y estiramiento, hacia los de su estado.
+    const wTarget = this.over.thumb || this.drag ? WIDTH.hover : awake || live ? WIDTH.awake : WIDTH.rest;
+    this.w += (wTarget - this.w) * (still ? 1 : 0.22);
+    const sTarget = 1 + Math.min(0.09, Math.abs(this.velocity) * 0.06);
+    this.stretch += (sTarget - this.stretch) * 0.3;
+    // Tiempo del plasma y giro del medallón: más deprisa al desplazarte o arrastrar.
+    if (!still) {
+      const pace = 0.0009 * (awake || live ? 1 : 0) + (live ? 0.0022 + this.heat * 0.004 : 0) + (this.drag ? 0.002 : 0);
+      this.t += dt * pace;
+      this.spin += dt * (0.0005 + (live ? 0.004 + this.heat * 0.008 : 0) + (this.drag ? 0.004 : 0));
+      this.emit(dt, live, awake, now);
     }
+    this.draw(now, dt, live, awake);
+    const moving = Math.abs(wTarget - this.w) > 0.05 || Math.abs(sTarget - this.stretch) > 0.003;
+    const busy = this.particles.length || this.rings.length || this.trail.length || this.bolts.length || this.heat > 0.01;
+    if (!still && (busy || awake || live || moving || now - this.flashAt < 450)) {
+      this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
+    } else if (still && moving) this.fxRaf = requestAnimationFrame((t) => this.fxFrame(t));
   }
 
-  /** Chispas al moverse (desde el extremo que va detrás, más con velocidad) y motas con el ratón encima. */
-  emit(dt, live, now) {
+  /** Chispas al moverse (desde el extremo que va detrás), rayos del orbe y motas con el ratón encima. */
+  emit(dt, live, awake, now) {
     const speed = Math.abs(this.velocity);
     const cx = FX_LEFT + BAR_W / 2;
     if (live && speed > 0.02) {
@@ -520,12 +586,18 @@ class HexBar {
           vy: (down ? -1 : 1) * rand(0.02, 0.09) * (0.6 + speed),
           life: 0,
           max: rand(350, 750) * (0.7 + this.heat * 0.6),
-          size: rand(4, 9) * (0.8 + this.heat * 0.5),
+          size: rand(4, 10) * (0.8 + this.heat * 0.5),
           sprite: hot[Math.floor(Math.random() * hot.length)],
         });
       }
     }
-    if (this.over.bar && now - this.moteAt > 220 && this.particles.length < MAX_PARTICLES) {
+    // Rayos: seguidos al desplazarte o arrastrar; con el ratón encima, un chasquido de vez en cuando.
+    const every = this.drag ? 55 : live ? 85 - this.heat * 40 : awake ? rand(900, 2600) : Infinity;
+    if (now - this.boltAt > every) {
+      this.boltAt = now;
+      this.sparkBolts(live || this.drag ? 1 + (this.heat > 0.5 ? 1 : 0) : 1);
+    }
+    if (this.over.bar && now - this.moteAt > 200 && this.particles.length < MAX_PARTICLES) {
       this.moteAt = now;
       this.particles.push({
         x: cx + rand(-1.5, 1.5),
@@ -534,54 +606,338 @@ class HexBar {
         vy: -rand(0.025, 0.06),
         life: 0,
         max: rand(1100, 1900),
-        size: rand(4, 7),
+        size: rand(4, 8),
         sprite: Math.random() < 0.75 ? "teal" : "gold",
         mote: true,
       });
     }
   }
 
-  draw(now, dt) {
+  // ------------------------------------------------------------------ dibujo
+
+  draw(now, dt, live, awake) {
     const { ctx, canvas } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.globalCompositeOperation = "lighter";
-    const cx = FX_LEFT + BAR_W / 2;
+    this.drawTrail(now);
+    this.drawThumb(now, live, awake);
+    this.drawRings(dt);
+    this.drawBolts(dt);
+    this.drawParticles(dt);
+  }
 
-    // Estela de energía por el canal: más gruesa y brillante cuanto más reciente.
+  drawTrail(now) {
+    const ctx = this.ctx;
+    const cx = FX_LEFT + BAR_W / 2;
+    ctx.globalCompositeOperation = "lighter";
     this.trail = this.trail.filter((p) => now - p.t < TRAIL_MS);
     ctx.lineCap = "round";
     for (let i = 1; i < this.trail.length; i++) {
       const a = this.trail[i - 1];
       const b = this.trail[i];
       const fade = 1 - (now - b.t) / TRAIL_MS;
-      const [r, g, bl] = b.heat > 0.5 ? RGB.fire : b.heat > 0.25 ? RGB.gold : RGB.teal;
+      const color = b.heat > 0.5 ? RGB.fire : b.heat > 0.25 ? RGB.gold : RGB.teal;
       ctx.beginPath();
       ctx.moveTo(cx, a.y + FX_V);
       ctx.lineTo(cx, b.y + FX_V);
-      ctx.strokeStyle = `rgba(${r},${g},${bl},${(0.22 * fade).toFixed(3)})`;
-      ctx.lineWidth = 7;
+      ctx.strokeStyle = rgba(color, 0.24 * fade);
+      ctx.lineWidth = 8;
       ctx.stroke();
-      ctx.strokeStyle = `rgba(${Math.min(255, r + 120)},${Math.min(255, g + 60)},${Math.min(255, bl + 60)},${(0.85 * fade).toFixed(3)})`;
+      ctx.strokeStyle = rgba(mixRgb(color, RGB.white, 0.5), 0.85 * fade);
       ctx.lineWidth = 1.6;
       ctx.stroke();
     }
+    ctx.globalCompositeOperation = "source-over";
+  }
 
-    // Ondas: un anillo que se abre y se apaga.
+  /** El plasma del cristal: suma de ondas que fluyen hacia arriba y se arremolinan alrededor del orbe. */
+  paintPlasma(h, bright) {
+    const pw = PLASMA_W;
+    const ph = clamp(Math.round(h / 3), 8, 260);
+    const c = this.plasma;
+    if (c.width !== pw || c.height !== ph) {
+      c.width = pw;
+      c.height = ph;
+      this.plasmaImg = this.plasmaCtx.createImageData(pw, ph);
+    }
+    const data = this.plasmaImg.data;
+    const t = this.t;
+    const heat = this.heat;
+    const midY = ph / 2;
+    let i = 0;
+    for (let y = 0; y < ph; y++) {
+      const py = y * 3; // en px del pulgar
+      for (let x = 0; x < pw; x++) {
+        const u = x / (pw - 1) - 0.5;
+        const dy = (y - midY) * 3;
+        const r = Math.hypot(u * 26, dy * 0.5);
+        let v =
+          Math.sin(u * 7 + t * 1.3 + py * 0.02) +
+          Math.sin(py * 0.075 + t * 2.4) +
+          Math.sin((u * 5 + py * 0.045) * 1.7 - t * 1.6) +
+          Math.sin(r * 0.32 - t * 3.1);
+        v = (v + 4) / 8;
+        v = v * v * (3 - 2 * v); // más contraste: venas brillantes
+        const edge = 1 - Math.abs(u) * 1.5; // más oscuro en los bordes: profundidad
+        v = clamp(v * (0.55 + 0.55 * edge) * bright, 0, 1);
+        const cool = paletteAt(COOL, v);
+        const col = heat > 0.01 ? mixRgb(cool, paletteAt(HOT, v), heat) : cool;
+        data[i++] = col[0];
+        data[i++] = col[1];
+        data[i++] = col[2];
+        data[i++] = 255;
+      }
+    }
+    this.plasmaCtx.putImageData(this.plasmaImg, 0, 0);
+  }
+
+  /** Contorno de la gema (puntas arriba y abajo), metido ``inset`` px. */
+  gemPath(cx, top, h, w, tip, inset) {
+    const ctx = this.ctx;
+    const half = w / 2 - inset;
+    const t = Math.max(2, tip - inset * 0.7);
+    ctx.beginPath();
+    ctx.moveTo(cx, top + inset * 1.25);
+    ctx.lineTo(cx + half, top + t + inset * 0.3);
+    ctx.lineTo(cx + half, top + h - t - inset * 0.3);
+    ctx.lineTo(cx, top + h - inset * 1.25);
+    ctx.lineTo(cx - half, top + h - t - inset * 0.3);
+    ctx.lineTo(cx - half, top + t + inset * 0.3);
+    ctx.closePath();
+  }
+
+  drawThumb(now, live, awake) {
+    const ctx = this.ctx;
+    const cx = FX_LEFT + BAR_W / 2;
+    const w = this.w;
+    const h = this.thumbH * this.stretch;
+    const top = FX_V + this.thumbY + (this.thumbH - h) / 2;
+    const tip = Math.min(h / 4, w * 0.8);
+    const energy = clamp((awake ? 0.45 : 0) + (live ? 0.55 : 0) + (this.drag ? 0.3 : 0), 0, 1);
+    const glow = mixRgb(RGB.teal, RGB.fire, this.heat);
+    const flash = clamp(1 - (now - this.flashAt) / 420, 0, 1);
+
+    // Halo y sombra.
+    ctx.save();
+    ctx.shadowColor = rgba(glow, 0.35 + energy * 0.5);
+    ctx.shadowBlur = 6 + energy * 12;
+    this.gemPath(cx, top, h, w, tip, 0);
+    ctx.fillStyle = "#140d03";
+    ctx.fill();
+    ctx.restore();
+
+    // Marco de oro biselado: de lado a lado (bronce, oro, brillo, oro, bronce) y luz arriba, sombra abajo.
+    const frame = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
+    frame.addColorStop(0, "#3a2c0e");
+    frame.addColorStop(0.2, "#c89b3c");
+    frame.addColorStop(0.42, "#f6ecd4");
+    frame.addColorStop(0.6, "#c8aa6e");
+    frame.addColorStop(0.84, "#785a28");
+    frame.addColorStop(1, "#2e220a");
+    this.gemPath(cx, top, h, w, tip, 0);
+    ctx.fillStyle = frame;
+    ctx.fill();
+    const shade = ctx.createLinearGradient(0, top, 0, top + h);
+    shade.addColorStop(0, "rgba(255,250,235,0.55)");
+    shade.addColorStop(0.08, "rgba(255,250,235,0)");
+    shade.addColorStop(0.9, "rgba(0,0,0,0)");
+    shade.addColorStop(1, "rgba(0,0,0,0.6)");
+    ctx.fillStyle = shade;
+    ctx.fill();
+
+    // El cristal: plasma, profundidad, reflejo y cortes de gema.
+    const inset = w >= 15 ? 2.4 : 2;
+    const bright = 0.62 + energy * 0.45;
+    if (!this.plasmaFresh || now - this.plasmaAt > 33 || live) {
+      this.paintPlasma(h, bright);
+      this.plasmaAt = now;
+      this.plasmaFresh = true;
+    }
+    ctx.save();
+    this.gemPath(cx, top, h, w, tip, inset);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.plasma, cx - w / 2, top, w, h);
+    const depth = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
+    depth.addColorStop(0, "rgba(0,0,0,0.55)");
+    depth.addColorStop(0.3, "rgba(0,0,0,0)");
+    depth.addColorStop(0.7, "rgba(0,0,0,0)");
+    depth.addColorStop(1, "rgba(0,0,0,0.65)");
+    ctx.fillStyle = depth;
+    ctx.fillRect(cx - w / 2, top, w, h);
+    const sheen = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
+    sheen.addColorStop(0.12, "rgba(255,255,255,0)");
+    sheen.addColorStop(0.3, "rgba(255,255,255,0.32)");
+    sheen.addColorStop(0.46, "rgba(255,255,255,0)");
+    ctx.fillStyle = sheen;
+    ctx.fillRect(cx - w / 2, top, w, h);
+    // Cortes de gema: uves muy tenues que dan facetas al cristal.
+    ctx.strokeStyle = "rgba(255,255,255,0.09)";
+    ctx.lineWidth = 0.8;
+    for (let y = top + tip + 10; y < top + h - tip - 6; y += 15) {
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, y);
+      ctx.lineTo(cx, y + 5);
+      ctx.lineTo(cx + w / 2, y);
+      ctx.stroke();
+    }
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(255,250,215,${(flash * 0.9).toFixed(3)})`;
+      ctx.fillRect(cx - w / 2, top, w, h);
+    }
+    ctx.restore();
+    // Canto interior del cristal.
+    this.gemPath(cx, top, h, w, tip, inset);
+    ctx.strokeStyle = "rgba(255,238,200,0.4)";
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+
+    this.drawProngs(cx, top, h, w, energy);
+    this.drawMedallion(cx, top + h / 2, w, energy);
+  }
+
+  /** Garras de oro y una gema en cada punta del pulgar. */
+  drawProngs(cx, top, h, w, energy) {
+    const ctx = this.ctx;
+    ctx.lineCap = "round";
+    for (const [y, dir] of [[top, -1], [top + h, 1]]) {
+      ctx.strokeStyle = "#d7b56d";
+      ctx.lineWidth = 1.3;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + side * w * 0.3, y - dir * w * 0.55);
+        ctx.quadraticCurveTo(cx + side * w * 0.62, y + dir * 1, cx + side * w * 0.42, y + dir * 5);
+        ctx.stroke();
+      }
+      // La gema de la punta.
+      const gy = y + dir * 4.5;
+      const r = 2.6 + energy * 0.6;
+      ctx.save();
+      ctx.shadowColor = rgba(mixRgb(RGB.teal, RGB.fire, this.heat), 0.9);
+      ctx.shadowBlur = 4 + energy * 6;
+      ctx.beginPath();
+      ctx.moveTo(cx, gy - r);
+      ctx.lineTo(cx + r * 0.8, gy);
+      ctx.lineTo(cx, gy + r);
+      ctx.lineTo(cx - r * 0.8, gy);
+      ctx.closePath();
+      const gem = ctx.createLinearGradient(cx - r, gy - r, cx + r, gy + r);
+      gem.addColorStop(0, "#ffffff");
+      gem.addColorStop(0.4, rgba(mixRgb(RGB.cyan, RGB.gold, this.heat), 1));
+      gem.addColorStop(1, rgba(mixRgb(RGB.teal, RGB.fire, this.heat), 1));
+      ctx.fillStyle = gem;
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = "rgba(40,28,8,0.9)";
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+  }
+
+  /** El medallón del centro: hexágono de oro que gira, otro por dentro al revés y un orbe que late. */
+  drawMedallion(cx, cy, w, energy) {
+    const ctx = this.ctx;
+    const R = Math.min(9.5, w * 0.5 + 2.8);
+    const pulse = 1 + Math.sin(this.t * 6 + this.spin) * 0.12 * (0.4 + energy);
+    const hex = (radius, angle) => {
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = angle + (k * Math.PI) / 3;
+        const x = cx + Math.cos(a) * radius;
+        const y = cy + Math.sin(a) * radius;
+        if (k) ctx.lineTo(x, y);
+        else ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+    };
+    // Placa oscura con canto de oro.
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.7)";
+    ctx.shadowBlur = 4;
+    hex(R, this.spin);
+    ctx.fillStyle = "rgba(3,16,24,0.92)";
+    ctx.fill();
+    ctx.restore();
+    const ring = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    ring.addColorStop(0, "#fbf1d8");
+    ring.addColorStop(0.45, "#c89b3c");
+    ring.addColorStop(1, "#6b4f1f");
+    hex(R, this.spin);
+    ctx.strokeStyle = ring;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Hexágono interior, girando al revés.
+    hex(R * 0.62, -this.spin * 1.6 + Math.PI / 6);
+    ctx.strokeStyle = rgba(mixRgb(RGB.teal, RGB.fire, this.heat), 0.55 + energy * 0.4);
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    // Puntos de luz en los vértices.
+    ctx.globalCompositeOperation = "lighter";
+    for (let k = 0; k < 6; k++) {
+      const a = this.spin + (k * Math.PI) / 3;
+      const s = 3.2 + energy * 2;
+      ctx.globalAlpha = 0.55 + energy * 0.45;
+      ctx.drawImage(sprite(this.heat > 0.5 ? "fire" : "gold"), cx + Math.cos(a) * R - s / 2, cy + Math.sin(a) * R - s / 2, s, s);
+    }
+    // El orbe.
+    const orbR = R * 0.48 * pulse;
+    const core = mixRgb(RGB.cyan, RGB.gold, this.heat);
+    const edge = mixRgb(RGB.teal, RGB.fire, this.heat);
+    const orb = ctx.createRadialGradient(cx - orbR * 0.25, cy - orbR * 0.25, 0, cx, cy, orbR * 1.9);
+    orb.addColorStop(0, "rgba(255,255,255,1)");
+    orb.addColorStop(0.25, rgba(core, 1));
+    orb.addColorStop(0.55, rgba(edge, 0.75));
+    orb.addColorStop(1, rgba(edge, 0));
+    ctx.globalAlpha = 0.75 + energy * 0.25;
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(cx, cy, orbR * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  drawRings(dt) {
+    const ctx = this.ctx;
+    const cx = FX_LEFT + BAR_W / 2;
+    ctx.globalCompositeOperation = "lighter";
     this.rings = this.rings.filter((ring) => (ring.life += dt) < ring.max);
     for (const ring of this.rings) {
       const k = ring.life / ring.max;
-      const [r, g, b] = RGB[ring.color];
       const radius = ring.radius * (0.25 + k);
-      ctx.strokeStyle = `rgba(${r},${g},${b},${((1 - k) * 0.9).toFixed(3)})`;
-      ctx.lineWidth = 2.2 * (1 - k) + 0.4;
+      ctx.strokeStyle = rgba(RGB[ring.color], (1 - k) * 0.9);
+      ctx.lineWidth = 2.4 * (1 - k) + 0.4;
       ctx.beginPath();
       ctx.ellipse(cx, ring.y, radius, radius * 0.75, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
+    ctx.globalCompositeOperation = "source-over";
+  }
 
-    // Chispas y motas.
+  drawBolts(dt) {
+    const ctx = this.ctx;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineJoin = "round";
+    this.bolts = this.bolts.filter((b) => (b.life += dt) < b.max);
+    for (const b of this.bolts) {
+      const k = b.life / b.max;
+      const alpha = k < 0.2 ? 1 : 1 - (k - 0.2) / 0.8;
+      ctx.beginPath();
+      b.points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.strokeStyle = rgba(RGB[b.color], 0.3 * alpha);
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      ctx.strokeStyle = rgba(mixRgb(RGB[b.color], RGB.white, 0.65), 0.95 * alpha);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  drawParticles(dt) {
+    const ctx = this.ctx;
+    ctx.globalCompositeOperation = "lighter";
     const alive = [];
     for (const p of this.particles) {
       p.life += dt;
@@ -600,6 +956,7 @@ class HexBar {
       alive.push(p);
     }
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
     this.particles = alive;
   }
 }
