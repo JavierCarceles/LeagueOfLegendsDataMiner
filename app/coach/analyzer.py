@@ -87,7 +87,9 @@ from app.riot.routing import QUEUES, TEAM_POSITION_TO_ROLE
 #     jugadores cada 5 s (línea, río, junglas, base; agrupado o solo en una línea lateral pasado el 14).
 # 16: reconstrucción comprobada con tu partida grabada (campamentos, escuttles y bufos según Riot, mapa del alma), las
 # 173 fichas de campeón (saltos de muro, daño de lejos) y empezar de cero (``app/reinicio.py``), 27-11-2026.
-ANALYSIS_VERSION = 16
+# 17: el primer despeje empieza por el campamento junto al que te pone Riot al 1:00 (azul, gromp y lobos salía azul,
+#     gromp, azul, lobos), 27-11-2026.
+ANALYSIS_VERSION = 17
 
 EARLY_MS = 14 * 60_000
 IDLE_FROM_MS = 15 * 60_000
@@ -1112,6 +1114,10 @@ NEAR_CAMP_REST = 1_500  # «sigue en el campamento de antes» (los pocos CS que 
 CAMP_MAX_SPEED = 0.60
 CAMP_CANDIDATES = 6  # los campamentos vivos más cerca del tramo (para no probar todas las combinaciones)
 CAMP_MAX = 4
+ON_CAMP = 800  # en el primer despeje, empezar a esta distancia de un campamento vivo: lo estaba haciendo, va primero…
+ON_CAMP_PENALTY = 3_000  # …(lo que cuesta no ponerlo primero: azul, gromp y lobos salía azul, gromp, azul, lobos). Más
+# tarde no: pasar junto a una escuttle o un campamento sin hacerlo es normal (13:00 de tu Hecarim del 26-11)
+FIRST_CLEAR_MS = 180_000  # tramos que acaban hasta el 3:00 (el primer despeje)
 CAMP_GAPS = 4  # trozos de un tramo entre los que se reparten sus campamentos, como mucho
 
 
@@ -1443,9 +1449,10 @@ def _camp_piece(gap: tuple, n: int, sites: list, killed: dict[str, int], paces: 
     alive = sorted(((name, pos) for name, pos in sites if _alive(name, killed, te)), key=lambda s: geo.dist(s[1], ps))
     near = _with_owed(alive[:CAMP_CANDIDATES], alive, owed)
     best, best_score = None, math.inf
+    on_camp = _on_camp(ps, near) if te <= FIRST_CLEAR_MS else None
     for combo in permutations(near, n):
         length = _route_length(ps, combo, combo[-1][1])
-        score = length - _owed_bonus(combo, owed)
+        score = length - _owed_bonus(combo, owed) + _on_camp_cost(on_camp, combo)
         if score < best_score:
             best, best_score = (length, combo), score
     if best is None:
@@ -1542,15 +1549,31 @@ def _camp_route(sites: list, killed: dict[str, int], ends: tuple, t1: int, k: in
     alive = [(name, pos) for name, pos in sites if _alive(name, killed, t1)]
     alive.sort(key=lambda s, p0=p0, p1=p1: geo._dist_segment(s[1], p0, p1))
     near = _with_owed(alive[:CAMP_CANDIDATES], alive, owed)
+    on_camp = _on_camp(p0, near) if t1 <= FIRST_CLEAR_MS else None
     best, best_score = None, math.inf
     for combo in permutations(near, min(k, len(near))):
         length = _route_length(p0, combo, p1)
-        score = length - _owed_bonus(combo, owed)
+        score = length - _owed_bonus(combo, owed) + _on_camp_cost(on_camp, combo)
         if xp is not None:
             score += XP_WEIGHT * abs(xp[0] - xp[1] * sum(_camp_xp(name, killed) for name, _ in combo))
         if score < best_score:
             best, best_score = (length, combo), score
     return best
+
+
+def _on_camp(start, near: list) -> str | None:
+    """El campamento vivo junto al que empieza el primer despeje (a ``ON_CAMP`` o menos), si lo hay: lo estaba haciendo."""
+    if start is None or not near:
+        return None
+    name, pos = min(near, key=lambda s: geo.dist(s[1], start))
+    return name if geo.dist(pos, start) <= ON_CAMP else None
+
+
+def _on_camp_cost(on_camp: str | None, combo: tuple) -> float:
+    """Lo que cuesta una ruta que no empieza por el campamento en el que ya estaba (y que sí hace)."""
+    if on_camp is None or not combo or combo[0][0] == on_camp:
+        return 0.0
+    return ON_CAMP_PENALTY if any(name == on_camp for name, _ in combo) else 0.0
 
 
 def _with_owed(near: list, alive: list, owed: tuple) -> list:
