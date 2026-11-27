@@ -580,13 +580,15 @@ def ranking_dossiers(db, match_id: str) -> list[dict]:
     return unpack_ranking(blob) if blob else []
 
 
-def save_ranking_game(db, svc, match: dict, timeline: dict | None, default_tier: str | None) -> int:
+def save_ranking_game(db, svc, match: dict, timeline: dict | None, default_tier: str | None, *, replace: bool = False) -> int:
     """Todo el ranking: el análisis de los 10 jugadores de la partida, solo en la base de datos: juntos en
     ``ranking_games`` (``pack_ranking``) y una fila por jugador en ``otp_games`` (``RANKING_KIND``, sin dossier) para
     contarlos. El elo de cada uno, el suyo si se conoce; si no, el del jugador visitado (misma partida). Ni carpetas ni
-    bruto (~400 KB por partida): se puede volver a bajar. Devuelve cuántos jugadores se guardaron."""
+    bruto (~400 KB por partida): se puede volver a bajar. Devuelve cuántos jugadores se guardaron. ``replace``: sustituye
+    el análisis de todo el ranking que ya tuviera la partida (re-análisis con una versión nueva; en la misma escritura)."""
     match_id = (match.get("metadata") or {}).get("matchId")
-    have = {r["puuid"] for r in db.query("SELECT puuid FROM otp_games WHERE match_id = ?", (match_id,))}
+    sql = "SELECT puuid FROM otp_games WHERE match_id = ?" + (f" AND kind IS NOT '{RANKING_KIND}'" if replace else "")
+    have = {r["puuid"] for r in db.query(sql, (match_id,))}
     catalog = catalog_for(svc, match)
     version = DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
     shared: dict = {}  # los recorridos de los 10, una vez: iguales desde los 10 puntos de vista
@@ -615,6 +617,9 @@ def save_ranking_game(db, svc, match: dict, timeline: dict | None, default_tier:
         return 0
     blob = pack_ranking(dossiers)  # antes de coger el candado de escritura
     with db.write() as conn:  # los 10 de una vez (una escritura, no diez); el análisis, en ranking_games
+        if replace:
+            conn.execute("DELETE FROM otp_games WHERE match_id = ? AND kind = ?", (match_id, RANKING_KIND))
+            conn.execute("DELETE FROM ranking_games WHERE match_id = ?", (match_id,))
         conn.executemany(
             "INSERT OR IGNORE INTO otp_games (match_id, puuid, champ, role, win, game_start, patch, platform, tier, division, "
             "lp, has_timeline, version, fetched_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1029,6 +1034,112 @@ def _resave(db, svc, r, match: dict, timeline: dict | None) -> bool:
         return False
 
 
+# Progreso del re-análisis de las partidas guardadas, visible arriba en la web. El total de la versión se guarda en la
+# base de datos (``PROGRESS_KEY``): al reiniciar la app sigue por donde iba (hechas = total - lo que queda sin rehacer),
+# no vuelve a empezar la cuenta. Al acabar se marca hecho y la etiqueta desaparece.
+PROGRESS_KEY = "otp.reanalysis"
+_progress: dict = {"running": False}
+
+
+def _version_now() -> int:
+    return DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
+
+
+def _saved_progress(db) -> dict:
+    try:
+        return json.loads(db.meta_get(PROGRESS_KEY) or "{}") or {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _save_progress(db, record: dict) -> None:
+    try:
+        db.meta_set(PROGRESS_KEY, json.dumps(record))
+    except Exception:  # noqa: BLE001 - sin guardarlo solo se pierde la cuenta, no el re-análisis
+        log.debug("No se pudo guardar el progreso del re-análisis", exc_info=True)
+
+
+def progress_begin(db, pending: int) -> bool:
+    """Empieza (o sigue) la cuenta del re-análisis de esta versión con ``pending`` partidas por rehacer. ``False`` si
+    ya se acabó y solo quedan las que no se pueden rehacer (sin el bruto guardado): no hace falta volver a intentarlo."""
+    version = _version_now()
+    saved = _saved_progress(db)
+    if saved.get("version") == version:
+        if saved.get("finished") and pending <= int(saved.get("left") or 0):
+            return False
+        total = max(int(saved.get("total") or 0), pending)
+    else:
+        total = pending
+    _save_progress(db, {"version": version, "total": total})
+    _progress.clear()
+    _progress.update(running=True, total=total, done=total - pending)
+    return True
+
+
+def outdated_ranking(db) -> int:
+    """Partidas de todo el ranking analizadas con otra versión (no guardan el bruto: hay que volver a bajarlas)."""
+    return int(db.scalar("SELECT COUNT(*) FROM ranking_games WHERE version != ?", (_version_now(),)) or 0)
+
+
+def refetch_ranking(db, svc, *, stop: threading.Event | None = None, pause=None) -> tuple[int, bool]:
+    """Las partidas de todo el ranking con una versión anterior del análisis: se vuelven a bajar de Riot (prioridad
+    baja, detrás de lo que estés mirando; en pausa mientras juegas) y se rehacen sus 10 análisis. Las que Riot ya no
+    tiene se quedan como estaban. Si la red o Riot fallan, se para y sigue en el próximo arranque. Devuelve (rehechas,
+    si llegó al final de la lista)."""
+    from app.riot.client import Cancelled, RiotAPIError, RiotKeyError
+    from app.riot.ratelimit import Priority
+
+    ids = [r["match_id"] for r in db.query("SELECT match_id FROM ranking_games WHERE version != ? ORDER BY match_id", (_version_now(),))]
+    done = 0
+    for match_id in ids:
+        if _pause_or_stop(stop, pause):
+            return done, False
+        kw = {"priority": Priority.LOW, "stop": stop}
+        try:
+            match = svc.riot.match(match_id, **kw)
+            try:
+                timeline = svc.riot.timeline(match_id, **kw) if match else None
+            except RiotAPIError as exc:
+                if exc.status not in (400, 403, 404, 422):
+                    raise
+                timeline = None  # sin timeline: se analiza con lo que da la partida (como al recogerla)
+        except (Cancelled, RiotKeyError):
+            return done, False
+        except RiotAPIError as exc:
+            if exc.status not in (400, 403, 404, 422):
+                log.info("Re-análisis del ranking en pausa hasta el próximo arranque (Riot: %s)", exc)
+                return done, False
+            match = None
+        if _progress.get("running"):
+            _progress["done"] = _progress.get("done", 0) + 1
+        if not match:
+            continue
+        tier = db.scalar("SELECT tier FROM otp_games WHERE match_id = ? AND kind = ? LIMIT 1", (match_id, RANKING_KIND))
+        try:
+            if save_ranking_game(db, svc, match, timeline, tier, replace=True):
+                done += 1
+        except Exception:  # noqa: BLE001 - una partida rara no para las demás (se queda la de antes)
+            log.exception("No se pudo re-analizar la partida %s del ranking", match_id)
+    return done, True
+
+
+def progress_end(db, stopped: bool) -> None:
+    """Fin de una tanda: si se paró a medias (cerrar la app) sigue la próxima vez; si no, queda hecho."""
+    if _progress.get("running") and not stopped:
+        left = outdated(db) + outdated_ranking(db)
+        _save_progress(db, {"version": _version_now(), "total": _progress.get("total", 0), "finished": True, "left": left})
+    _progress["running"] = False
+
+
+def reanalysis_status() -> dict:
+    """Para la web: {"running", "done", "total", "pct"} mientras se re-analiza; {"running": False} si no."""
+    if not _progress.get("running"):
+        return {"running": False}
+    total = max(1, int(_progress.get("total") or 0))
+    done = min(total, int(_progress.get("done") or 0))
+    return {"running": True, "done": done, "total": total, "pct": int(done * 100 / total)}
+
+
 def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None = None, pause=None) -> int:
     """Rehace los dossiers con el análisis actual a partir del bruto guardado (sin llamadas a Riot) y la carpeta.
 
@@ -1047,6 +1158,8 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
         if _pause_or_stop(stop, pause):
             break
         match, timeline = load_raw(db, svc, r["match_id"], r["puuid"])
+        if _progress.get("running"):
+            _progress["done"] = _progress.get("done", 0) + 1  # también las que no se pueden rehacer: ya están vistas
         if match is None:
             continue
         if _resave(db, svc, r, match, timeline):
@@ -1181,7 +1294,7 @@ def start_reanalysis(svc) -> threading.Thread | None:
     segundo plano (sin Riot; en pausa mientras juegas) y se regenera ``data/otps``. Así «Tú frente a los OTPs», sus
     resúmenes y las builds del draft comparan con las mismas reglas que tus partidas."""
     db = svc.db
-    pending = outdated(db)
+    pending = outdated(db) + outdated_ranking(db)  # las de todo el ranking, volviéndolas a bajar
     unclassified = int(db.scalar("SELECT COUNT(*) FROM otp_games WHERE kind IS NULL") or 0)
     stale = any(f is not None and f.needs_rebuild() for f in (Files.of(svc, k) for k in KIND_DIRS))
     # OTP = lo que juega (sus partidas revisadas), no solo su maestría: quien cambia de carpeta se mueve él solo (en
@@ -1216,11 +1329,18 @@ def _reanalysis_run(svc, db, stop, pending: int, unclassified: int, stale: bool,
             rebuild_all(svc)  # carpetas al día (también si la última vez quedaron a medias)
         elif moved and not pending:
             relocate(svc, moved)
-        if pending:
-            log.info("Re-analizando %d partidas guardadas con la versión %d del análisis…", pending, ANALYSIS_VERSION)
+        if pending and progress_begin(db, pending):
+            log.info("Re-analizando %d partidas guardadas con la versión %d del análisis (%d de %d hechas)…",
+                     pending, ANALYSIS_VERSION, _progress["done"], _progress["total"])
             done = reanalyze(db, svc, stop=stop, pause=lambda: _in_game(svc))
+            finished = not _stopped(stop)
+            if finished:
+                again, finished = refetch_ranking(db, svc, stop=stop, pause=lambda: _in_game(svc))
+                done += again
+            progress_end(db, stopped=not finished)
             log.info("Partidas re-analizadas: %d (versión %d).", done, ANALYSIS_VERSION)
     except Exception:
+        _progress["running"] = False
         log.exception("Fallo re-analizando o clasificando las partidas guardadas")
 
 

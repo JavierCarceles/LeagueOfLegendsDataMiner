@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app import __version__
+from app.ingest import otp_details
 from app.analytics.draft import get_alpha, last_backtest
 from app.analytics.filters import available_patches
 from app.api.deps import svc_from
@@ -84,6 +85,7 @@ def status(svc=Depends(svc_from)):
         "crawler": svc.crawler.status(),
         "tracker": _tracker_brief(svc),
         "warmer": svc.warmer.status(),
+        "reanalysis": otp_details.reanalysis_status(),
         "ratelimit": svc.limiter.snapshot(),
         "model": {"alpha": get_alpha(svc), "priors": svc.priors.get() if svc.startup_done.is_set() else None, "backtest": last_backtest(svc)},
         "features": {
