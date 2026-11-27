@@ -398,6 +398,7 @@ def otps_live(svc=Depends(svc_from)):
             "enabled": bool(cfg and cfg.save_details),
             "session_tiers": svc.crawler.session_tiers(),
             "session_split": otp_details.session_counts(svc.db),  # para partir la de la sesión en OTPs y resto
+            "reanalysis": otp_details.reanalysis_status("otp"),  # las recogidas, en «Partidas por elo (total)»
         }
         | _files_state(svc)
     )

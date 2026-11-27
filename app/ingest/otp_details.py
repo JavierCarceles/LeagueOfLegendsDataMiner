@@ -1038,42 +1038,54 @@ def _resave(db, svc, r, match: dict, timeline: dict | None) -> bool:
 # base de datos (``PROGRESS_KEY``): al reiniciar la app sigue por donde iba (hechas = total - lo que queda sin rehacer),
 # no vuelve a empezar la cuenta. Al acabar se marca hecho y la etiqueta desaparece.
 PROGRESS_KEY = "otp.reanalysis"
-_progress: dict = {"running": False}
+_progress: dict = {"running": False}  # partidas recogidas (OTPs, jugadores y todo el ranking)
+# Tus partidas (``tracker.reanalyze_outdated``) llevan su propia cuenta; la etiqueta de la web suma las dos.
+PROGRESS_KEYS = {"otp": PROGRESS_KEY, "mine": "mine.reanalysis"}
+_parts: dict[str, dict] = {"otp": _progress, "mine": {"running": False}}
 
 
 def _version_now() -> int:
     return DOSSIER_VERSION * 1000 + ANALYSIS_VERSION
 
 
-def _saved_progress(db) -> dict:
+def _saved_progress(db, part: str = "otp") -> dict:
     try:
-        return json.loads(db.meta_get(PROGRESS_KEY) or "{}") or {}
+        return json.loads(db.meta_get(PROGRESS_KEYS[part]) or "{}") or {}
     except (TypeError, ValueError):
         return {}
 
 
-def _save_progress(db, record: dict) -> None:
+def _save_progress(db, record: dict, part: str = "otp") -> None:
     try:
-        db.meta_set(PROGRESS_KEY, json.dumps(record))
+        db.meta_set(PROGRESS_KEYS[part], json.dumps(record))
     except Exception:  # noqa: BLE001 - sin guardarlo solo se pierde la cuenta, no el re-análisis
         log.debug("No se pudo guardar el progreso del re-análisis", exc_info=True)
 
 
-def progress_begin(db, pending: int) -> bool:
+def progress_begin(db, pending: int, part: str = "otp") -> bool:
     """Empieza (o sigue) la cuenta del re-análisis de esta versión con ``pending`` partidas por rehacer. ``False`` si
-    ya se acabó y solo quedan las que no se pueden rehacer (sin el bruto guardado): no hace falta volver a intentarlo."""
+    ya se acabó y solo quedan las que no se pueden rehacer (sin el bruto guardado): no hace falta volver a intentarlo.
+    ``part``: «otp» (las recogidas) o «mine» (las tuyas)."""
     version = _version_now()
-    saved = _saved_progress(db)
+    saved = _saved_progress(db, part)
     if saved.get("version") == version:
         if saved.get("finished") and pending <= int(saved.get("left") or 0):
             return False
         total = max(int(saved.get("total") or 0), pending)
     else:
         total = pending
-    _save_progress(db, {"version": version, "total": total})
-    _progress.clear()
-    _progress.update(running=True, total=total, done=total - pending)
+    _save_progress(db, {"version": version, "total": total}, part)
+    state = _parts[part]
+    state.clear()
+    state.update(running=True, total=total, done=total - pending)
     return True
+
+
+def progress_tick(part: str = "otp") -> None:
+    """Una partida más vista (rehecha o que no se puede rehacer)."""
+    state = _parts[part]
+    if state.get("running"):
+        state["done"] = state.get("done", 0) + 1
 
 
 def outdated_ranking(db) -> int:
@@ -1110,8 +1122,7 @@ def refetch_ranking(db, svc, *, stop: threading.Event | None = None, pause=None)
                 log.info("Re-análisis del ranking en pausa hasta el próximo arranque (Riot: %s)", exc)
                 return done, False
             match = None
-        if _progress.get("running"):
-            _progress["done"] = _progress.get("done", 0) + 1
+        progress_tick()
         if not match:
             continue
         tier = db.scalar("SELECT tier FROM otp_games WHERE match_id = ? AND kind = ? LIMIT 1", (match_id, RANKING_KIND))
@@ -1123,20 +1134,23 @@ def refetch_ranking(db, svc, *, stop: threading.Event | None = None, pause=None)
     return done, True
 
 
-def progress_end(db, stopped: bool) -> None:
-    """Fin de una tanda: si se paró a medias (cerrar la app) sigue la próxima vez; si no, queda hecho."""
-    if _progress.get("running") and not stopped:
-        left = outdated(db) + outdated_ranking(db)
-        _save_progress(db, {"version": _version_now(), "total": _progress.get("total", 0), "finished": True, "left": left})
-    _progress["running"] = False
+def progress_end(db, stopped: bool, part: str = "otp", left: int | None = None) -> None:
+    """Fin de una tanda: si se paró a medias (cerrar la app) sigue la próxima vez; si no, queda hecho. ``left``: las
+    que siguen sin rehacer (por defecto, las recogidas)."""
+    state = _parts[part]
+    if state.get("running") and not stopped:
+        left = left if left is not None else outdated(db) + outdated_ranking(db)
+        _save_progress(db, {"version": _version_now(), "total": state.get("total", 0), "finished": True, "left": left}, part)
+    state["running"] = False
 
 
-def reanalysis_status() -> dict:
+def reanalysis_status(part: str | None = None) -> dict:
     """Para la web: {"running", "done", "total", "pct"} mientras se re-analiza; {"running": False} si no."""
-    if not _progress.get("running"):
+    running = [state for name, state in _parts.items() if state.get("running") and (part is None or name == part)]
+    if not running:
         return {"running": False}
-    total = max(1, int(_progress.get("total") or 0))
-    done = min(total, int(_progress.get("done") or 0))
+    total = max(1, sum(int(state.get("total") or 0) for state in running))
+    done = min(total, sum(int(state.get("done") or 0) for state in running))
     return {"running": True, "done": done, "total": total, "pct": int(done * 100 / total)}
 
 
@@ -1158,8 +1172,7 @@ def reanalyze(db, svc, limit: int | None = None, *, stop: threading.Event | None
         if _pause_or_stop(stop, pause):
             break
         match, timeline = load_raw(db, svc, r["match_id"], r["puuid"])
-        if _progress.get("running"):
-            _progress["done"] = _progress.get("done", 0) + 1  # también las que no se pueden rehacer: ya están vistas
+        progress_tick()  # también las que no se pueden rehacer: ya están vistas
         if match is None:
             continue
         if _resave(db, svc, r, match, timeline):
