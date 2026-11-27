@@ -29,7 +29,31 @@ class KeyBody(BaseModel):
     key: str
 
 
+# Los totales de la base de datos cuestan ~1 s (COUNT(*) de tablas de millones de filas) y la web pide el estado cada
+# pocos segundos: en Windows eran 780 consultas lentas en hora y media. Se recalculan como mucho cada minuto y, mientras,
+# se devuelve el último valor (la primera vez sí se espera).
+DB_COUNTS_TTL_S = 60.0
+_counts_lock = threading.Lock()
+_counts: dict = {"at": 0.0, "value": None, "svc": None}
+
+
 def _db_counts(svc) -> dict:
+    now = time.monotonic()
+    if _counts["svc"] is not svc:
+        _counts.update(at=0.0, value=None, svc=svc)
+    if _counts["value"] is not None and now - _counts["at"] < DB_COUNTS_TTL_S:
+        return _counts["value"]
+    if not _counts_lock.acquire(blocking=_counts["value"] is None):
+        return _counts["value"]  # otro hilo ya los está recalculando
+    try:
+        _counts["value"] = _count_db(svc)
+        _counts["at"] = time.monotonic()
+    finally:
+        _counts_lock.release()
+    return _counts["value"]
+
+
+def _count_db(svc) -> dict:
     db = svc.db
     return {
         "matches": db.scalar("SELECT COUNT(*) FROM matches WHERE aggregated = 1", default=0),

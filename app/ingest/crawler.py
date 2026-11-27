@@ -215,6 +215,17 @@ def target_sql(cfg: CrawlerConfig, alias: str = "") -> tuple[str, list]:
     return ("(" + " OR ".join(parts) + ")") if parts else "0", params
 
 
+def details_sql(cfg: CrawlerConfig, alias: str = "p") -> tuple[str, list]:
+    """Condición SQL «partida guardada que lleva análisis»: con los campeones elegidos (en su rol), de las colas
+    elegidas y sin remake, como al bajarlas. Sobre ``participants`` (``alias``) unida a ``matches m``: esa tabla guarda
+    también partidas de otras colas (búsquedas antiguas, el draft) y por el relleno entraban Flex, normales y hasta la
+    cola 710 (27-11-2026). La usan el relleno y el recuento de pendientes: si no coinciden, un jugador con partidas de
+    otra cola quedaba pendiente para siempre."""
+    cond, params = target_sql(cfg, alias)
+    queues = cfg.queue_ids()
+    return f"{cond} AND m.queue IN ({','.join('?' * len(queues))}) AND m.is_remake = 0", [*params, *queues]
+
+
 def otp_history_state(row, list_key: str, depth_start: int, config_key: str | None = None) -> str:
     """Estado del historial de un OTP: ``queued`` (sin empezar), ``loading``, ``done`` o ``share`` (más atrás ya no
     jugaba esos campeones). Si ahora se pide más historial que cuando se completó, o cambian los campeones o el filtro
@@ -1593,9 +1604,11 @@ class RegionWorker(threading.Thread):
         except RiotKeyError:
             raise
         except RiotAPIError as exc:
-            if exc.status not in (400, 404):
+            # 400/404: ya no existe en esa plataforma. 403 con la key válida (el cliente lo comprueba): Riot niega a ese
+            # jugador; en na1 la búsqueda se quedaba repitiéndolo cada 4 s (27-11-2026). Se recuerda vacío y se sigue.
+            if exc.status not in (400, 403, 404):
                 raise
-            data = []  # jugador ya no existe en esa plataforma: se recuerda vacío
+            data = []
         top = [
             [int(m.get("championId") or 0), int(m.get("championPoints") or 0), int(m.get("lastPlayTime") or 0) // 1000]
             for m in data
@@ -1871,7 +1884,7 @@ class RegionWorker(threading.Thread):
         """OTPs con partidas suyas con los campeones elegidos (en su rol) guardadas pero sin micro/macro."""
         if not player_ids:
             return set()
-        cond, params = target_sql(self.config, "p")
+        cond, params = details_sql(self.config, "p")
         out: set[int] = set()
         for i in range(0, len(player_ids), 400):
             chunk = player_ids[i : i + 400]
@@ -1879,6 +1892,7 @@ class RegionWorker(threading.Thread):
                 r[0]
                 for r in self.svc.db.query(
                     f"SELECT DISTINCT p.player_id FROM participants p JOIN players pl ON pl.id = p.player_id "
+                    f"JOIN matches m ON m.match_id = p.match_id "
                     f"LEFT JOIN otp_games o ON o.match_id = p.match_id AND o.puuid = pl.puuid "
                     f"WHERE p.player_id IN ({','.join('?' * len(chunk))}) AND {cond} AND o.match_id IS NULL",
                     (*chunk, *params),
@@ -2378,7 +2392,7 @@ class RegionWorker(threading.Thread):
         """3) Micro/macro de sus partidas ya guardadas que aún no lo tienen (de antes de activarlo o que fallaron)."""
         cfg = self.config
         if cfg.save_details and not cfg.patterns and v.budget > 0 and not self.stop_event.is_set():
-            cond, params = target_sql(cfg, "p")
+            cond, params = details_sql(cfg, "p")
             for match_id in otp_details.missing(self.svc.db, v.puuid, v.row["id"], cond, params, min(v.budget, OTP_DETAIL_BACKFILL)):
                 if self.stop_event.is_set():
                     break
