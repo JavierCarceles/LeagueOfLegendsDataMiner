@@ -1,6 +1,7 @@
 // Arranque de la aplicación: navegación, filtros globales, estado de la API key y logs.
 import { api } from "./api.js";
 import { closePickers } from "./components/picker.js";
+import { initScrollbars } from "./scrollbars.js";
 import { dd, DEFAULT_FILTERS, onFilters, setFilters, setMeta, state, TIER_LABEL } from "./state.js";
 import { errorBox, fmt, h, icon, mount, select, toast } from "./ui.js";
 
@@ -456,6 +457,7 @@ async function watchChampSelect() {
 }
 
 async function boot() {
+  initScrollbars();
   renderSidebar();
   void setupLogs(); // trata sus errores (sin servidor, el panel de actividad se queda vacío)
   try {

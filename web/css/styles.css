@@ -105,7 +105,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  padding: 16px 12px;
+  /* A la derecha, sitio para su barra de scroll (dibujada encima: scrollbars.js), que no tape los enlaces. */
+  padding: 16px 18px 16px 12px;
   gap: 4px;
   overflow-y: auto;
 }
@@ -140,7 +141,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: relative; z-index: 5;
 }
 .topbar h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.2px; white-space: nowrap; }
-.filters { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-left: 12px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-left: 12px; min-width: 0; overflow-x: auto; --sb-size: 8px; }
 .filter { display: flex; flex-direction: column; gap: 2px; }
 .filter label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.9px; color: var(--faint); padding-left: 2px; }
 .main { grid-area: main; overflow-y: auto; padding: 22px 24px 60px; scroll-behavior: smooth; }
@@ -1217,7 +1218,10 @@ img.elo-chart-champ.top-otp { border-color: var(--gold); }
   font-variant-numeric: tabular-nums; transition: bottom 0.6s ease; }
 .elo-chart-x { display: grid; grid-template-columns: 52px 1fr; margin-top: 6px; }
 .elo-chart-logos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; padding: 0 6px; }
-.elo-chart-logo { display: flex; justify-content: center; }
+/* Cada elo, exactamente en la columna de su barra: lo de debajo (campeones) no puede ensanchar la columna y descuadrar
+   los elos con los de la otra gráfica (27-11-2026). */
+.elo-chart-logo { display: flex; justify-content: center; min-width: 0; }
+.elo-chart-logo > * { max-width: 100%; }
 .elo-chart-img { width: 34px; height: 34px; object-fit: contain; }
 @media (max-width: 640px) {
   .elo-chart-img { width: 22px; height: 22px; }
@@ -1265,4 +1269,412 @@ img.elo-chart-champ.top-otp { border-color: var(--gold); }
 @media (max-width: 720px) {
   .video-row { flex-wrap: wrap; }
   .video-pills { justify-content: flex-start; }
+}
+
+/* ---------------------------------------------------------------- barras de scroll
+   Propias en toda la app (27-11-2026): en Windows salía la barra gris del sistema, de 17 px, también en el menú de la
+   izquierda con el zoom al 100 %. Oro hextech, como el cliente del juego:
+   · el pulgar es una barra de oro con volumen (bronce, oro y brillo de lado a lado, canto oscuro y reflejo arriba);
+   · en reposo, fina y medio apagada; con el ratón encima de lo que se desplaza se ensancha, se enciende y aparece su
+     ranura; encima del pulgar, más ancha y brillante;
+   · al desplazar (``scrollbars.js`` pone ``.is-scrolling`` un momento) se enciende un núcleo turquesa por el centro y
+     un destello recorre el pulgar; al arrastrarlo, oro claro con el núcleo encendido.
+   Cómo se anima: el pulgar es un pseudo-elemento y no admite transiciones ni animaciones, pero toma de su caja
+   variables registradas (``@property``) que sí se animan: --sb-a (cuánto se ve), --sb-k (borde transparente, en
+   parte del ancho: cuanto menos, más gordo), --sb-core (núcleo turquesa) y --sb-shine (dónde va el destello).
+   Chrome y Edge usan ``::-webkit-scrollbar``; Firefox, ``scrollbar-color`` (más sencillo). */
+@property --sb-a { syntax: "<number>"; inherits: false; initial-value: 0.62; }
+@property --sb-k { syntax: "<number>"; inherits: false; initial-value: 0.28; }
+@property --sb-core { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --sb-shine { syntax: "<percentage>"; inherits: false; initial-value: -40%; }
+:root {
+  --sb-size: 12px;
+  /* Oro y turquesa hextech (los del cliente del juego), en r, g, b para poder darles transparencia. */
+  --hx-cream: 240, 230, 210;
+  --hx-gold: 200, 170, 110;
+  --hx-gold-2: 200, 155, 60;
+  --hx-bronze: 120, 90, 40;
+  --hx-deep: 70, 55, 20;
+  --hx-teal: 10, 200, 185;
+  --hx-teal-2: 205, 250, 250;
+}
+*:hover { --sb-a: 0.85; --sb-k: 0.17; }
+.is-scrolling, .is-scrolling:hover {
+  --sb-a: 1;
+  --sb-k: 0.17;
+  --sb-core: 1;
+  transition: --sb-a 0.12s ease-out, --sb-k 0.12s ease-out, --sb-core 0.15s ease-out;
+  animation: sb-shine 1.15s linear infinite;
+}
+@keyframes sb-shine { from { --sb-shine: -40%; } to { --sb-shine: 140%; } }
+:is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb) {
+  transition: --sb-a 0.45s ease, --sb-k 0.3s ease, --sb-core 0.7s ease;
+}
+
+::-webkit-scrollbar { width: var(--sb-size); height: var(--sb-size); background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+/* La ranura: hundida, con una línea de oro por el centro; aparece con el ratón encima (en reposo no se ve). */
+::-webkit-scrollbar-track { --sb-a: inherit; border-radius: 999px; background: transparent; }
+*:hover::-webkit-scrollbar-track:vertical {
+  background:
+    linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
+      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(90deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
+  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 1px 0 3px rgba(0, 0, 0, 0.5);
+}
+*:hover::-webkit-scrollbar-track:horizontal {
+  background:
+    linear-gradient(180deg, transparent calc(50% - 0.5px), rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% - 0.5px),
+      rgba(var(--hx-gold), calc(var(--sb-a) * 0.28)) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(180deg, rgba(0, 0, 0, calc(var(--sb-a) * 0.45)), rgba(0, 0, 0, calc(var(--sb-a) * 0.2)));
+  box-shadow: inset 0 0 0 1px rgba(var(--hx-gold), calc(var(--sb-a) * 0.07)), inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* El pulgar, por capas (de arriba abajo): destello que lo recorre, núcleo turquesa, sombra en los extremos y la barra
+   de oro con volumen. Vertical; el horizontal, igual girado. */
+::-webkit-scrollbar-thumb {
+  --sb-a: inherit;
+  --sb-k: inherit;
+  --sb-core: inherit;
+  --sb-shine: inherit;
+  min-height: 44px;
+  min-width: 44px;
+  border: calc(var(--sb-size) * var(--sb-k)) solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: transparent;
+  background-image:
+    linear-gradient(180deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
+      transparent calc(var(--sb-shine) + 22%)),
+    linear-gradient(90deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
+      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
+    linear-gradient(180deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
+    linear-gradient(90deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
+      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--hx-deep), calc(var(--sb-a) * 0.7)),
+    inset 0 0 6px rgba(var(--hx-teal), calc(var(--sb-core) * 0.55));
+}
+::-webkit-scrollbar-thumb:horizontal {
+  background-image:
+    linear-gradient(90deg, transparent calc(var(--sb-shine) - 22%), rgba(var(--hx-cream), calc(var(--sb-core) * 0.75)) var(--sb-shine),
+      transparent calc(var(--sb-shine) + 22%)),
+    linear-gradient(180deg, transparent 28%, rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 44%, rgba(var(--hx-teal-2), var(--sb-core)) 50%,
+      rgba(var(--hx-teal), calc(var(--sb-core) * 0.9)) 56%, transparent 72%),
+    linear-gradient(90deg, rgba(var(--hx-cream), calc(var(--sb-a) * 0.35)), transparent 18%, transparent 80%, rgba(var(--hx-deep), calc(var(--sb-a) * 0.6))),
+    linear-gradient(180deg, rgba(var(--hx-deep), var(--sb-a)), rgba(var(--hx-gold-2), var(--sb-a)) 20%, rgba(var(--hx-cream), var(--sb-a)) 42%,
+      rgba(var(--hx-gold), var(--sb-a)) 62%, rgba(var(--hx-bronze), var(--sb-a)) 86%, rgba(var(--hx-deep), var(--sb-a)));
+}
+::-webkit-scrollbar-thumb:hover { --sb-a: 1; --sb-k: 0.08; }
+::-webkit-scrollbar-thumb:active {
+  --sb-a: 1;
+  --sb-k: 0.08;
+  --sb-core: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--hx-cream), 0.35),
+    inset 0 0 8px rgba(var(--hx-teal), 0.8);
+}
+
+/* ---- Núcleo hextech de la vista y del menú (scrollbars.js: ``HexBar``), dibujado encima de su caja; la barra nativa se
+   esconde (solo la vertical: la horizontal del menú en móvil sigue siendo la de arriba). Partes:
+   · canal hundido con cantos de oro y gemas en los extremos; las secciones son runas hexagonales que se encienden
+     dentro del cristal cuando el pulgar pasa por ellas;
+   · el pulgar: cristal tallado (puntas de gema) con marco de oro, dentro energía turquesa que fluye (más deprisa al
+     desplazarte; con velocidad se calienta a oro y fuego, ``--hx-heat`` lo pone scrollbars.js), reflejo de cristal y
+     un sello hextech que gira al pasar el ratón;
+   · chispas, estela, ondas y Flash se pintan en un lienzo (``.hx-fx``) que sobresale hacia la página. */
+.hx-host { scrollbar-width: none; }
+.hx-host::-webkit-scrollbar:vertical { width: 0; }
+.hx-host.is-scrolling { animation: none; }
+.hx-bar {
+  --hx-heat: 0;
+  position: fixed;
+  z-index: 30;
+  width: 18px;
+  touch-action: none;
+  user-select: none;
+  transition: opacity 0.35s ease;
+}
+.hx-bar.off { opacity: 0; pointer-events: none; }
+.hx-fx { position: absolute; pointer-events: none; }
+
+.hx-channel {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(var(--hx-teal), 0), rgba(var(--hx-teal), 0.1) 50%, rgba(var(--hx-teal), 0)),
+    linear-gradient(90deg, rgba(var(--hx-gold), 0.75) 0 1px, rgba(4, 9, 13, 0.94) 1px calc(100% - 1px), rgba(var(--hx-bronze), 0.85) calc(100% - 1px));
+  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5);
+  opacity: 0.3;
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+.hx-bar.awake .hx-channel, .hx-bar.live .hx-channel {
+  opacity: 1;
+  box-shadow: inset 0 0 4px #000, 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 12px rgba(var(--hx-gold), 0.14);
+}
+.hx-cap {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze)) 80%);
+  box-shadow: 0 0 0 1px rgba(16, 11, 3, 0.95), 0 0 8px rgba(var(--hx-gold), 0.35);
+}
+.hx-cap.top { top: -6px; }
+.hx-cap.bottom { bottom: -6px; }
+.hx-cap::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px;
+  background: radial-gradient(circle at 35% 35%, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 55%, #023a44);
+  opacity: 0.5;
+  transition: opacity 0.4s ease, box-shadow 0.4s ease;
+}
+.hx-bar.awake .hx-cap::after, .hx-bar.live .hx-cap::after { opacity: 1; box-shadow: 0 0 8px rgb(var(--hx-teal)); }
+
+/* Runas: hexágonos de oro en el canal; bajo el pulgar se encienden en turquesa por encima del cristal. */
+.hx-ticks { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.hx-rune { position: absolute; left: 50%; top: -7px; width: 14px; height: 14px; margin-left: -7px; pointer-events: auto; cursor: pointer; }
+.hx-rune::before,
+.hx-rune::after {
+  content: "";
+  position: absolute;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  transition: inset 0.25s ease, opacity 0.25s ease, background 0.25s ease;
+}
+.hx-rune::before { inset: 3px 3.5px; background: linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 45%, rgb(var(--hx-bronze))); opacity: 0.4; }
+.hx-rune::after { inset: 5px 5.3px; background: #071219; opacity: 0.4; }
+.hx-bar.awake .hx-rune::before, .hx-bar.awake .hx-rune::after { opacity: 1; }
+.hx-rune:hover::before { inset: 1px 1.5px; background: linear-gradient(180deg, #fff, rgb(var(--hx-cream)) 40%, rgb(var(--hx-gold-2))); }
+.hx-rune:hover::after { inset: 3.5px 3.8px; background: radial-gradient(circle, rgb(var(--hx-teal-2)), rgb(var(--hx-teal)) 70%); }
+.hx-rune.lit { pointer-events: none; filter: drop-shadow(0 0 3px rgb(var(--hx-teal))) drop-shadow(0 0 1px rgb(var(--hx-teal-2))); }
+.hx-rune.lit::before { opacity: 1; background: linear-gradient(180deg, #fff, rgb(var(--hx-teal-2)) 40%, rgb(var(--hx-teal))); }
+.hx-rune.lit::after { opacity: 1; background: radial-gradient(circle, #fff, rgb(var(--hx-teal-2)) 50%, rgba(var(--hx-teal), 0.2)); }
+
+/* El pulgar */
+.hx-thumb {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 0;
+  width: 10px;
+  margin-left: -5px;
+  will-change: transform;
+  transform-origin: 50% 50%;
+  cursor: grab;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 3px rgba(var(--hx-gold), 0.3));
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
+}
+.hx-bar.awake .hx-thumb { width: 12px; margin-left: -6px; }
+.hx-thumb:hover, .hx-bar.dragging .hx-thumb { width: 14px; margin-left: -7px; }
+.hx-thumb:hover { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 6px rgba(var(--hx-gold), 0.75)); }
+.hx-bar.live .hx-thumb {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 5px rgba(var(--hx-teal), calc(0.85 - var(--hx-heat) * 0.6)))
+    drop-shadow(0 0 7px rgba(255, 128, 36, calc(var(--hx-heat) * 0.95)));
+}
+.hx-bar.dragging .hx-thumb {
+  cursor: grabbing;
+  filter: drop-shadow(0 0 2px rgba(var(--hx-cream), 0.9)) drop-shadow(0 0 7px rgba(var(--hx-teal), calc(1 - var(--hx-heat) * 0.6)))
+    drop-shadow(0 0 9px rgba(255, 128, 36, calc(var(--hx-heat) * 0.95)));
+}
+/* El marco de oro, tallado como una gema (puntas arriba y abajo), con luz arriba y sombra abajo. */
+.hx-gem {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 7px, 100% calc(100% - 7px), 50% 100%, 0 calc(100% - 7px), 0 7px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 10%, rgba(0, 0, 0, 0) 88%, rgba(0, 0, 0, 0.55)),
+    linear-gradient(90deg, rgb(var(--hx-deep)), rgb(var(--hx-gold-2)) 22%, rgb(var(--hx-cream)) 46%, rgb(var(--hx-gold)) 64%,
+      rgb(var(--hx-bronze)) 86%, rgb(var(--hx-deep)));
+}
+.hx-bar.flashed .hx-gem { animation: hx-blink 0.42s ease-out; }
+@keyframes hx-blink { 0% { opacity: 0; filter: brightness(3) saturate(0); } 35% { opacity: 1; filter: brightness(2.2); } 100% { filter: none; } }
+/* El cristal de dentro, con la energía. */
+.hx-glass {
+  position: absolute;
+  inset: 2px;
+  overflow: hidden;
+  clip-path: polygon(50% 0, 100% 5.5px, 100% calc(100% - 5.5px), 50% 100%, 0 calc(100% - 5.5px), 0 5.5px);
+  background:
+    radial-gradient(140% 45% at 50% 50%, rgba(var(--hx-teal), 0.4), rgba(var(--hx-teal), 0) 70%),
+    linear-gradient(180deg, #02121a, #06303a 50%, #02121a);
+}
+.hx-flow {
+  --p: 12px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(100% + 2 * var(--p));
+  background: repeating-linear-gradient(180deg, rgba(var(--hx-teal), 0) 0 5px, rgba(var(--hx-teal), 0.55) 8px,
+    rgba(var(--hx-teal-2), 0.95) 9px, rgba(var(--hx-teal), 0.55) 10px, rgba(var(--hx-teal), 0) 12px 12px);
+  opacity: 0.55;
+  animation: hx-flow 2.6s linear infinite;
+  transition: opacity 0.35s ease;
+}
+.hx-flow.fast {
+  --p: 18px;
+  background: repeating-linear-gradient(180deg, rgba(var(--hx-teal-2), 0) 0 8px, rgba(var(--hx-teal-2), 0.95) 9.5px, rgba(var(--hx-teal-2), 0) 11px 18px);
+  animation-duration: 0.55s;
+  opacity: 0;
+}
+.hx-flow.hot {
+  --p: 10px;
+  background: repeating-linear-gradient(180deg, rgba(255, 72, 40, 0) 0 4px, rgba(255, 72, 40, 0.65) 6px, rgba(255, 214, 120, 1) 7px,
+    rgba(255, 128, 36, 0.65) 8px, rgba(255, 72, 40, 0) 10px 10px);
+  animation-duration: 0.32s;
+  opacity: var(--hx-heat);
+  transition: none;
+}
+.hx-flow { animation-play-state: paused; } /* en reposo, quieta: sin gastar nada */
+.hx-bar.awake .hx-flow, .hx-bar.live .hx-flow, .hx-bar.dragging .hx-flow { animation-play-state: running; }
+.hx-bar.awake .hx-flow { opacity: 0.85; }
+.hx-bar.live .hx-flow.fast, .hx-bar.dragging .hx-flow.fast { opacity: calc(1 - var(--hx-heat) * 0.7); }
+.hx-bar.awake .hx-flow.hot, .hx-bar.live .hx-flow.hot { opacity: var(--hx-heat); }
+@keyframes hx-flow { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, calc(-2 * var(--p)), 0); } }
+/* Reflejo del cristal y, con el ratón encima, un brillo que lo recorre. */
+.hx-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 12%, rgba(255, 255, 255, 0.38) 30%, rgba(255, 255, 255, 0) 48%);
+}
+.hx-sheen::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -50%;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+  opacity: 0;
+}
+.hx-thumb:hover .hx-sheen::after, .hx-bar.dragging .hx-sheen::after { opacity: 1; animation: hx-sweep 1.2s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
+@keyframes hx-sweep { from { transform: translateY(0); } to { transform: translateY(300%); } }
+/* El sello hextech del centro. */
+.hx-sigil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 10.5px;
+  margin: -5.25px 0 0 -4.5px;
+  overflow: visible;
+  filter: drop-shadow(0 0 2px rgba(var(--hx-teal), 0.9));
+  transition: transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.hx-sigil-frame { fill: rgba(2, 18, 26, 0.88); stroke: rgb(var(--hx-cream)); stroke-width: 1.1; }
+.hx-sigil-gem { fill: color-mix(in srgb, rgb(var(--hx-teal)), rgb(255, 128, 36) calc(var(--hx-heat) * 100%)); }
+.hx-sigil-ray { fill: none; stroke: rgb(var(--hx-gold)); stroke-width: 0.9; }
+.hx-thumb:hover .hx-sigil, .hx-bar.dragging .hx-sigil { transform: rotate(90deg) scale(1.2); }
+.hx-bar.live .hx-sigil-gem { animation: hx-gem 0.9s ease-in-out infinite; }
+@keyframes hx-gem { 50% { fill: rgb(var(--hx-teal-2)); } }
+
+/* El rótulo: placa del juego, canto de oro en degradado y gema turquesa. */
+.hx-label {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 2px);
+  max-width: 260px;
+  padding: 6px 12px 6px 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 700 10.5px/1.2 var(--font);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgb(var(--hx-cream));
+  text-shadow: 0 0 8px rgba(var(--hx-gold), 0.35);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, #172231, #0a0f16) padding-box,
+    linear-gradient(180deg, rgb(var(--hx-cream)), rgb(var(--hx-gold-2)) 40%, rgb(var(--hx-bronze))) border-box;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 14px rgba(var(--hx-gold), 0.16), inset 0 0 12px rgba(var(--hx-teal), 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s linear;
+}
+.hx-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 8px 1px 0;
+  transform: rotate(45deg);
+  background: radial-gradient(circle at 35% 35%, #fff, rgb(var(--hx-teal-2)) 35%, rgb(var(--hx-teal)));
+  box-shadow: 0 0 6px rgb(var(--hx-teal));
+  vertical-align: middle;
+}
+.hx-label.show { opacity: 1; right: calc(100% + 12px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-flow, .hx-sheen::after, .hx-bar.live .hx-sigil-gem, .hx-bar.flashed .hx-gem { animation: none; }
+  .hx-label { transition: opacity 0.2s ease; }
+}
+
+/* Firefox: sin pseudo-elementos, el color estándar (fino y dorado, más vivo con el ratón encima). */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(var(--hx-gold), 0.5) transparent; }
+  *:hover { scrollbar-color: rgba(var(--hx-gold), 0.85) transparent; }
+}
+
+/* Menú de la izquierda: si queda menú por ver arriba o abajo, ese borde se funde con un brillo dorado (las tapas van
+   con el contenido y las sombras quietas con la caja: al llegar al final la tapa cubre la sombra). Sin JavaScript. */
+.sidebar {
+  --sb-size: 10px;
+  background:
+    linear-gradient(#0c1119 35%, rgba(12, 17, 25, 0)) top / 100% 44px no-repeat local,
+    linear-gradient(rgba(10, 15, 22, 0), #0a0f16 65%) bottom / 100% 44px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) top / 100% 16px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(var(--hx-gold), 0.24), rgba(var(--hx-gold), 0)) bottom / 100% 16px no-repeat scroll,
+    linear-gradient(180deg, #0c1119, #0a0f16) scroll;
+}
+
+/* Cuánto llevas bajado en la vista: bajo la barra de arriba, una línea de oro que crece al desplazarte con una
+   cabeza turquesa encendida en la punta (animación ligada al scroll, sin JavaScript; donde no se puede, no sale). */
+@supports (animation-timeline: scroll()) {
+  .app { timeline-scope: --main-scroll; }
+  .main { scroll-timeline: --main-scroll block; }
+  .topbar::after,
+  .topbar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    pointer-events: none;
+    opacity: 0;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: --main-scroll;
+  }
+  .topbar::after {
+    background: linear-gradient(90deg, rgba(var(--hx-bronze), 0), rgb(var(--hx-gold-2)) 30%, rgb(var(--hx-gold)) 75%, rgb(var(--hx-cream)));
+    box-shadow: 0 0 8px rgba(var(--hx-gold), 0.4);
+    transform-origin: 0 50%;
+    animation-name: sb-progress;
+  }
+  /* La cabeza: una caja del ancho de la barra con un punto de luz en su borde derecho, que se desliza hasta su sitio. */
+  .topbar::before {
+    bottom: -4px;
+    height: 8px;
+    z-index: 1;
+    background: radial-gradient(4px 4px at 100% 50%, rgb(var(--hx-teal-2)), rgba(var(--hx-teal), 0.9) 45%, rgba(var(--hx-teal), 0));
+    animation-name: sb-progress-head;
+  }
+  @keyframes sb-progress { 0% { opacity: 0; transform: scaleX(0); } 2% { opacity: 1; } 100% { opacity: 1; transform: scaleX(1); } }
+  @keyframes sb-progress-head { 0% { opacity: 0; transform: translateX(-100%); } 2% { opacity: 1; } 100% { opacity: 1; transform: translateX(0); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.sidebar, .main, .filters, .table-wrap, .modal-backdrop, .log-list, .picker-list, .moments, .moments-list, .moment-detail, .sb),
+  .is-scrolling, .is-scrolling:hover { transition: none; animation: none; }
 }

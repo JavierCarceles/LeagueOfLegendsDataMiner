@@ -899,6 +899,20 @@ def test_details_are_backfilled_for_games_saved_before(keyed_svc):
     assert len(fake2.calls_to("timeline")) == 5 and len(fake2.calls_to("match")) == 5
 
 
+def test_backfill_only_takes_games_of_the_chosen_queues(keyed_svc):
+    # ``matches`` guarda también partidas de otras colas (búsquedas antiguas, el draft): el relleno de análisis solo coge
+    # las de las colas elegidas y sin remakes, como al bajarlas (en Windows entraban Flex, normales y la cola 710).
+    ids, payloads = history("otp-a", 5, prefix="1")
+    fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake, champions=[AATROX], save_details=False)
+    with keyed_svc.db.write() as conn:
+        conn.execute("UPDATE matches SET queue = 710 WHERE match_id = ?", (ids[0],))
+        conn.execute("UPDATE matches SET is_remake = 1 WHERE match_id = ?", (ids[1],))
+    fake2 = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
+    run_history(keyed_svc, fake2, champions=[AATROX], save_details=True)
+    assert set(details(keyed_svc)) == set(ids[2:])
+
+
 def test_details_only_for_games_in_the_chosen_role(keyed_svc):
     ids, payloads = role_history("otp-a", 6, prefix="1", role_for=lambda i: "JUNGLE" if i < 2 else "TOP")
     fake = HistoryRiot({"otp-a": ids}, payloads, {"otp-a": [(AATROX, 900_000)]})
@@ -2038,3 +2052,31 @@ def test_visits_are_tallied_by_their_specialist_ratio(keyed_svc):
         "≥5×": {"visitas": 1, "descartados": 0, "nuevas": 30},
         "<1,5×": {"visitas": 1, "descartados": 1, "nuevas": 2},
     }
+
+
+def test_mastery_denied_for_one_player_is_remembered_empty(keyed_svc, monkeypatch):
+    # 403 con la key válida (el cliente lo comprueba): Riot niega a ese jugador. Antes la búsqueda de na1 fallaba entera
+    # y lo repetía cada 4 s; ahora se apunta vacío y se sigue con el siguiente.
+    from types import SimpleNamespace
+
+    from app.riot.client import RiotAPIError
+
+    def denied(*args, **kwargs):
+        raise RiotAPIError(403, "Acceso denegado a champion-mastery-v4.top")
+
+    worker = crawler_mod.RegionWorker(keyed_svc.crawler, "americas", ["na1"], CrawlerConfig(champions=[AATROX]).validated())
+    monkeypatch.setattr(keyed_svc, "riot", SimpleNamespace(top_masteries=denied))
+    assert worker._check_mastery("na1", "p-denied") == []
+    assert keyed_svc.db.scalar("SELECT top FROM mastery_checks WHERE puuid = 'p-denied'") == "[]"
+
+
+def test_db_counts_are_cached_for_a_minute(keyed_svc):
+    # La web pide el estado cada pocos segundos y contar tablas de millones de filas costaba ~1 s cada vez.
+    from app.api import system
+
+    first = system._db_counts(keyed_svc)
+    with keyed_svc.db.write() as conn:
+        conn.execute("INSERT INTO players (puuid, platform) VALUES ('p-new', 'euw1')")
+    assert system._db_counts(keyed_svc) == first  # dentro del minuto: el mismo recuento
+    system._counts["at"] = 0.0
+    assert system._db_counts(keyed_svc)["players"] == first["players"] + 1
