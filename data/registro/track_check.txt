@@ -1,5 +1,30 @@
 Validación de la reconstrucción de recorridos (app.coach.track_check): la más reciente arriba. Se ejecuta sola al arrancar la app.
 
+=== 2026-11-27 11:26 · código e1667404f · 57 partidas · 31 min 53 s ===
+1) Posición real de un evento quitada y reconstruida con el resto:
+   Línea recta   9245 casos · error mediano 1218 u. · medio 1881 · p90 4403 · más de 4000 u.: 12.0 %
+   Sin peleas    9245 casos · error mediano 1138 u. · medio 1592 · p90 3515 · más de 4000 u.: 7.2 %
+   Reconstruido  9245 casos · error mediano 1132 u. · medio 1573 · p90 3452 · más de 4000 u.: 6.7 %
+1b) Posición del minuto escondida a quien pegó a campeones sin kill que lo explique (peleas sin muerte):
+   Sin peleas    801 casos · error mediano 2462 u. · medio 3275 · p90 7216 · más de 4000 u.: 33.2 %
+   Con peleas    801 casos · error mediano 1772 u. · medio 2973 · p90 6955 · más de 4000 u.: 28.8 %
+1c) Posición del minuto escondida a quien rompió un ward rival:
+   Sin wards     1146 casos · error mediano 2067 u. · medio 2797 · p90 6335 · más de 4000 u.: 26.3 %
+   Con wards     1146 casos · error mediano 1770 u. · medio 2376 · p90 5170 · más de 4000 u.: 17.6 %
+1d) Posición del minuto escondida a cualquiera (recorridos típicos aprendidos de las partidas guardadas):
+   Sin típicos   6393 casos · error mediano 1261 u. · medio 1835 · p90 4139 · más de 4000 u.: 10.8 %
+   Con típicos   6393 casos · error mediano 1240 u. · medio 1810 · p90 4097 · más de 4000 u.: 10.4 %
+2) Posición del jungla escondida en un minuto (su CS sí se sabe), con lo de antes y lo de después:
+   Sin campamentos  1310 casos · error mediano 3263 u. · medio 3568 · más de 4000 u.: 37.9 %
+   Con campamentos  1310 casos · error mediano 2491 u. · medio 2910 · más de 4000 u.: 25.0 %
+   Tramos de jungla sin otros datos: 2023; no cuadraban con el CS (no se inventa nada): 2 (0 %).
+3) Experiencia y CS de súbditos de cada minuto frente al recorrido (laners, sin pelear ni volver a base):
+   1426 minutos. Fuera de todas las líneas ≥ 75 % del minuto con ≥ 6 CS de súbditos (imposible): reconstruido 0, línea recta 2.
+   En su línea 0-25 % del minuto: 19 minutos · 6.4 CS · 345 de experiencia de media
+   En su línea 25-50 % del minuto: 17 minutos · 6.5 CS · 457 de experiencia de media
+   En su línea 50-75 % del minuto: 35 minutos · 7.9 CS · 546 de experiencia de media
+   En su línea 75-100 % del minuto: 1355 minutos · 8.7 CS · 534 de experiencia de media
+
 === 2026-11-26 19:05 · código 6b7985e99 · 57 partidas · 31 min 24 s ===
 1) Posición real de un evento quitada y reconstruida con el resto:
    Línea recta   9282 casos · error mediano 1226 u. · medio 1886 · p90 4400 · más de 4000 u.: 11.9 %
