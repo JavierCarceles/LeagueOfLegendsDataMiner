@@ -1,16 +1,30 @@
-/** Tema de la página entera (27-11-2026): «Estándar», el de siempre (por defecto), o «Hextech», todo con la estética
- *  del cliente del juego (oro y turquesa, marcos con esquinas, sus barras de scroll de cristal…). Se elige en el menú
- *  de tu perfil (arriba a la derecha).
+/** Tema de la página entera (27-11-2026): «Estándar», el de siempre (por defecto); «Hextech», con la estética del
+ *  cliente del juego; o uno por línea (Top, Jungla, Mid, ADC y los tres de Support: Engage, Guardián y Peel). Se elige
+ *  en el menú de tu perfil (arriba a la derecha).
  *
  *  Va en ``<html data-theme="…">``: cada tema es un fichero de CSS que solo actúa con su valor (``theme-<id>.css``), así
- *  que añadir uno nuevo es añadir su fichero y su línea en ``THEMES``. Se guarda en la app (``/api/ui/theme``: vale
+ *  que añadir uno nuevo es añadir su fichero, su línea en ``THEMES``, su id en el script del ``<head>`` y en
+ *  ``UI_THEMES`` (app/api/system.py). Los de línea («r-…») comparten la base theme-roles.css y la barra de cristal
+ *  lleva la piel de cada uno (scrollbars.js: ``SKINS``). Se guarda en la app (``/api/ui/theme``: vale
  *  aunque abras otro navegador) y en este navegador, para ponerlo antes de pintar nada (el script del ``<head>`` de
  *  index.html) y que no se vea un instante el otro. */
 import { api } from "./api.js";
 
 export const THEMES = [
-  { id: "standard", label: "Estándar", hint: "El aspecto de siempre: sobrio y limpio." },
-  { id: "hextech", label: "Hextech", hint: "Como el cliente del juego: oro, turquesa y cristal hextech." },
+  { id: "standard", group: "general", label: "Estándar", hint: "El aspecto de siempre: sobrio y limpio." },
+  { id: "hextech", group: "general", label: "Hextech", hint: "Como el cliente del juego: oro, turquesa y cristal hextech." },
+  { id: "r-top", group: "line", label: "Top", hint: "Tanques: acero con remaches, forja y ascuas." },
+  { id: "r-jungle", group: "line", label: "Jungla", hint: "Maleza y objetivos: musgo, hojas, luciérnagas y Barón." },
+  { id: "r-mid", group: "line", label: "Mid", hint: "Dagas y magia: plata, runas y chispas arcanas." },
+  { id: "r-adc", group: "line", label: "ADC", hint: "Tiradores: latón, mira, trazadoras y fogonazo." },
+  { id: "r-engage", group: "support", label: "Engage", hint: "Rell, Pyke, Naut, Thresh: cadenas, anclas y farol." },
+  { id: "r-guardian", group: "support", label: "Guardián", hint: "Taric y Braum: escudos, gemas y hielo." },
+  { id: "r-peel", group: "support", label: "Peel", hint: "Escudos y curas: nácar, menta, destellos y corazones." },
+];
+export const THEME_GROUPS = [
+  { id: "general", label: "General" },
+  { id: "line", label: "Por línea" },
+  { id: "support", label: "Support" },
 ];
 export const DEFAULT_THEME = "standard";
 const STORAGE_KEY = "tempu.theme";

@@ -492,7 +492,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .spinner.sm { width: 12px; height: 12px; border-width: 2px; display: inline-block; }
 button.profile-pill { font-family: inherit; cursor: pointer; }
 /* Menú del perfil: ir a Mi progreso y elegir el aspecto de la página (web/js/theme.js). */
-.profile-menu { position: fixed; z-index: 65; width: 300px; max-width: calc(100vw - 16px); padding: 8px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raised); box-shadow: var(--shadow); animation: menuIn 0.14s ease-out; }
+.profile-menu { position: fixed; z-index: 65; width: 320px; max-width: calc(100vw - 16px); padding: 8px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raised); box-shadow: var(--shadow); animation: menuIn 0.14s ease-out; }
 @keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } }
 .profile-menu-head { display: flex; align-items: center; gap: 10px; padding: 6px 8px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
 .profile-menu-head img { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--gold); }
@@ -522,6 +522,41 @@ button.profile-pill { font-family: inherit; cursor: pointer; }
 .theme-hextech i:nth-child(1) { background: #010a13; }
 .theme-hextech i:nth-child(2) { background: linear-gradient(180deg, #f0e6d2, #c8aa6e 50%, #785a28); }
 .theme-hextech i:nth-child(3) { background: linear-gradient(180deg, #cdfafa, #0ac8b9 50%, #005a82); }
+.theme-r-top { border-radius: 2px; }
+.theme-r-top i:nth-child(1) { background: #121519; }
+.theme-r-top i:nth-child(2) { background: linear-gradient(180deg, #e3e7ea, #6b747d); }
+.theme-r-top i:nth-child(3) { background: linear-gradient(180deg, #ffd2a8, #ff8a2a 50%, #c2410c); }
+.theme-r-jungle { border-radius: 6px; }
+.theme-r-jungle i:nth-child(1) { background: #08160d; }
+.theme-r-jungle i:nth-child(2) { background: linear-gradient(180deg, #cfffb0, #4fbf5c); }
+.theme-r-jungle i:nth-child(3) { background: linear-gradient(180deg, #e2c6ff, #a46bff 50%, #5b2bb0); }
+.theme-r-mid { border-radius: 1px; }
+.theme-r-mid i:nth-child(1) { background: #0b0824; }
+.theme-r-mid i:nth-child(2) { background: linear-gradient(180deg, #ffffff, #a3a9c4); }
+.theme-r-mid i:nth-child(3) { background: linear-gradient(180deg, #ffd6ff, #b07aff 50%, #ff6ad5); }
+.theme-r-adc { border-radius: 2px; }
+.theme-r-adc i:nth-child(1) { background: #121215; }
+.theme-r-adc i:nth-child(2) { background: linear-gradient(180deg, #fff0c4, #e2b24c 50%, #8a6420); }
+.theme-r-adc i:nth-child(3) { background: linear-gradient(180deg, #ffb0a8, #ec343e 50%, #7a0a12); }
+.theme-r-engage { border-radius: 3px; }
+.theme-r-engage i:nth-child(1) { background: #06161b; }
+.theme-r-engage i:nth-child(2) { background: linear-gradient(180deg, #dfe7ea, #6d7e84); }
+.theme-r-engage i:nth-child(3) { background: linear-gradient(180deg, #c8ffe8, #2cdc98 50%, #0b5a3e); }
+.theme-r-guardian { border-radius: 6px; }
+.theme-r-guardian i:nth-child(1) { background: #0a1628; }
+.theme-r-guardian i:nth-child(2) { background: linear-gradient(180deg, #ffffff, #9fd6ff); }
+.theme-r-guardian i:nth-child(3) { background: linear-gradient(180deg, #ffe0f6, #ff70d8 50%, #8a2a7a); }
+.theme-r-peel { border-radius: 12px; }
+.theme-r-peel i:nth-child(1) { background: #15123a; }
+.theme-r-peel i:nth-child(2) { background: linear-gradient(180deg, #d8fff0, #70ffc0); }
+.theme-r-peel i:nth-child(3) { background: linear-gradient(180deg, #ffe0f6, #ffa8e6 50%, #b05aa0); }
+.theme-groups { display: flex; flex-direction: column; gap: 10px; max-height: min(60vh, 520px); overflow-y: auto; padding: 2px; }
+.theme-group-label { padding: 0 2px 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.theme-option.compact { padding: 6px 7px; gap: 8px; }
+.theme-option.compact .theme-swatch { width: 28px; height: 22px; }
+.theme-option.compact .theme-check { width: 14px; }
+.theme-option.compact .theme-check svg { width: 14px; height: 14px; }
 
 /* ---------------------------------------------------------------- mi progreso */
 .coach-setup { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: start; }
@@ -630,6 +665,13 @@ button.profile-pill { font-family: inherit; cursor: pointer; }
 .gold-bars span.hot { background: var(--warn); }
 .gold-bars span.saving { background: #7d8aa1; }
 .build-order { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-start; }
+/* Tus builds frente a OP.GG (Mi progreso): las mismas cuatro columnas en todas las filas, para que campeón, núcleo,
+   primer objeto y la build de OP.GG queden alineados de arriba abajo. Antes usaba la fila del draft (seis columnas, una
+   de 28 px) y cada campeón quedaba a una altura distinta (Yuumi frente a Fiddlesticks y Hecarim, 27-11-2026). */
+.my-build-row { display: grid; grid-template-columns: minmax(150px, 190px) minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 1.5fr); align-items: start; gap: 14px; padding: 8px 4px; border-top: 1px solid var(--line); }
+.my-build-row:first-child { border-top: 0; }
+.my-build-row > * { min-width: 0; }
+@media (max-width: 860px) { .my-build-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .build-step { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .build-step .item-img, .build-step .item-slot { width: 34px; height: 34px; }
 .build-ref { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }

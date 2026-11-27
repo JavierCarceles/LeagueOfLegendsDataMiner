@@ -205,9 +205,9 @@ def meta(svc=Depends(svc_from)):
     }
 
 
-# Tema de la página entera (web/js/theme.js): «standard» por defecto o «hextech». Se guarda en la app para que valga
-# aunque se abra en otro navegador.
-UI_THEMES = ("standard", "hextech")
+# Tema de la página entera (web/js/theme.js): «standard» por defecto, «hextech» o el de una línea («r-…»). Se guarda en
+# la app para que valga aunque se abra en otro navegador.
+UI_THEMES = ("standard", "hextech", "r-top", "r-jungle", "r-mid", "r-adc", "r-engage", "r-guardian", "r-peel")
 UI_THEME_KEY = "ui.theme"
 
 

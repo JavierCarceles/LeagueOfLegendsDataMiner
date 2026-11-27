@@ -1550,7 +1550,7 @@ function buildsCard(s) {
       { style: { gap: "10px" } },
       rows.map((r) =>
         h(
-          "div.build-row",
+          "div.my-build-row",
           h("div.row", { style: { minWidth: 0 } }, champImg(r.champ), h("div", { style: { minWidth: 0 } }, h("b", dd.name(r.champ)), h("div.tiny.muted", `${ROLE_LABEL[r.role] || "—"} · ${r.games} partidas`))),
           h(
             "div",
