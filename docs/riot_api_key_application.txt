@@ -1,0 +1,74 @@
+PRODUCT NAME
+Tempu Drafter
+
+PRODUCT TYPE
+Personal, non-commercial tool (runs locally on my own computer, free, no ads, no accounts, no paywall).
+
+
+SHORT DESCRIPTION
+Tempu Drafter is a personal League of Legends improvement tool that runs locally on my PC. It analyzes my own
+Summoner's Rift games after they finish, explains my mistakes on a 2D timeline of each match, tracks my progress
+over time, and helps me during champion select with draft win-rate estimates, matchups and builds. It uses the
+Riot API to read my match history and timelines, and to build a local sample of high-elo matches so the
+recommendations are grounded in real data.
+
+
+FULL DESCRIPTION
+Tempu Drafter is a desktop application (Python backend + local web interface at localhost) that I built to
+improve my own gameplay, mainly as a jungler. It is not a public website and it is not sold or monetized.
+
+Main features:
+
+1. My progress (post-game coaching)
+   After each game ends, the app fetches the match and its timeline and analyzes it in context: deaths while
+   overextended or without vision, ganks from the enemy jungler, unspent gold, objectives given away vs. good
+   trades, idle minutes, jungle pathing and vision. It suggests goals, tracks whether I meet them and compares
+   my habits with players of higher ranks.
+
+2. Replays (2D reconstruction)
+   Each of my games is redrawn on a 2D map from the match timeline, with my mistakes marked on the timeline:
+   where they happened, who was nearby and what I could have done instead. If the League client is open, a
+   button opens the official replay at that exact second.
+
+3. Draft helper (champion select only)
+   During champion select it estimates each team's win probability, shows the five lane matchups, synergies,
+   damage profile and a game plan, and it can import my chosen runes, summoner spells and an item set into my
+   own client. This only uses the champion select information that is already visible to me in my client.
+
+4. Champion, matchup, region and player pages
+   Tier lists, matchup statistics and meta by region, built from a local database of ranked matches combined
+   with publicly available aggregate statistics. Player and match lookups go through the Riot API.
+
+5. Match collection for statistics
+   A background collector downloads ranked matches (and their timelines) from the regional routes (Americas,
+   Europe, Asia, SEA), starting from the Challenger / Grandmaster / Master leagues and ranked entries, to build
+   the statistics used by the features above. Only aggregate statistics are shown; individual players are never
+   ranked, tracked or exposed publicly.
+
+What it does NOT do:
+- Nothing is shown while a game is in progress: no overlay, no live enemy information, no timers, no
+  spectator data. All coaching is done after the game.
+- It does not read game memory, inject anything or modify game files, and it does not automate gameplay.
+- It does not de-anonymize players, sell data or offer an alternative ranked/MMR system.
+- Data stays on my own computer (plus a private backup of the dataset). There is no public product built on it.
+
+
+RIOT API ENDPOINTS USED
+- ACCOUNT-V1: accounts/by-riot-id, accounts/by-puuid, region/by-game/lol/by-puuid
+- SUMMONER-V4: summoners/by-puuid
+- LEAGUE-V4: entries/by-puuid, entries/{queue}/{tier}/{division}, challengerleagues, grandmasterleagues,
+  masterleagues
+- MATCH-V5: matches/by-puuid/{puuid}/ids, matches/{matchId}, matches/{matchId}/timeline
+- CHAMPION-MASTERY-V4: champion-masteries/by-puuid
+- LOL-STATUS-V4: platform-data
+
+
+TRAFFIC AND RATE LIMITS
+All requests go through a single rate limiter that reads the X-App-Rate-Limit and X-Method-Rate-Limit headers,
+adjusts itself to them and honors Retry-After on 429 responses. Responses are cached locally, so a match is
+never downloaded twice, and all downloads pause while I am playing. The key is stored only in a local .env
+file and is never shared or committed.
+
+The main reason I am applying is that the 24-hour development key expires every day, which interrupts the
+post-game analysis of my games and the match collection. A personal key with the standard limits would let the
+tool keep working without me pasting a new key every day.
