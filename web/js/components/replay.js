@@ -14,7 +14,8 @@ const OBJ_NAME = { dragon: "Dragón", elder: "Dragón ancestral", baron: "Barón
 const SPEEDS = [1, 2, 5, 10, 20, 40];
 const CALLOUT_BEFORE = 8; // s antes del momento en que aparece el globo
 const CALLOUT_AFTER = 6;
-const TRAIL_S = 45;
+const TRAIL_FADE_MS = 2000; // la estela se queda donde se pinta y se apaga del todo en 2 s (reales)
+const TRAIL_JUMP = 3000; // más que esto entre dos puntos seguidos es un salto (vuelta a base, teletransporte): se corta
 
 function svgEl(name, attrs = {}) {
   const node = document.createElementNS(NS, name);
@@ -50,17 +51,19 @@ function seriesStep(series, key, t) {
   return values[i];
 }
 
-/** Puntos del rastro de tus últimos TRAIL_S segundos (cada 3 s; sin los ratos muerto o sin posición). */
-function trailPoints(track, t) {
-  const pts = [];
-  for (let s = Math.max(0, t - TRAIL_S); s <= t; s += 3) {
-    const pos = trackPos(track, s);
-    if (pos && !pos.dead && pos.x !== null && pos.x !== undefined) {
-      const p = pct(pos.x, pos.y);
-      pts.push(`${p.left.toFixed(2)},${p.top.toFixed(2)}`);
-    }
+/**
+ * Puntos por los que pasas entre los segundos `from` y `to`: los del recorrido (ya rodean los muros) y donde estás en
+ * `to`. `null` marca un corte: muerto o un salto (vuelta a base, teletransporte), para no cruzar el mapa en línea recta.
+ */
+function trailSteps(track, from, to) {
+  const out = [];
+  for (const a of track?.a || []) {
+    if (a[0] <= from) continue;
+    if (a[0] >= to) break;
+    out.push(trackPos(track, a[0]));
   }
-  return pts.join(" ");
+  out.push(trackPos(track, to));
+  return out.map((pos) => (pos && !pos.dead && pos.x !== null && pos.x !== undefined ? { x: pos.x, y: pos.y } : null));
 }
 
 /** ¿Se ve el globo del momento m en el segundo t? (el seleccionado, con una ventana algo más amplia) */
@@ -170,8 +173,53 @@ export function createReplay(a, opts = {}) {
     champsLayer.append(el);
   }
   const trailSvg = svgEl("svg", { class: "map-svg", viewBox: "0 0 100 100", preserveAspectRatio: "none" });
-  const trail = svgEl("polyline", { class: "replay-trail", points: "" });
+  const trail = svgEl("g", { class: "replay-trail" });
   trailSvg.append(trail);
+  // Estela: tramos fijos (no se recalculan al avanzar) que se apagan solos en TRAIL_FADE_MS.
+  let trailSegs = []; // [{ el, at }]
+  let trailLast = null; // último punto pintado (coordenadas de la partida) o null tras un corte
+  let trailT = null; // segundo de la partida hasta el que está pintada
+  let fadeRaf = 0;
+  const clearTrail = () => {
+    trailSegs = [];
+    trail.replaceChildren();
+    trailLast = null;
+  };
+  const fadeTrail = () => {
+    fadeRaf = 0;
+    const now = performance.now();
+    trailSegs = trailSegs.filter((seg) => {
+      const left = 1 - (now - seg.at) / TRAIL_FADE_MS;
+      if (left <= 0) {
+        seg.el.remove();
+        return false;
+      }
+      seg.el.setAttribute("stroke-opacity", left.toFixed(3));
+      return true;
+    });
+    if (trailSegs.length) fadeRaf = requestAnimationFrame(fadeTrail);
+  };
+  const extendTrail = (from, to) => {
+    const now = performance.now();
+    for (const q of trailSteps(r.tracks[String(me)], from, to)) {
+      if (q && trailLast && Math.hypot(q.x - trailLast.x, q.y - trailLast.y) <= TRAIL_JUMP) {
+        const a = pct(trailLast.x, trailLast.y);
+        const b = pct(q.x, q.y);
+        const seg = svgEl("line", { x1: a.left.toFixed(2), y1: a.top.toFixed(2), x2: b.left.toFixed(2), y2: b.top.toFixed(2) });
+        trail.append(seg);
+        trailSegs.push({ el: seg, at: now });
+      }
+      trailLast = q;
+    }
+    if (!fadeRaf && trailSegs.length) fadeRaf = requestAnimationFrame(fadeTrail);
+  };
+  /** Al avanzar reproduciendo se alarga la estela; al saltar a otro momento se borra (no une sitios lejanos). */
+  const updateTrail = () => {
+    if (trailT === t) return;
+    if (playing && trailT !== null && t > trailT && t - trailT <= 60) extendTrail(trailT, t);
+    else clearTrail();
+    trailT = t;
+  };
   const fx = h("div.map-layer");
   const calloutLayer = h("div.map-layer.callouts");
   const map = minimap(trailSvg, fx, champsLayer, calloutLayer);
@@ -237,7 +285,7 @@ export function createReplay(a, opts = {}) {
   const focus = new Set();
   const draw = () => {
     placeIcons(icons, r.tracks, t, focus);
-    trail.setAttribute("points", trailPoints(r.tracks[String(me)], t));
+    updateTrail();
     fx.replaceChildren(
       ...killEffects(r.kills, t, players, me, "torre/súbditos"),
       ...objectiveEffects(r.objectives, t, (kind) => OBJ_NAME[kind] || kind),
@@ -403,6 +451,7 @@ export function createReplay(a, opts = {}) {
     },
     destroy() {
       pause();
+      cancelAnimationFrame(fadeRaf);
       document.removeEventListener("keydown", onKey);
     },
   };
